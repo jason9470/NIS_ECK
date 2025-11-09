@@ -1,0 +1,1573 @@
+﻿@using System.Data;
+@{
+    ViewBag.Title = "NB7HR_List";
+    bool IsHisView = ViewBag.IsHisView;
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable dt_1 = ViewBag.dt_1;
+    DataRow row_1 = null;
+    if (dt_1 != null && dt_1.Rows.Count > 0)
+    {
+        row_1 = dt_1.Rows[0];
+    }
+    DataTable dt_2 = ViewBag.dt_2;
+    DataRow row_2 = null;
+    if (dt_2 != null && dt_2.Rows.Count > 0)
+    {
+        row_2 = dt_2.Rows[0];
+    }
+    DataTable dt_3 = ViewBag.dt_3;
+    DataRow row_3 = null;
+    if (dt_3 != null && dt_3.Rows.Count > 0)
+    {
+        row_3 = dt_3.Rows[0];
+    }
+    DataTable dt_5 = ViewBag.dt_5;
+    DataRow row_5 = null;
+    if (dt_5 != null && dt_5.Rows.Count > 0)
+    {
+        row_5 = dt_5.Rows[0];
+    }
+    DataTable dt_7 = ViewBag.dt_7;
+    DataRow row_7 = null;
+    if (dt_7 != null && dt_7.Rows.Count > 0)
+    {
+        row_7 = dt_7.Rows[0];
+    }
+}
+<link href="~/Content/StyleSheet/BabySystem.css" rel="stylesheet" />
+<script>
+    $(function () {
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue != 'undefined') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+            }
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = document.getElementsByName(ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+    function get_employee_name(obj, name) {
+        var userno = $(obj).attr('id');
+        $.ajax({
+            url: "Get_Employee_Name",
+            type: "GET",
+            data: { userno: document.getElementById(userno).value },
+            success: function (data, textStatus, jqXHR) {
+                var userNameId = userno.replace("TXT_" + name, "LB_" + name);
+                if (data == "") {
+                    alert("查無此執行者員工編號!");
+                    $("#" + userNameId).html('請輸入員工編號');
+                }
+                else {
+                    $("#" + userNameId).html(data);
+                }
+            },
+            error: function (err) {
+            },
+            dataType: 'text'
+        });
+    }
+
+    function check(type, isAdd) {
+        if (!isAdd) {
+            id = $('input[name=IID_' + type + ']').val();
+        } else {
+            id = '';
+        }
+
+        if (!$('input[name=TXT_ASMT_TIME_DAY_' + type + id + ']').val() || !$('input[name=TXT_ASMT_TIME_TIME_' + type + id + ']').val()) {
+            alert("[評估時間]未填")
+            return false;
+        }
+
+        if (!$('input[name=TXT_TPR_' + type + id + ']').val()) {
+            alert("[體溫/脈搏/呼吸]未填")
+            return false;
+        }
+        if (!$('input[name=CK_BRE_TYP_' + type + id + ']:checked').val()) {
+            alert("[呼吸狀態]未填")
+            return false;
+        }
+        if (!$('input[name=RB_CRY_' + type + id + ']:checked').val()) {
+            alert("[哭聲]未填")
+            return false;
+        }
+        if ($('input[name=RB_CRY_' + type + id + ']:checked').val() != undefined && $('input[name=RB_CRY_' + type + id + ']:checked').val() == "4") {
+            if (!$('input[name=TXT_CRY_NO_' + type + id + ']').val()) {
+                alert("[哭聲-無]未填")
+                return false;
+            }
+        }
+        if (!$('input[name=RB_ACTI_' + type + id + ']:checked').val()) {
+            alert("[活動力]未填")
+            return false;
+        }
+        if (!$('input[name=RB_SKIN_' + type + id + ']:checked').val()) {
+            alert("[膚色]未填")
+            return false;
+        }
+        if (!$('input[name=RB_MUSCLE_' + type + id + ']:checked').val()) {
+            alert("[肌肉張力]未填")
+            return false;
+        }
+        if (!$('input[name=RB_FS_' + type + id + ']:checked').val()) {
+            alert("[解胎便]未填")
+            return false;
+        }
+        if (!$('input[name=RB_URINE_' + type + id + ']:checked').val()) {
+            alert("[解小便]未填")
+            return false;
+        }
+        if (!$('input[name=RB_INCU_' + type + id + ']:checked').val()) {
+            alert("[保溫箱]未填")
+            return false;
+        }
+        return true;
+    }
+
+    function sendForm(url, type, isAdd) {
+        $("input[name=TYPE]").val(type);
+
+        if (check(type, isAdd)) {
+            $.ajax({
+                url: '../BabyBorn/' + url,
+                type: 'post',
+                dataType: 'json',
+                data: $('form').serialize(),
+                success: function (data) {
+                    if (Number(data) > 0) {
+                        if (isAdd) {
+                            alert('新增成功');
+                        } else {
+                            alert('修改成功');
+                        }
+                    } else {
+                        if (isAdd) {
+                            alert('新增失敗');
+                        } else {
+                            alert('修改失敗');
+                        }
+                    }
+                    window.location.href = '../Obstetrics/Index?active=NB7HR_List';
+                },
+                failure: function (errMsg) {
+                    if (isAdd) {
+                        alert('新增失敗');
+                    } else {
+                        alert('修改失敗');
+                    }
+                    window.location.href = '../Obstetrics/Index?active=NB7HR_List';
+                }
+            });
+        }
+    };
+
+    function Delete(type, hour) {
+        if (confirm('確認刪除第' + hour + '小時紀錄?')) {
+            $("input[name=TYPE]").val(type);
+            $.ajax({
+                url: '../BabyBorn/Del_NB7HR',
+                type: 'post',
+                dataType: 'json',
+                data: $('form').serialize(),
+                success: function (data) {
+                    if (Number(data) > 0) {
+                        alert('刪除成功');
+                    } else {
+                        alert('刪除失敗');
+                    }
+                    window.location.href = '../Obstetrics/Index?active=NB7HR_List';
+                },
+                failure: function (errMsg) {
+                    alert('刪除失敗');
+                    window.location.href = '../Obstetrics/Index?active=NB7HR_List';
+                }
+            });
+        }
+    }
+</script>
+
+<form>
+    <div class="funcArea">
+        <input type="hidden" name="TYPE" />
+        @if (row_1 != null)
+        {
+            <input type="hidden" name="IID_1" value="@row_1["IID"]" />
+        }
+        @if (row_2 != null)
+        {
+            <input type="hidden" name="IID_2" value="@row_2["IID"]" />
+        }
+        @if (row_3 != null)
+        {
+            <input type="hidden" name="IID_3" value="@row_3["IID"]" />
+        }
+        @if (row_5 != null)
+        {
+            <input type="hidden" name="IID_5" value="@row_5["IID"]" />
+        }
+        @if (row_7 != null)
+        {
+            <input type="hidden" name="IID_7" value="@row_7["IID"]" />
+        }
+        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+            <tr>
+                <td style="padding:5px 0 5px 0;">
+                    <div class="dataHeader">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                            <tr>
+                                <td style="width:10%">
+                                    <p style="text-align:right">時間</p>
+                                    <p style="text-align:center">項目</p>
+                                </td>
+                                <td style="width:18%">第一小時</td>
+                                <td style="width:18%">第二小時</td>
+                                <td style="width:18%">第三小時</td>
+                                <td style="width:18%">第五小時</td>
+                                <td style="width:18%">第七小時</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="dataArea" style="height:350px;">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    評估時間
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        if (row_1["ASMT_TIME"].ToString() == "")
+                                        {
+                                            @Html.TextBox("TXT_ASMT_TIME_DAY_1" + row_1["IID"], "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_ASMT_TIME_TIME_1" + row_1["IID"], "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_ASMT_TIME_DAY_1" + row_1["IID"], "TXT_ASMT_TIME_TIME_1" + row_1["IID"], "", "30")
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("TXT_ASMT_TIME_DAY_1" + row_1["IID"], Convert.ToDateTime(row_1["ASMT_TIME"].ToString()).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_ASMT_TIME_TIME_1" + row_1["IID"], Convert.ToDateTime(row_1["ASMT_TIME"].ToString()).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_ASMT_TIME_DAY_1" + row_1["IID"], "TXT_ASMT_TIME_TIME_1" + row_1["IID"], "", "30")
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_ASMT_TIME_DAY_1", "", new { style = "width:80px", @readonly = "readonly" })
+                                        @Html.TextBox("TXT_ASMT_TIME_TIME_1", "", new { style = "width:50px", @readonly = "readonly" })
+                                        @WebTool.setDateTime("TXT_ASMT_TIME_DAY_1", "TXT_ASMT_TIME_TIME_1", "", "30")
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        if (row_2["ASMT_TIME"].ToString() == "")
+                                        {
+                                            @Html.TextBox("TXT_ASMT_TIME_DAY_2" + row_2["IID"], "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_ASMT_TIME_TIME_2" + row_2["IID"], "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_ASMT_TIME_DAY_2" + row_2["IID"], "TXT_ASMT_TIME_TIME_2" + row_2["IID"], "", "30")
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("TXT_ASMT_TIME_DAY_2" + row_2["IID"], Convert.ToDateTime(row_2["ASMT_TIME"].ToString()).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_ASMT_TIME_TIME_2" + row_2["IID"], Convert.ToDateTime(row_2["ASMT_TIME"].ToString()).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_ASMT_TIME_DAY_2" + row_2["IID"], "TXT_ASMT_TIME_TIME_2" + row_2["IID"], "", "30")
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_ASMT_TIME_DAY_2", "", new { style = "width:80px", @readonly = "readonly" })
+                                        @Html.TextBox("TXT_ASMT_TIME_TIME_2", "", new { style = "width:50px", @readonly = "readonly" })
+                                        @WebTool.setDateTime("TXT_ASMT_TIME_DAY_2", "TXT_ASMT_TIME_TIME_2", "", "30")
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        if (row_3["ASMT_TIME"].ToString() == "")
+                                        {
+                                            @Html.TextBox("TXT_ASMT_TIME_DAY_3" + row_3["IID"], "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_ASMT_TIME_TIME_3" + row_3["IID"], "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_ASMT_TIME_DAY_3" + row_3["IID"], "TXT_ASMT_TIME_TIME_3" + row_3["IID"], "", "30")
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("TXT_ASMT_TIME_DAY_3" + row_3["IID"], Convert.ToDateTime(row_3["ASMT_TIME"].ToString()).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_ASMT_TIME_TIME_3" + row_3["IID"], Convert.ToDateTime(row_3["ASMT_TIME"].ToString()).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_ASMT_TIME_DAY_3" + row_3["IID"], "TXT_ASMT_TIME_TIME_3" + row_3["IID"], "", "30")
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_ASMT_TIME_DAY_3", "", new { style = "width:80px", @readonly = "readonly" })
+                                        @Html.TextBox("TXT_ASMT_TIME_TIME_3", "", new { style = "width:50px", @readonly = "readonly" })
+                                        @WebTool.setDateTime("TXT_ASMT_TIME_DAY_3", "TXT_ASMT_TIME_TIME_3", "", "30")
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        if (row_5["ASMT_TIME"].ToString() == "")
+                                        {
+                                            @Html.TextBox("TXT_ASMT_TIME_DAY_5" + row_5["IID"], "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_ASMT_TIME_TIME_5" + row_5["IID"], "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_ASMT_TIME_DAY_5" + row_5["IID"], "TXT_ASMT_TIME_TIME_5" + row_5["IID"], "", "30")
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("TXT_ASMT_TIME_DAY_5" + row_5["IID"], Convert.ToDateTime(row_5["ASMT_TIME"].ToString()).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_ASMT_TIME_TIME_5" + row_5["IID"], Convert.ToDateTime(row_5["ASMT_TIME"].ToString()).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_ASMT_TIME_DAY_5" + row_5["IID"], "TXT_ASMT_TIME_TIME_5" + row_5["IID"], "", "30")
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_ASMT_TIME_DAY_5", "", new { style = "width:80px", @readonly = "readonly" })
+                                        @Html.TextBox("TXT_ASMT_TIME_TIME_5", "", new { style = "width:50px", @readonly = "readonly" })
+                                        @WebTool.setDateTime("TXT_ASMT_TIME_DAY_5", "TXT_ASMT_TIME_TIME_5", "", "30")
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        if (row_7["ASMT_TIME"].ToString() == "")
+                                        {
+                                            @Html.TextBox("TXT_ASMT_TIME_DAY_7" + row_7["IID"], "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_ASMT_TIME_TIME_7" + row_7["IID"], "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_ASMT_TIME_DAY_7" + row_7["IID"], "TXT_ASMT_TIME_TIME_7" + row_7["IID"], "", "30")
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("TXT_ASMT_TIME_DAY_7" + row_7["IID"], Convert.ToDateTime(row_7["ASMT_TIME"].ToString()).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_ASMT_TIME_TIME_7" + row_7["IID"], Convert.ToDateTime(row_7["ASMT_TIME"].ToString()).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_ASMT_TIME_DAY_7" + row_7["IID"], "TXT_ASMT_TIME_TIME_7" + row_7["IID"], "", "30")
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_ASMT_TIME_DAY_7", "", new { style = "width:80px", @readonly = "readonly" })
+                                        @Html.TextBox("TXT_ASMT_TIME_TIME_7", "", new { style = "width:50px", @readonly = "readonly" })
+                                        @WebTool.setDateTime("TXT_ASMT_TIME_DAY_7", "TXT_ASMT_TIME_TIME_7", "", "30")
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    體溫/脈搏/呼吸
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        @Html.TextBox("TXT_TPR_1" + row_1["IID"], row_1["TPR"], new { id = "TXT_TPR_1", style = "width:100px", @readonly = "readonly" })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_TPR_1", "", new { id = "TXT_TPR_1", style = "width:100px", @readonly = "readonly" })
+                                    }
+                                    @if (IsHisView != true)
+                                    {
+                                        <input type="button" value="選擇" onclick="window.open('../BabyBorn/VitalSign_Index?type=1', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        @Html.TextBox("TXT_TPR_2" + row_2["IID"], row_2["TPR"], new { id = "TXT_TPR_2", style = "width:100px", @readonly = "readonly" })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_TPR_2", "", new { id = "TXT_TPR_2", style = "width:100px", @readonly = "readonly" })
+                                    }
+                                    @if (IsHisView != true)
+                                    {
+                                        <input type="button" value="選擇" onclick="window.open('../BabyBorn/VitalSign_Index?type=2', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        @Html.TextBox("TXT_TPR_3" + row_3["IID"], row_3["TPR"], new { id = "TXT_TPR_3", style = "width:100px", @readonly = "readonly" })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_TPR_3", "", new { id = "TXT_TPR_3", style = "width:100px", @readonly = "readonly" })
+                                    }
+                                    @if (IsHisView != true)
+                                    {
+                                        <input type="button" value="選擇" onclick="window.open('../BabyBorn/VitalSign_Index?type=3', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        @Html.TextBox("TXT_TPR_5" + row_5["IID"], row_5["TPR"], new { id = "TXT_TPR_5", style = "width:100px", @readonly = "readonly" })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_TPR_5", "", new { id = "TXT_TPR_5", style = "width:100px", @readonly = "readonly" })
+                                    }
+                                    @if (IsHisView != true)
+                                    {
+                                        <input type="button" value="選擇" onclick="window.open('../BabyBorn/VitalSign_Index?type=5', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        @Html.TextBox("TXT_TPR_7" + row_7["IID"], row_7["TPR"], new { id = "TXT_TPR_7", style = "width:100px", @readonly = "readonly" })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_TPR_7", "", new { id = "TXT_TPR_7", style = "width:100px", @readonly = "readonly" })
+                                    }
+                                    @if (IsHisView != true)
+                                    {
+                                        <input type="button" value="選擇" onclick="window.open('../BabyBorn/VitalSign_Index?type=7', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    呼吸狀態
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        <input type="checkbox" name="CK_BRE_TYP_1@(row_1["IID"])" value="0" /><label>順暢</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_1@(row_1["IID"])" value="1" /><label>呼吸急促</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_1@(row_1["IID"])" value="2" /><label>胸骨凹陷</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_1@(row_1["IID"])" value="3" /><label>困難</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="CK_BRE_TYP_1" value="0" /><label>順暢</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_1" value="1" /><label>呼吸急促</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_1" value="2" /><label>胸骨凹陷</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_1" value="3" /><label>困難</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        <input type="checkbox" name="CK_BRE_TYP_2@(row_2["IID"])" value="0" /><label>順暢</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_2@(row_2["IID"])" value="1" /><label>呼吸急促</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_2@(row_2["IID"])" value="2" /><label>胸骨凹陷</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_2@(row_2["IID"])" value="3" /><label>困難</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="CK_BRE_TYP_2" value="0" /><label>順暢</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_2" value="1" /><label>呼吸急促</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_2" value="2" /><label>胸骨凹陷</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_2" value="3" /><label>困難</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        <input type="checkbox" name="CK_BRE_TYP_3@(row_3["IID"])" value="0" /><label>順暢</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_3@(row_3["IID"])" value="1" /><label>呼吸急促</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_3@(row_3["IID"])" value="2" /><label>胸骨凹陷</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_3@(row_3["IID"])" value="3" /><label>困難</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="CK_BRE_TYP_3" value="0" /><label>順暢</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_3" value="1" /><label>呼吸急促</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_3" value="2" /><label>胸骨凹陷</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_3" value="3" /><label>困難</label>
+                                    }
+
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        <input type="checkbox" name="CK_BRE_TYP_5@(row_5["IID"])" value="0" /><label>順暢</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_5@(row_5["IID"])" value="1" /><label>呼吸急促</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_5@(row_5["IID"])" value="2" /><label>胸骨凹陷</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_5@(row_5["IID"])" value="3" /><label>困難</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="CK_BRE_TYP_5" value="0" /><label>順暢</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_5" value="1" /><label>呼吸急促</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_5" value="2" /><label>胸骨凹陷</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_5" value="3" /><label>困難</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        <input type="checkbox" name="CK_BRE_TYP_7@(row_7["IID"])" value="0" /><label>順暢</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_7@(row_7["IID"])" value="1" /><label>呼吸急促</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_7@(row_7["IID"])" value="2" /><label>胸骨凹陷</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_7@(row_7["IID"])" value="3" /><label>困難</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="CK_BRE_TYP_7" value="0" /><label>順暢</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_7" value="1" /><label>呼吸急促</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_7" value="2" /><label>胸骨凹陷</label>
+                                        <input type="checkbox" name="CK_BRE_TYP_7" value="3" /><label>困難</label>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    哭聲
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        <input type="radio" name="RB_CRY_1@(row_1["IID"])" value="0" onclick="$('.CRY_NO_1').fadeOut()" /><label>宏亮</label>
+                                        <input type="radio" name="RB_CRY_1@(row_1["IID"])" value="1" onclick="$('.CRY_NO_1').fadeOut()" /><label>尚可</label>
+                                        <input type="radio" name="RB_CRY_1@(row_1["IID"])" value="2" onclick="$('.CRY_NO_1').fadeOut()" /><label>弱小</label>
+                                        <input type="radio" name="RB_CRY_1@(row_1["IID"])" value="3" onclick="$('.CRY_NO_1').fadeOut()" /><label>尖銳</label>
+                                        <input type="radio" name="RB_CRY_1@(row_1["IID"])" value="4" onclick="$('.CRY_NO_1').fadeIn(500)" /><label>無</label>
+                                        <span class="CRY_NO_1" style="display:none">
+                                            @Html.TextBox("TXT_CRY_NO_1" + row_1["IID"], row_1["CRY_NO"], new { style = "width:100px" })
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_CRY_1" value="0" onclick="$('.CRY_NO_1').fadeOut()" /><label>宏亮</label>
+                                        <input type="radio" name="RB_CRY_1" value="1" onclick="$('.CRY_NO_1').fadeOut()" /><label>尚可</label>
+                                        <input type="radio" name="RB_CRY_1" value="2" onclick="$('.CRY_NO_1').fadeOut()" /><label>弱小</label>
+                                        <input type="radio" name="RB_CRY_1" value="3" onclick="$('.CRY_NO_1').fadeOut()" /><label>尖銳</label>
+                                        <input type="radio" name="RB_CRY_1" value="4" onclick="$('.CRY_NO_1').fadeIn(500)" /><label>無</label>
+                                        <span class="CRY_NO_1" style="display:none">
+                                            @Html.TextBox("TXT_CRY_NO_1", "", new { style = "width:100px" })
+                                        </span>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        <input type="radio" name="RB_CRY_2@(row_2["IID"])" value="0" onclick="$('.CRY_NO_2').fadeOut()" /><label>宏亮</label>
+                                        <input type="radio" name="RB_CRY_2@(row_2["IID"])" value="1" onclick="$('.CRY_NO_2').fadeOut()" /><label>尚可</label>
+                                        <input type="radio" name="RB_CRY_2@(row_2["IID"])" value="2" onclick="$('.CRY_NO_2').fadeOut()" /><label>弱小</label>
+                                        <input type="radio" name="RB_CRY_2@(row_2["IID"])" value="3" onclick="$('.CRY_NO_2').fadeOut()" /><label>尖銳</label>
+                                        <input type="radio" name="RB_CRY_2@(row_2["IID"])" value="4" onclick="$('.CRY_NO_2').fadeIn(500)" /><label>無</label>
+                                        <span class="CRY_NO_2" style="display:none">
+                                            @Html.TextBox("TXT_CRY_NO_2" + row_2["IID"], row_2["CRY_NO"], new { style = "width:100px" })
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_CRY_2" value="0" onclick="$('.CRY_NO_2').fadeOut()" /><label>宏亮</label>
+                                        <input type="radio" name="RB_CRY_2" value="1" onclick="$('.CRY_NO_2').fadeOut()" /><label>尚可</label>
+                                        <input type="radio" name="RB_CRY_2" value="2" onclick="$('.CRY_NO_2').fadeOut()" /><label>弱小</label>
+                                        <input type="radio" name="RB_CRY_2" value="3" onclick="$('.CRY_NO_2').fadeOut()" /><label>尖銳</label>
+                                        <input type="radio" name="RB_CRY_2" value="4" onclick="$('.CRY_NO_2').fadeIn(500)" /><label>無</label>
+                                        <span class="CRY_NO_2" style="display:none">
+                                            @Html.TextBox("TXT_CRY_NO_2", "", new { style = "width:100px" })
+                                        </span>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        <input type="radio" name="RB_CRY_3@(row_3["IID"])" value="0" onclick="$('.CRY_NO_3').fadeOut()" /><label>宏亮</label>
+                                        <input type="radio" name="RB_CRY_3@(row_3["IID"])" value="1" onclick="$('.CRY_NO_3').fadeOut()" /><label>尚可</label>
+                                        <input type="radio" name="RB_CRY_3@(row_3["IID"])" value="2" onclick="$('.CRY_NO_3').fadeOut()" /><label>弱小</label>
+                                        <input type="radio" name="RB_CRY_3@(row_3["IID"])" value="3" onclick="$('.CRY_NO_3').fadeOut()" /><label>尖銳</label>
+                                        <input type="radio" name="RB_CRY_3@(row_3["IID"])" value="4" onclick="$('.CRY_NO_3').fadeIn(500)" /><label>無</label>
+                                        <span class="CRY_NO_3" style="display:none">
+                                            @Html.TextBox("TXT_CRY_NO_3" + row_3["IID"], row_3["CRY_NO"], new { style = "width:100px" })
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_CRY_3" value="0" onclick="$('.CRY_NO_3').fadeOut()" /><label>宏亮</label>
+                                        <input type="radio" name="RB_CRY_3" value="1" onclick="$('.CRY_NO_3').fadeOut()" /><label>尚可</label>
+                                        <input type="radio" name="RB_CRY_3" value="2" onclick="$('.CRY_NO_3').fadeOut()" /><label>弱小</label>
+                                        <input type="radio" name="RB_CRY_3" value="3" onclick="$('.CRY_NO_3').fadeOut()" /><label>尖銳</label>
+                                        <input type="radio" name="RB_CRY_3" value="4" onclick="$('.CRY_NO_3').fadeIn(500)" /><label>無</label>
+                                        <span class="CRY_NO_3" style="display:none">
+                                            @Html.TextBox("TXT_CRY_NO_3", "", new { style = "width:100px" })
+                                        </span>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        <input type="radio" name="RB_CRY_5@(row_5["IID"])" value="0" onclick="$('.CRY_NO_5').fadeOut()" /><label>宏亮</label>
+                                        <input type="radio" name="RB_CRY_5@(row_5["IID"])" value="1" onclick="$('.CRY_NO_5').fadeOut()" /><label>尚可</label>
+                                        <input type="radio" name="RB_CRY_5@(row_5["IID"])" value="2" onclick="$('.CRY_NO_5').fadeOut()" /><label>弱小</label>
+                                        <input type="radio" name="RB_CRY_5@(row_5["IID"])" value="3" onclick="$('.CRY_NO_5').fadeOut()" /><label>尖銳</label>
+                                        <input type="radio" name="RB_CRY_5@(row_5["IID"])" value="4" onclick="$('.CRY_NO_5').fadeIn(500)" /><label>無</label>
+                                        <span class="CRY_NO_5" style="display:none">
+                                            @Html.TextBox("TXT_CRY_NO_5" + row_5["IID"], row_5["CRY_NO"], new { style = "width:100px" })
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_CRY_5" value="0" onclick="$('.CRY_NO_5').fadeOut()" /><label>宏亮</label>
+                                        <input type="radio" name="RB_CRY_5" value="1" onclick="$('.CRY_NO_5').fadeOut()" /><label>尚可</label>
+                                        <input type="radio" name="RB_CRY_5" value="2" onclick="$('.CRY_NO_5').fadeOut()" /><label>弱小</label>
+                                        <input type="radio" name="RB_CRY_5" value="3" onclick="$('.CRY_NO_5').fadeOut()" /><label>尖銳</label>
+                                        <input type="radio" name="RB_CRY_5" value="4" onclick="$('.CRY_NO_5').fadeIn(500)" /><label>無</label>
+                                        <span class="CRY_NO_5" style="display:none">
+                                            @Html.TextBox("TXT_CRY_NO_5", "", new { style = "width:100px" })
+                                        </span>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        <input type="radio" name="RB_CRY_7@(row_7["IID"])" value="0" onclick="$('.CRY_NO_7').fadeOut()" /><label>宏亮</label>
+                                        <input type="radio" name="RB_CRY_7@(row_7["IID"])" value="1" onclick="$('.CRY_NO_7').fadeOut()" /><label>尚可</label>
+                                        <input type="radio" name="RB_CRY_7@(row_7["IID"])" value="2" onclick="$('.CRY_NO_7').fadeOut()" /><label>弱小</label>
+                                        <input type="radio" name="RB_CRY_7@(row_7["IID"])" value="3" onclick="$('.CRY_NO_7').fadeOut()" /><label>尖銳</label>
+                                        <input type="radio" name="RB_CRY_7@(row_7["IID"])" value="4" onclick="$('.CRY_NO_7').fadeIn(500)" /><label>無</label>
+                                        <span class="CRY_NO_7" style="display:none">
+                                            @Html.TextBox("TXT_CRY_NO_7" + row_7["IID"], row_7["CRY_NO"], new { style = "width:100px" })
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_CRY_7" value="0" onclick="$('.CRY_NO_7').fadeOut()" /><label>宏亮</label>
+                                        <input type="radio" name="RB_CRY_7" value="1" onclick="$('.CRY_NO_7').fadeOut()" /><label>尚可</label>
+                                        <input type="radio" name="RB_CRY_7" value="2" onclick="$('.CRY_NO_7').fadeOut()" /><label>弱小</label>
+                                        <input type="radio" name="RB_CRY_7" value="3" onclick="$('.CRY_NO_7').fadeOut()" /><label>尖銳</label>
+                                        <input type="radio" name="RB_CRY_7" value="4" onclick="$('.CRY_NO_7').fadeIn(500)" /><label>無</label>
+                                        <span class="CRY_NO_7" style="display:none">
+                                            @Html.TextBox("TXT_CRY_NO_7", "", new { style = "width:100px" })
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    活動力
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        <input type="radio" name="RB_ACTI_1@(row_1["IID"])" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_ACTI_1@(row_1["IID"])" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_ACTI_1@(row_1["IID"])" value="2" /><label>弱</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_ACTI_1" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_ACTI_1" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_ACTI_1" value="2" /><label>弱</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        <input type="radio" name="RB_ACTI_2@(row_2["IID"])" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_ACTI_2@(row_2["IID"])" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_ACTI_2@(row_2["IID"])" value="2" /><label>弱</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_ACTI_2" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_ACTI_2" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_ACTI_2" value="2" /><label>弱</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        <input type="radio" name="RB_ACTI_3@(row_3["IID"])" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_ACTI_3@(row_3["IID"])" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_ACTI_3@(row_3["IID"])" value="2" /><label>弱</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_ACTI_3" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_ACTI_3" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_ACTI_3" value="2" /><label>弱</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        <input type="radio" name="RB_ACTI_5@(row_5["IID"])" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_ACTI_5@(row_5["IID"])" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_ACTI_5@(row_5["IID"])" value="2" /><label>弱</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_ACTI_5" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_ACTI_5" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_ACTI_5" value="2" /><label>弱</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        <input type="radio" name="RB_ACTI_7@(row_7["IID"])" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_ACTI_7@(row_7["IID"])" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_ACTI_7@(row_7["IID"])" value="2" /><label>弱</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_ACTI_7" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_ACTI_7" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_ACTI_7" value="2" /><label>弱</label>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    膚色
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        <input type="radio" name="RB_SKIN_1@(row_1["IID"])" value="0" /><label>粉紅</label>
+                                        <input type="radio" name="RB_SKIN_1@(row_1["IID"])" value="1" /><label>蒼白</label>
+                                        <input type="radio" name="RB_SKIN_1@(row_1["IID"])" value="2" /><label>發紺</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_SKIN_1" value="0" /><label>粉紅</label>
+                                        <input type="radio" name="RB_SKIN_1" value="1" /><label>蒼白</label>
+                                        <input type="radio" name="RB_SKIN_1" value="2" /><label>發紺</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        <input type="radio" name="RB_SKIN_2@(row_2["IID"])" value="0" /><label>粉紅</label>
+                                        <input type="radio" name="RB_SKIN_2@(row_2["IID"])" value="1" /><label>蒼白</label>
+                                        <input type="radio" name="RB_SKIN_2@(row_2["IID"])" value="2" /><label>發紺</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_SKIN_2" value="0" /><label>粉紅</label>
+                                        <input type="radio" name="RB_SKIN_2" value="1" /><label>蒼白</label>
+                                        <input type="radio" name="RB_SKIN_2" value="2" /><label>發紺</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        <input type="radio" name="RB_SKIN_3@(row_3["IID"])" value="0" /><label>粉紅</label>
+                                        <input type="radio" name="RB_SKIN_3@(row_3["IID"])" value="1" /><label>蒼白</label>
+                                        <input type="radio" name="RB_SKIN_3@(row_3["IID"])" value="2" /><label>發紺</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_SKIN_3" value="0" /><label>粉紅</label>
+                                        <input type="radio" name="RB_SKIN_3" value="1" /><label>蒼白</label>
+                                        <input type="radio" name="RB_SKIN_3" value="2" /><label>發紺</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        <input type="radio" name="RB_SKIN_5@(row_5["IID"])" value="0" /><label>粉紅</label>
+                                        <input type="radio" name="RB_SKIN_5@(row_5["IID"])" value="1" /><label>蒼白</label>
+                                        <input type="radio" name="RB_SKIN_5@(row_5["IID"])" value="2" /><label>發紺</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_SKIN_5" value="0" /><label>粉紅</label>
+                                        <input type="radio" name="RB_SKIN_5" value="1" /><label>蒼白</label>
+                                        <input type="radio" name="RB_SKIN_5" value="2" /><label>發紺</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        <input type="radio" name="RB_SKIN_7@(row_7["IID"])" value="0" /><label>粉紅</label>
+                                        <input type="radio" name="RB_SKIN_7@(row_7["IID"])" value="1" /><label>蒼白</label>
+                                        <input type="radio" name="RB_SKIN_7@(row_7["IID"])" value="2" /><label>發紺</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_SKIN_7" value="0" /><label>粉紅</label>
+                                        <input type="radio" name="RB_SKIN_7" value="1" /><label>蒼白</label>
+                                        <input type="radio" name="RB_SKIN_7" value="2" /><label>發紺</label>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    肌肉張力
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        <input type="radio" name="RB_MUSCLE_1@(row_1["IID"])" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_MUSCLE_1@(row_1["IID"])" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_MUSCLE_1@(row_1["IID"])" value="2" /><label>弱</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_MUSCLE_1" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_MUSCLE_1" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_MUSCLE_1" value="2" /><label>弱</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        <input type="radio" name="RB_MUSCLE_2@(row_2["IID"])" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_MUSCLE_2@(row_2["IID"])" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_MUSCLE_2@(row_2["IID"])" value="2" /><label>弱</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_MUSCLE_2" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_MUSCLE_2" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_MUSCLE_2" value="2" /><label>弱</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        <input type="radio" name="RB_MUSCLE_3@(row_3["IID"])" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_MUSCLE_3@(row_3["IID"])" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_MUSCLE_3@(row_3["IID"])" value="2" /><label>弱</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_MUSCLE_3" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_MUSCLE_3" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_MUSCLE_3" value="2" /><label>弱</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        <input type="radio" name="RB_MUSCLE_5@(row_5["IID"])" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_MUSCLE_5@(row_5["IID"])" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_MUSCLE_5@(row_5["IID"])" value="2" /><label>弱</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_MUSCLE_5" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_MUSCLE_5" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_MUSCLE_5" value="2" /><label>弱</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        <input type="radio" name="RB_MUSCLE_7@(row_7["IID"])" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_MUSCLE_7@(row_7["IID"])" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_MUSCLE_7@(row_7["IID"])" value="2" /><label>弱</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_MUSCLE_7" value="0" /><label>強</label>
+                                        <input type="radio" name="RB_MUSCLE_7" value="1" /><label>中</label>
+                                        <input type="radio" name="RB_MUSCLE_7" value="2" /><label>弱</label>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    解胎便
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        <input type="radio" name="RB_FS_1@(row_1["IID"])" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_FS_1@(row_1["IID"])" value="1" /><label>已解</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_FS_1" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_FS_1" value="1" /><label>已解</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        <input type="radio" name="RB_FS_2@(row_2["IID"])" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_FS_2@(row_2["IID"])" value="1" /><label>已解</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_FS_2" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_FS_2" value="1" /><label>已解</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        <input type="radio" name="RB_FS_3@(row_3["IID"])" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_FS_3@(row_3["IID"])" value="1" /><label>已解</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_FS_3" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_FS_3" value="1" /><label>已解</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        <input type="radio" name="RB_FS_5@(row_5["IID"])" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_FS_5@(row_5["IID"])" value="1" /><label>已解</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_FS_5" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_FS_5" value="1" /><label>已解</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        <input type="radio" name="RB_FS_7@(row_7["IID"])" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_FS_7@(row_7["IID"])" value="1" /><label>已解</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_FS_7" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_FS_7" value="1" /><label>已解</label>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    解小便
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        <input type="radio" name="RB_URINE_1@(row_1["IID"])" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_URINE_1@(row_1["IID"])" value="1" /><label>已解</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_URINE_1" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_URINE_1" value="1" /><label>已解</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        <input type="radio" name="RB_URINE_2@(row_2["IID"])" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_URINE_2@(row_2["IID"])" value="1" /><label>已解</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_URINE_2" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_URINE_2" value="1" /><label>已解</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        <input type="radio" name="RB_URINE_3@(row_3["IID"])" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_URINE_3@(row_3["IID"])" value="1" /><label>已解</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_URINE_3" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_URINE_3" value="1" /><label>已解</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        <input type="radio" name="RB_URINE_5@(row_5["IID"])" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_URINE_5@(row_5["IID"])" value="1" /><label>已解</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_URINE_5" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_URINE_5" value="1" /><label>已解</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        <input type="radio" name="RB_URINE_7@(row_7["IID"])" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_URINE_7@(row_7["IID"])" value="1" /><label>已解</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_URINE_7" value="0" /><label>未解</label>
+                                        <input type="radio" name="RB_URINE_7" value="1" /><label>已解</label>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    保溫箱
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        <input type="radio" name="RB_INCU_1@(row_1["IID"])" value="0" /><label>否</label>
+                                        <input type="radio" name="RB_INCU_1@(row_1["IID"])" value="1" /><label>是</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_INCU_1" value="0" /><label>否</label>
+                                        <input type="radio" name="RB_INCU_1" value="1" /><label>是</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        <input type="radio" name="RB_INCU_2@(row_2["IID"])" value="0" /><label>否</label>
+                                        <input type="radio" name="RB_INCU_2@(row_2["IID"])" value="1" /><label>是</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_INCU_2" value="0" /><label>否</label>
+                                        <input type="radio" name="RB_INCU_2" value="1" /><label>是</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        <input type="radio" name="RB_INCU_3@(row_3["IID"])" value="0" /><label>否</label>
+                                        <input type="radio" name="RB_INCU_3@(row_3["IID"])" value="1" /><label>是</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_INCU_3" value="0" /><label>否</label>
+                                        <input type="radio" name="RB_INCU_3" value="1" /><label>是</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        <input type="radio" name="RB_INCU_5@(row_5["IID"])" value="0" /><label>否</label>
+                                        <input type="radio" name="RB_INCU_5@(row_5["IID"])" value="1" /><label>是</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_INCU_5" value="0" /><label>否</label>
+                                        <input type="radio" name="RB_INCU_5" value="1" /><label>是</label>
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        <input type="radio" name="RB_INCU_7@(row_7["IID"])" value="0" /><label>否</label>
+                                        <input type="radio" name="RB_INCU_7@(row_7["IID"])" value="1" /><label>是</label>
+                                    }
+                                    else
+                                    {
+                                        <input type="radio" name="RB_INCU_7" value="0" /><label>否</label>
+                                        <input type="radio" name="RB_INCU_7" value="1" /><label>是</label>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    其他-處置
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        @Html.TextArea("TXT_TREAT_1" + row_1["IID"], row_1["TREAT"].ToString(), new { style = "width:100%", @cols = 7, @rows = 4 })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextArea("TXT_TREAT_1", "", new { style = "width:100%", @cols = 7, @rows = 4 })
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+
+                                        @Html.TextArea("TXT_TREAT_2" + row_2["IID"], row_2["TREAT"].ToString(), new { style = "width:100%", @cols = 7, @rows = 4 })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextArea("TXT_TREAT_2", "", new { style = "width:100%", @cols = 7, @rows = 4 })
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        @Html.TextArea("TXT_TREAT_3" + row_3["IID"], row_3["TREAT"].ToString(), new { style = "width:100%", @cols = 7, @rows = 4 })
+                                    }
+                                    else
+                                    {
+                                        @Html.TextArea("TXT_TREAT_3", "", new { style = "width:100%", @cols = 7, @rows = 4 })
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        @Html.TextArea("TXT_TREAT_5" + row_5["IID"], row_5["TREAT"].ToString(), new { style = "width:100%", @cols = 7, @rows = 4 })
+
+                                    }
+                                    else
+                                    {
+                                        @Html.TextArea("TXT_TREAT_5", "", new { style = "width:100%", @cols = 7, @rows = 4 })
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        @Html.TextArea("TXT_TREAT_7" + row_7["IID"], row_7["TREAT"].ToString(), new { style = "width:100%", @cols = 7, @rows = 4 })
+
+                                    }
+                                    else
+                                    {
+                                        @Html.TextArea("TXT_TREAT_7", "", new { style = "width:100%", @cols = 7, @rows = 4 })
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="head" style="width:10%">
+                                    護理人員
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_1 != null)
+                                    {
+                                        @Html.TextBox("TXT_NURSE_1" + row_1["IID"], row_1["NURSE"], new { id = "TXT_NURSE_1" + row_1["IID"], style = "width:100px", @readonly = "readonly", onchange = "get_employee_name(this, 'NURSE_1');" })
+                                        <br />
+                                        if (row_1["NURSE_NAME"].ToString() != "")
+                                        {
+                                            @Html.Label("LB_NURSE_1" + row_1["IID"], row_1["NURSE_NAME"].ToString(), new { id = "LB_NURSE_1" + row_1["IID"], style = "width:100px" })
+                                        }
+                                        else
+                                        {
+                                            @Html.Label("LB_NURSE_1" + row_1["IID"], "請輸入員工編號", new { id = "LB_NURSE_1" + row_1["IID"], style = "width:100px" })
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_NURSE_1", "自動帶入", new { style = "width:100px", @readonly = "readonly", onchange = "get_employee_name(this, 'NURSE_1');" })
+                                        <br />
+                                        @Html.Label("LB_NURSE_1", "請輸入員工編號", new { id = "LB_NURSE_1", style = "width:100px" })
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_2 != null)
+                                    {
+                                        @Html.TextBox("TXT_NURSE_2" + row_2["IID"], row_2["NURSE"], new { id = "TXT_NURSE_2" + row_2["IID"], style = "width:100px", @readonly = "readonly", onchange = "get_employee_name(this, 'NURSE_2');" })
+                                        <br />
+                                        if (row_2["NURSE_NAME"].ToString() != "")
+                                        {
+                                            @Html.Label("LB_NURSE_2" + row_2["IID"], row_2["NURSE_NAME"].ToString(), new { id = "LB_NURSE_2" + row_2["IID"], style = "width:100px" })
+                                        }
+                                        else
+                                        {
+                                            @Html.Label("LB_NURSE_2" + row_2["IID"], "請輸入員工編號", new { id = "LB_NURSE_2" + row_2["IID"], style = "width:100px" })
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_NURSE_2", "自動帶入", new { style = "width:100px", @readonly = "readonly", onchange = "get_employee_name(this, 'NURSE_2');" })
+                                        <br />
+                                        @Html.Label("LB_NURSE_2", "請輸入員工編號", new { id = "LB_NURSE_2", style = "width:100px" })
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_3 != null)
+                                    {
+                                        @Html.TextBox("TXT_NURSE_3" + row_3["IID"], row_3["NURSE"], new { id = "TXT_NURSE_3" + row_3["IID"], style = "width:100px", @readonly = "readonly", onchange = "get_employee_name(this, 'NURSE_3');" })
+                                        <br />
+                                        if (row_3["NURSE_NAME"].ToString() != "")
+                                        {
+                                            @Html.Label("LB_NURSE_3" + row_3["IID"], row_3["NURSE_NAME"].ToString(), new { id = "LB_NURSE_3" + row_3["IID"], style = "width:100px" })
+                                        }
+                                        else
+                                        {
+                                            @Html.Label("LB_NURSE_3" + row_3["IID"], "請輸入員工編號", new { id = "LB_NURSE_3" + row_3["IID"], style = "width:100px" })
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_NURSE_3", "自動帶入", new { style = "width:100px", @readonly = "readonly", onchange = "get_employee_name(this, 'NURSE_3');" })
+                                        <br />
+                                        @Html.Label("LB_NURSE_3", "請輸入員工編號", new { id = "LB_NURSE_3", style = "width:100px" })
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_5 != null)
+                                    {
+                                        @Html.TextBox("TXT_NURSE_5" + row_5["IID"], row_5["NURSE"], new { id = "TXT_NURSE_5" + row_5["IID"], style = "width:100px", @readonly = "readonly", onchange = "get_employee_name(this, 'NURSE_5');" })
+                                        <br />
+                                        if (row_5["NURSE_NAME"].ToString() != "")
+                                        {
+                                            @Html.Label("LB_NURSE_5" + row_5["IID"], row_5["NURSE_NAME"].ToString(), new { id = "LB_NURSE_5" + row_5["IID"], style = "width:100px" })
+                                        }
+                                        else
+                                        {
+                                            @Html.Label("LB_NURSE_5" + row_5["IID"], "請輸入員工編號", new { id = "LB_NURSE_5" + row_5["IID"], style = "width:100px" })
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_NURSE_5", "自動帶入", new { style = "width:100px", @readonly = "readonly", onchange = "get_employee_name(this, 'NURSE_5');" })
+                                        <br />
+                                        @Html.Label("LB_NURSE_5", "請輸入員工編號", new { id = "LB_NURSE_5", style = "width:100px" })
+                                    }
+                                </td>
+                                <td style="width:18%">
+                                    @if (row_7 != null)
+                                    {
+                                        @Html.TextBox("TXT_NURSE_7" + row_7["IID"], row_7["NURSE"], new { id = "TXT_NURSE_7" + row_7["IID"], style = "width:100px", @readonly = "readonly", onchange = "get_employee_name(this, 'NURSE_7');" })
+                                        <br />
+                                        if (row_7["NURSE_NAME"].ToString() != "")
+                                        {
+                                            @Html.Label("LB_NURSE_7" + row_7["IID"], row_7["NURSE_NAME"].ToString(), new { id = "LB_NURSE_7" + row_7["IID"], style = "width:100px" })
+                                        }
+                                        else
+                                        {
+                                            @Html.Label("LB_NURSE_7" + row_7["IID"], "請輸入員工編號", new { id = "LB_NURSE_7" + row_7["IID"], style = "width:100px" })
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @Html.TextBox("TXT_NURSE_7", "自動帶入", new { style = "width:100px", @readonly = "readonly", onchange = "get_employee_name(this, 'NURSE_7');" })
+                                        <br />
+                                        @Html.Label("LB_NURSE_7", "請輸入員工編號", new { id = "LB_NURSE_7", style = "width:100px" })
+                                    }
+                                </td>
+                            </tr>
+                            @if (IsHisView != true)
+                            {
+                                <tr style="text-align:center !important">
+                                    <td class="head" style="width:10%"></td>
+                                    <td style="width:18%">
+                                        @if (IsHisView != true)
+                                        {
+                                            if (row_1 != null)
+                                            {
+                                                <input type="button" value="修改" onclick="sendForm('Upd_NB7HR', '1', false)">
+                                                <input type="button" value="刪除" onclick="Delete('1', '一')">
+                                            }
+                                            else
+                                            {
+                                                <input type="button" value="新增" onclick="sendForm('Insert_NB7HR', '1', true)">
+                                            }
+                                        }
+                                    </td>
+                                    <td style="width:18%">
+                                        @if (IsHisView != true)
+                                        {
+                                            if (row_2 != null)
+                                            {
+                                                <input type="button" value="修改" onclick="sendForm('Upd_NB7HR', '2', false)">
+                                                <input type="button" value="刪除" onclick="Delete('2', '二')">
+                                            }
+                                            else
+                                            {
+                                                <input type="button" value="新增" onclick="sendForm('Insert_NB7HR', '2', true)">
+                                            }
+                                        }
+                                    </td>
+                                    <td style="width:18%">
+                                        @if (IsHisView != true)
+                                        {
+                                            if (row_3 != null)
+                                            {
+                                                <input type="button" value="修改" onclick="sendForm('Upd_NB7HR', '3', false)">
+                                                <input type="button" value="刪除" onclick="Delete('3', '三')">
+                                            }
+                                            else
+                                            {
+                                                <input type="button" value="新增" onclick="sendForm('Insert_NB7HR', '3', true)">
+                                            }
+                                        }
+                                    </td>
+                                    <td style="width:18%">
+                                        @if (IsHisView != true)
+                                        {
+                                            if (row_5 != null)
+                                            {
+                                                <input type="button" value="修改" onclick="sendForm('Upd_NB7HR', '5', false)">
+                                                <input type="button" value="刪除" onclick="Delete('5', '五')">
+                                            }
+                                            else
+                                            {
+                                                <input type="button" value="新增" onclick="sendForm('Insert_NB7HR', '5', true)">
+                                            }
+                                        }
+                                    </td>
+                                    <td style="width:18%">
+                                        @if (IsHisView != true)
+                                        {
+                                            if (row_7 != null)
+                                            {
+                                                <input type="button" value="修改" onclick="sendForm('Upd_NB7HR', '7', false)">
+                                                <input type="button" value="刪除" onclick="Delete('7', '七')">
+                                            }
+                                            else
+                                            {
+                                                <input type="button" value="新增" onclick="sendForm('Insert_NB7HR', '7', true)">
+                                            }
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </table>
+                        <script>
+                             //第一小時
+                            @if (row_1 != null) {
+                                if(row_1["BRE_TYP"].ToString() != "")
+                                {
+                                    var BRE_TYP = row_1["BRE_TYP"].ToString();
+                                    var BRE_TYPV = new List<string>();
+
+                                    for (var i = 0; i < BRE_TYP.ToString().Length; i++)
+                                    {
+                                        if (BRE_TYP[i] == '1')
+                                        {
+                                            BRE_TYPV.Add(i.ToString());
+                                        }
+                                    }
+                                                 @:set_for_ck('CK_BRE_TYP_1@(row_1["IID"])', '@String.Join(",", BRE_TYPV)');
+                                             }
+                                if(row_1["CRY"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_CRY_1@(row_1["IID"])', '@row_1["CRY"]');
+                                    }
+                                if(row_1["ACTI"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_ACTI_1@(row_1["IID"])', '@row_1["ACTI"]');
+                                    }
+                                if(row_1["SKIN"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_SKIN_1@(row_1["IID"])', '@row_1["SKIN"]');
+                                    }
+                                if(row_1["MUSCLE"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_MUSCLE_1@(row_1["IID"])', '@row_1["MUSCLE"]');
+                                    }
+                                if(row_1["FS"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_FS_1@(row_1["IID"])', '@row_1["FS"]');
+                                    }
+                                if(row_1["URINE"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_URINE_1@(row_1["IID"])', '@row_1["URINE"]');
+                                    }
+                                if(row_1["INCU"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_INCU_1@(row_1["IID"])', '@row_1["INCU"]');
+                                    }
+                            }
+
+                            //第二小時
+                            @if (row_2 != null) {
+                                 if(row_2["BRE_TYP"].ToString() != "")
+                                {
+                                    var BRE_TYP = row_2["BRE_TYP"].ToString();
+                                    var BRE_TYPV = new List<string>();
+
+                                    for (var i = 0; i < BRE_TYP.ToString().Length; i++)
+                                    {
+                                        if (BRE_TYP[i] == '1')
+                                        {
+                                            BRE_TYPV.Add(i.ToString());
+                                        }
+                                    }
+                                                 @:set_for_ck('CK_BRE_TYP_2@(row_2["IID"])', '@String.Join(",", BRE_TYPV)');
+                                             }
+                                if(row_2["CRY"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_CRY_2@(row_2["IID"])', '@row_2["CRY"]');
+                                    }
+                                if(row_2["ACTI"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_ACTI_2@(row_2["IID"])', '@row_2["ACTI"]');
+                                    }
+                                if(row_2["SKIN"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_SKIN_2@(row_2["IID"])', '@row_2["SKIN"]');
+                                    }
+                                if(row_2["MUSCLE"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_MUSCLE_2@(row_2["IID"])', '@row_2["MUSCLE"]');
+                                    }
+                                if(row_2["FS"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_FS_2@(row_2["IID"])', '@row_2["FS"]');
+                                    }
+                                if(row_2["URINE"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_URINE_2@(row_2["IID"])', '@row_2["URINE"]');
+                                    }
+                                if(row_2["INCU"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_INCU_2@(row_2["IID"])', '@row_2["INCU"]');
+                                    }
+                            }
+
+                            //第三小時
+                            @if (row_3 != null) {
+                                if(row_3["BRE_TYP"].ToString() != "")
+                                {
+                                    var BRE_TYP = row_3["BRE_TYP"].ToString();
+                                    var BRE_TYPV = new List<string>();
+
+                                    for (var i = 0; i < BRE_TYP.ToString().Length; i++)
+                                    {
+                                        if (BRE_TYP[i] == '1')
+                                        {
+                                            BRE_TYPV.Add(i.ToString());
+                                        }
+                                    }
+                                                 @:set_for_ck('CK_BRE_TYP_3@(row_3["IID"])', '@String.Join(",", BRE_TYPV)');
+                                             }
+                                if(row_3["CRY"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_CRY_3@(row_3["IID"])', '@row_3["CRY"]');
+                                    }
+                                if(row_3["ACTI"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_ACTI_3@(row_3["IID"])', '@row_3["ACTI"]');
+                                    }
+                                if(row_3["SKIN"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_SKIN_3@(row_3["IID"])', '@row_3["SKIN"]');
+                                    }
+                                if(row_3["MUSCLE"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_MUSCLE_3@(row_3["IID"])', '@row_3["MUSCLE"]');
+                                    }
+                                if(row_3["FS"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_FS_3@(row_3["IID"])', '@row_3["FS"]');
+                                    }
+                                if(row_3["URINE"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_URINE_3@(row_3["IID"])', '@row_3["URINE"]');
+                                    }
+                                if(row_3["INCU"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_INCU_3@(row_3["IID"])', '@row_3["INCU"]');
+                                    }
+                            }
+
+                            //第五小時
+                            @if (row_5 != null) {
+                                 if(row_5["BRE_TYP"].ToString() != "")
+                                {
+                                    var BRE_TYP = row_5["BRE_TYP"].ToString();
+                                    var BRE_TYPV = new List<string>();
+
+                                    for (var i = 0; i < BRE_TYP.ToString().Length; i++)
+                                    {
+                                        if (BRE_TYP[i] == '1')
+                                        {
+                                            BRE_TYPV.Add(i.ToString());
+                                        }
+                                    }
+                                                 @:set_for_ck('CK_BRE_TYP_5@(row_5["IID"])', '@String.Join(",", BRE_TYPV)');
+                                             }
+                                if(row_5["CRY"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_CRY_5@(row_5["IID"])', '@row_5["CRY"]');
+                                    }
+                                if(row_5["ACTI"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_ACTI_5@(row_5["IID"])', '@row_5["ACTI"]');
+                                    }
+                                if(row_5["SKIN"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_SKIN_5@(row_5["IID"])', '@row_5["SKIN"]');
+                                    }
+                                if(row_5["MUSCLE"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_MUSCLE_5@(row_5["IID"])', '@row_5["MUSCLE"]');
+                                    }
+                                if(row_5["FS"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_FS_5@(row_5["IID"])', '@row_5["FS"]');
+                                    }
+                                if(row_5["URINE"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_URINE_5@(row_5["IID"])', '@row_5["URINE"]');
+                                    }
+                                if(row_5["INCU"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_INCU_5@(row_5["IID"])', '@row_5["INCU"]');
+                                    }
+                            }
+
+                            //第七小時
+                            @if (row_7 != null) {
+                                 if(row_7["BRE_TYP"].ToString() != "")
+                                {
+                                    var BRE_TYP = row_7["BRE_TYP"].ToString();
+                                    var BRE_TYPV = new List<string>();
+
+                                    for (var i = 0; i < BRE_TYP.ToString().Length; i++)
+                                    {
+                                        if (BRE_TYP[i] == '1')
+                                        {
+                                            BRE_TYPV.Add(i.ToString());
+                                        }
+                                    }
+                                                 @:set_for_ck('CK_BRE_TYP_7@(row_7["IID"])', '@String.Join(",", BRE_TYPV)');
+                                             }
+                                if(row_7["CRY"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_CRY_7@(row_7["IID"])', '@row_7["CRY"]');
+                                    }
+                                if(row_7["ACTI"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_ACTI_7@(row_7["IID"])', '@row_7["ACTI"]');
+                                    }
+                                if(row_7["SKIN"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_SKIN_7@(row_7["IID"])', '@row_7["SKIN"]');
+                                    }
+                                if(row_7["MUSCLE"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_MUSCLE_7@(row_7["IID"])', '@row_7["MUSCLE"]');
+                                    }
+                                if(row_7["FS"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_FS_7@(row_7["IID"])', '@row_7["FS"]');
+                                    }
+                                if(row_7["URINE"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_URINE_7@(row_7["IID"])', '@row_7["URINE"]');
+                                    }
+                                if(row_7["INCU"].ToString() != "")
+                                    {
+                                        @:set_for_rb('RB_INCU_7@(row_7["IID"])', '@row_7["INCU"]');
+                                    }
+                            }
+                        </script>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>

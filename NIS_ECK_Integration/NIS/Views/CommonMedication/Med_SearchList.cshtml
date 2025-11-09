@@ -1,0 +1,158 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: center;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        //SetDatePicker($('#Date'), '+1d');
+        To_Search();
+    });
+
+    function SetDatePicker(DateObj, AddDay) {
+        DateObj.prop('readonly', true).css({ 'width': '80px', 'font-size': '12px' });
+        DateObj.datepicker({
+            beforeShowDay: function (date) {
+                switch (date.getDay()) {
+                    case 6:
+                        return [true, 'satday'];
+                        break;
+                    case 0:
+                        return [true, 'sunday'];
+                        break;
+                    default:
+                        return [true, ''];
+                        break;
+                }
+            },
+            inline: true,
+            showAnim: "slideDown",
+            controlType: myControl,
+            maxDate: AddDay
+        });
+    }
+
+    function SetDate(Num) {
+        var d = new Date($('#Date').val());
+        d.setDate(d.getDate() + Num);
+        $('#Date').datepicker('setDate', d);
+    }
+
+    //WebTool月曆，往前往後一天
+    function setDate(pType, DateField) {
+        var NewDate = new Date($("#" + DateField).val());
+        if (pType == 'prev') {
+            NewDate.setDate(NewDate.getDate() - 1);
+            $("#" + DateField).datepicker("setDate", NewDate);
+        } else if (pType == 'next') {
+            NewDate.setDate(NewDate.getDate() + 1);
+            $("#" + DateField).datepicker("setDate", NewDate);
+        }
+    }
+
+    function Med_ExecuteList() {
+        window.parent.ResetIframme('@Url.Content("~/CommonMedication/Medication_NurseExecute")');
+    }
+
+    function To_Search() {
+        loop_windows("open_cover");
+        Med_SearchList(function () {
+            setGridColor();
+            loop_windows("close_cover");
+        });
+    }
+
+    //載入疼痛部位列表
+    function Med_SearchList(CallBack) {
+        //清空列表
+        $('#Dt tbody').empty();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/CommonMedication/Med_SearchList")',
+            data: { 'Date': $('#Date').val() },
+            success: function (data) {
+                if (data != '') {
+                    var List = JSON.parse(data);
+                    if (List.length > 0) {
+                        //塞入List
+                        $.each(List, function (i, item) {
+                            //複製基本樣式
+                            var Temp = $('#Dt thead tr').clone().show();
+                            $.each($(Temp).find('td[data-filed]'), function (i, td) {
+                                if (!!item[$(td).attr('data-filed')])
+                                    $(td).text(item[$(td).attr('data-filed')]);
+                            });
+                            //加入列表
+                            $('#Dt tbody').append(Temp);
+                        });
+                    }
+                    else
+                        $('#Dt tbody').append('<tr><td colspan="5" style="text-align:center;">查無資料！</td></tr>');
+                }
+            },
+            complete: function () {
+                if (!!CallBack)
+                    CallBack();
+            }
+        });
+    }
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    function ToPrint() {
+        window.open('@(ViewBag.RootDocument)/Print/GetPDF?HeaderVal=@(Server.UrlEncode("給藥紀錄單"))&filename=Report'
+            + '&url=@(ViewBag.RootDocument)/CommonMedication/Med_SearchList_PDF?'
+            + 'Date=' + $('#Date').val() + '&FeeNo=@(ViewBag.FeeNo)');
+    }
+</script>
+
+<div class="funcArea">
+    <input type="text" id="Date" value="@(DateTime.Now.ToString("yyyy/MM/dd"))" />
+    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "Date", "", false, "1")
+    <input type="button" value="查詢" onclick="To_Search();" />
+    @*<input type="button" value="前一天" onclick="SetDate(-1);" />
+    <input type="button" value="後一天" onclick="SetDate(1);" />*@
+    <input type="button" value="前一天" onclick="setDate('prev', 'Date');" />
+    <input type="button" value="後一天" onclick="setDate('next', 'Date');" />
+    <input type="button" value="醫囑查詢" onclick="@Java_funcion.pup_window("../CommonMedication/Med_QueryOrder", 900, 600, "");" />
+    <input type="button" value="新增/修改給藥記錄" onclick="Med_ExecuteList();" />
+    <input type="button" value="列印" onclick="ToPrint();" />
+</div>
+<div class="dataHeader" style="margin-top:10px;">
+    <table border="0" cellpadding="4" cellspacing="1" style="font-size:14px;width:100%;">
+        <tr>
+            <td>藥名</td>
+            <td style="width:10%;">劑量</td>
+            <td style="width:8%;">頻次</td>
+            <td style="width:7%;">途徑</td>
+            <td style="width:55%;">給藥註記</td>
+        </tr>
+    </table>
+</div>
+<div class="dataArea">
+    <table border="0" cellpadding="4" cellspacing="1" style="font-size:14px;width:100%;" id="Dt">
+        <thead>
+            <tr style="display:none;">
+                <td data-filed="MED_DESC"></td>
+                <td style="width:10%;" data-filed="UD_DOSE"></td>
+                <td style="width:8%;" data-filed="UD_CIR"></td>
+                <td style="width:7%;" data-filed="UD_PATH"></td>
+                <td style="width:55%;text-align:left;" data-filed="REMARK"></td>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>

@@ -1,0 +1,308 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "CVVH 記錄列表";
+    DataTable dt = ViewBag.dt;
+    string[] TimeStr = { "0AM", "1AM", "2AM", "3AM", "4AM", "5AM", "6AM", "7AM", "8AM", "9AM", "10AM", "11AM",
+                           "12PM","1PM", "2PM", "3PM", "4PM", "5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM"  };
+    string feeno = ViewBag.feeno;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .dataArea td
+    {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define,#module_define1
+    {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    .popup
+    {
+        width: 700px;
+        height: 306px;/*-380*/
+        position: absolute;
+        background-color: #fff;/*-EFEFFF*/
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -200px 0 0 -350px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+    #Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+    });
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+    //彈出div
+    function showPopup(id) {
+        var popup = document.getElementById(id);
+        popup.style.display = 'block';
+        $("#Block").show();
+    }
+
+    function HidePopup()
+    {
+        $('#dv_new').fadeOut(0);
+        $('[name=rb_weight_text_time]:checked').attr('checked', false);
+        $("#div_weight_text_other").hide();
+        $("#Block").hide();
+    }
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        var success = true;
+        if (obj.value.indexOf('.') > -1)
+            var re = /^[0-9]+\.[0-9]*$/;
+        else
+            var re = /^[0-9]+$/;
+
+        if (!re.test(obj.value) && obj.value != "") {
+            alert("只能輸入數字");
+            $(obj).val('');
+            success = false;
+        }
+        return success;
+    }
+
+    //刪除
+    function DelRecord(obj)
+    {
+        var id = $(obj).attr('rctemp');
+        loop_windows("open_cover");
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/CVVHManage/DelRecordBasic")',
+            dataType: 'Html',
+            data: { id:id },
+            cache: false,
+            success: function (response) {
+                if (response =="Y") {
+                    alert("刪除成功");
+                    // 重load該頁
+                    window.location.href = "../CVVHManage/List?StartDate=" + $("#StartDate").val() + "&EndDate=" + $("#EndDate").val() + "";
+                } else {
+                    alert("刪除失敗");
+                }
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    //確認日期是否有資料
+    function CheckDate()
+    {
+        var date = $("#start_date").val();
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/CVVHManage/CheckDate")',
+            dataType: 'Html',
+            data: { date: date },
+            cache: false,
+            success: function (response) {
+                if (response != "N") {
+                    // load該至頁
+                    alert("今日已有輸入體重資料，系統將跳轉至明細頁面");
+                    window.location.href = "../CVVHManage/Record?id=" + response + "&dtldate="+date+"";
+                } else {
+                    if (CheckWeight())
+                    {
+                        $("#formbasic").submit();
+                    };
+                }
+            }, complete: function () {
+            }
+          });
+    }
+
+    function CheckWeight()
+    {
+        var success = false;
+        if ($("#popup_txt_weight").val() == "") {
+            success = false;
+            alert("請輸入體重");
+        } else
+        {
+            success = true;
+        }
+        return success;
+    }
+
+    //跳轉至明細
+    function JumpPage(obj)
+    {
+        var id = $(obj).attr('rctemp');
+        var date = $(obj).attr('rctimetemp');
+        $("#funcArea").hide();
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/HISView/CVVH_PrintList")',
+            dataType: 'html',
+            data: { feeno:'@(feeno)' ,dtldate:date,id:id},
+            cache: false,
+            success: function (html) {
+                if(html!="" && html!=null){
+                    $("#record_content").html(html);
+                }
+            }, complete: function () {
+            }
+        });
+    }
+
+
+    //查詢的跳轉
+    function GetQuery()
+    {
+        var feeno = '@(feeno)';
+        var startdate = $('#StartDate').val();
+        var enddate = $('#EndDate').val();
+        window.location.href = "../HISView/CVVH_Index?feeno=" + feeno + "&StartDate=" + startdate + "&EndDate=" + enddate;
+    }
+</script>
+<form action="ListQuery" method="post">
+<div class="funcArea" id="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%">
+        <tr style="display:none;">
+            <td>
+                <div id="module_define">@title</div>
+            </td>
+        </tr>
+        <tr>
+            <td style="width: 100%; text-align: center; padding: 0 0 5px 0;">
+                <div class="funcArea">
+                    顯示區間：
+                    @Html.TextBox("StartDate", DateTime.Now.ToUniversalTime().AddHours(8).ToString("yyyy/MM/dd"), new { @OnBlur = "", @class = "form-control input-sm", style = "width:60px;display:inline;" })
+                    @Html.Label("lab", " ~ ")
+                    @Html.TextBox("EndDate", DateTime.Now.ToUniversalTime().AddHours(8).ToString("yyyy/MM/dd"), new { @OnBlur = "", @class = "form-control input-sm", style = "width:60px;display:inline;" })
+                    @*@WebTool.setDateTime("StartDate", "", "", "", "", "")
+                    @WebTool.setDateTime("EndDate", "", "", "", "", "")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "StartDate", "", false)
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "EndDate", "", false)
+                    <input type="button" style="width: 70px;" value="查詢" onclick="GetQuery();" />
+                    &nbsp;
+                    <input type="button" style="width: 70px;display:none;" value="建立記錄" onclick="showPopup('dv_new');" />
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 5px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px;">
+                        <tr>
+                            <td style="width: 15%;">日期</td>
+                            <td style="width: 15%;">體重</td>
+                            <td style="width: 20%;">測量時間 &nbsp;&nbsp;</td>
+                            <td style="width: 20%;"> 24Hr&nbsp;Total&nbsp;I/O</td>
+                            <td style="width: 30%;">功能</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea">
+                    @if(dt != null && dt.Rows.Count > 0 )
+                {
+                    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px;">
+                         @foreach(DataRow r in dt.Rows)
+                        {
+                        <tr>
+                            <td style="width: 15%; text-align: center;"><label>@(Convert.ToDateTime(r["RECORD_TIME"]).ToString("yyyy/MM/dd"))</label>
+                            </td>
+                            <td style="width: 15%; text-align: center;"><label>@(r["WEIGHT"])</label>
+                            </td>
+                            <td style="width: 20%; text-align: center;">
+                                 <label> @(TimeStr[Convert.ToDateTime(r["RECORD_TIME"]).Hour])</label>
+                            </td>
+                            <td style="width: 20%; text-align: center;">
+                                 <label>@(Convert.ToDouble(r["TOTALNUM"])>0?"+":"")@(r["TOTALNUM"])</label>
+                            </td>
+                            <td style="width: 30%; text-align: center;">
+                                <input type="button" value="明細" style="width: 50px;" rctemp="@(r["RECORD_ID"])" rctimetemp="@(Convert.ToDateTime(r["RECORD_TIME"]).ToString("yyyy/MM/dd"))" onclick="JumpPage(this);"/>
+                                &nbsp;
+                                <input type="button" value="刪除" style="width: 50px;display:none;" rctemp="@(r["RECORD_ID"])" rctimetemp="@(r["RECORD_TIME"])" onclick="DelRecord(this);"/>
+                            </td>
+                        </tr>
+                         }
+                    </table>
+                     }
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+</form>
+<form id="formbasic" action="Insert_Record" method="post">
+<div id="dv_new" class="popup" style="display: none;">
+    <span class="p_close">
+        <img src="~/Images/Close.png" alt="關閉" onclick="HidePopup();" /></span>
+    <div class="dataArea" style="overflow-y: hidden">
+        <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; height: 100%">
+            <tr>
+                <td colspan="2">
+                    <div id="module_define1">建立記錄</div>
+                </td>
+            </tr>
+            <tr>
+                <td style="width:30%;">體重測量時間：</td>
+                <td >
+                    @Html.TextBox("start_date", DateTime.Now.ToString("yyyy/MM/dd"), new { id = "start_date", @readonly = "readonly", style = "width:80px;" })
+                    @Html.TextBox("start_time", "05:00", new { id = "start_time", @readonly = "readonly", style = "width:80px;" })
+                    @*@WebTool.setDateTime("start_date", "start_time", "", "", "", "")第四位為0*@
+                    @*@WebTool.setDateTime("start_date", "start_time", "", "0", "", DateTime.Now.ToString("yyyy/MM/dd 00:00:00"))*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "start_time", true)
+                </td>
+            </tr>
+            <tr>
+                <td style="width:30%;">體重：</td>
+                <td colspan="2">@Html.TextBox("popup_txt_weight", "", new { id = "popup_txt_weight", style = "width:120px", onchange = "numcheck(this);"  })
+                    KG
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" style="text-align: center;">
+                    <input class="btn" type="button" value="建立" onclick="CheckDate();" />
+                    <input class="btn" type="button" value="取消" onclick="HidePopup();" />
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+</form>
+<div id="Block"></div>
+<div id="record_content">
+</div>

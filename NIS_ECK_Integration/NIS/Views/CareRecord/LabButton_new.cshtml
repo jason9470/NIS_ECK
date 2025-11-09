@@ -1,0 +1,254 @@
+﻿@using System.Data;
+@using NIS.Data;
+@{
+    ViewBag.Title = "CheckTestButton";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    List<Lab> lablist = (List<Lab>)ViewData["lab"];
+
+    string msg = ViewBag.msg;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    html {
+        height: 100%;
+    }
+
+    body {
+        height: 95%;
+        overflow: hidden;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    .dataArea {
+        overflow-y: hidden;
+    }
+
+    .lab_error {
+        color: #F00;
+    }
+
+    .hide {
+        display: none;
+    }
+</style>
+
+
+<link href="../Content/gridviewscroll.css?3" rel="stylesheet" />
+<script type="text/javascript" src="~/Scripts/gridviewscroll.js"></script>
+<script type="text/javascript" src="~/Scripts/GridViewTable_initialSet.js"></script>
+<script type="text/javascript" src="~/Scripts/CareRecord/LabButton.js"></script>
+<!--<script type="text/javascript" src="~/Scripts/jquery.jqGrid.mayaminer.js"></script>-->
+<script type="text/javascript">
+    $(function () {
+        var body = document.getElementsByTagName("body");
+        var screen_height = body[0].clientHeight - 120 + "px";
+
+        var screen_width = "100%";
+        var style = "width:" + screen_width + ";height:" + screen_height;
+
+        var div1 = document.getElementById("gvDiv1");
+        div1.setAttribute("style", style);
+
+        var dataArea = document.getElementById("dataArea");
+        dataArea.style.height = body[0].clientHeight - (36 + 37) + "px";
+
+        Search_new(true);
+
+    });
+
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        @if (ViewBag.ER == "ER")
+        {
+            @:$('button').hide();
+            @:$('button[value="查詢"]').show();
+        }
+    });
+
+    //帶入護理紀錄
+    function btn_write(labDate, labName, labUnit, labValue) {
+        var word = labName + " " + labValue + " " + labUnit;
+        window.opener.document.getElementById('record_com').value += word.trim() + "、";
+    }
+
+    window.onresize = function () {  //視窗大小改變(Chrome除錯模式也會使視窗大小改變)
+        var body = document.getElementsByTagName("body");
+        var screen_height = body[0].clientHeight - 120 + "px";
+
+        var screen_width = "100%";
+        var style = "width:" + screen_width + ";height:" + screen_height;
+
+        var div1 = document.getElementById("gvDiv1");
+        div1.setAttribute("style", style);
+
+        var dataArea = document.getElementById("dataArea");
+        dataArea.style.height = body[0].clientHeight - (36 + 37) + "px";
+
+        Search_new(false);
+    }
+
+    function Search() {
+        window.location.href = 'LabButton?HasBtn=@(ViewBag.HasBtn)&stDate=' + $('#stDate').val() + '&edDate=' + $('#edDate').val();
+    }
+
+    function Search_new(changeDate) {
+        var hasBtn = false;
+        @if (string.IsNullOrWhiteSpace(ViewBag.HasBtn))
+        {
+            <text>
+                hasBtn = true;  //由護理紀錄進入，需要顯示"帶入"按鈕
+            </text>
+        }
+
+        if (changeDate) {
+            var stDate = $("#stDate").val();
+            var edDate = $("#edDate").val();
+
+            $.ajax({
+                type: 'GET',
+                url: '@Url.Content("~/CareRecord/LabButton_new")',
+                data: {
+                    stDate: stDate,
+                    edDate: edDate,
+                    HasBtn: '@(ViewBag.HasBtn)'
+                },
+                success: function (data) {
+                    //正確的
+                    var jsonResult = data.ajaxData.attachment;  //取出來的結果為字串
+                    //alert(jsonResult);
+                    //alert(data.date);
+                    var inquire_tubes_record = JSON.parse(jsonResult); //用JSON.parse()將string轉json
+                    var gvMainResult = document.getElementById("gvMain_text");
+                    gvMainResult.innerHTML = jsonResult;  //將 json結果暫存至 <p></p>中，如果是空的json，則 jsonResult 為 "[]" 字串
+
+                    //假資料
+                    //var jsonResult = [{ "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Neutro", "LabValue": "46.5", "LabCode": "1NE", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Lym", "LabValue": "40.5", "LabCode": "2LY", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Mono", "LabValue": "7.3", "LabCode": "3MO", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Eosin", "LabValue": "4.7", "LabCode": "4EO", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Baso", "LabValue": "1.0", "LabCode": "5BA", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "RBC", "LabValue": "3.45", "LabCode": "6308001", "LabValueUnit": "10^6/uL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "WBC", "LabValue": "8.3", "LabCode": "6308002", "LabValueUnit": "10^3/uL", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Hb", "LabValue": "10.1", "LabCode": "6308003", "LabValueUnit": "g/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Ht", "LabValue": "31.2", "LabCode": "6308004", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Platelet", "LabValue": "250", "LabCode": "6308006", "LabValueUnit": "10^3/uL", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "PT", "LabValue": "10.0INR:0.97", "LabCode": "6308026", "LabValueUnit": "Sec", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "APTT", "LabValue": "20.9", "LabCode": "6308036", "LabValueUnit": "Sec", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "ABOTyping自述血型:()", "LabValue": "O", "LabCode": "6311001", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "RH(D)", "LabValue": "Positive", "LabCode": "6311003", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Band", "LabValue": "報告未出", "LabCode": "6BAND", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "A-Lym", "LabValue": "報告未出", "LabCode": "7A-LYM", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Blast", "LabValue": "報告未出", "LabCode": "8BLAST", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Promyelo", "LabValue": "報告未出", "LabCode": "9PROMYE", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Metamyelo", "LabValue": "報告未出", "LabCode": "AMETAMY", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Myelocyte", "LabValue": "報告未出", "LabCode": "BMYELO", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "NRBC", "LabValue": "0.0", "LabCode": "CNRBC", "LabValueUnit": "/100WBC", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "MCH", "LabValue": "29.3", "LabCode": "MCH", "LabValueUnit": "pg", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "MCHC", "LabValue": "32.4", "LabCode": "MCHC", "LabValueUnit": "g/dL", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:28:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "MCV", "LabValue": "90.4", "LabCode": "MCV", "LabValueUnit": "fL", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:36:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "BUN", "LabValue": "27", "LabCode": "6309002", "LabValueUnit": "mg/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:36:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Glucose", "LabValue": "131", "LabCode": "6309005", "LabValueUnit": "mg/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:36:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Creatinine", "LabValue": "1.8", "LabCode": "6309015", "LabValueUnit": "mg/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:36:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "NA", "LabValue": "140", "LabCode": "6309021", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:36:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "K", "LabValue": "4.4", "LabCode": "6309022", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:36:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "GOT(AST)", "LabValue": "34", "LabCode": "6309025", "LabValueUnit": "IU/L", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:36:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "GPT(ALT)", "LabValue": "15", "LabCode": "6309026", "LabValueUnit": "IU/L", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T01:36:00", "OrderDate": "2018-08-16T00:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "TroponinI", "LabValue": "0.070", "LabCode": "6399035", "LabValueUnit": "ug/L", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T06:57:00", "OrderDate": "2018-08-16T06:20:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Hb", "LabValue": "10.4", "LabCode": "6308003", "LabValueUnit": "g/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T07:22:00", "OrderDate": "2018-08-16T06:21:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Albumin", "LabValue": "2.3", "LabCode": "6309038", "LabValueUnit": "g/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T08:47:00", "OrderDate": "2018-08-16T06:20:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "CA", "LabValue": "7.2", "LabCode": "6309011", "LabValueUnit": "mg/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T08:47:00", "OrderDate": "2018-08-16T06:20:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "P", "LabValue": "4.0", "LabCode": "6309012", "LabValueUnit": "mg/dL", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T08:47:00", "OrderDate": "2018-08-16T06:20:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Creatinine", "LabValue": "1.9", "LabCode": "6309015", "LabValueUnit": "mg/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T08:47:00", "OrderDate": "2018-08-16T06:20:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "NA", "LabValue": "135", "LabCode": "6309021", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T08:47:00", "OrderDate": "2018-08-16T06:20:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "K", "LabValue": "5.8", "LabCode": "6309022", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T10:22:00", "OrderDate": "2018-08-16T06:20:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Mg", "LabValue": "2.0", "LabCode": "6309046", "LabValueUnit": "mg/dL", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T10:34:00", "OrderDate": "2018-08-16T06:20:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "HbA1C", "LabValue": "7.3", "LabCode": "6309006", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-16T17:01:00", "OrderDate": "2018-08-16T13:04:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "K", "LabValue": "5.3", "LabCode": "6309022", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-17T05:20:00", "OrderDate": "2018-08-16T17:18:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "NA", "LabValue": "133", "LabCode": "6309021", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-17T05:20:00", "OrderDate": "2018-08-16T17:18:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "K", "LabValue": "5.8", "LabCode": "6309022", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-17T17:13:00", "OrderDate": "2018-08-17T06:09:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "K", "LabValue": "5.3", "LabCode": "6309022", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-18T05:21:00", "OrderDate": "2018-08-17T06:09:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "K", "LabValue": "4.8", "LabCode": "6309022", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-19T05:33:00", "OrderDate": "2018-08-17T15:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "BUN", "LabValue": "72", "LabCode": "6309002", "LabValueUnit": "mg/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-19T05:33:00", "OrderDate": "2018-08-17T15:55:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Creatinine", "LabValue": "4.0", "LabCode": "6309015", "LabValueUnit": "mg/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:36:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "ARTERIALBLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "pH", "LabValue": "7.318", "LabCode": "1.PH", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:36:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "ARTERIALBLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "pO2", "LabValue": "151.1", "LabCode": "2.PO2", "LabValueUnit": "mmHg", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:36:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "ARTERIALBLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "pCO2", "LabValue": "39.7", "LabCode": "3.PCO2", "LabValueUnit": "mmHg", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:36:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "ARTERIALBLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "HCO3-ACT", "LabValue": "19.9", "LabCode": "4.HCO3A", "LabValueUnit": "mmol/L", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:36:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "ARTERIALBLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "BE(B)", "LabValue": "-5.8", "LabCode": "6.BE(B)", "LabValueUnit": "mmol/L", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:36:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "ARTERIALBLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "CTCO2", "LabValue": "21.1", "LabCode": "7.CTCO2", "LabValueUnit": "mmol/L", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:36:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "ARTERIALBLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "O2SAT", "LabValue": "98.2", "LabCode": "8.O2SAT", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Neutro", "LabValue": "85.9", "LabCode": "1NE", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Lym", "LabValue": "6.7", "LabCode": "2LY", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Mono", "LabValue": "6.5", "LabCode": "3MO", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Eosin", "LabValue": "0.6", "LabCode": "4EO", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Baso", "LabValue": "0.3", "LabCode": "5BA", "LabValueUnit": "%", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "WBC", "LabValue": "15.4", "LabCode": "6308002", "LabValueUnit": "10^3/uL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Platelet", "LabValue": "176", "LabCode": "6308006", "LabValueUnit": "10^3/uL", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Band", "LabValue": "報告未出", "LabCode": "6BAND", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "A-Lym", "LabValue": "報告未出", "LabCode": "7A-LYM", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Blast", "LabValue": "報告未出", "LabCode": "8BLAST", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Promyelo", "LabValue": "報告未出", "LabCode": "9PROMYE", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Metamyelo", "LabValue": "報告未出", "LabCode": "AMETAMY", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "Myelocyte", "LabValue": "報告未出", "LabCode": "BMYELO", "LabValueUnit": "", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:37:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "NRBC", "LabValue": "0.0", "LabCode": "CNRBC", "LabValueUnit": "/100WBC", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:46:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "NA", "LabValue": "141", "LabCode": "6309021", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:46:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "K", "LabValue": "4.2", "LabCode": "6309022", "LabValueUnit": "mEq/L", "LVL": null, "LVH": null, "LabErrorFlag": "N", "lab_page": null }, { "LabNo": null, "LabDate": "2018-08-20T04:46:00", "OrderDate": "2018-08-17T16:00:00", "Group": "N", "Specimen": "BLOOD", "ItemName": null, "Status": "3", "Memo": null, "LabName": "CRP", "LabValue": "11.8", "LabCode": "6312903", "LabValueUnit": "mg/dL", "LVL": null, "LVH": null, "LabErrorFlag": "Y", "lab_page": null }];
+                    //var inquire_tubes_record = jsonResult;
+                    //var gvMainResult = document.getElementById("gvMain_text");
+                    //gvMainResult.innerHTML = JSON.stringify(jsonResult);  //將 json結果暫存至 <p></p>中，如果是空的json，則 jsonResult 為 "[]" 字串
+
+                    if (jsonResult === "[]") {  //這天沒有資料
+                        //alert("這天沒有資料");
+                        reBuild("gvDiv1", "gvMain", "", false, hasBtn);  //沒資料 hasData = false
+                    } else {
+                        reBuild("gvDiv1", "gvMain", inquire_tubes_record, true, hasBtn); //有資料 hasData = true
+                    }
+                }
+            });
+        } else {
+            var jsonResult = document.getElementById("gvMain_text").innerHTML;  //json to string
+
+            if (jsonResult == "[]") { //當天沒資料
+                reBuild("gvDiv1", "gvMain", "", false, hasBtn);  //沒資料 hasData = false
+            } else {
+                reBuild("gvDiv1", "gvMain", JSON.parse(jsonResult), true, hasBtn); //有資料 hasData = true
+            }
+        }
+
+    }
+
+    function reBuild(div_id, table_id, careRecord, hasData, hasBtn) {
+        var body = document.getElementsByTagName("body");
+        var screen_height = body[0].clientHeight - 120 + "px";
+
+        var screen_width = "100%";
+        var style = "width:" + screen_width + ";height:" + screen_height;
+
+        //調整div內容及大小
+        var div1 = document.getElementById(div_id);
+        div1.innerHTML = '<table cellspacing="0" id="' + table_id + '"></table>';
+        div1.setAttribute("style", style);
+
+        if (hasData) {
+            caculateCareRecord(table_id, careRecord);//引流管每日攝出page計算
+            buildCareRecordTable(table_id, careRecord, hasBtn); //建立表格
+        } else {
+            buildEmptyCareRecordTable(table_id);//建立空表格
+        }
+
+        GrideViewScrollTable_initial(table_id, true, false, 1, 3, screen_width, screen_height);
+
+        try {
+
+            /**調整項目、檢體、單位，在凍結欄位情況下，高度顯示問題**/
+            var classFreeze = document.getElementsByClassName("LabTitle");
+
+            if (classFreeze !== null) {
+                for (i = 0; i < classFreeze.length; i++) {
+                    var gridViewScrollHelper = classFreeze[i].getElementsByClassName("gridViewScrollHelper");
+
+                    gridViewScrollHelper[0].style.paddingTop = "9.5px";
+                    gridViewScrollHelper[0].style.paddingBottom = "9.5px";
+                }
+            }
+        } catch (err) {
+        }
+    }
+
+</script>
+<form action="CheckTest" method="post">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+            <tr>
+                <td style="padding-bottom:5px;text-align:center;">
+                    @if (string.IsNullOrWhiteSpace(ViewBag.HasBtn))
+                    {
+                        <span style="color:blue;font-size:26px;">檢驗資料帶入護理紀錄</span>
+                    }
+                    else
+                    {
+                        <span style="color:blue;font-size:26px;">檢驗資料</span>
+                    }
+                    @(Html.TextBox("stDate", DateTime.Now.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                    ~
+                    @(Html.TextBox("edDate", DateTime.Now.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                    @*@WebTool.setDateTime("stDate")
+                    @WebTool.setDateTime("edDate")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "stDate", "", false)
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "edDate", "", false)
+                    <input type="button" value="查詢" onclick="Search();" />
+                    <input type="button" value="查詢new" onclick="Search_new(true);" />
+                </td>
+
+            </tr>
+            <tr>
+                <td style="padding:5px 0 5px 0;">
+                    <div id="dataArea" class="dataArea" style="width:100%;overflow:auto;text-wrap:initial">
+                        @*//style="height:273px;width:700px;overflow:auto;"*@
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                            <tr><th>檢驗  <input id="toggle_d" type='button' value="看明細" onclick='toggle_detail();'></th></tr>
+                            <tr class="flip-scroll-old">
+                                <td>
+                                    <p id="gvMain_text" class="hide">[]</p>
+                                    <div id="gvDiv1">
+                                        <table cellspacing="0" id="gvMain"></table>
+                                    </div>
+                                </td>
+                            </tr>
+
+                        </table>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:5px 0 5px 0;text-align:center;">
+                    <div class="funcArea">
+                        @*<input type="button" value="儲存" style="width:60px;" onclick="submit();" />*@
+                        <input type="button" value="關閉" style="width:60px;" onclick="window.close();" />
+                    </div>
+                </td>
+            </tr>
+
+        </table>
+    </div>
+</form>
+

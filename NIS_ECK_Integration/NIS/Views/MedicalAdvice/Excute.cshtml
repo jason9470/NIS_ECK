@@ -1,0 +1,749 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string cls = string.Empty;
+    string dcType = string.Empty;
+    List<OrderItem> DrugList = (List<OrderItem>)ViewData["DrugList"];
+    List<SignOrder> drug_order = (List<SignOrder>)ViewData["drugOrder"];
+
+    #region 判定未簽收是否呈現
+    //申請補輸狀態 true = 補輸
+    Complement_List makeUp = (Complement_List)Session["Complement_List"];
+    bool makeUp_status = (makeUp != null) ? makeUp.Status : false;
+
+    PatientInfo ptinfo = (PatientInfo)Session["PatInfo"];
+    DateTime outdate = ptinfo.OutDate;
+
+    //如果病人已出院三天且user沒有申請補輸，將未簽收的藥囑隱藏 (跟小安確認過，若11/28出院，12/1開始不呈現未簽藥囑)
+    if (outdate != null && outdate != DateTime.MinValue && outdate != DateTime.MaxValue)
+    {
+        bool more_than_3 = DateTime.Compare(DateTime.Now, outdate.AddDays(3)) > 0; //已出院三天
+        if (more_than_3 && makeUp_status == false)
+        {
+            if(drug_order != null)
+            {
+                drug_order = drug_order.FindAll(x => (x.sign_time != null) && (x.sign_time != DateTime.MinValue));
+            }
+        }
+    }
+    #endregion
+}
+<style type="text/css">
+    input[type=checkbox] {
+        width: 20px;
+        height: 20px;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: center;
+        word-wrap: break-word;
+    }
+
+    #R, #S, #M {
+        display: none;
+    }
+
+    table {
+        table-layout: fixed;
+    }
+
+    #intorduce input[type=button], #subfunction input[type=button] {
+        width: 120px;
+    }
+
+    .dialog {
+        display: none;
+        position: fixed;
+        _position: absolute; /* position fixed for IE6 */
+    }
+
+    #cover {
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        background-color: #666;
+        opacity: 0.6;
+        z-index: 999;
+    }
+
+    #inp {
+        left: 50%;
+        top: 50%;
+        margin-left: -450px;
+        margin-top: -180px;
+        width: 900px;
+        height: 360px;
+        padding-top: 20px;
+        background-color: #FFFFFF;
+        border: 1px solid #666;
+        z-index: 9999;
+        _top: expression(documentElement.scrollTop+(documentElement.clientHeight-this.clientHeight)/2);
+        _margin-top: 0;
+    }
+
+    .mname {
+        color: blue;
+        font-weight: bold;
+    }
+
+    .sname {
+        color: #600c0c;
+        font-style: italic;
+    }
+
+    .oname {
+        font-size: 16px;
+        color: #FF0000;
+        font-style: normal;
+    }
+    .FRIDname {
+        font-size: 16px;
+        background-color: yellow;
+        font-style: normal;
+    }
+</style>
+<script type="text/javascript">
+    var type = '@(ViewBag.ordertype)';
+    var out_date = '@(ptinfo.OutDate)';
+
+    function setGridColor() {
+        //格行換色
+        $("#R, #S, #D").each(function () {
+            $('tr:odd').css('background', '#E1E6FA');
+            $('tr:even').css('background', '#ABC8E2');
+        });
+        $('.dataHeader td').css('background', '#85A5CC');
+    }
+
+    $(document).ready(function () {
+        //switch (type) {
+        //    case "R":
+        //        type = "R";
+        //        $("#showR").prop('checked', true);
+        //        showordertype('R');
+        //        break;
+        //    case "DC":
+        //        type = "D";
+        //        $("#showD").prop('checked', true);
+        //        showordertype('D');
+        //        break;
+        //    case "S":
+        //        $("#showS").prop('checked', true);
+        //        showordertype('S');
+        //        break;
+        //}
+        if (type == "DC")
+        {
+            type="D"
+        }
+        showordertype(type);
+
+        $("input[name=ordertype]").click(function () {
+            $('input[type=checkbox]').attr("checked", false);
+            //切換div
+            var show = $(this).attr("show");
+            var hideObj = $("#R");
+            //
+            //把沒藏起來的找出來
+          $("#R, #S,#D").each(function () {
+                if (!$(this).is(":hidden"))
+                    hideObj = $(this);
+              //  hideObj.find('input[type=checkbox][name=c_index]').prop('checked', false);
+            });
+            $(hideObj).hide("slide", {
+                direction: 'left',
+                duration: 200,
+                complete: function () {
+                    $("#" + show).show("slide", {
+                        direction: 'right',
+                        duration: 200
+                    });
+                }
+            });
+        });
+        //$("[name=ordertype]").click(function () {
+        //    var temp = $(this).val();
+        //    showordertype(temp);
+        //});
+
+        // 設定按鈕動作
+        $("button[name=but_setting]").click(function () {
+            var rowObj = $(this).parent("td").parent("tr").clone();
+            var id = $(rowObj).find("input[name=id]").val();
+
+            $.ajax({
+                url: "../MedicalAdvice/Set_Excute",
+                type: "post",
+                data: "id=" + id,
+                timeout: 5000,
+                success: function (data) {
+                    $("#inp").html(data);
+                    $(".dialog").fadeIn(500);
+                }
+            })
+            return false;
+        });
+
+        // 全選按鈕事件
+        ////$(".checkMed").click(function () {
+        ////    var tg = $(this).attr("target");
+        ////    var rs = $(this).prop("checked");
+        ////   $("#" + tg + " .dataArea").find("input[type=checkbox]:enabled:visible").prop("checked", rs);
+        ////});
+
+        setGridColor();
+      //  $("#rb1").prop("checked", true).trigger('click');
+
+        @{
+            if (Request["message"] != null)
+            {
+                @Html.Raw("showHint(\"" + Request["message"].ToString() + "\");")
+            }
+        }
+    });
+
+
+    function showordertype(ordertype) {
+        //
+        $("[name=allcheck]").each(function(){
+            $(this).prop('checked', false);
+        });
+
+        if (ordertype == 'D') {
+            $("#showD").prop("checked", true);
+            $('#S').hide();
+            $('#R').hide();
+            $('#D').show();
+        }
+        else if (ordertype == 'R') {
+            $("#showR").prop("checked", true);
+            $('#D').hide();
+            $('#S').hide();
+            $('#R').show();
+        } else if (ordertype == 'S') {
+            $("#showS").prop("checked", true);
+            $('#D').hide();
+            $('#R').hide();
+            $('#S').show();
+        }
+        setGridColor();
+        $('input[type=checkbox][name=c_index]').prop('checked', false);///////
+    }
+
+    function CheckboxOnSelected(Radiotype)
+    {
+        //var radiobtnSel = $("input[name=ordertype]:checked").val();
+
+        if ($('#allcheck_' + Radiotype).prop("checked")) {
+            $('.dataArea input[type=checkbox][name=c_index][tmptype=' + Radiotype + ']').each(function () {
+                $(this).prop("checked", true);
+            });//:enabled//:enabled:visible  ///.prop("checked", true)
+        } else
+        {
+            $('.dataArea input[type=checkbox][name=c_index][tmptype=' + Radiotype + ']').each(function () {
+                $(this).prop("checked", false);
+            });
+
+        }
+    }
+
+    //function check() {
+    //    var isOk = false;
+    //    if ($('input[type=checkbox][name=c_index]:visible').prop('checked')) {
+    //        isOk = true;
+    //    } else {
+    //        isOk = false;
+    //        alert("請先勾選，再確認簽收!");
+    //    }
+
+    //    return isOk;
+    //}
+    function check() {
+        var count = 0;
+        $('input[type=checkbox][name=c_index]:visible').each(function () {
+            if ($(this).prop("checked")) {
+                count++;
+            }
+        });
+        if (count > 0) {
+            return true;
+        } else {
+            alert("請先勾選，再確認簽收!");
+            return false;
+        }
+    }
+    function loading_change() {
+        window.location.href = 'Sign';
+        loop_windows("open_cover");
+    }
+</script>
+<form name="excute_form" action="SignSave" method="post">
+    <div id="inp" class="dialog"></div>
+    <div id="cover" class="dialog"></div>
+    <div id="msgbox"></div>
+    <input type="hidden" name="order" value="med" />
+    <span id="intorduce">
+        <input id="btn_sign" type="button" value="文字醫囑" onclick="loading_change();" />
+        <input id="btn_excute" type="button" value="藥品醫囑" disabled="disabled" />
+    </span>
+    <span id="subfunction">
+        <input type="radio" show="R" name="ordertype" value="R" id="showR" @*onclick="showordertype('R');"*@ />
+        <label for="showR">
+            @if (DrugList !=null && DrugList[0].R == "Y")
+            {
+                @:<font color='#FF0000'> ★</font>
+        }
+        長期醫囑</label>
+        <input type="radio" show="S" name="ordertype" value="S" id="showS" @*onclick="showordertype('S');"*@ />
+        <label for="showS">
+            @if (DrugList != null && DrugList[0].S == "Y")
+            {
+                @:<font color='#FF0000'> ★</font>
+        }
+        臨時醫囑</label>
+        <input type="radio" show="D" name="ordertype" value="DC" id="showD" @*onclick="showordertype('DC');"*@ />
+        <label for="showD">
+            @if (DrugList != null && DrugList[0].DC == "Y")
+            {
+                @:<font color='#FF0000'> ★</font>
+        }
+        DC醫囑</label>
+    </span>
+    <hr />
+    <div id="subfunction">
+        <input type="button" value="確認簽收" id="signsave" onclick="if (check()) { $('form[name=excute_form]').submit(); }" />
+    </div>
+    <hr />
+    <div class="funcArea">
+        <div id="R">
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" width="100%">
+                    <tr>
+                        <td width="40">
+                            @*<input type="checkbox" id="allcheck" onclick="$('.dataArea input[type=checkbox]:enabled').prop('checked', $(this).prop('checked'));" />*@
+                            <input type="checkbox" id="allcheck_R" name="allcheck" onclick="CheckboxOnSelected('R');" />
+                        </td>
+                        <td width="50">囑型</td>
+                        <td width="140">
+                            開始日期
+                            <br />
+                            結束日期
+                        </td>
+                        <td>藥品</td>
+                        <td width="70">劑量<br />單位</td>
+                        <td width="70">途徑</td>
+                        <td width="70">頻率</td>
+                        <td width="140">
+                            簽收<br />
+                            護理師/時間
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea">
+                <table border="0" cellpadding="4" cellspacing="1" width="100%">
+                    @{
+                        List<SignOrder> dorder = drug_order;
+                        if (dorder != null)
+                        {
+                            for (int i = 0; i <= dorder.Count - 1; i++)
+                            {
+                                if (dorder[i].order_type == "R" && dorder[i].DC_FLAG == "N")
+                                {
+                                    string idx = dorder[i].sheet_no.ToString() + "R" + i.ToString();
+                                    string[] med_desc = dorder[i].order_content.ToString().Split('|');
+                                    //Mod by yungchen 文字醫囑 DC的照樣顯示 20160613
+                                    //if (dorder[i].order_type == "R")
+                                    //{
+                                    //    cls = "R";
+                                    //}
+                                    //else if (dorder[i].order_type == "S")
+                                    //{
+                                    //    cls = "S";
+                                    //}
+                                    //if (dorder[i].DC_FLAG != "N")
+                                    //{
+                                    //    dcType = "DC";
+                                    //}
+                                    //else
+                                    //{
+                                    //    dcType = "";
+                                    //}
+
+                                    <tr@* class="@cls @dcType"*@>
+                                        <td width="40">
+                                            @*執行打勾的暫存20160316*@
+                                            @if (dorder[i].sign_user != "")
+                                            {
+                                                @:&nbsp;
+                                            }
+                                            else
+                                            {
+                                                <input type="checkbox" name="c_index" tmptype="R" value="@(idx)" />
+                                            }
+                                            <input type="hidden" name="id" value="@(idx)" />
+                                            <input type="hidden" name="@(idx + "_sheet_no")" value="@(dorder[i].sheet_no)" />
+                                        </td>
+                                        <td width="50">
+                                            @*@(dorder[i].order_type)*@
+                                            @if (dorder[i].order_type == "R")
+                                            {
+                                                <label>長期</label>
+                                            }
+                                            else if (dorder[i].order_type == "S")
+                                            {
+                                                <label>臨時</label>
+                                            }
+                                            <input type="hidden" name="@(idx + "_order_type")" value="@(dorder[i].order_type)" />
+                                        </td>
+                                        <td width="140" style="font-size: 14px;">
+                                            @if (dorder[i].start_date != DateTime.MinValue)
+                                            {
+                                                @Html.Raw(dorder[i].start_date.ToString("yyyy/MM/dd HH:mm"))
+                                                <input type="hidden" name="@(idx + "_start_date")" value="@(dorder[i].start_date.ToString("yyyy/MM/dd HH:mm:ss"))" />
+                                            }
+                                            else
+                                            {
+                                                @:&nbsp;
+                                                <input type="hidden" name="@(idx + "_start_date")" value="" />
+                                            }
+                                            <hr />
+                                            @if (dorder[i].end_date != DateTime.MaxValue)
+                                            {
+                                                @Html.Raw(dorder[i].end_date.ToString("yyyy/MM/dd HH:mm"))
+                                                <input type="hidden" name="@(idx + "_end_date")" value="@(dorder[i].end_date.ToString("yyyy/MM/dd HH:mm:ss"))" />
+                                            }
+                                            else
+                                            {
+                                                @:&nbsp;
+                                                <input type="hidden" name="@(idx + "_end_date")" value="" />
+                                            }
+                                        </td>
+                                        <td style="text-align: left;">
+                                            <label class="mname">@(med_desc[0])</label>
+                                            <label class="sname">@(med_desc[1])</label>
+                                            @if (dorder[i].IsFRIDs)
+                                            {
+                                                <label class="FRIDname">易跌藥</label>
+                                            }
+                                            <br />
+                                            <label class="oname">@(dorder[i].memo)</label>
+                                            <input type="hidden" name="@(idx + "_order_content")" value="@(string.Join("|", med_desc))" />
+                                        </td>
+                                        <td width="70">
+                                            @(dorder[i].pre_qty) @(dorder[i].unit)
+                                            @if (dorder[i].rate_l != "")
+                                            {
+                                                @:<br />
+                                                @:(@(dorder[i].rate_l) / @(dorder[i].rate_h))@(dorder[i].rate_memo)
+                                }
+                                        </td>
+                                        <td width="70">
+                                            @(dorder[i].path_code)
+                                            <input type="hidden" name="@(idx + "_path_code")" value="@(dorder[i].path_code)" />
+                                        </td>
+                                        <td width="70">
+                                            @(dorder[i].cir_code)
+                                            <input type="hidden" name="@(idx + "_cir_code")" value="@(dorder[i].cir_code)" />
+                                        </td>
+                                        <td width="140" style="font-size: 14px;">
+                                            @*執行打勾的暫存20160316*@
+                                            <label for="lab" title="@(dorder[i].sign_user)">
+                                                @(dorder[i].sign_user_name)
+                                                &nbsp;
+                                            </label>
+                                            <hr />
+                                            @if (dorder[i].sign_time.ToString("yyyy/MM/dd HH:mm:ss") != "0001/01/01 00:00:00")
+                                            {
+                                                @(dorder[i].sign_time.ToString("yyyy/MM/dd HH:mm"))
+                                            }
+                                            else
+                                            {
+                                                @:&nbsp;
+                                            }
+                                        </td>
+                                        </tr>
+                                }
+                            }
+                        }
+
+                    }
+            </table>
+        </div>
+    </div>
+    <div id="S" style="display:none;">
+        <div class="dataHeader">
+            <table border="0" cellpadding="4" cellspacing="1" width="100%">
+                <tr>
+                    <td width="40">
+                        <input type="checkbox" id="allcheck_S" onclick="CheckboxOnSelected('S');" />@*$('.dataArea input[type=checkbox]:enabled').prop('checked', $(this).prop('checked'));*@
+                    </td>
+                    <td width="50">囑型</td>
+                    <td width="140">
+                        開始日期
+                        <br />
+                        結束日期
+                    </td>
+                    <td>藥品</td>
+                    <td width="70">劑量<br />單位</td>
+                    <td width="70">途徑</td>
+                    <td width="70">頻率</td>
+                    <td width="140">
+                        簽收<br />
+                        護理師/時間
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="dataArea">
+            <table border="0" cellpadding="4" cellspacing="1" width="100%">
+                @{
+                    List<SignOrder> dorder1 = drug_order;
+                    if (dorder1 != null)
+                    {
+                        for (int i = 0; i <= dorder1.Count - 1; i++)
+                        {
+                            if (dorder1[i].order_type == "S" && dorder[i].DC_FLAG == "N")
+                            {
+                                string idx = dorder1[i].sheet_no.ToString() + "S" + i.ToString();
+                                string[] med_desc = dorder1[i].order_content.ToString().Split('|');
+                                <tr>
+                                    <td width="40">
+                                        @*執行打勾的暫存20160316*@
+                                        @if (dorder1[i].sign_user != "")
+                                        {
+                                            @:&nbsp;
+                                            }
+                                        else
+                                        {
+                                            <input type="checkbox" name="c_index" tmptype="S" value="@(idx)" />
+                                        }
+                                        <input type="hidden" name="id" value="@(idx)" />
+                                        <input type="hidden" name="@(idx + "_sheet_no")" value="@(dorder1[i].sheet_no)" />
+                                    </td>
+                                    <td width="50">
+                                        @*@(dorder1[i].order_type)*@
+                                        @if (dorder[i].order_type == "R")
+                                        {
+                                            <label>長期</label>
+                                        }
+                                        else if (dorder[i].order_type == "S")
+                                        {
+                                            <label>臨時</label>
+                                        }
+                                        <input type="hidden" name="@(idx + "_order_type")" value="@(dorder1[i].order_type)" />
+                                    </td>
+                                    <td width="140" style="font-size: 14px;">
+                                        @if (dorder1[i].start_date != DateTime.MinValue)
+                                        {
+                                            @Html.Raw(dorder1[i].start_date.ToString("yyyy/MM/dd HH:mm"))
+                                            <input type="hidden" name="@(idx + "_start_date")" value="@(dorder1[i].start_date.ToString("yyyy/MM/dd HH:mm:ss"))" />
+                                        }
+                                        else
+                                        {
+                                            @:&nbsp;
+                                            <input type="hidden" name="@(idx + "_start_date")" value="" />
+                                        }
+                                        <hr />
+                                        @if (dorder1[i].end_date != DateTime.MaxValue)
+                                        {
+                                            @Html.Raw(dorder1[i].end_date.ToString("yyyy/MM/dd HH:mm"))
+                                            <input type="hidden" name="@(idx + "_end_date")" value="@(dorder1[i].end_date.ToString("yyyy/MM/dd HH:mm:ss"))" />
+                                        }
+                                        else
+                                        {
+                                            @:&nbsp;
+                                            <input type="hidden" name="@(idx + "_end_date")" value="" />
+                                        }
+                                    </td>
+                                    <td style="text-align: left;">
+                                        <label class="mname">@(med_desc[0])</label>
+                                        <label class="sname">@(med_desc[1])</label>
+                                        @if (dorder[i].IsFRIDs)
+                                        {
+                                            <label class="FRIDname">易跌藥</label>
+                                        }
+                                        <br />
+                                        <label class="oname">@(dorder1[i].memo)</label>
+                                        <input type="hidden" name="@(idx + "_order_content")" value="@(string.Join("|", med_desc))" />
+                                    </td>
+                                    <td width="70">
+                                        @(dorder1[i].pre_qty) @(dorder1[i].unit)
+                                        @if (dorder1[i].rate_l != "")
+                                        {
+                                            @:<br />
+                                            @:(@(dorder1[i].rate_l) / @(dorder1[i].rate_h))@(dorder1[i].rate_memo)
+                                }
+                                    </td>
+                                    <td width="70">
+                                        @(dorder1[i].path_code)
+                                        <input type="hidden" name="@(idx + "_path_code")" value="@(dorder1[i].path_code)" />
+                                    </td>
+                                    <td width="70">
+                                        @(dorder1[i].cir_code)
+                                        <input type="hidden" name="@(idx + "_cir_code")" value="@(dorder1[i].cir_code)" />
+                                    </td>
+                                    <td width="140" style="font-size: 14px;">
+                                        @*執行打勾的暫存20160316*@
+                                        <label for="lab" title="@(dorder1[i].sign_user)">
+                                            @(dorder1[i].sign_user_name)
+                                            &nbsp;
+                                        </label>
+                                        <hr />
+                                        @if (dorder1[i].sign_time.ToString("yyyy/MM/dd HH:mm:ss") != "0001/01/01 00:00:00")
+                                        {
+                                            @(dorder1[i].sign_time.ToString("yyyy/MM/dd HH:mm"))
+                                        }
+                                        else
+                                        {
+                                            @:&nbsp;
+                                            }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    }
+
+                }
+            </table>
+        </div>
+    </div>
+    <div id="D" style="display:none;">
+        <div class="dataHeader">
+            <table border="0" cellpadding="4" cellspacing="1" width="100%">
+                <tr>
+                    <td width="40">
+                        <input type="checkbox" id="allcheck_D" onclick="CheckboxOnSelected('D');" />@*$('.dataArea input[type=checkbox]:enabled').prop('checked', $(this).prop('checked'));*@
+                    </td>
+                    <td width="50">囑型</td>
+                    <td width="140">
+                        開始日期
+                        <br />
+                        結束日期
+                    </td>
+                    <td>藥品</td>
+                    <td width="70">劑量<br />單位</td>
+                    <td width="70">途徑</td>
+                    <td width="70">頻率</td>
+                    <td width="140">
+                        簽收<br />
+                        護理師/時間
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="dataArea">
+            <table border="0" cellpadding="4" cellspacing="1" width="100%">
+                @{
+                    if (dorder != null)
+                    {
+                        for (int i = 0; i <= dorder.Count - 1; i++)
+                        {
+                            if (dorder[i].DC_FLAG == "Y")
+                            {
+                                string idx = dorder[i].sheet_no.ToString() + "D" + i.ToString();
+                                string[] med_desc = dorder[i].order_content.ToString().Split('|');
+                                <tr>
+                                    <td width="40">
+                                        @*執行打勾的暫存20160316*@
+                                        @if (dorder1[i].sign_user != "")
+                                        {
+                                            @:&nbsp;
+                                            }
+                                        else
+                                        {
+                                            <input type="checkbox" name="c_index" tmptype="D" value="@(idx)" />
+                                        }
+                                        <input type="hidden" name="id" value="@(idx)" />
+                                        <input type="hidden" name="@(idx + "_sheet_no")" value="@(dorder1[i].sheet_no)" />
+                                    </td>
+                                    <td width="50">
+                                        @*@(dorder[i].order_type)*@
+                                        @if (dorder[i].order_type == "R")
+                                        {
+                                            <label>長期</label>
+                                        }
+                                        else if (dorder[i].order_type == "S")
+                                        {
+                                            <label>臨時</label>
+                                        }
+                                        <input type="hidden" name="@(idx + "_order_type")" value="@(dorder[i].order_type)" />
+                                    </td>
+                                    <td width="140" style="font-size: 14px;">
+                                        @if (dorder[i].start_date != DateTime.MinValue)
+                                        {
+                                            @Html.Raw(dorder[i].start_date.ToString("yyyy/MM/dd HH:mm"))
+                                            <input type="hidden" name="@(idx + "_start_date")" value="@(dorder[i].start_date.ToString("yyyy/MM/dd HH:mm:ss"))" />
+                                        }
+                                        else
+                                        {
+                                            @:&nbsp;
+                                            <input type="hidden" name="@(idx + "_start_date")" value="" />
+                                        }
+                                        <hr />
+                                        @if (dorder[i].end_date != DateTime.MaxValue)
+                                        {
+                                            @Html.Raw(dorder[i].end_date.ToString("yyyy/MM/dd HH:mm"))
+                                            <input type="hidden" name="@(idx + "_end_date")" value="@(dorder[i].end_date.ToString("yyyy/MM/dd HH:mm:ss"))" />
+                                        }
+                                        else
+                                        {
+                                            @:&nbsp;
+                                            <input type="hidden" name="@(idx + "_end_date")" value="" />
+                                        }
+                                    </td>
+                                    <td style="text-align: left;">
+                                        <label class="mname">@(med_desc[0])</label>
+                                        <label class="sname">@(med_desc[1])</label>
+                                        @if (dorder[i].IsFRIDs)
+                                        {
+                                            <label class="FRIDname">易跌藥</label>
+                                        }
+                                        <br />
+                                        <label class="oname">@(dorder[i].memo)</label>
+                                        <input type="hidden" name="@(idx + "_order_content")" value="@(string.Join("|", med_desc))" />
+                                    </td>
+                                    <td width="70">
+                                        @(dorder[i].pre_qty) @(dorder[i].unit)
+                                        @if (dorder[i].rate_l != "")
+                                        {
+                                            @:<br />
+                                            @:(@(dorder[i].rate_l) / @(dorder[i].rate_h))@(dorder[i].rate_memo)
+                                }
+                                    </td>
+                                    <td width="70">
+                                        @(dorder[i].path_code)
+                                        <input type="hidden" name="@(idx + "_path_code")" value="@(dorder[i].path_code)" />
+                                    </td>
+                                    <td width="70">
+                                        @(dorder[i].cir_code)
+                                        <input type="hidden" name="@(idx + "_cir_code")" value="@(dorder[i].cir_code)" />
+                                    </td>
+                                    <td width="140" style="font-size: 14px;">
+                                        @*執行打勾的暫存20160316*@
+                                        <label for="lab" title="@(dorder1[i].sign_user)">
+                                            @(dorder1[i].sign_user_name)
+                                            &nbsp;
+                                        </label>
+                                        <hr />
+                                        @if (dorder1[i].sign_time.ToString("yyyy/MM/dd HH:mm:ss") != "0001/01/01 00:00:00")
+                                        {
+                                            @(dorder1[i].sign_time.ToString("yyyy/MM/dd HH:mm"))
+                                        }
+                                        else
+                                        {
+                                            @:&nbsp;
+                                }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    }
+                }
+            </table>
+        </div>
+    </div>
+</div>
+</form>

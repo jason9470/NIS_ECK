@@ -1,0 +1,1592 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DateTime MinDate = ViewBag.MinDate;
+    DataTable dt_tube = ViewBag.dt_tube;
+    List<Dictionary<string, string>> TubeKind = ViewBag.TubeKind;
+    List<Dictionary<string, string>> TubeKindTemp = null;
+    Dictionary<string, string> Temp = null;
+    int count = 0, row = 0;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+
+    bool IsDischarged = false;
+    if (Convert.ToDateTime(pf.OutDate).ToString("yyyy").ToString() != "0001" && pf.OutDate < DateTime.Now)
+    {
+        IsDischarged = true;
+    }
+}
+
+<style type="text/css">
+    .popup {
+        width: 700px;
+        height: 380px;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 56%;
+        left: 50%;
+        margin: -200px 0 0 -350px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    .ui-autocomplete {
+        max-height: 300px;
+        overflow-y: auto;
+        font-size: 14px;
+        /* prevent horizontal scrollbar */
+        overflow-x: hidden;
+    }
+
+    .normal {
+        height: inherit;
+    }
+
+        .normal:hover {
+            cursor: pointer;
+            background-color: #FFFFCC;
+        }
+
+    .defaultPosition {
+        background-color: #bef18c;
+    }
+
+    .haveData {
+        background-color:yellow !important;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('#costlist').val('@pf.CostCenterName.Trim()');
+        $(function () {
+            $("#outHosp").change(function () {
+                var t = $('#outHosp').val();
+                if (t == '家中' || t == '0') {
+                    $("#outHosp_other").hide();
+                } else {
+                    $("#outHosp_other").show();
+                }
+            })
+        });
+        resize();
+
+        $("#Prompt_TubeKind").autocomplete({
+            source: [@Html.Raw("'" + string.Join("', '", (string[])ViewBag.TubeKindNameArrary) + "'")]
+        });
+        //查詢
+        $("#txt_other").keydown(function (event) {
+            var key = $(this).val();
+            var find_idx = 0;
+            if (event.which == 13) {
+                if (key.length != 0) {
+                    $("td[class='typeall']").removeAttr("find_idx").each(function () {
+                        var color = $(this).css("background-color");
+                        var str = $(this).html();
+                        if (str.indexOf(key) != -1) {
+                            $(this).css("background-color", "#FFFF77").focus().animate({ backgroundColor: color }, 3000);
+                        }
+                    });
+                }
+            }
+        });
+        close_pup_window();
+        $("#dv_type").draggable();
+        $("#btn_tube_index").css({ "background-color": "#666666", "color": "#FFFFFF" });
+        setGridColor();
+    });
+
+    function resize() {
+        var insert = $("#insert").height();
+        //重設高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - (120 + insert));
+        }).trigger("resize");
+    }
+
+    function setGridColor() {
+        //格行換色
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.due').css('background', '#FF6666');
+    }
+
+    //驗證欄位_數字
+    function numcheck(id, time, word) {
+        if (time.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(time.value) && time.value != "") {
+            alert(word + "只能輸入數字");
+            document.getElementById(id).value = "";
+        }
+    }
+
+    //選取管路種類的值
+    function ClickTube(text) {
+        var r = $('#dv_type .normal').filter(function () { return $(this).attr('data-text') == text });
+        if (r.length > 0) {
+            r_tubekind_Value(r[0]);
+        }
+        else {
+            $('#Prompt_TubeKind').val('');
+            $('#tube_kind_id').val('');
+        }
+    }
+
+    //回傳管路種類的值
+    function r_tubekind_Value(obj) {
+        $("#dv_type").hide();
+        $('#Prompt_TubeKind').val($(obj).attr('data-text'));
+        $('#tube_kind_id').val($(obj).attr('kindid'));
+        $('#tube_bundle_care').val($(obj).attr('bundle_care'));
+        $('#DUEDATE_PU').val($(obj).attr('duedate_pu'));
+        $('#DUEDATE_RUBBER').val($(obj).attr('duedate_rubber'));
+        $('#DUEDATE_SILICON').val($(obj).attr('duedate_silicon'));
+        $('#DUEDATE_IRON').val($(obj).attr('duedate_iron'));
+        $('#DUEDATE_TEFLON').val($(obj).attr('duedate_teflon'));
+        $('#DUEDATE_COM').val($(obj).attr('duedate_com'));
+        $('#PRE_MATERIALID').val($(obj).attr('pre_materialid'));
+        $('#PRE_MODEL').val($(obj).attr('pre_model'));
+        $('#PRE_POSITION').val($(obj).attr('pre_position'));
+
+        //根據選擇的管路種類決定部位及引流管是否出現
+        decide_bytube_group($(obj).attr('group'));
+        if ($('#tube_bundle_care').val() == '1' || $('#tube_bundle_care').val() == '2' || $('#tube_bundle_care').val() == '3') {
+            $('#div_place_station').show();
+        } else {
+            $('#div_place_station').hide();
+        }
+        //Pa 2024/5/24 女性才顯示
+        if ($('#tube_bundle_care').val() == '1' && '@pf.PatientGender' == '女') {
+            $('#td_place_reason').show();
+            resize();
+        }
+        else {
+            $('#td_place_reason').hide();
+            resize();
+            $('input[name="bundle_uti_reason"]').each(function () { this.checked = false; });
+            div_hidden('span_ck_bundle_uti_reason_other');
+        }
+
+        set_pre();
+        set_duedate();
+        mix_name();
+    }
+
+    function r_other_value() {
+        var name = $('#txt_other').val();
+        if ($.trim(name) != '') {
+            $("#dv_type").hide();
+            $('#tube_kind_id').val('');
+            $('#Prompt_TubeKind').val(name);
+            $('#tube_bundle_care').val('0');
+            decide_bytube_group($('#other_type').val());
+            mix_name();
+        }
+        else
+            alert('請輸入其他種類');
+    }
+
+    //根據選擇的管路種類決定部位及引流管是否出現
+    function decide_bytube_group(groupid) {
+        $('#param_tube_kind_type').val(groupid);
+        $('#tr_position').hide();
+        if (groupid == '1' || groupid == '2') {
+
+            $('#tr_position').show();
+        }
+        else if (groupid == '3') {
+            $('#txt_position').val('');
+            $('#tubePosition').prop("selectedIndex", 0);
+        }
+    }
+
+    function decide_bytube_bundle(bundle) {
+        $('#tube_bundle_care').val(bundle);
+    }
+
+    function set_pre() {
+        //材質 下拉式選單
+        if ($('#PRE_MATERIALID').val() != '') {
+            $("#tubeMaterial option").filter(function () { return $(this).text() == $('#PRE_MATERIALID').val() }).prop('selected', true);
+        }
+        else {
+            $("#tubeMaterial option:first").prop('selected', true);
+        }
+        //管路管徑
+        $('#param_tube_model').val($('#PRE_MODEL').val());
+
+        //部位 預設帶第一個,其他出現部位改變td顏色
+        $("#dv_position .defaultPosition").removeClass('defaultPosition');
+        if ($('#PRE_POSITION').val() != '') {
+            $.each($('#PRE_POSITION').val().split("|"), function (i, item) {
+                if (i == 0)
+                    $('#txt_position').val(item);
+                $("#dv_position .normal[data-text='" + item + "']").addClass('defaultPosition');
+            });
+        }
+        else
+            $('#txt_position').val('');
+    }
+
+    function set_duedate() {
+        $('#tube_forecast_time').val('');
+        if ($('#Prompt_TubeKind').val() != '') {
+            var addday = '';
+            switch ($('#tubeMaterial').val()) {
+                case '1':
+                    addday = $('#DUEDATE_PU').val();
+                    break;
+                case '2':
+                    addday = $('#DUEDATE_RUBBER').val();
+                    break;
+                case '3':
+                    addday = $('#DUEDATE_SILICON').val();
+                    break;
+                case '4':
+                    addday = $('#DUEDATE_IRON').val();
+                    break;
+                case '5':
+                    addday = $('#DUEDATE_TEFLON').val();
+                    break;
+                case '6':
+                case '-1':
+                    addday = $('#DUEDATE_COM').val();
+                case '8':
+                    if ($('#Prompt_TubeKind').val() == '2-way Foley' || $('#Prompt_TubeKind').val() == '3-way Foley') {
+                        addday = 7;
+                    }
+            }
+
+            //設定預計拔管日
+            if (addday != '') {
+                var dt = new DateTime();
+                var now = new Date($('#tube_start_date').val() + ' ' + $("#tube_start_time").val());
+                if ($.trim($('#tube_start_date').val()) != "") {
+                    now.setDate(now.getDate() + parseInt(addday));
+                    dt.ctime = now;
+                    $('#tube_forecast_time').val(dt.getDTStr("yyyy/MM/dd"));
+                } else {
+                    $('#tube_forecast_time').val('');
+                }
+            }
+        }
+    }
+
+    //回傳部位
+    function return_position_val(data) {
+        $('#txt_position').val(data);
+        $('#txt_position_other').val('');
+        $("#dv_position").hide();
+        mix_name();
+    }
+
+    //組合護理字串及名稱
+    function mix_name() {
+        //取得資料
+        $('#nur_text').val('');
+        $('#param_tube_name').val('');
+        var date = $('#tube_start_date').val() + " " + $('#tube_start_time').val();      //時間
+        var tubekind = $('#Prompt_TubeKind').val();     //管路名稱，種類
+        var numberid = $("#tubeNumber").val();              //編號
+        var numberother = $("#tubeNumber_other").val();     //編號
+        var number = $("#tubeNumber").val();                //編號
+        var position = $('#txt_position').val();            //部位
+        var locationid = $("#tubePosition").val();          //位置值
+        var location = $("#tubePosition").find("option:selected").text();   //位置字
+        var place = $("[name=place_station]:checked").val();
+        var placeDetail = "";
+        if (place == "院內") {
+            placeDetail = $("#costlist").find("option:selected").text();
+        }
+        else {
+            if ($("#outHosp").find("option:selected").text() != "其他") {
+                placeDetail = $("#outHosp").find("option:selected").text();
+            }
+            if ($("#outHosp_other").val() != "") {
+                placeDetail += $("#outHosp_other").val();
+            }
+        }
+
+        //以下是 new add by jarvis 20161123
+        var tube_length = $("#param_tube_length").val();    //固定長度
+        var tubeLength_Unit = $("#tubeLengthUnit").find("option:selected").text();  //固定長度單位tubeLengthUnit
+        var tube_forecast_time = $("#tube_forecast_time").val();//預計拔管日期tube_forecast_time
+        var tube_put_back = $("[name=tube_put_back]:checked").val();//原管放回
+        //護理字串
+        if ($('#btn_edit').css('display') == 'none') {//新增//用btn_edit的顯示來判斷是新增還是刪除
+            if (tubekind != '' && numberid != '-1') {
+                if (numberid == '99') {
+                    if (numberother != '') {
+                        var numbername = numberother;
+                    }
+                    else {
+                        return;
+                    }
+                }
+                else {
+                    var numbername = number;
+                }
+
+                if ($.trim(date) != "") {//有日期
+                    //$('#nur_text').val('於' + date + "放置" + tubekind + "#" + numbername + "。");//舊寫法些微不同
+                    //if (position != '' && locationid != '-1') {
+                    //    $('#nur_text').val('於' + date + "在" + position + location + "放置" + tubekind + "#" + numbername + "。");
+                    //}
+                    $('#nur_text').val(date + "放置" + tubekind + "#" + numbername + "。");
+                    if (position != '' && locationid != '-1') {
+                        var tempStr = date + "在" + placeDetail + "，於"+ position + location + "放置" + tubekind + "#" + numbername;
+                        tempStr += (tube_put_back == "Y") ? "，原管放回" : "";
+                        $('#nur_text').val(tempStr + "。");
+                    } else if (position == '' && locationid == '-1') {//後來發現避光set這類型的都不會再存檔時組到字
+                        var str = $('#nur_text').val();
+                        str = str.substring(0, str.length - 1);
+                        str += (tube_put_back == "Y") ? "，原管放回" : "";
+                        $('#nur_text').val(str + "。");
+                    }
+                }
+                else {//日期不詳
+                    //$('#nur_text').val("放置" + tubekind + "#" + numbername + "，插管日期不詳。");//舊寫法些微不同
+                    //if (position != '' && locationid != '-1') {
+                    //    $('#nur_text').val("在" + position + location + "放置" + tubekind + "#" + numbername + "，插管日期不詳");
+                    //}
+                    $('#nur_text').val("放置日期不詳，" + tubekind + "#" + numbername + "。");
+                    if (position != '' && locationid != '-1') {
+                        var tempStr = "放置日期不詳，" + "於" + position + location + "放置" + tubekind + "#" + numbername;
+                        tempStr += (tube_put_back == "Y") ? "，原管放回" : "";
+                        $('#nur_text').val(tempStr + "。");
+                    } else if (position == '' && locationid == '-1') {//後來發現避光set這類型的都不會再存檔時組到字
+                        var str = $('#nur_text').val();
+                        str = str.substring(0, str.length - 1);
+                        str += (tube_put_back == "Y") ? "，原管放回" : "";
+                        $('#nur_text').val(str + "。");
+                    }
+                }
+            }
+        } else {//修改
+            if (tubekind != '' && numberid != '-1') {
+                if (numberid == '99') {
+                    if (numberother != '') {
+                        var numbername = numberother;
+                    }
+                    else {
+                        return;
+                    }
+                }
+                else {
+                    var numbername = number;
+                }
+                var Str = "";
+                if (position != '' && locationid != '-1') {
+                    Str += position + location + tubekind + "#" + numbername;
+                } else {
+                    Str += tubekind + "#" + numbername;
+                }
+                if (tube_length != '') {
+                    Str += " 固定長度為" + tube_length;
+                }
+                if (tubeLength_Unit != '') {
+                    Str += tubeLength_Unit.replace('請選擇', '');
+                }
+                if (tube_forecast_time != '') {
+                    Str += "，拔管日期為" + tube_forecast_time;
+                } else {
+                    Str += "";
+                }
+                Str += (tube_put_back == "Y") ? "，原管放回" : "";
+                $('#nur_text').val(Str + "。");
+            }
+        }
+        //女性尿管
+        if ($('#tube_bundle_care').val() == '1' && '@pf.PatientGender' == '女')
+        {
+
+        }
+        //名稱
+        var group = $('#param_tube_kind_type').val();
+        if (tubekind != '') {
+            if (numberid == '99') {
+                var numbername = numberother;
+            }
+            else if (numberid == '-1') {
+                var numbername = '';
+            }
+            else {
+                var numbername = number;
+            }
+        }
+        if (group == '3') {
+            $('#param_tube_name').val(tubekind + "_" + $('#tube_start_date').val() + "_" + numbername);
+        }
+        else {
+            if (locationid == '-1') {
+                location = '';
+            }
+            $('#param_tube_name').val(tubekind + "_" + position + "_" + location + "_" + numbername);
+        }
+    }
+
+
+    //驗證
+    function verity() {
+        var flag = false;
+        var bundleArr = ['1', '2','3']; //是否需要做Bundle Care Ryan 20240129
+        if ($('#Prompt_TubeKind').val() == '') {
+            alert('請選擇管路種類')
+            return false;
+        }
+        else {
+            if ($('#tubeMaterial').val() == '-1') {
+                alert('請選擇材質')
+                return false;
+            }
+            if ($('#tubeNumber').val() == '-1') {
+                alert('請選擇編號')
+                return false;
+            }
+            else {
+                if ($('#param_tube_length').val() == '' && $('#tubeLengthUnit').val() != '-1') {
+                    alert('請輸入長度')
+                    return false;
+                }
+                else {
+                    if ($('#param_tube_length').val() != '' && $('#tubeLengthUnit').val() == '-1') {
+                        alert('請選擇長度單位')
+                        return false;
+                    }
+                    else {
+                        if ($('#param_tube_kind_type').val() != '3') {
+                            if ($('#txt_position').val() == '') {
+                                alert('請選擇部位')
+                                return false;
+                            }
+                            else {
+                                if ($('#tubePosition').val() == '-1') {
+                                    alert('請選擇位置')
+                                    return false;
+                                }
+                                else {
+                                    //若需要做Bundle Care，置放位置為必填 Ryan 20240129
+                                    if (bundleArr.indexOf($('#tube_bundle_care').val()) != -1) {
+                                        var outHospSelect = document.getElementById('outHosp').value;
+                                        //var inHospSelect = document.querySelector('label#inHosp select').value;
+                                        //if ($('#place_station').val() == '0' || outHospSelect === "0") {
+                                        //    alert('請選擇置放地點')
+                                        //    return false;
+                                        //}
+                                        if ($('#tube_bundle_care').val() == '1' || $('#tube_bundle_care').val() == '2' || $('#tube_bundle_care').val() == '3') {
+                                            if ($('#costlist').val() == "" && place_station_1.checked) {
+                                                alert('請選擇置放地點')
+                                                return false;
+                                            }
+                                            else if (outHospSelect === "0" && place_station_2.checked) {
+                                                alert('請選擇置放地點')
+                                                return false;
+                                            }
+                                            else {
+                                                flag = true;
+                                            }
+                                        }
+
+                                    }
+                                    else {
+                                        flag = true;
+                                    }
+                                }
+                            }
+                        }
+                        else {
+                            //若需要做Bundle Care，置放位置為必填 Ryan 20240129
+                            if (bundleArr.indexOf($('#tube_bundle_care').val()) != -1) {
+                                if ($('#place_station').val() == "") {
+                                    alert('請選擇置放地點')
+                                    return false;
+                                }
+
+                                else {
+                                    flag = true;
+                                }
+                            }
+                            else {
+                                flag = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if ($('#tube_bundle_care').val() == '1' && '@pf.PatientGender' == '女') {
+            var reasonObj = [];
+            $('input[name=bundle_uti_reason]:checked').each(function () { reasonObj.push($(this).val()) });
+            if (reasonObj.length > 0) {
+                flag = true;
+            }
+            else {
+                alert('請選擇置入照護評估');
+                return false;
+            }
+            var reason4Obj = [];
+            $('input[name=bundle_uti_Urinary_catheter]:checked').each(function () { reason4Obj.push($(this).val()) });
+            if (reason4Obj.length > 0) {
+                flag = true;
+            }
+            else {
+                alert('請選擇置入照護評估');
+                return false;
+            }
+        }
+        if (flag) {
+            mix_name();
+            return flag;
+        }
+    }
+
+    function edit(obj) {
+        $("#btn_Prompt_TubeKind").prop('disabled', true);
+        $('#tuberow').val($(obj).attr('tuberow'));
+        $('#tubeid').val($(obj).attr('tubeid'));
+        var row = $('#tuberow').val();
+        document.getElementById('numlab').innerText = $('#numberother' + row).val();
+        $('input[type=checkbox][name=NoTime]').prop('disabled', true).prop('checked', false);
+        $('#tube_start_date').val($('#start_date' + row).val());
+        $('#tube_start_time').val($('#start_time' + row).val());
+        if ($('#start_date' + row).val() == '')
+            $('input[type=checkbox][name=NoTime]').prop('checked', true);
+        $('#Prompt_TubeKind').val($('#typename' + row).val());
+        $('#tubeNumber_other').val($('#numberother' + row).val());
+        $('#tube_forecast_time').val($('#forecast' + row).val());
+        $('#tubeMaterial').val($('#materialid' + row).val());
+        $('#tubeMaterial_other').val($('#materialother' + row).val());
+        txt_fordrop('tubeMaterial', 'tubeMaterial_other');
+        $('#param_tube_model').val($('#model' + row).val());
+        $('#param_tube_length').val($('#length' + row).val());
+        $('#tubeLengthUnit').val($('#lengthunit' + row).val());
+        $('#txt_position').val($('#position' + row).val());
+        $('#tubePosition').val($('#location' + row).val());
+        mix_name();
+        $('#nur_text').val($('#carerecord' + row).val());
+        $("#tube_put_back[value='" + $('#remark' + row).val() + "']").prop('checked', true);
+        //置放地點 Patrick 2024/06/04
+        $('input[name="place_station"]').each(function () { this.checked = false; });
+        $('input[name="place_station"][value="' + $('#place_station_type' + row).val() + '"]').prop('checked', true);
+        var station_type = $('#place_station_type' + row).val();
+        if (station_type == "院內") {
+            $('#costlist').val($('#place' + row).val());
+            $('#costlist').show();
+            $('#outHosp').hide();
+            $('#outHosp_other').hide();
+            $('#outHosp_other').val('');
+        } else {
+            $('#outHosp').val($('#place' + row).val());
+            $('#outHosp').show();
+            $('#costlist').hide();
+            if ($('#station' + row).val() != "") {
+                $('#outHosp_other').show();
+                $('#outHosp_other').val($('#station' + row).val());
+            } else {
+                $('#outHosp_other').hide();
+                $('#outHosp_other').val('');
+            }
+        }
+
+        disAble('#tube_start_date,#tube_start_time,#param_tube_name,#Prompt_TubeKind,#nur_text,#tube_put_back');
+
+        //置放原因 Ryan 2024.02.15
+        var type = $('#typename' + row).val();
+        $('#td_place_reason').fadeOut(0);
+        resize();
+        $('#div_place_reason').fadeOut(0);
+        $('input[name="bundle_uti_reason"]').each(function () { this.checked = false; });
+        $('input[name="bundle_uti_hand_hygiene"]').each(function () { this.checked = false; });
+        $('input[name="bundle_uti_Aseptic"]').each(function () { this.checked = false; });
+        $('input[name="bundle_uti_Urinary_catheter"]').each(function () { this.checked = false; });
+        $('input[name="bundle_uti_urine_collection"]').each(function () { this.checked = false; });
+        $('input[name="bundle_uti_Avoid_creasing"]').each(function () { this.checked = false; });
+        $('input[name="bundle_uti_Capacity"]').each(function () { this.checked = false; });
+        $('input[name="bundle_uti_hand_hygiene_after"]').each(function () { this.checked = false; });
+        div_hidden('span_ck_bundle_uti_reason_other');
+        $('#btn_place_reason').removeClass('haveData');
+        if ((type.trim() == '3-way Foley' || type.trim() == '2-way Foley')&&'@pf.PatientGender' == '女') {
+            $('#td_place_reason').show();
+            resize();
+
+            var reason = $('#bundle_uti_reason' + row).val();
+
+                var reason_arr = reason.split(',');
+                var reason_other = $('#bundle_uti_reason_other' + row).val();
+                for (var i = 0; i < reason_arr.length; i++) {
+                    $('input[name="bundle_uti_reason"][value="' + reason_arr[i] + '"]').prop('checked', true);
+                }
+                if (reason_other != "") {
+                    $('.span_ck_bundle_uti_reason_other').show();
+                    $('input[name="bundle_uti_reason_other"]').val(reason_other);
+                }
+                else {
+                    $('.span_ck_bundle_uti_reason_other').fadeOut(0);
+                    $('input[name="bundle_uti_reason_other"]').val('');
+                }
+
+            $('input[name="bundle_uti_hand_hygiene"][value="' + $('#bundle_uti_hand_hygiene' + row).val() + '"]').prop('checked', true);
+            $('input[name="bundle_uti_Aseptic"][value="' + $('#bundle_uti_Aseptic' + row).val() + '"]').prop('checked', true);
+                var Urinary_catheter = $('#bundle_uti_Urinary_catheter' + row).val();
+                var Urinary_catheter_arr = Urinary_catheter.split(',');
+                for (var i = 0; i < Urinary_catheter_arr.length; i++) {
+                    $('input[name="bundle_uti_Urinary_catheter"][value="' + Urinary_catheter_arr[i] + '"]').prop('checked', true);
+            }
+            $('input[name="bundle_uti_urine_collection"][value="' + $('#bundle_uti_urine_collection' + row).val() + '"]').prop('checked', true);
+            $('input[name="bundle_uti_Avoid_creasing"][value="' + $('#bundle_uti_Avoid_creasing' + row).val() + '"]').prop('checked', true);
+            $('input[name="bundle_uti_Capacity"][value="' + $('#bundle_uti_Capacity' + row).val() + '"]').prop('checked', true);
+            $('input[name="bundle_uti_hand_hygiene_after"][value="' + $('#bundle_uti_hand_hygiene_after' + row).val() + '"]').prop('checked', true);
+                $('#btn_place_reason').addClass('haveData');
+
+        }
+    }
+
+    //判斷是否選擇其他
+    function txt_fordrop(dropid, txtid) {
+        var list = $('#' + dropid).val()
+        if (list != '99') {
+            $('#' + txtid).attr('defaultvalue', $('#' + txtid).val());
+            document.getElementById(txtid).disabled = true;
+            $('#' + txtid).val('');
+        }
+        else {
+            $('#' + txtid).val($('#' + txtid).attr('defaultvalue'));
+            document.getElementById(txtid).disabled = false;
+        }
+    }
+
+    // disabled 項目
+    function disAble(disAbleId) {
+        $(disAbleId).prop('disabled', true);
+    }
+
+    function Undiasble(Undiasbleid) {
+        if (Undiasbleid != '') {
+            var Undiasbleid = Undiasbleid.split(",");
+            for (var i = 0; i < Undiasbleid.length; i++) {
+                document.getElementById(Undiasbleid[i]).disabled = false;
+            }
+        }
+    }
+
+    function SetNoTime(obj) {
+        if ($(obj).prop('checked')) {
+            $('#tube_start_date, #tube_start_time').each(function () {
+                $(this).attr('data-value', this.value).prop('disabled', true);
+                $(this).val('');
+            });
+        }
+        else {
+            $('#tube_start_date, #tube_start_time').each(function () {
+                $(this).prop('disabled', false);
+                $(this).val($(this).attr('data-value'));
+            });
+        }
+    }
+
+    function Insert() {
+        if (verity()) {
+            loop_windows("open_cover");
+            $('#location_name').val($('#tubePosition').find('option:selected').text());
+
+            var tubeID = $("#tube_kind_id").val();
+            var billID = "";
+
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/TubeManage/Insert")',
+                data: $('#form1').serialize(),
+                success: function (data) {
+
+                    //查詢計價組套ID
+                         $.ajax({
+                            type: 'POST',
+                            url: '@Url.Content("~/TubeManage/getTubeBillSet")',
+                            data: { tubeID: tubeID },
+                             success: function (ID) {
+                                 billID = ID;
+                                 if (billID != null && billID != "" && '@IsDischarged' == 'False') {
+                                     window.open('../Billing/index?set=' + billID, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=300,toolbar=no,width=1290,height=800');
+
+                                 }
+                            },
+                            complete: function () {
+                            }
+                        });
+
+                    alert(data);
+                    window.location.href = 'Index';
+                },
+                complete: function () {
+                }
+            });
+        }
+    }
+
+    function Update() {
+        if (verity()) {
+            loop_windows("open_cover");
+            Undiasble('tube_start_date,tube_start_time,param_tube_name,Prompt_TubeKind,nur_text,tube_put_back');
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/TubeManage/Edit")',
+                data: $('#form1').serialize(),
+                success: function (data) {
+                    alert(data);
+                    window.location.href = 'Index';
+                },
+                complete: function () {
+                }
+            });
+        }
+    }
+
+    //取消拔管
+    function Update2(obj) {
+        if (confirm('確認取消拔管?')) {
+            loop_windows("open_cover");
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/TubeManage/Delete_Endtime")',
+                data: { 'tubeRow': $(obj).attr('tubeRow'), 'tubeID': $(obj).attr('tubeID') },
+                success: function (data) {
+                    alert(data);
+                    window.location.href = 'Index';
+                },
+                complete: function () {
+                }
+            });
+        }
+    }
+
+    function Delete(obj) {
+        if (confirm('確認刪除?')) {
+            loop_windows("open_cover");
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/TubeManage/Delete")',
+                data: { 'tubeRow': $(obj).attr('data-row'), 'tubeID': $(obj).attr('data-id') },
+                success: function (data) {
+                    alert(data);
+                    window.location.href = 'Index';
+                },
+                complete: function () {
+                }
+            });
+        }
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    //新增檢查資料填寫狀態 Ryan 2024.02.15
+    function checkData(DataName) {
+        var type = $('input[name=' + DataName + ']')[0].type;
+        var Data = [];
+        var haveOther;
+        switch (type) {
+            case 'checkbox':
+                $('input[name=' + DataName + ']:checked').each(function () { Data.push(this.value) });
+                haveOther = Data.includes('其他');
+                if (haveOther) {
+                    var otherName = DataName + '_other';
+                    var otherData = $('input[name=' + otherName + ']').val();
+                    if (otherData == "" || otherData==undefined) {
+                        alert('未填寫其他內容');
+                        $('#div_place_reason').show();
+                        return false;
+                    }
+                }
+                break;
+        }
+        if (Data.length > 0) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    function toggleOtherInput() {
+        var otherInput = document.getElementById("outHosp_other_label");
+        var selectBox = document.getElementById("outHosp");
+        if (selectBox.value === "其他") {
+            otherInput.style.display = "inline-block";
+        } else {
+            otherInput.style.display = "none";
+        }
+    }
+
+</script>
+
+<div class="funcArea">
+    <div style="padding-bottom:5px;text-align:center;">
+        <input id="btn_tube_index" type="button" value="管路管理" />
+        <input id="btn_tube_ass_list" type="button" value="管路評估" onclick="window.location.href = 'Assessment_List';" />
+    </div>
+    <div id="insert" style="padding-bottom:5px;">
+        <form id="form1" action="Insert" method="post">
+            <input id="tuberow" name="tuberow" type="hidden" value="" />
+            <input id="tubeid" name="tubeid" type="hidden" value="" />
+            <fieldset>
+                <legend>新增管路內容</legend>
+                <table border="0" cellpadding="2" cellspacing="0" style="width:100%;font-size:14px;">
+                    <tr>
+                        <td>
+                            <span style="color:red">*</span>
+                            <label>插管日期</label>
+                            <input type="text" id="tube_start_date" name="tube_start_date" value="@DateTime.Now.ToString("yyyy/MM/dd")" onchange="set_duedate();" />
+                            <input type="text" id="tube_start_time" name="tube_start_time" value="@DateTime.Now.ToString("HH:mm")" />
+                            <label><input type="checkbox" name="NoTime" value="不詳" onclick="SetNoTime(this);" />不詳</label>
+                            @WebTool.setDateTime("tube_start_date", "tube_start_time", "", "0", "", "")
+                            @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "tube_start_date", "tube_start_time", true)*@
+                        </td>
+                        <td colspan="3">
+                            <span style="color:red">*</span>@Html.Label("param_tube_name", "名　　稱")
+                            @Html.TextBox("param_tube_name", "", new { @readonly = "readonly", style = "width:240px;" })
+                            <label style="padding-left:20px;"><input type="checkbox" id="tube_put_back" name="tube_put_back" value="Y" />原管放回</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span style="color:red">*</span>
+                            <input type="button" id="btn_Prompt_TubeKind" value="管路名稱" onclick="$('#dv_type').show();" />
+                            <input type="text" id="Prompt_TubeKind" name="Prompt_TubeKind" onblur="ClickTube(this.value);" />
+                            <input id="param_tube_kind_type" name="group" type="hidden" />
+                            <input id="tube_kind_id" name="tube_kind_id" type="hidden"/>
+                            <input id="tube_bundle_care" name="tube_bundle_care" type="hidden" />
+                            <input id="DUEDATE_COM" type="hidden" />
+                            <input id="DUEDATE_PU" type="hidden" />
+                            <input id="DUEDATE_RUBBER" type="hidden" />
+                            <input id="DUEDATE_SILICON" type="hidden" />
+                            <input id="DUEDATE_IRON" type="hidden" />
+                            <input id="DUEDATE_TEFLON" type="hidden" />
+                            <input id="PRE_MATERIALID" type="hidden" />
+                            <input id="PRE_MODEL" type="hidden" />
+                            <input id="PRE_POSITION" type="hidden" />
+                        </td>
+                        <td>
+                            @Html.Label("lab", "編　　號:")
+                            <label id="numlab">@ViewBag.dt_tubekind_num</label>
+                            <input type="hidden" id="tubeNumber" name="tubeNumber" value="99" />
+                            <input type="hidden" id="tubeNumber_other" name="tubeNumber_other" value="@ViewBag.dt_tubekind_num" />
+                        </td>
+                        <td colspan="2">
+                            <label>預計拔管日期 @(Html.TextBox("tube_forecast_time", ""))</label>
+                            @*@WebTool.setDateTime("tube_forecast_time", "", "", "", "", "")*@
+                            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "tube_forecast_time", "", false, "")
+                            <input type="button" value="清除" onclick="$('#tube_forecast_time').val('');" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span style="color:red">*</span> @Html.Label("lab", "管路材質")
+                            @Html.DropDownList("tubeMaterial", (List<SelectListItem>)ViewData["tubeMaterial"], new { onchange = "txt_fordrop(this.id,'tubeMaterial_other');set_duedate();" })
+                            @Html.TextBox("tubeMaterial_other", "", new { style = "width:80px;", defaultvalue = "", disabled = "disabled" })
+                        </td>
+                        <td>
+                            @Html.Label("param_tube_model", "管路管徑")
+                            @Html.TextBox("param_tube_model", "", new { style = "width:80px;" })
+
+                        </td>
+                        <td>
+                            @Html.Label("param_tube_length", "固定長度")
+                            @Html.TextBox("param_tube_length", "", new { style = "width:80px;", onchange = "numcheck(this.id,this,'固定長度')" })
+                            @Html.DropDownList("tubeLengthUnit", (List<SelectListItem>)ViewData["tubeLengthUnit"])
+                        </td>
+
+                        @*<td>
+                        @Html.TextBox("endtime", "", new { style = "width:60px;", defaultvalue = "", disabled = "disabled" })
+                        @Html.TextBox("endremark", "", new { style = "width:60px;", defaultvalue = "", disabled = "disabled" })
+                    </td>*@
+                    </tr>
+                    <tr id="tr_position" style="display:none;">
+                        <td>
+                            <span style="color:red">*</span>
+                            <label for="txt_position">部　　位</label>
+                            <input type="text" id="txt_position" name="txt_position" style="width:80px;" readonly="readonly" onclick="$('#dv_position').show();" />
+                        </td>
+                        <td colspan="3">
+                            <span style="color:red">*</span>
+                            <label>位　　置</label>
+                            @Html.DropDownList("tubePosition", (List<SelectListItem>)ViewData["tubePosition"], new { onchange = "mix_name();" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span id="div_place_station" style="color:red;display:none">*</span>@Html.Label("station", "置放地點")
+                            @Html.RadioButton("place_station", "院內", true, new { id = "place_station_1", onclick = @Java_funcion.show_hide("inHosp", "outHosp") + "" })
+                            @Html.Label("place_station_1", "院內")
+                            <label id="inHosp">@Html.DropDownList("costlist", (List<SelectListItem>)ViewData["costlist"], new { })</label>
+                            @Html.RadioButton("place_station", "院外", false, new { id = "place_station_2", onclick = @Java_funcion.show_hide("outHosp", "inHosp") + "" })
+                            @Html.Label("place_station_2", "院外")
+                            <select id="outHosp" name="outHosp" size="1" style="display: none;">
+                                <option value="0">請選擇</option>
+                                <option value="家中">家中</option>
+                                <option value="長期養護機構">長期養護機構</option>
+                                <option value="其他醫院">其他醫院</option>
+                                <option value="其他">其他</option>
+                            </select>
+                            @Html.TextBox("outHosp_other", "", new { style = "width:80px;display:none;" })
+                            <input type="hidden" id="location" name="location" value="" />
+                        </td>
+                        <td id="td_place_reason" style="display:none">
+                            <span style="color:red">*</span> @Html.Label("place_reason", "UTI Bundle 置入照護評估")
+                            <input type="button" id="btn_place_reason" value="選擇原因" onclick="$('#div_place_reason').show()"/>
+                            @*<input type="text" id="place_reason" style="display:none" readonly="readonly" />*@
+                        </td>
+                    </tr>
+                    
+                    <tr style="display:none;">
+                        <td><label for="nur_text">護理字串</label></td>
+                        <td colspan="3">
+                            @Html.TextBox("nur_text", "", new { style = "width:60%;", @readonly = "readonly" })
+                        </td>
+                    </tr>
+                    <tr id="tr_amount" style="display:none;">
+                        <td>@Html.Label("txt_amount", "引流量")</td>
+                        <td>
+                            @Html.TextBox("txt_amount", "", new { style = "width:80px;", onchange = "numcheck(this.id,this,'引流量')" }) mL
+                        </td>
+                        <td>
+                            顏色
+                            @Html.DropDownList("color_drainage", (List<SelectListItem>)ViewData["color_drainage"], new { onchange = "txt_fordrop(this.id,'color_other');" })
+                            @Html.TextBox("color_other", "", new { style = "width:60px;", defaultvalue = "", disabled = "disabled" })
+                        </td>
+                        <td>
+                            氣味
+                            @Html.DropDownList("taste_drainage", (List<SelectListItem>)ViewData["taste_drainage"], new { onchange = "txt_fordrop(this.id,'taste_other');" })
+                            @Html.TextBox("taste_other", "", new { style = "width:60px;", defaultvalue = "", disabled = "disabled" })
+                        </td>
+                        <td>
+                            性質
+                            @Html.DropDownList("nature_drainage", (List<SelectListItem>)ViewData["nature_drainage"], new { onchange = "txt_fordrop(this.id,'nature_other');" })
+                            @Html.TextBox("nature_other", "", new { style = "width:60px;", defaultvalue = "", disabled = "disabled" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" style="text-align:center;">
+                            <input id="btn_save" class="btn" type="button" value="新增紀錄" onclick="Insert();" />
+                            <input id="btn_edit" type="button" value="確認更新" style="display:none;" onclick="Update();" />
+                            <input type="button" value="清除" onclick="window.location.href = 'Index';" />
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+            <div id="div_place_reason" class="popup" style="display:none;overflow-y:auto;overflow-x:hidden;height:350px;">
+                <div style="text-align: center; ">
+                    <b><label>UTI Bundle 置入照護評估</label></b>
+                </div>
+                (1)置放原因:
+                <label><input type="checkbox" name="bundle_uti_reason" value="急性尿滯留或尿道阻塞或神經性膀胱">急性尿滯留或尿道阻塞或神經性膀胱</label><br />
+                <label><input type="checkbox" name="bundle_uti_reason" style="margin-left: 95px;" value="需要精確監測排尿量">需要精確監測排尿量</label><br />
+                <label><input type="checkbox" name="bundle_uti_reason" style="margin-left: 95px;" value="需長期固定不動，如:胸腔或脊椎嚴重外傷或骨盆骨折">需長期固定不動，如：胸腔或脊椎嚴重外傷或骨盆骨折</label><br />
+                <label><input type="checkbox" name="bundle_uti_reason" style="margin-left: 95px;" value="需膀胱沖洗或藥物留置治療">需膀胱沖洗或藥物留置治療</label><br />
+                <label><input type="checkbox" name="bundle_uti_reason" style="margin-left: 95px;" value="手術需要">手術需要</label><br />
+                <label><input type="checkbox" name="bundle_uti_reason" style="margin-left: 95px;" value="避免影響傷口癒合">避免影響傷口癒合</label><br />
+                <label><input type="checkbox" name="bundle_uti_reason" style="margin-left: 95px;" value="增加病人舒適度，如:癌症末期病人">增加病人舒適度，如：癌症末期病人</label><br />
+                <label><input type="checkbox" name="bundle_uti_reason" style="margin-left: 95px;" value="其他" onchange="if (this.checked) { $('.span_ck_bundle_uti_reason_other').show(); } else { $('#bundle_uti_reason_other').val('') ; $('.span_ck_bundle_uti_reason_other').hide() }">其他</label>
+                @*@VitalSign_Helper.assess_checkbox("bundle_uti_reason", "急性尿滯留或尿道阻塞或神經性膀胱|" +
+        "需要精確監測排尿量|需長期固定不動，如:胸腔或脊椎嚴重外傷或骨盆骨折|需膀胱沖洗或藥物留置治療|" +
+        "手術需要|避免影響傷口癒合|增加病人舒適度，如:癌症末期病人|其他", "其他", "span_ck_bundle_uti_reason_other")*@
+                <span class="span_ck_bundle_uti_reason_other" style="display:none;">
+                    @Html.TextBox("bundle_uti_reason_other", "", new { style = "width:80px;" })
+                </span>
+                <br />
+                (2)置放導尿管前執行手部衛生:
+                @Html.RadioButton("bundle_uti_hand_hygiene", "是", true, new { id = "bundle_uti_hand_hygiene_1", text = "是" })
+                <label for="bundle_uti_hand_hygiene_1">是</label>
+                @Html.RadioButton("bundle_uti_hand_hygiene", "否", false, new { id = "bundle_uti_hand_hygiene_2", text = "否" })
+                <label for="bundle_uti_hand_hygiene_2">否</label><br />
+                (3)無菌技術操作:
+                @Html.RadioButton("bundle_uti_Aseptic", "是", true, new { id = "bundle_uti_Aseptic_1", text = "是" })
+                <label for="bundle_uti_Aseptic_1">是</label>
+                @Html.RadioButton("bundle_uti_Aseptic", "否", false, new { id = "bundle_uti_Aseptic_2", text = "否" })
+                <label for="bundle_uti_Aseptic_2">否</label><br />
+                (4)導尿管固定於:
+                @Html.RadioButton("bundle_uti_Urinary_catheter", "左大腿", false, new { id = "bundle_uti_Urinary_catheter_1", text = "左大腿" })
+                <label for="bundle_uti_Urinary_catheter_1">左大腿</label>
+                @Html.RadioButton("bundle_uti_Urinary_catheter", "右大腿", false, new { id = "bundle_uti_Urinary_catheter_2", text = "右大腿" })
+                <label for="bundle_uti_Urinary_catheter_2">右大腿</label>
+                @*@Html.RadioButton("bundle_uti_Urinary_catheter", "右", false, new { id = "bundle_uti_Urinary_catheter_3", text = "右" })
+                <label for="bundle_uti_Urinary_catheter_3">右</label>*@
+                @Html.RadioButton("bundle_uti_Urinary_catheter", "下腹部", false, new { id = "bundle_uti_Urinary_catheter_4", text = "下腹部" })
+                <label for="bundle_uti_Urinary_catheter_4">下腹部</label><br />
+                (5)集尿袋應維持在膀胱以下位置，末置於地面:
+                @Html.RadioButton("bundle_uti_urine_collection", "是", true, new { id = "bundle_uti_urine_collection_1", text = "是" })
+                <label for="bundle_uti_urine_collection_1">是</label>
+                @Html.RadioButton("bundle_uti_urine_collection", "否", false, new { id = "bundle_uti_urine_collection_2", text = "否" })
+                <label for="bundle_uti_urine_collection_2">否</label><br />
+                (6)集尿袋維持密閉、無菌且通暢的引流系統，避免管路扭曲或壓折:
+                @Html.RadioButton("bundle_uti_Avoid_creasing", "是", true, new { id = "bundle_uti_Avoid_creasing_1", text = "是" })
+                <label for="bundle_uti_Avoid_creasing_1">是</label>
+                @Html.RadioButton("bundle_uti_Avoid_creasing", "否", false, new { id = "bundle_uti_Avoid_creasing_2", text = "否" })
+                <label for="bundle_uti_Avoid_creasing_2">否</label><br />
+                (7)集尿袋不可超過八分滿:
+                @Html.RadioButton("bundle_uti_Capacity", "是", true, new { id = "bundle_uti_Capacity_1", text = "是" })
+                <label for="bundle_uti_Capacity_1">是</label>
+                @Html.RadioButton("bundle_uti_Capacity", "否", false, new { id = "bundle_uti_Capacity_2", text = "否" })
+                <label for="bundle_uti_Capacity_2">否</label><br />
+                (8)完成導尿管置放後，立即執行手部衛生:
+                @Html.RadioButton("bundle_uti_hand_hygiene_after", "是", true, new { id = "bundle_uti_hand_hygiene_after_1", text = "是" })
+                <label for="bundle_uti_hand_hygiene_after_1">是</label>
+                @Html.RadioButton("bundle_uti_hand_hygiene_after", "否", false, new { id = "bundle_uti_hand_hygiene_after_2", text = "否" })
+                <label for="bundle_uti_hand_hygiene_after_2">否</label>
+                <div style="text-align:center;margin-top:5px">
+                    <input type="button" onclick="$('#div_place_reason').fadeOut(0);" value="取消" />
+                    <input type="button" onclick="$('#div_place_reason').fadeOut(0); if (checkData('bundle_uti_reason')) { $('#btn_place_reason').addClass('haveData') } else { $('#btn_place_reason').removeClass('haveData') };" value="確定" />
+                </div>
+            </div>
+</form>
+    </div>
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;">
+        <tr>
+            <td style="padding:5px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width:11%;">插管日期</td>
+                            <td style="width:7%;">置放地點</td>
+                            <td style="width:14%;">種類</td>
+                            <td style="width:7%;">部位</td>
+                            <td style="width:5%;">位置</td>
+                            <td style="width:5%;">編號</td>
+                            <td style="width:7%;">材料</td>
+                            <td style="width:5%;">管徑</td>
+                            <td style="width:5%;">長度</td>
+                            <td style="width:5%;">置入 Bundle care</td>
+                            <td style="width:7%;">預計拔管</td>
+                            <td style="width:7%;">實際拔管</td>
+                            <td colspan="3" style="width:15%;">
+                                <div style="width:138px; overflow:hidden;">
+                                    <input class="undel" type="button" value="顯示拔管" onclick="$('.del').show(); $('.undel').hide(); setGridColor();" />
+                                    <input class="del" type="button" value="隱藏拔管" style="display:none;" onclick="$('.undel').show(); $('.del').hide(); setGridColor();" />
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:95px">
+                    @if (dt_tube != null)
+                    {    //準備變數判斷是否可以更新/修改 1/3
+                        string tmpNowdate = DateTime.Now.ToString("yyyy/MM/dd");
+                        string tmpNowtime = DateTime.Now.ToString("HH:mm");
+                        string tmpStartdate = "", tmpStarttime = "", tmpEnddate = "", tmpEndtime = "";
+                        Boolean isToday = false;
+                        Boolean isYesterday = false;
+
+                        <table border="0" cellpadding="4" cellspacing="1" width="100%" style="width:100%;background-color: #FFFFFF;font-size:14px;">
+                            @foreach (DataRow r in dt_tube.Rows)
+                            {   //準備變數判斷是否可以更新/修改 2/3
+                                tmpStartdate = !string.IsNullOrWhiteSpace(r["STARTTIME"].ToString()) ? Convert.ToDateTime(r["STARTTIME"]).ToString("yyyy/MM/dd") : "";
+                                tmpStarttime = !string.IsNullOrWhiteSpace(r["STARTTIME"].ToString()) ? Convert.ToDateTime(r["STARTTIME"]).ToString("HH:mm") : "";
+                                tmpEnddate = !string.IsNullOrWhiteSpace(r["ENDTIME"].ToString()) ? Convert.ToDateTime(r["ENDTIME"]).ToString("yyyy/MM/dd") : "";
+                                tmpEndtime = !string.IsNullOrWhiteSpace(r["ENDTIME"].ToString()) ? Convert.ToDateTime(r["ENDTIME"]).ToString("HH:mm") : "";
+                                isToday = (tmpStartdate == tmpNowdate || tmpNowdate == tmpEnddate);
+                                isYesterday = (tmpStartdate == Convert.ToDateTime(tmpNowdate).AddDays(-1).ToString("yyyy/MM/dd") || tmpEnddate == Convert.ToDateTime(tmpNowdate).AddDays(-1).ToString("yyyy/MM/dd"));
+
+
+                                if (r["DELETED"].ToString() == "")
+                                {
+                                    if (r["ENDTIME"].ToString() == "")
+                                    {
+                                        if (r["FORECAST"].ToString() != "" && Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd")) >= Convert.ToDateTime(r["FORECAST"]))
+                                        {
+                                            @:<tr class="due">
+                                            }
+                                            else
+                                            {
+                                                @:<tr>                                            
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @:<tr class="del" style="display:none;">                                        
+                                        }
+                                            <td style="width:11%;text-align:center;">
+                                                @if (!string.IsNullOrWhiteSpace(r["STARTTIME"].ToString()))
+                                                {
+                                                    <label>@Convert.ToDateTime(r["STARTTIME"]).ToString("yyyy/MM/dd HH:mm")</label>
+                                                }
+                                                else
+                                                {
+                                                    <label>不詳</label>
+                                                }
+                                                <input id="start_date@(r["TUBEROW"])" type="hidden" value="@((!string.IsNullOrWhiteSpace(r["STARTTIME"].ToString())) ? Convert.ToDateTime(r["STARTTIME"]).ToString("yyyy/MM/dd") : "")" />
+                                                <input id="start_time@(r["TUBEROW"])" type="hidden" value="@((!string.IsNullOrWhiteSpace(r["STARTTIME"].ToString())) ? Convert.ToDateTime(r["STARTTIME"]).ToString("HH:mm") : "")" />
+                                            </td>
+                                            <td style="width:7%;text-align:center;">
+                                                @*@r["PLACE_STATION"]*@
+                                                @if (r["PLACE_STATION"].ToString() != "")
+                                                {
+                                                    var place_station = r["PLACE_STATION"].ToString();
+                                                    var split_arr = place_station.Split('|');
+                                                    if (split_arr.Length >= 3)
+                                                    {
+                                                        var place_station_type = split_arr[0];
+                                                        var place = split_arr[1];
+
+
+                                                        var station = split_arr[2];
+
+                                                        <input id="place_station_type@(r["TUBEROW"])" type="hidden" value="@place_station_type" />
+                                                        <input id="place@(r["TUBEROW"])" type="hidden" value="@place" />
+                                                        <input id="station@(r["TUBEROW"])" type="hidden" value="@station" />
+
+                                                        if (@place == "其他")
+                                                        {
+                                                            @station
+                                                        }
+                                                        else
+                                                        {
+                                                            @place <br />
+                                                            @station
+                                                        }
+                                                    }
+                                                    if (split_arr.Length == 2)
+                                                    {
+                                                        var place_station_type = split_arr[0];
+                                                        var place = split_arr[1];
+                                                        <input id="place_station_type@(r["TUBEROW"])" type="hidden" value="@place_station_type" />
+                                                        <input id="place@(r["TUBEROW"])" type="hidden" value="@place" />
+                                                        @place
+                                                    }
+                                                }
+
+                                            </td>                                            
+                                            <td style="width:14%;text-align:center;">
+                                                @r["TYPE_NAME"]
+                                                <input id="typename@(r["TUBEROW"])" type="hidden" value="@r["TYPE_NAME"]" />
+                                            </td>
+                                            <td style="width:7%;text-align:center;">
+                                                @r["POSITION"]
+                                                <input id="position@(r["TUBEROW"])" type="hidden" value="@r["POSITION"]" />
+                                            </td>
+                                            <td style="width:5%;text-align:center;">
+                                                @if (r["LOCATION"].ToString() != "-1")
+                                                {
+                                                    @r["LOCATION_NAME"]
+                                                }
+                                                <input id="location@(r["TUBEROW"])" type="hidden" value="@r["LOCATION"]" />
+                                            </td>
+                                            <td style="width:5%;text-align:center;">
+                                                @if (r["NUMBERID"].ToString() != "99")
+                                                {
+                                                    @r["NUBER_NAME"]
+                                                }
+                                                else
+                                                {
+                                                    @r["NUMBEROTHER"]
+                                                }
+                                                <input id="numberid@(r["TUBEROW"])" type="hidden" value="@r["NUMBERID"]" />
+                                                <input id="numberother@(r["TUBEROW"])" type="hidden" value="@r["NUMBEROTHER"]" />
+                                            </td>
+                                            <td style="width:7%;text-align:center;">
+                                                @if (r["MATERIALID"].ToString() != "-1")
+                                                {
+                                                    if (r["MATERIALID"].ToString() != "99")
+                                                    {
+                                                        @r["MATERIAL_NAME"]
+                                                    }
+                                                    else
+                                                    {
+                                                        @r["MATERIALOTHER"]
+                                                    }
+                                                }
+                                                <input id="materialid@(r["TUBEROW"])" type="hidden" value="@r["MATERIALID"]" />
+                                                <input id="materialother@(r["TUBEROW"])" type="hidden" value="@r["MATERIALOTHER"]" />
+                                            </td>
+                                            <td style="width:5%;text-align:center;">
+                                                @r["MODEL"]
+                                                <input id="model@(r["TUBEROW"])" type="hidden" value="@r["MODEL"]" />
+                                            </td>
+                                            <td style="width:5%;text-align:center;">
+                                                @r["LENGTH"]
+                                                <label id="numauto">
+                                                    @if (r["LENGTHUNIT"].ToString() != "-1")
+                                                    {
+                                                        @r["LENGTHUNIT_NAME"]
+                                                    }
+                                                </label>
+                                                <input id="length@(r["TUBEROW"])" type="hidden" value="@r["LENGTH"]" />
+                                                <input id="lengthunit@(r["TUBEROW"])" type="hidden" value="@r["LENGTHUNIT"]" />
+                                            </td>
+                                            <td style="width:5%;text-align:center;">
+                                                @if (r["PLACE_REASON"].ToString() != "")
+                                                {
+                                                    var place_reason = r["PLACE_REASON"].ToString();
+                                                    var split_arr = place_reason.Split('|');
+                                                    if (split_arr.Length >= 9)
+                                                    {
+                                                        var reason = split_arr[0];
+                                                        var reason_tooltip = reason.Replace("其他", "");
+                                                        var other = split_arr[1];
+                                                        var hand_hygiene = split_arr[2];
+                                                        var Aseptic = split_arr[3];
+                                                        var Urinary_catheter = split_arr[4];
+                                                        var urine_collection = split_arr[5];
+                                                        var Avoid_creasing = split_arr[6];
+                                                        var Capacity = split_arr[7];
+                                                        var hand_hygiene_after = split_arr[8];
+
+                                                        var buddle_title = "(1)置放原因:" + reason_tooltip + other + "\n" +
+                                                                           "(2)置放導尿管前執行手部衛生:" + hand_hygiene + "\n" +
+                                                                           "(3)無菌技術操作:" + Aseptic + "\n" +
+                                                                           "(4)導尿管固定於:" + Urinary_catheter + "\n" +
+                                                                           "(5)集尿袋應維持在膀胱以下位置，末置於地面:" + urine_collection + "\n" +
+                                                                           "(6)集尿袋維持密閉、無菌且通暢的引流系統，避免管路扭曲或壓折:" + Avoid_creasing + "\n" +
+                                                                           "(7)集尿袋不可超過八分滿:" + Capacity + "\n" +
+                                                                           "(8)完成導尿管置放後，立即執行手部衛生:" + hand_hygiene_after;
+
+                                                        <input id="bundle_uti_reason@(r["TUBEROW"])" type="hidden" value="@reason" />
+                                                        <input id="bundle_uti_hand_hygiene@(r["TUBEROW"])" type="hidden" value="@hand_hygiene" />
+                                                        <input id="bundle_uti_Aseptic@(r["TUBEROW"])" type="hidden" value="@Aseptic" />
+                                                        <input id="bundle_uti_Urinary_catheter@(r["TUBEROW"])" type="hidden" value="@Urinary_catheter" />
+                                                        <input id="bundle_uti_urine_collection@(r["TUBEROW"])" type="hidden" value="@urine_collection" />
+                                                        <input id="bundle_uti_Avoid_creasing@(r["TUBEROW"])" type="hidden" value="@Avoid_creasing" />
+                                                        <input id="bundle_uti_Capacity@(r["TUBEROW"])" type="hidden" value="@Capacity" />
+                                                        <input id="bundle_uti_hand_hygiene_after@(r["TUBEROW"])" type="hidden" value="@hand_hygiene_after" />
+                                                        <input id="bundle_uti_reason_other@(r["TUBEROW"])" type="hidden" value="@other" />
+                                                        <img src="../Images/med_dictionary.png" border="0" title="@buddle_title" alt=" " />
+                                                    }
+
+                                                }
+                                                else
+                                                {
+                                                    <input id="bundle_uti_reason@(r["TUBEROW"])" type="hidden" value="" />
+                                                    <input id="bundle_uti_reason_other@(r["TUBEROW"])" type="hidden" value="" />
+                                                }
+
+                                            </td>
+                                            <td style="width:7%;text-align:center;">
+                                                @if (r["FORECAST"].ToString() != "")
+                                                {
+                                                    @Convert.ToDateTime(r["FORECAST"]).ToString("d")
+                                                    <input id="forecast@(r["TUBEROW"])" type="hidden" value="@Convert.ToDateTime(r["FORECAST"]).ToString("d")" />
+                                                }
+                                            </td>
+                                            <td style="width:7%;text-align:center;">
+                                                @if (r["ENDTIME"].ToString() != "")
+                                                {
+                                                    @Convert.ToDateTime(r["ENDTIME"]).ToString("d")
+                                                }
+                                            </td>
+                                            if (r["ENDTIME"].ToString() == "" && r["DELETED"].ToString() == "")
+                                            {
+                                              <td style="width:5%;">
+                                                  <input type="button" value="拔管" style="width:40px;" onclick="@Java_funcion.pup_window("UpdEndtime?tuberow=" + r["TUBEROW"] + "&tubeid=" + r["TUBEID"], 900, 400, "")" />                                                  
+                                              </td>
+                                            <td style="width:5%;">
+                                                @if (!string.IsNullOrWhiteSpace(r["STARTTIME"].ToString()))
+                                                {
+                                                    <input type="button" value="更新" tuberow="@r["TUBEROW"]" tubeid="@r["TUBEID"]" style="width:40px;" onclick="@Java_funcion.show_hide("btn_edit", "btn_save"); $('#form1').attr('action', 'Edit'); decide_bytube_group(@(r["TYPE_GROUP"])); decide_bytube_bundle(@(r["BUNDLE_CARE"])); edit(this);" />@*@(r["TYPE_GROUP"])*@
+                                                    <input id="carerecord@(r["TUBEROW"])" type="hidden" value="@r["CARERECORD"]" />
+                                                    <input id="remark@(r["TUBEROW"])" type="hidden" value="@r["REMARK"]" />
+                                                }
+                                            </td>
+                                            <td style="width:5%;">
+                                                <input type="button" value="刪除" style="width:40px;" data-row="@r["TUBEROW"]" data-id="@r["TUBEID"]" onclick="Delete(this);" />
+                                            </td>
+                                            }
+                                            else
+                                            {
+                                            <td style="width:5%;"></td>
+                                            <td style="width:5%;">
+                                                @if ((r["UPDNO"].ToString() == ViewBag.userno) && (!string.IsNullOrWhiteSpace(r["ENDTIME"].ToString())))
+                                                {
+                                                    <input type="button" value="修改" tuberow="@r["TUBEROW"]" tubeid="@r["TUBEID"]" style="width:40px;" onclick="Update2(this);" />@*@(r["TYPE_GROUP"])*@
+                                                    <input id="remark@(r["TUBEROW"])" type="hidden" value="@r["endremark"]" />
+                                                }
+                                            </td>
+                                            <td style="width:5%;"></td>
+                                            }
+                                            @:</tr>                                        
+                                    }
+                                }
+                            </table>
+                        }
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div id="dv_type" class="popup" style="display:none;overflow-y:auto;overflow-x:hidden;">
+            <table border="1" cellpadding="1" cellspacing="0" style="width:100%;border: 1px solid #CC88FF;">
+                <tr>
+                    <th colspan="5" style="background-color:#CC88FF;display:none;">不用計量、部位及位置類</th>
+                </tr>
+                <tr>
+                    @if (TubeKind != null && TubeKind.Exists(x => x["TUBE_GROUP"] == "3"))
+                    {
+                        TubeKindTemp = TubeKind.FindAll(x => x["TUBE_GROUP"] == "3");
+                        count = TubeKindTemp.Count;
+                        row = (count % 5 != 0) ? count + (5 - count % 5) : count;
+                        for (int i = 0; i < row; i++)
+                        {
+                            if (i < count)
+                            {
+                                Temp = TubeKindTemp[i];
+                                <td class="typeall normal" kindid="@Temp["KINDID"]" data-text="@Temp["KINDNAME"]" group="@Temp["TUBE_GROUP"]" pre_materialid="@Temp["PRE_MATERIALID"]" pre_model="@Temp["PRE_MODEL"]" pre_position="@Temp["PRE_POSITION"]"
+                                    duedate_com="@Temp["DUEDATE_COM"]" duedate_pu="@Temp["DUEDATE_PU"]" duedate_rubber="@Temp["DUEDATE_RUBBER"]" duedate_silicon="@Temp["DUEDATE_SILICON"]" duedate_iron="@Temp["DUEDATE_IRON"]" duedate_teflon="@Temp["DUEDATE_TEFLON"]"
+                                    bundle_care="@Temp["BUNDLE_CARE"]" onclick="r_tubekind_Value(this);">
+                                    <label>@Temp["KINDNAME"]</label>
+                                </td>
+                                if ((i + 1) % 5 == 0)
+                                {
+                                @:</tr><tr>
+                                }
+                            }
+                            else
+                            {
+                                <td></td>
+                            }
+                        }
+                    }
+                </tr>
+                <tr>
+                    <th colspan="5" style="background-color:#CC88FF;display:none;">不用計量、可計量類</th>
+                </tr>
+                <tr>
+                    @if (TubeKind != null && TubeKind.Exists(x => x["TUBE_GROUP"] != "3"))
+                    {
+                        TubeKindTemp = TubeKind.FindAll(x => x["TUBE_GROUP"] != "3");
+                        count = TubeKindTemp.Count;
+                        row = (count % 5 != 0) ? count + (5 - count % 5) : count;
+                        for (int i = 0; i < row; i++)
+                        {
+                            if (i < count)
+                            {
+                                Temp = TubeKindTemp[i];
+                                <td class="typeall normal" kindid="@Temp["KINDID"]" data-text="@Temp["KINDNAME"]" group="@Temp["TUBE_GROUP"]" pre_materialid="@Temp["PRE_MATERIALID"]" pre_model="@Temp["PRE_MODEL"]" pre_position="@Temp["PRE_POSITION"]"
+                                    duedate_com="@Temp["DUEDATE_COM"]" duedate_pu="@Temp["DUEDATE_PU"]" duedate_rubber="@Temp["DUEDATE_RUBBER"]" duedate_silicon="@Temp["DUEDATE_SILICON"]" duedate_iron="@Temp["DUEDATE_IRON"]" duedate_teflon="@Temp["DUEDATE_TEFLON"]"
+                                    bundle_care="@Temp["BUNDLE_CARE"]" onclick="r_tubekind_Value(this);">
+                                    <label>@Temp["KINDNAME"]</label>
+                                </td>
+                                if ((i + 1) % 5 == 0)
+                                {
+                                @:</tr><tr>
+                                }
+                            }
+                            else
+                            {
+                                <td></td>
+                            }
+                        }
+                    }
+                </tr>
+                @*<tr>
+                    <th colspan="5" style="background-color:#CC88FF;display:none;">不用計量</th>
+                </tr>
+                <tr>
+                    @if (TubeKind != null && TubeKind.Exists(x => x["TUBE_GROUP"] == "2"))
+                    {
+                        TubeKindTemp = TubeKind.FindAll(x => x["TUBE_GROUP"] == "2");
+                        count = TubeKindTemp.Count;
+                        row = (count % 5 != 0) ? count + (5 - count % 5) : count;
+                        for (int i = 0; i < row; i++)
+                        {
+                            if (i < count)
+                            {
+                                Temp = TubeKindTemp[i];
+                                <td class="typeall normal" kindid="@Temp["KINDID"]" data-text="@Temp["KINDNAME"]" group="@Temp["TUBE_GROUP"]" pre_materialid="@Temp["PRE_MATERIALID"]" pre_model="@Temp["PRE_MODEL"]" pre_position="@Temp["PRE_POSITION"]"
+                                    duedate_com="@Temp["DUEDATE_COM"]" duedate_pu="@Temp["DUEDATE_PU"]" duedate_rubber="@Temp["DUEDATE_RUBBER"]" duedate_silicon="@Temp["DUEDATE_SILICON"]" duedate_iron="@Temp["DUEDATE_IRON"]" duedate_teflon="@Temp["DUEDATE_TEFLON"]"
+                                    bundle_care="@Temp["BUNDLE_CARE"]" onclick="r_tubekind_Value(this);">
+                                    <label>@Temp["KINDNAME"]</label>
+                                </td>
+                                if ((i + 1) % 5 == 0)
+                                {
+                                @:</tr><tr>
+                                }
+                            }
+                            else
+                            {
+                                <td></td>
+                            }
+                        }
+                    }
+                </tr>*@
+                @*<tr>
+                    <th colspan="5" style="background-color:#CC88FF;display:none;">可計量類</th>
+                </tr>
+                <tr>
+                    @if (TubeKind != null && TubeKind.Exists(x => x["TUBE_GROUP"] == "1"))
+                    {
+                        TubeKindTemp = TubeKind.FindAll(x => x["TUBE_GROUP"] == "1");
+                        count = TubeKindTemp.Count;
+                        row = (count % 5 != 0) ? count + (5 - count % 5) : count;
+                        for (int i = 0; i < row; i++)
+                        {
+                            if (i < count)
+                            {
+                                Temp = TubeKindTemp[i];
+                                <td class="typeall normal" kindid="@Temp["KINDID"]" data-text="@Temp["KINDNAME"]" group="@Temp["TUBE_GROUP"]" pre_materialid="@Temp["PRE_MATERIALID"]" pre_model="@Temp["PRE_MODEL"]" pre_position="@Temp["PRE_POSITION"]"
+                                    duedate_com="@Temp["DUEDATE_COM"]" duedate_pu="@Temp["DUEDATE_PU"]" duedate_rubber="@Temp["DUEDATE_RUBBER"]" duedate_silicon="@Temp["DUEDATE_SILICON"]" duedate_iron="@Temp["DUEDATE_IRON"]" duedate_teflon="@Temp["DUEDATE_TEFLON"]"
+                                    bundle_care="@Temp["BUNDLE_CARE"]" onclick="r_tubekind_Value(this);">
+                                    <label>@Temp["KINDNAME"]</label>
+                                </td>
+                                if ((i + 1) % 5 == 0)
+                                {
+                                @:</tr><tr>
+                                }
+                            }
+                            else
+                            {
+                                <td></td>
+                            }
+                        }
+                    }
+                </tr>*@
+                <tr>
+                    <td colspan="5" style="height:35px;">
+                        其他：
+                        <select id="other_type">
+                            <option value="3">不用計量、部位及位置類</option>
+                            <option value="2">不用計量</option>
+                            <option value="1">可計量類</option>
+                        </select>
+                        @Html.TextBox("txt_other", "", new { style = "width:80px;" })
+                        <input type="button" onclick="r_other_value();" value="確定" />
+                        <input type="button" onclick="$('#dv_type').fadeOut(0);" value="取消" />
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div id="dv_position" class="popup" style="display:none;">
+            <table border="1" cellpadding="1" cellspacing="0" style="text-align:center;width:100%;border: 1px solid #CC88FF;">
+                <tr>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="頭部">頭部</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="口腔">口腔</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="鼻子">鼻子</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="耳朵">耳朵</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+                <tr>
+                    <td width="12.5%" class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="頸部">頸部</td>
+                    <td width="12.5%" class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="喉嚨">喉嚨</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+
+                <tr>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="胸部">胸部</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="鎖骨下">鎖骨下</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="心尖">心尖</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="胸骨">胸骨</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="助間">助間</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="乳房">乳房</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="後背">後背</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="脊髓">脊髓</td>
+                </tr>
+                <tr>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="腹部">腹部</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="肝">肝</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="膽">膽</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="胃">胃</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="胃小彎">胃小彎</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="腸">腸</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="肚臍">肚臍</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="道格拉斯窩">道格拉斯窩</td>
+
+                </tr>
+                <tr>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="骨盆">骨盆</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="腎">腎</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="肝腎陷凹">肝腎陷凹</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="膀胱">膀胱</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="髖">髖</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="腰">腰</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="生殖器">生殖器</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="子宮">子宮</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="膀胱">膀胱</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="尿道">尿道</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="陰道">陰道</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="肛門">肛門</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="手臂">手臂</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="手背">手背</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="大腿">大腿</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="腹股溝">腹股溝</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="膝">膝</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="小腿">小腿</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="足踝">足踝</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="足背">足背</td>
+                </tr>
+                <tr>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="橈動脈">橈動脈</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="肱動脈">肱動脈</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="股動脈">股動脈</td>
+                    <td class="normal" onclick="return_position_val($(this).attr('data-text'));" data-text="足背動脈">足背動脈</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+                <tr>
+                    <td colspan="8" style="height:35px;">
+                        <label>其他：</label>
+                        <input type="text" id="txt_position_other" />
+                        <input type="button" onclick="return_position_val($('#txt_position_other').val())" value="確定" />
+                        <input type="button" onclick="$('#dv_position').fadeOut(0);" value="取消" />
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        

@@ -1,0 +1,193 @@
+﻿@using System.Data;
+@using NIS.Data;
+@{
+    ViewBag.Title = "CheckTest";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+
+    string msg = ViewBag.msg;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        height:26px;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function able(id) {
+        document.getElementById(id).disabled = false;
+        document.getElementById(id).focus();
+    }
+    function enable(id) {
+        document.getElementById(id).disabled = true;
+        $('#' + id).val('');
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0 ; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if  (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+   
+</script>
+
+<form action="CheckTest" method="post">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+            <tr>
+                <td style="padding-bottom:5px;text-align:center;">
+                    <span style="color:blue;font-size:26px;">檢驗檢查資料帶入護理紀錄</span>
+                </td>
+
+            </tr>
+            <tr>
+                <td style="padding:5px 0 5px 0;">
+                    帶入護理紀錄日期:
+                    @Html.TextBox("txt_day", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                    @Html.TextBox("txt_time", DateTime.Now.ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                    @*@WebTool.setDateTime("txt_day", "txt_time")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", false)
+                    <div class="dataArea" style="height:260px;">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                            <tr><th>檢驗</th></tr>
+                            <tr>
+                                <td>
+                                    @if (ViewData["lab"] != null && ((List<Lab>)ViewData["lab"]).Count > 0)
+                                    {
+                                        List<Lab> lablist = (List<Lab>)ViewData["lab"];
+                                        <table border="1" width="100%">
+                                            <tr>
+                                                <th style="background:#E1E6FA">帶紀錄</th>
+                                                <th style="background:#E1E6FA">檢驗日期</th>
+                                                <th style="background:#E1E6FA">組別</th>
+                                                <th style="background:#E1E6FA">檢體</th>
+                                                <th style="background:#E1E6FA">項目</th>
+                                                <th style="background:#E1E6FA">狀態</th>
+                                            </tr>
+                                            @for (int l = 0; l <= lablist.Count - 1; l++)
+                                            {
+                                                <tr>
+                                                    <td style="text-align:center">
+                                                        <input type="checkbox" name="lab_ck" value="" />
+                                                        <input type="hidden" name="d_@lablist[l].LabNo" value="@(lablist[l].LabDate.ToString("yyyy/MM/dd HH:mm"))" />
+                                                        <input type="hidden" name="i_@lablist[l].LabNo" value="@(lablist[l].LabName.ToString().Trim())" />
+                                                        <input type="hidden" name="r_@lablist[l].LabNo" value="@(lablist[l].lab_page)" />
+                                                    </td>
+                                                    <td>
+                                                        @if (@Convert.ToDateTime(@lablist[l].LabDate) != DateTime.MinValue)
+                                                        {
+                                                            @lablist[l].LabDate.ToString("yyyy/MM/dd HH:mm")
+                                                        }
+                                                    </td>
+                                                    <td>@lablist[l].Group.ToString().Trim()</td>
+                                                    <td>@lablist[l].Specimen.ToString().Trim()</td>
+                                                    <td>@lablist[l].LabName.ToString().Trim()</td>
+                                                    <td><a href="@lablist[l].lab_page.ToString().Trim()" target="_blank">網址</a></td>
+                                                </tr>
+                                            }
+                                        </table>
+                                    }
+                                    else
+                                    {
+                                        @Html.Raw("目前無資料")
+                                    }
+                                </td>
+                            </tr>
+                            <tr><th>檢查</th></tr>
+                            <tr>
+                                <td>
+                                    @if (ViewData["exam"] != null && ((List<Exam>)ViewData["exam"]).Count > 0)
+                                    {
+                                        List<Exam> examlist = (List<Exam>)ViewData["exam"];
+                                        <table border="1" width="100%">
+                                            <tr>
+                                                <th style="background:#E1E6FA;">帶紀錄</th>
+                                                <th style="background:#E1E6FA;width:150px">執行日期</th>
+                                                <th style="background:#E1E6FA;width:250px">檢查項目</th>
+                                                <th style="background:#E1E6FA;">檢查結果</th>
+
+                                            </tr>
+                                            @for (int e = 0; e <= examlist.Count - 1; e++)
+                                            {
+                                                <tr>
+                                                    <td style="text-align:center">
+                                                        <input type="checkbox" name="exam_ck" value="@examlist[e].ExamNo" />
+                                                        <input type="hidden" name="d_@examlist[e].ExamNo" value="@(examlist[e].ExamDate.ToString("yyyy/MM/dd HH:mm"))" />
+                                                        <input type="hidden" name="i_@examlist[e].ExamNo" value="@(examlist[e].ExamName.ToString().Trim())" />
+                                                        <input type="hidden" name="r_@examlist[e].ExamNo" value="@(examlist[e].ExamReport)" />
+                                                    </td>
+                                                    <td>
+                                                        @if (@Convert.ToDateTime(@examlist[e].ExamDate) != DateTime.MinValue)
+                                                        {
+                                                            @examlist[e].ExamDate.ToString("yyyy/MM/dd HH:mm")
+                                                        }
+                                                    </td>
+                                                    <td style="text-align:center">@examlist[e].ExamName.ToString().Trim()</td>
+                                                    <td>@examlist[e].ExamReport</td>
+
+                                                </tr>
+                                            }
+                                        </table>
+                                    }
+                                    else
+                                    {
+                                        @Html.Raw("目前無資料")
+                                    }
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:5px 0 5px 0;text-align:center;">
+                    <div class="funcArea">
+                        <input type="button" value="儲存" style="width:60px;" onclick="submit();" />
+                        <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) window.close();" />
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>

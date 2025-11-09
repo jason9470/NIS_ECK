@@ -1,0 +1,215 @@
+﻿@*編輯*@
+
+@using System.Data;
+@using NIS.Controllers;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+
+<script type="text/javascript">
+    var io_edit_grid;
+    var lastSelection = -1;
+    var now_row_data;
+
+    $(document).ready(function () {
+        $.jgrid.jqModal = $.extend($.jgrid.jqModal || {}, {  //改變修改條件不符視窗顯示位置
+            beforeOpen: centerInfoDialog
+        });
+
+        io_edit_grid=$("#jqGrid").jqGrid({
+            url: '@Url.Content("~/VitalSign/Machine_DataTable")',
+            editurl: 'clientArray',
+            datatype: "json",
+            colNames: ['輸入時間', '操作者ID', '疼痛', '瞳孔大小(右)', '瞳孔大小(左)', '瞳孔反射(右)', '瞳孔反射(左)', '肌肉力量-右上肢', '肌肉力量-左上肢', '肌肉力量-右下肢', '肌肉力量-左下肢', '排便性狀', '排便顏色', '意識(眼睛)', '意識(回應)', '意識(動作)', 'ID', '護理人員ID', '病患ID'],
+   	        colModel:[
+   		        { name: 'DATA_TIME', index: 'DATA_TIME' },
+   		        { name: 'OP_ID', index: 'OP_ID' },
+   		        { name: 'PAIN', index: 'PAIN', editable: true, cellattr: valuerange, editrules: { minValue: 0, maxValue: 10, number: true, integer:true} },
+   		        { name: 'BLOODSUGAR', index: 'BLOODSUGAR', editable: true, cellattr: valuerange, editrules: { minValue: 1, maxValue: 16, number: true } },
+   		        { name: 'CVP', index: 'CVP', editable: true, cellattr: valuerange, editrules: { minValue: 1, maxValue: 16, number: true } },
+   		        { name: 'AG', index: 'AG', editable: true, cellattr: valuerange, editrules: { minValue: 1, maxValue: 5, number: true } },
+   		        { name: 'HC', index: 'HC', editable: true, cellattr: valuerange, editrules: { minValue: 1, maxValue: 5, number: true } },
+   		        { name: 'FOOD', index: 'FOOD', sortable: true, editable: true, cellattr: valuerange, editrules: {minValue: 0, maxValue: 6, number: true } },
+                { name: 'IVF', index: 'IVF', sortable: true, editable: true, cellattr: valuerange, editrules: { minValue: 0, maxValue: 6,  number: true } },
+                { name: 'TPN', index: 'TPN', sortable: true, editable: true, cellattr: valuerange, editrules: { minValue: 0, maxValue: 6,  number: true } },
+                { name: 'BT', index: 'BT', sortable: true, editable: true, cellattr: valuerange, editrules: { minValue: 0, maxValue: 6, number: true } },
+                { name: 'URINE', index: 'URINE', sortable: false, cellattr: valuerange, editable: true, editrules: { minValue: 1, maxValue: 11, number: true } },
+                { name: 'STOOL', index: 'STOOL', sortable: false, cellattr: valuerange, editable: true, editrules: { minValue: 1, maxValue: 9, number: true } },
+                { name: 'DRAIN', index: 'DRAIN', sortable: false, cellattr: valuerange, editable: true, editrules: { minValue: 1, maxValue: 5, number: true } },
+                { name: 'BLOST', index: 'BLOST', sortable: false, cellattr: valuerange, editable: true, editrules: { minValue: 1, maxValue: 8, number: true } },
+                { name: 'OUTPUT_IRRIG', index: 'OUTPUT_IRRIG', sortable: false, editable: true, cellattr: valuerange, editrules: { minValue: 1, maxValue: 6, number: true } },
+                { name: 'ID', index: 'ID', sortable: false, hidden: true },
+                { name: 'PATIENT_NAME', index: 'PATIENT_NAME', sortable: false, hidden: true },
+                { name: 'PATIENT_ID', index: 'PATIENT_ID', sortable: false, hidden: true }
+   	        ],
+   	        sortname: 'DATA_TIME',
+            sortorder: 'desc',
+   	        shrinkToFit: false,
+   	        loadonce : true,
+   	        viewrecords: true,
+   	        headertitles: true,
+   	        brforeShowForm: function () { },
+   	        onSelectRow: editRow, // the javascript function to call on row click. will ues to to put the row in edit mode
+   	        autowidth: true,
+   	        height: 300,
+   	        rowNum: 9999,
+   	        loadComplete: function (data) {   	            
+   	            now_row_data = data//給初始JSON物件值
+   	        },
+        });    
+
+        function valuerange(rowId, cellValue, rowObject, cm, rdata) {
+            if ((rowObject["AG"] == '4' || rowObject["AG"] == '5') && !!rowObject["BLOODSUGAR"] && cm.name == 'BLOODSUGAR') {
+                return ' style="background:red"';
+            }
+            if ((rowObject["HC"] == '4' || rowObject["HC"] == '5') && !!rowObject["CVP"] && cm.name == 'CVP') {
+                return ' style="background:red"';
+            }
+            if (cellValue == '&#160;' || cellValue == null) { //&#160; 空格
+                return ' style="color:black"';
+            } else if (cellValue % 1 === 0) {
+                if (cellValue <= cm.editrules.maxValue && cellValue >= cm.editrules.minValue) {
+                    return ' style="color:black"';
+                } else {
+                    return ' style="background:red"';
+                }
+            } else {
+                return ' style="background:red"';
+            }
+
+        }
+
+        function valuerule(rowId, cellValue, rowObject, cm, rdata) {
+            if (rowObject["AG"] == '5') {
+                return ' style="background:red"';
+            }         
+        }
+
+        var setTooltipsOnColumnHeader = function (grid, iColumn, text) { //headertitles
+            var thd = jQuery("thead:first", grid[0].grid.hDiv)[0];
+            jQuery("tr.ui-jqgrid-labels th:eq(" + iColumn + ")", thd).attr("title", text);
+        };
+        setTooltipsOnColumnHeader($("#jqGrid"), 2, "0-0\n1-1\n2-2\n3-3\n4-4\n5-5\n6-6\n7-7\n8-8\n9-9\n10-10");
+        setTooltipsOnColumnHeader($("#jqGrid"), 3, "1-1\n2-1.5\n3-2\n4-2.5\n5-3\n6-3.5\n7-4\n8-4.5\n9-5\n10-5.5\n11-6\n12-6.5\n13-7\n14-7.5\n15-8\n16-8.5");
+        setTooltipsOnColumnHeader($("#jqGrid"), 4, "1-1\n2-1.5\n3-2\n4-2.5\n5-3\n6-3.5\n7-4\n8-4.5\n9-5\n10-5.5\n11-6\n12-6.5\n13-7\n14-7.5\n15-8\n16-8.5");
+        setTooltipsOnColumnHeader($("#jqGrid"), 5, "1- +\n2- -\n3- ±\n4-(C)無法睜眼\n5-其它");
+        setTooltipsOnColumnHeader($("#jqGrid"), 6, "1- +\n2- -\n3- ±\n4-(C)無法睜眼\n5-其它");
+        setTooltipsOnColumnHeader($("#jqGrid"), 7, "0-0\n1-1\n2-2\n3-3\n4-4\n5-5\n6-無法評估");
+        setTooltipsOnColumnHeader($("#jqGrid"), 8, "0-0\n1-1\n2-2\n3-3\n4-4\n5-5\n6-無法評估");
+        setTooltipsOnColumnHeader($("#jqGrid"), 9, "0-0\n1-1\n2-2\n3-3\n4-4\n5-5\n6-無法評估");
+        setTooltipsOnColumnHeader($("#jqGrid"), 10, "0-0\n1-1\n2-2\n3-3\n4-4\n5-5\n6-無法評估");
+        setTooltipsOnColumnHeader($("#jqGrid"), 11, "1-軟便\n2-硬便\n3-糊便\n4-稀便\n5-水便\n6-黏便\n7-母奶便\n8-過度便\n9-胎便\n10-綠便\n11-其它");
+        setTooltipsOnColumnHeader($("#jqGrid"), 12, "1-暗紅色\n2-鮮紅色\n3-黃褐色\n4-黃色\n5-土黃色\n6-白色\n7-灰白色\n8-墨綠色\n9-其他");
+        setTooltipsOnColumnHeader($("#jqGrid"), 13, "1-(1分)None\n2-(2分)To pain\n3-(3分)To speech\n4-(4分)Spontaneous\n5-(C)無法睜眼");
+        setTooltipsOnColumnHeader($("#jqGrid"), 14, "1-(1分)None\n2-(2分)Incomprehensible\n3-(3分)Inappropriate Word\n4-(4分)Confuse\n5-(5分)Orientated\n6-(T)氣切管\n7-(A)失語症\n8-(E)氣管內管");
+        setTooltipsOnColumnHeader($("#jqGrid"), 15, "1-(1分)None\n2-(2分)Extension to pain\n3-(3分)Flexion to pain\n4-(4分)Withdraw to pain\n5-(5分)Localized to pain\n6-(6分)Obeys Command");
+
+        function editRow(id, status, e) {
+            if (id && id !== lastSelection) {
+                if ($(io_edit_grid.jqGrid("getInd", lastSelection, true)).attr("editable") === "1") {
+                    if (io_edit_grid.saveRow(lastSelection, true, 'clientArray')) {
+                        io_edit_grid.jqGrid('restoreRow', lastSelection);
+                    } else {
+                        return false;
+                    }
+                }
+            }
+            var cell_data = io_edit_grid.jqGrid('getRowData');
+            //可編輯
+            var test = io_edit_grid.jqGrid('getRowData', id);
+                    io_edit_grid.jqGrid('editRow', id, {
+                        keys: true,
+                        focusField: 4,
+                        afterrestorefunc: function () {
+                            io_edit_grid.jqGrid('resetSelection');
+                            lastSelection = -1;
+                        }
+                    });
+                    lastSelection = id;
+        }        
+    });
+    function centerInfoDialog() {
+        var $infoDlg = $("#info_dialog");
+        var $parentDiv = $infoDlg.parent();
+        var dlgWidth = $infoDlg.width();
+        var parentWidth = $parentDiv.width();
+
+        $infoDlg[0].style.left = Math.round((parentWidth - dlgWidth) / 2) + "px";
+    }
+
+    function SavedataList() {
+        if ($(io_edit_grid.jqGrid("getInd", lastSelection, true)).attr("editable") === "1") {
+            //is editing mode
+            var save_status = io_edit_grid.saveRow(lastSelection, true, 'clientArray');
+            if (save_status) {
+                io_edit_grid.jqGrid('restoreRow', lastSelection);
+                io_edit_grid.jqGrid('resetSelection');
+                lastSelection = -1;
+            } else {
+                return false;
+            }
+        }
+        var row_all_data = io_edit_grid.jqGrid('getRowData');
+        //判斷資料是否需儲存
+        if (JSON.stringify(now_row_data) != JSON.stringify(row_all_data)) {           
+            $.ajax({
+                url: '@Url.Content("~/VitalSign/machine_modify")',
+                type: 'POST',
+                dataType: 'json',
+                contentType: "application/json",
+                async: true,
+                data: JSON.stringify({ new_Mdatas: row_all_data}),
+                success: function (data) {
+                    switch (data.status) {
+                        case 0:
+                            alert('資料修改成功');
+                            location.href = 'Machine_Datalist';
+                            break;
+                        default:
+                            alert(data.message);
+                            break;
+                    }
+
+                },
+                beforeSend: function () {
+                },
+                complete: function () {
+                },
+                error: function (jqXHR) {
+                    alert("發生內部錯誤(" + jqXHR.status + ")，請聯絡資訊人員");
+                }
+            });
+            //alert("儲存成功");
+        } else {
+            close_modal('grid_modify');
+        }
+    }
+    function refreshdataList() {
+        location.href = 'Machine_Datalist';
+    }
+
+</script>
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+
+<body>
+    <div id="module_define">VIP儀器資料修正</div>
+
+    <table id="jqGrid"></table>
+    <div class="func_box">
+        <input type="submit" value="儲存" onclick="SavedataList()" />
+        <input type="submit" value="重整" onclick="refreshdataList()" />
+        <font color="red">若瞳孔反射為 4(C)無法睜眼、5其他 選項 ， 瞳孔大小不應有數值。</font>
+    </div>
+    <br />
+</body>

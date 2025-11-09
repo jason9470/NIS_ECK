@@ -1,0 +1,636 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    #module_define
+    {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    .dataArea td
+    {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        height: 20px;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+        $('.due').css('background', '#FF6666');
+    }
+
+    //選擇是否打開其他欄位的textbox
+    function ckable(obj, txtid) {
+        var ck = obj;
+        if (ck.checked)
+        { able(txtid); }
+        else
+        { enable(txtid); }
+    }
+
+    //打開
+    function able(id) {
+        document.getElementById(id).disabled = false;
+    }
+    //關閉
+    function enable(id) {
+        document.getElementById(id).disabled = true;
+    }
+
+    //檢查
+    function check() {
+        if ($('input[name=rb_jittery]:checked').val() == undefined) {
+            alert('請選擇 1.感覺緊張不安 選項 ');
+            return false;
+        }
+        if ($('input[name=rb_distress_flare]:checked').val() == undefined) {
+            alert('請選擇 2.感覺容易苦惱或動怒 選項');
+            return false;
+        }
+        if ($('input[name=rb_gloomy]:checked').val() == undefined) {
+            alert('請選擇 3.感覺憂鬱、心情低落 選項');
+            return false;
+        }
+        if ($('input[name=rb_feeling_failure]:checked').val() == undefined) {
+            alert('請選擇  4.感覺比不上別人 選項');
+            return false;
+        }
+        if ($('input[name=rb_difficulty_sleeping]:checked').val() == undefined) {
+            alert('請選擇 5. 睡眠困難，譬如難以入睡、易睡或早醒 選項');
+            return false;
+        }
+        if ($('input[name=rb_suicidal_thoughts]:checked').val() == undefined) {
+            alert('請選擇 *有自殺想法 選項');
+            return false;
+        }
+        if ($('input[name=rb_social_issues_patient]:checked').val() == "有") {
+            if ($('input[name=cb_social_issues_patient_has]:checked').val() == undefined) {
+                alert('請選擇 社會問題【病人】細項原因');
+                return false;
+            }
+        }
+        if ($('input[name=rb_social_issues_family_member]:checked').val() == "有") {
+            if ($('input[name=cb_social_issues_family_member_has]:checked').val() == undefined) {
+                alert('請選擇 社會問題【家屬】細項原因');
+                return false;
+            }
+        }
+        if ($('input[name=rb_spirituality_religion_patient]:checked').val() == "有") {
+            if ($('input[name=cb_spirituality_religion_patient_has]:checked').val() == undefined) {
+                alert('請選擇 靈性宗教問題【病人】細項原因');
+                return false;
+            }
+        }
+        if ($('input[name=rb_spirituality_religion_family_member]:checked').val() == "有") {
+            if ($('input[name=cb_spirituality_religion_family_member_has]:checked').val() == undefined) {
+                alert('請選擇 靈性宗教問題【家屬】細項原因');
+                return false;
+            }
+        }
+        return true;
+    }
+
+    //加總
+    function mark() {
+        var score = 0;
+        score = count_score('jittery', score);
+        score = count_score('distress_flare', score);
+        score = count_score('gloomy', score);
+        score = count_score('feeling_failure', score);
+        score = count_score('difficulty_sleeping', score);
+        var content = '病人心情評估分數' + score + '分';
+        document.getElementById("score").innerText = score + '分， (身心適應狀況良好。)';
+        $("#hid_score_remark").val('(身心適應狀況良好。)');
+        $("#hid_score").val(score);
+        if (score >=15) {
+            content = '病人心情評估分數' + score + '分';
+            document.getElementById("score").innerText = score + '分， (重度情緒困擾，建議諮詢精神科醫師接受進一步評估。)';
+            $("#hid_score").val(score);
+            $("#hid_score_remark").val('(重度情緒困擾，建議諮詢精神科醫師接受進一步評估。)');
+        }
+        else if (score <=14 && score>=10) {
+            content = '病人心情評估分數' + score + '分';
+            document.getElementById("score").innerText = score + '分， (中度情緒困擾，建議諮詢精神科醫師接受進一步評估。)';
+            $("#hid_score").val(score);
+            $("#hid_score_remark").val('(中度情緒困擾，建議諮詢精神科醫師接受進一步評估。)');
+        }
+       else if (score <=9&& score>=6) {
+            content = '病人心情評估分數' + score + '分';
+            document.getElementById("score").innerText = score + '分， (輕度情緒困擾，建議尋求紓壓管道或接受心理專業諮詢。)';
+            $("#hid_score").val(score);
+            $("#hid_score_remark").val('(輕度情緒困擾，建議尋求紓壓管道或接受心理專業諮詢。)');
+        }
+       else if (score <= 5) {
+            content = '病人心情評估分數' + score + '分';
+            document.getElementById("score").innerText = score + '分， (身心適應狀況良好。)';
+            $("#hid_score").val(score);
+            $("#hid_score_remark").val('(身心適應狀況良好。)');
+        }
+    }
+
+    function count_score(id, score) {
+        var obj = $('input[name=rb_' + id + ']:checked');
+        if (obj.val() != undefined) {
+            $('#' + id).val(obj.attr('text'));
+            score = score + parseInt(obj.val());
+        }
+        return score
+    }
+
+    //打開或關閉靈性評估細項
+    function CheckedOnSpan(rbname, spanid) {       
+            if ($("[name=" + rbname + "]:checked").val() == "有") {
+            $("#" + spanid).show();
+        } else {
+            $("#" + spanid).hide();
+        }
+    }
+    function loading_change() {
+        loop_windows("open_cover");
+
+        if (check()) {
+            $("#form1").submit();
+        }
+    }
+</script>
+@{
+    string action = "Mood_Save", title = "新增 心情評估";
+    string id = "", jittery = "", distress_flare = "", gloomy = "", feeling_failure = "", difficulty_sleeping = "", suicidal_thoughts = "", total_score = "";
+    string society_pt = "", society_fm = "", religion_pt = "", religion_fm = "", measure = "", remark = "", spirituality = "";
+    DateTime now = DateTime.Now;
+    DataTable dt = ViewBag.dt;
+    if(dt != null && dt.Rows.Count > 0)
+    {
+        action = "Mood_Save"; title = "更新 心情評估";
+        now = Convert.ToDateTime(dt.Rows[0]["ASSESS_DT"]);
+        id = dt.Rows[0]["ASSESS_ID"].ToString();
+        jittery = dt.Rows[0]["SCORE_1"].ToString();
+        distress_flare = dt.Rows[0]["SCORE_2"].ToString();
+        gloomy = dt.Rows[0]["SCORE_3"].ToString();
+        feeling_failure = dt.Rows[0]["SCORE_4"].ToString();
+        difficulty_sleeping = dt.Rows[0]["SCORE_5"].ToString();
+        suicidal_thoughts = dt.Rows[0]["SUICIDAL_THOUGHTS_SCORE"].ToString();
+        total_score = dt.Rows[0]["TOTAL_SCORE"].ToString();
+
+        society_pt = dt.Rows[0]["SOCIETY_PT"].ToString();
+        society_fm = dt.Rows[0]["SOCIETY_FM"].ToString();
+
+        religion_pt = dt.Rows[0]["RELIGION_PT"].ToString();
+        religion_fm = dt.Rows[0]["RELIGION_FM"].ToString();
+        measure = dt.Rows[0]["MEASURE"].ToString();
+        remark = dt.Rows[0]["REMARK"].ToString();
+        spirituality = dt.Rows[0]["SPIRITUALITY"].ToString();
+
+        <script type="text/javascript">
+    $(function () {
+        set_for_rb('jittery', '@jittery');
+        set_for_rb('distress_flare', '@distress_flare');
+        set_for_rb('gloomy', '@gloomy');
+        set_for_rb('feeling_failure', '@feeling_failure');
+        set_for_rb('difficulty_sleeping', '@difficulty_sleeping');
+        set_for_rb('suicidal_thoughts', '@suicidal_thoughts');
+
+        set_for_rb('social_issues_patient', '@spirituality.Split('|').GetValue(0).ToString()');
+        set_for_rb('social_issues_family_member', '@spirituality.Split('|').GetValue(1).ToString()');
+        set_for_rb('spirituality_religion_patient', '@spirituality.Split('|').GetValue(2).ToString()');
+        set_for_rb('spirituality_religion_family_member', '@spirituality.Split('|').GetValue(3).ToString()');
+
+        set_for_ck('social_issues_patient_has', '@society_pt');
+        set_for_ck('social_issues_family_member_has', '@society_fm');
+        set_for_ck('spirituality_religion_patient_has', '@religion_pt');
+        set_for_ck('spirituality_religion_family_member_has', '@religion_fm');
+
+        $("#ta_measure").val('@(measure)');
+        $("#label_remark_0").val('@(remark)');
+
+        mark();
+    });
+
+      function set_for_rb(id, default_val) {         
+        var rb = document.getElementsByName('rb_' + id);
+        for (var i = 0; i < rb.length; i++) {
+            if ($(rb[i]).val() == default_val) {              
+                if ($(rb[i]).val() == "有")
+                    $("#span_" + id + "_has").show();
+                rb[i].checked = true;
+            }
+        }
+    }
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            temp = val.split("|");
+            val = temp[0];
+            if (temp.length > 1)
+            {
+                $("#txt_" + ck_name).val(temp[1]);
+            }
+            var default_val = val.split(",");
+            var ck = document.getElementsByName('cb_'+ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {                   
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+
+                }
+            }
+        }
+    }
+
+    function set_for_rb_cb(rbname, cbname, default_val) {
+        var rb = document.getElementsByName('rb_' + rbname);
+        var Temprbname = "rb_" + rbname;
+        var TempDefaultVal = default_val.split('|');
+
+        if ("" == default_val) {
+            $("[name=" + Temprbname + "][value='0']").attr('checked', true);
+        }
+        else if (default_val == "無法評估") {
+            $("[name=" + Temprbname + "][value='無法評估']").attr('checked', true);
+        } else {
+            $("[name=" + Temprbname + "][value='1']").attr('checked', true);
+            $("#span_" + cbname).show();
+            for (var i = 0; i < TempDefaultVal.length; i++) {
+                $("[name=cb_" + cbname + "]").each(function () {
+                    if (TempDefaultVal[i] == $(this).val()) {
+                        $(this).attr("checked", true);
+                    } else {
+                        //其他
+                        $("[name=cb_" + cbname + "][value='其他']").attr("checked", true);
+                        $("#txt_" + cbname).prop('disabled', false);
+                        $("#txt_" + cbname).val(TempDefaultVal[i]);
+                    }
+                });
+            }
+        }
+    }
+        </script>
+    }
+  }
+<form id="form1" action="@action" method="post">
+    <input type="hidden" id="id" name="id" value="@id"/>
+    <input type="hidden" id="carerecord" name="carerecord" />
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+            <td style="width:100%;text-align:center;">
+                <div id="module_define">@title</div>
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align:center;">
+                <div class="funcArea">
+                    <input type="button" value="存檔" style="width:50px;" onclick="loading_change()" />
+                    <input type="button" value="取消" style="width:50px;" onclick="if (confirm('確定取消?')) window.location.href = 'List'" />
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="dataHeader" style="margin-right:0px;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width:25%;text-align:left;" colspan="6">
+                                日期時間：
+                                @Html.TextBox("txt_day", now.ToString("yyyy/MM/dd"), new { style = "width:80px;", @readonly = "readonly" })
+                                @Html.TextBox("txt_time", now.ToString("HH:mm"), new { style = "width:50px;", @readonly = "readonly" })
+                                @*@WebTool.setDateTime("txt_day", "txt_time", "", "0", "", "")*@
+                                @*mindate.ToString("MM/dd/yyyy HH:mm:ss")/////第四個為0*@
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:320px;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width:25%;">
+                                <input type="hidden" id="hid_jittery" name="hid_jittery" />
+                                <a style="text-decoration: none; color: black;font-size:14px;" href="javascript:void(0);" class="tooltip"
+                                    title="" >
+                                1. 感覺緊張不安：</a>
+                            </td>
+                            <td style="width:15%;">
+                                @Html.RadioButton("rb_jittery", "0", false, new { id = "rb_jittery_0", text = "完全沒有(0)", onclick = "mark();" })
+                                @Html.Label("rb_jittery_0", "完全沒有(0)", new { @class = "tooltip2", title = "完全沒有(0)" })
+                            </td>
+                            <td style="width:15%;">
+                                @Html.RadioButton("rb_jittery", "1", false, new { id = "rb_jittery_1", text = "輕微(1)", onclick = "mark();" })
+                                @Html.Label("rb_jittery_1", "輕微(1)", new { @class = "tooltip2", title = "輕微(1)" })
+                            </td>
+                            <td style="width:15%;">
+                                @Html.RadioButton("rb_jittery", "2", false, new { id = "rb_jittery_2", text = "中等程度(2)", onclick = "mark();" })
+                                @Html.Label("rb_jittery_2", "中等程度(2)", new { @class = "tooltip2", title = "中等程度(2)" })
+                            </td>
+                            <td style="width:15%;">
+                                @Html.RadioButton("rb_jittery", "3", false, new { id = "rb_jittery_3", text = "厲害(3)", onclick = "mark();" })
+                                @Html.Label("rb_jittery_3", "厲害(3)", new { @class = "tooltip2", title = "厲害(3)" })
+                            </td>
+                            <td style="width:15%;">
+                                @Html.RadioButton("rb_jittery", "4", false, new { id = "rb_jittery_4", text = "營養良好(4)", onclick = "mark();" })
+                                @Html.Label("rb_jittery_4", "非常厲害(4)", new { @class = "tooltip2", title = "非常厲害(4)" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="hidden" id="hid_distress_flare" name="hid_distress_flare" />
+                                <a style="text-decoration: none; color: black;font-size:14px;" href="javascript:void(0);" class="tooltip"
+                                    title="</p>" >
+                                 2. 感覺容易苦惱或動怒：</a>
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_distress_flare", "0", false, new { id = "rb_distress_flare_0", text = "完全沒有(0)", onclick = "mark();" })
+                                @Html.Label("rb_distress_flare_0", "完全沒有(0)", new { @class = "tooltip2", title = "完全沒有(0)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_distress_flare", "1", false, new { id = "rb_distress_flare_1", text = "輕微(1)", onclick = "mark();" })
+                                @Html.Label("rb_distress_flare_1", "輕微(1)", new { @class = "tooltip2", title = "輕微(1)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_distress_flare", "2", false, new { id = "rb_distress_flare_2", text = "中等程度(2)", onclick = "mark();" })
+                                @Html.Label("rb_distress_flare_2", "中等程度(2)", new { @class = "tooltip2", title = "中等程度(2)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_distress_flare", "3", false, new { id = "rb_distress_flare_3", text = "厲害(3)", onclick = "mark();" })
+                                @Html.Label("rb_distress_flare_3", "厲害(3)", new { @class = "tooltip2", title = "厲害(3)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_distress_flare", "4", false, new { id = "rb_distress_flare_4", text = "非常厲害(4)", onclick = "mark();" })
+                                @Html.Label("rb_distress_flare_4", "非常厲害(4)", new { @class = "tooltip2", title = "非常厲害(4)" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="hidden" id="hid_gloomy" name="hid_gloomy" />
+                                <a style="text-decoration: none; color: black;font-size:14px;" href="javascript:void(0);" class="tooltip"
+                                    title="" >
+                                3. 感覺憂鬱、心情低落：</a>
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_gloomy", "0", false, new { id = "rb_gloomy_0", text = "完全沒有(0)", onclick = "mark();" })
+                                @Html.Label("rb_gloomy_0", "完全沒有(0)", new { @class = "tooltip2", title = "完全沒有(0)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_gloomy", "1", false, new { id = "rb_gloomy_1", text = "輕微(1)", onclick = "mark();" })
+                                @Html.Label("rb_gloomy_1", "輕微(1)", new { @class = "tooltip2", title = "輕微(1)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_gloomy", "2", false, new { id = "rb_gloomy_2", text = "中等程度(2)", onclick = "mark();" })
+                                @Html.Label("rb_gloomy_2", "中等程度(2)", new { @class = "tooltip2", title = "中等程度(2)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_gloomy", "3", false, new { id = "rb_gloomy_3", text = "厲害(3)", onclick = "mark();" })
+                                @Html.Label("rb_gloomy_3", "厲害(3)", new { @class = "tooltip2", title = "厲害(3)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_gloomy", "4", false, new { id = "rb_gloomy_4", text = "非常厲害(4)", onclick = "mark();" })
+                                @Html.Label("rb_gloomy_4", "非常厲害(4)", new { @class = "tooltip2", title = "非常厲害(4)" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="hidden" id="hid_feeling_failure" name="hid_feeling_failure" />
+                                <a style="text-decoration: none; color: black;font-size:14px;" href="javascript:void(0);" class="tooltip"
+                                    title="" >
+                                4. 感覺比不上別人：</a>
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_feeling_failure", "0", false, new { id = "rb_feeling_failure_0", text = "完全沒有(0)", onclick = "mark();" })
+                                @Html.Label("rb_feeling_failure_0", "完全沒有(0)", new { @class = "tooltip2", title = "完全沒有(0)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_feeling_failure", "1", false, new { id = "rb_feeling_failure_1", text = "輕微(1)", onclick = "mark();" })
+                                @Html.Label("rb_feeling_failure_1", "輕微(1)", new { @class = "tooltip2", title = "輕微(1)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_feeling_failure", "2", false, new { id = "rb_feeling_failure_2", text = "中等程度(2)", onclick = "mark();" })
+                                @Html.Label("rb_feeling_failure_2", "中等程度(2)", new { @class = "tooltip2", title = "中等程度(2)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_feeling_failure", "3", false, new { id = "rb_feeling_failure_3", text = "厲害(3)", onclick = "mark();" })
+                                @Html.Label("rb_feeling_failure_3", "厲害(3)", new { @class = "tooltip2", title = "厲害(3)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_feeling_failure", "4", false, new { id = "rb_feeling_failure_4", text = "非常厲害(4)", onclick = "mark();" })
+                                @Html.Label("rb_feeling_failure_4", "非常厲害(4)", new { @class = "tooltip2", title = "非常厲害(4)" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="hidden" id="hid_difficulty_sleeping" name="hid_difficulty_sleeping" />
+                                <a style="text-decoration: none; color: black;font-size:14px;" href="javascript:void(0);" class="tooltip"
+                                    title="" >
+                                5. 睡眠困難，譬如難以入睡、易睡或早醒：</a>
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_difficulty_sleeping", "0", false, new { id = "rb_difficulty_sleeping_0", text = "完全沒有(0)", onclick = "mark();" })
+                                @Html.Label("rb_difficulty_sleeping_0", "完全沒有(0)", new { @class = "tooltip2", title = "完全沒有(0)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_difficulty_sleeping", "1", false, new { id = "rb_difficulty_sleeping_1", text = "輕微(1)", onclick = "mark();" })
+                                @Html.Label("rb_difficulty_sleeping_1", "輕微(1)", new { @class = "tooltip2", title = "輕微(1)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_difficulty_sleeping", "2", false, new { id = "rb_difficulty_sleeping_2", text = "中等程度(2)", onclick = "mark();" })
+                                @Html.Label("rb_difficulty_sleeping_2", "中等程度(2)", new { @class = "tooltip2", title = "中等程度(2)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_difficulty_sleeping", "3", false, new { id = "rb_difficulty_sleeping_3", text = "厲害(3)", onclick = "mark();" })
+                                @Html.Label("rb_difficulty_sleeping_3", "厲害(3)", new { @class = "tooltip2", title = "厲害(3)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_difficulty_sleeping", "4", false, new { id = "rb_difficulty_sleeping_4", text = "非常厲害(4)", onclick = "mark();" })
+                                @Html.Label("rb_difficulty_sleeping_4", "非常厲害(4)", new { @class = "tooltip2", title = "非常厲害(4)" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:4px 7px 2px 4px;text-align:left;" colspan="6">
+                                <input type="hidden" id="total" name="total" />
+                                <a style="text-decoration: none; color: black;font-size:14px;" href="javascript:void(0);" class="tooltip"
+                                   title="得分與說明
+得分0-5分：身心適應狀況良好。
+得分6-9分：輕度情緒困擾，建議尋求紓壓管道或接受心理專業諮詢。
+得分10-14分：中度情緒困擾，建議諮詢精神科醫師接受進一步評估。
+得分 > 15分：重度情緒困擾，建議諮詢精神科醫師接受進一步評估。
+">
+                                    <img src="~/Images/med_dictionary.png" class="medbook" border="0" alt="
+
+                                   得分與說明
+得分0-5分：身心適應狀況良好。
+得分6-9分：輕度情緒困擾，建議尋求紓壓管道或接受心理專業諮詢。
+得分10-14分：中度情緒困擾，建議諮詢精神科醫師接受進一步評估。
+得分 > 15分：重度情緒困擾，建議諮詢精神科醫師接受進一步評估。" />&nbsp; 1-5題 總分：
+                                </a>
+
+                                <label id="score" name="score_total" style="width:80px;" ></label>
+                                <input type="hidden" id="hid_score_remark" name="hid_score_remark"/>
+                                <input type="hidden" id="hid_score" name="hid_score"/>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td>
+                                <input type="hidden" id="hid_suicidal_thoughts" name="hid_suicidal_thoughts" />
+                                <a style="text-decoration: none; color: black;font-size:14px;" href="javascript:void(0);" class="tooltip"
+                                    title="" >
+                               * 有自殺想法：</a>
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_suicidal_thoughts", "0", false, new { id = "rb_suicidal_thoughts_0", text = "完全沒有(0)", onclick = "mark();" })
+                                @Html.Label("rb_suicidal_thoughts_0", "完全沒有(0)", new { @class = "tooltip2", title = "完全沒有(0)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_suicidal_thoughts", "1", false, new { id = "rb_suicidal_thoughts_1", text = "輕微(1)", onclick = "mark();" })
+                                @Html.Label("rb_suicidal_thoughts_1", "輕微(1)", new { @class = "tooltip2", title = "輕微(1)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_suicidal_thoughts", "2", false, new { id = "rb_suicidal_thoughts_2", text = "中等程度(2)", onclick = "mark();" })
+                                @Html.Label("rb_suicidal_thoughts_2", "中等程度(2)", new { @class = "tooltip2", title = "中等程度(2)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_suicidal_thoughts", "3", false, new { id = "rb_suicidal_thoughts_3", text = "厲害(3)", onclick = "mark();" })
+                                @Html.Label("rb_suicidal_thoughts_3", "厲害(3)", new { @class = "tooltip2", title = "厲害(3)" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_suicidal_thoughts", "4", false, new { id = "rb_suicidal_thoughts_4", text = "非常厲害(4)", onclick = "mark();" })
+                                @Html.Label("rb_suicidal_thoughts_4", "非常厲害(4)", new { @class = "tooltip2", title = "非常厲害(4)" })
+                            </td>
+                        </tr>
+                    </table>
+                 <table style="width:100%;">
+                    <tr>
+                        <th colspan="4" >靈性評估</th>
+                    </tr>
+                    <tr>
+                        <td style="width:25%;">社會問題【病人】</td>
+                        <td style="width:25%;">社會問題【家屬】</td>
+                        <td style="width:25%;">靈性宗教問題【病人】</td>
+                        <td style="width:25%;">靈性宗教問題【家屬】</td>
+                    </tr>
+                    <tr>
+                        <td style="vertical-align:top;"><label>
+                                                            <input type="radio" name="rb_social_issues_patient" checked onclick="CheckedOnSpan('rb_social_issues_patient', 'span_social_issues_patient_has');" value="無" />無
+</label>
+<label>
+    <input type="radio" name="rb_social_issues_patient" onclick="CheckedOnSpan('rb_social_issues_patient', 'span_social_issues_patient_has');" value="有" />有
+</label>
+<label>
+    <input type="radio" name="rb_social_issues_patient" onclick="CheckedOnSpan('rb_social_issues_patient', 'span_social_issues_patient_has');" value="無法評估" />無法評估
+</label>
+                            <br />
+<span id="span_social_issues_patient_has" style="display:none;">
+<label><input type="checkbox" name="cb_social_issues_patient_has" value="情緒困擾" />情緒困擾</label><br />
+<label><input type="checkbox" name="cb_social_issues_patient_has" value="疾病認知與適應困難" />疾病認知與適應困難</label><br />
+<label><input type="checkbox" name="cb_social_issues_patient_has"  value="家庭互相溝通問題"/>家庭互相溝通問題</label><br />
+<label><input type="checkbox" name="cb_social_issues_patient_has" value="經濟資源支持系統缺乏"/>經濟資源支持系統缺乏</label><br />
+<label><input type="checkbox" name="cb_social_issues_patient_has" value="心願未了與後事準備缺乏"/>心願未了與後事準備缺乏</label><br />
+<label"><input type="checkbox" name="cb_social_issues_patient_has" value="其他" onclick="ckable(this, 'txt_social_issues_patient_has');" />其他:</label>&nbsp;<input id="txt_social_issues_patient_has" name="txt_social_issues_patient_has" type="text" style="width:100px;" disabled/>
+</span>
+</td>
+                        <td  style="vertical-align:top;"><label>
+    <input type="radio" name="rb_social_issues_family_member" checked  value="無" onclick="CheckedOnSpan('rb_social_issues_family_member', 'span_social_issues_family_member_has');"/>無
+</label>
+<label>
+    <input type="radio" name="rb_social_issues_family_member"  value="有" onclick="CheckedOnSpan('rb_social_issues_family_member', 'span_social_issues_family_member_has');"/>有
+</label>
+<label>
+    <input type="radio" name="rb_social_issues_family_member"  value="無法評估" onclick="CheckedOnSpan('rb_social_issues_family_member', 'span_social_issues_family_member_has');"/>無法評估
+</label>
+                            <br />
+<span id="span_social_issues_family_member_has" style="display:none;">
+<label><input type="checkbox" name="cb_social_issues_family_member_has" value="情緒困擾"/>情緒困擾</label><br />
+<label><input type="checkbox" name="cb_social_issues_family_member_has" value="疾病認知與適應困難" />疾病認知與適應困難</label><br />
+<label><input type="checkbox" name="cb_social_issues_family_member_has" value="家庭互相溝通問題"/>家庭互相溝通問題</label><br />
+<label><input type="checkbox" name="cb_social_issues_family_member_has" value="經濟資源支持系統缺乏"/>經濟資源支持系統缺乏</label><br />
+<label><input type="checkbox" name="cb_social_issues_family_member_has" value="心願未了與後事準備缺乏"/>心願未了與後事準備缺乏</label><br />
+<label><input type="checkbox" name="cb_social_issues_family_member_has" value="其他" onclick="ckable(this, 'txt_social_issues_family_member_has');"/>其他:</label>&nbsp;<input type="text" id="txt_social_issues_family_member_has" name="txt_social_issues_family_member_has" style="width:100px;" disabled/>
+</span>
+</td>
+                        <td  style="vertical-align:top;"><label>
+    <input type="radio" name="rb_spirituality_religion_patient" checked value="無" onclick="CheckedOnSpan('rb_spirituality_religion_patient', 'span_spirituality_religion_patient_has');"/>無
+</label>
+<label>
+    <input type="radio" name="rb_spirituality_religion_patient"  value="有" onclick="CheckedOnSpan('rb_spirituality_religion_patient', 'span_spirituality_religion_patient_has');"/>有
+</label>
+<label>
+    <input type="radio" name="rb_spirituality_religion_patient"  value="無法評估" onclick="CheckedOnSpan('rb_spirituality_religion_patient', 'span_spirituality_religion_patient_has');"/>無法評估
+</label>
+                            <br />
+                            <span id="span_spirituality_religion_patient_has" style="display:none;">
+<label><input type="checkbox" name="cb_spirituality_religion_patient_has"  value="存在的孤獨隔絕感"/>存在的孤獨隔絕感</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_patient_has" value="面對疾病或死亡的焦慮與恐懼"/>面對疾病或死亡的焦慮與恐懼</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_patient_has" value="對生命意義與價值的焦慮" />對生命意義與價值的焦慮</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_patient_has"  value="對生命去向(死後)不確定"/>對生命去向(死後)不確定</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_patient_has"  value="放不下"/>放不下</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_patient_has" value="罪惡感"/>罪惡感</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_patient_has"  value="其他"  onclick="ckable(this, 'txt_spirituality_religion_patient_has');"/>其他:</label>&nbsp;<input  id="txt_spirituality_religion_patient_has" name="txt_spirituality_religion_patient_has" type="text" style="width:100px;" disabled/>
+                                </span>
+                                </td>
+                        <td  style="vertical-align:top;"><label>
+    <input type="radio" name="rb_spirituality_religion_family_member" checked value="無"  onclick="CheckedOnSpan('rb_spirituality_religion_family_member', 'span_spirituality_religion_family_member_has');"/>無
+</label>
+<label>
+    <input type="radio" name="rb_spirituality_religion_family_member" value="有"  onclick="CheckedOnSpan('rb_spirituality_religion_family_member', 'span_spirituality_religion_family_member_has');"/>有
+</label>
+<label>
+    <input type="radio" name="rb_spirituality_religion_family_member" value="無法評估"  onclick="CheckedOnSpan('rb_spirituality_religion_family_member', 'span_spirituality_religion_family_member_has');"/>無法評估
+</label>     
+  <br />
+                            <span id="span_spirituality_religion_family_member_has" style="display:none;">
+<label><input type="checkbox" name="cb_spirituality_religion_family_member_has" value="存在的孤獨隔絕感"/>存在的孤獨隔絕感</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_family_member_has" value="面對疾病或死亡的焦慮與恐懼"/>面對疾病或死亡的焦慮與恐懼</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_family_member_has" value="對生命意義與價值的焦慮" />對生命意義與價值的焦慮</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_family_member_has" value="對生命去向(死後)不確定"/>對生命去向(死後)不確定</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_family_member_has" value="放不下"/>放不下</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_family_member_has" value="罪惡感"/>罪惡感</label><br />
+<label><input type="checkbox" name="cb_spirituality_religion_family_member_has" value="其他" onclick="ckable(this, 'txt_spirituality_religion_family_member_has');" />其他:</label>&nbsp;<input type="text" id="txt_spirituality_religion_family_member_has" name="txt_spirituality_religion_family_member_has" style="width:100px;" disabled/>
+                                </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="padding:5px 5px 5px 5px;">
+                            <div style="height:28px;">
+                            <input type="button" value="措施" style="width:50px;" onclick="" />
+                            <input type="checkbox" style="display:none;" id="cb_care_record" /><label  for="cb_care_record" style="vertical-align:central;display:none;">帶記錄</label>
+                            </div>
+                            <p></p>
+                            @Html.TextArea("ta_measure", new { @name = "ta_measure", @style = "width:99%;height:60px;" })
+                        </td>
+                        <td colspan="2" style="padding:5px 5px 5px 5px;">
+                          <div style="height:28px;vertical-align:middle;"><p></p> <label style="vertical-align:middle;">備註</label></div><p></p>               
+                              @Html.TextArea("label_remark_0", new { @name = "label_remark", @style = "width:99%;height:60px;" })
+                        </td>
+                    </tr> 
+                </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</form>

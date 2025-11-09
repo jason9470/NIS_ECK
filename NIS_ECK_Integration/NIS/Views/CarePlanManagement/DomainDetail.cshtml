@@ -1,0 +1,125 @@
+﻿@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+    .dataArea tr:nth-child(even) {
+        background: #ABC8E2;
+    }
+    .dataArea tr:nth-child(odd) {
+        background: #E1E6FA;
+    }
+</style>
+
+<script type="text/javascript">
+    var temp_i = 0;
+    $(document).ready(function () {
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 160);
+        }).trigger("resize");
+    });
+
+    function Back() {
+        loop_windows("open_cover");
+        $('#DomainDetail').empty();
+        $('#CarePlanIndex').show();
+        loop_windows("close_cover");
+    }
+
+    function AddNew() {
+        temp_i += 1;
+        var temp = '<tr data-mode="new"><td><input type="text" name="DomainCode" /></td>'
+            + '<td><input type="text" name="DomainDesc" style="width:98%;" value="" /></td>'
+            + '<td style="text-align:center;"><label><input type="radio" name="DomainDisable_New_' + temp_i + '" value="Y" checked="checked" />啟用</label>'
+            + '<label><input type="radio" name="DomainDisable_New_' + temp_i + '" value="N" />停用</label></td>'
+            + '<td style="text-align:center;"><input type="button" value="刪除" style="width:60px;" onclick="$(this).parent().parent().remove();" /></td></tr>';
+
+        $('#DomainTable').append(temp);
+        $('#DomainTable tr:last').find('input[type=text]:first').focus();
+    }
+
+    function Save() {
+        loop_windows("open_cover");
+        var DomainList = [];
+        var DomainObj;
+        $.each($('#DomainTable tr[data-mode=old]'), function (i, item) {
+            DomainObj = new Object();
+            DomainObj["DIAGNOSIS_DOMAIN_CODE"] = $(item).find('input[type=text][name=DomainDesc]').attr('data-code');
+            DomainObj["DIAGNOSIS_DOMAIN_DESC"] = $.trim($(item).find('input[type=text][name=DomainDesc]').val());
+            DomainObj["DISABLE_DATE"] = $(item).find('input[type=radio]:checked').val();
+            DomainList.push(DomainObj);
+        });
+
+        var NewDomainList = [];
+        var NewDomainObj;
+        $.each($('#DomainTable tr[data-mode=new]'), function (i, item) {
+            if ($.trim($(item).find('input[type=text][name=DomainCode]').val()) != "" && $.trim($(item).find('input[type=text][name=DomainDesc]').val()) != "") {
+                NewDomainObj = new Object();
+                NewDomainObj["DIAGNOSIS_DOMAIN_CODE"] = $.trim($(item).find('input[type=text][name=DomainCode]').val());
+                NewDomainObj["DIAGNOSIS_DOMAIN_DESC"] = $.trim($(item).find('input[type=text][name=DomainDesc]').val());
+                NewDomainObj["DISABLE_DATE"] = $(item).find('input[type=radio]:checked').val();
+                NewDomainList.push(NewDomainObj);
+            }
+        });
+
+        $.ajax({
+            type: 'POST',
+            url: "@Url.Content("~/CarePlanManagement/SaveDomain")",
+            data: { 'DomainList': JSON.stringify(DomainList), 'NewDomainList': JSON.stringify(NewDomainList) },
+            success: function (data) {
+                if (data == "Y") {
+                    alert('儲存成功！');
+                    location.reload();
+                }
+                else
+                    alert('儲存失敗！');
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+</script>
+
+<div style="margin:5px;text-align:center;" >
+    <input type="button" value="儲存" onclick="Save();" style="width:60px;" />
+    <input type="button" value="返回" onclick="Back();" style="width:60px;" />
+    <input type="button" value="新增一筆" onclick="AddNew();" />
+</div>
+<div class="dataHeader">
+    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+        <tr>
+            <td style="width:20%;">代碼</td>
+            <td style="width:50%;">名稱</td>
+            <td style="width:15%;"></td>
+            <td style="width:15%;"></td>
+        </tr>
+    </table>
+</div>
+<div class="dataArea" style="height:360px;">
+    <table id="DomainTable" border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+        @foreach (DataRow r in dt.Rows)
+        {
+        <tr data-mode="old">
+            <td style="width:20%;">
+                <label>@r["DIAGNOSIS_DOMAIN_CODE"].ToString()</label>
+            </td>
+            <td style="width:50%;">
+                <input type="text" name="DomainDesc" style="width:98%;" value="@r["DIAGNOSIS_DOMAIN_DESC"].ToString().Trim()" data-code="@r["DIAGNOSIS_DOMAIN_CODE"].ToString()" />
+            </td>
+            <td colspan="2" style="width:30%;text-align:center;">
+                <label><input type="radio" name="DomainDisable_@r["DIAGNOSIS_DOMAIN_CODE"].ToString()" value="Y" @((string.IsNullOrWhiteSpace(r["DISABLE_DATE"].ToString())) ? "checked" : "") />啟用</label>
+                <label><input type="radio" name="DomainDisable_@r["DIAGNOSIS_DOMAIN_CODE"].ToString()" value="N" @((!string.IsNullOrWhiteSpace(r["DISABLE_DATE"].ToString())) ? "checked" : "") />停用</label>
+            </td>
+        </tr>
+        }
+    </table>
+</div>

@@ -1,0 +1,398 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";  
+}
+<link rel="Stylesheet" type="text/css" href="~/Content/StyleSheet/naStyle.css" />
+<link rel="Stylesheet" type="text/css" href="~/Content/StyleSheet/treeview.css" />
+<script type="text/javascript">
+
+    @if (Request["message"] != null)
+    {
+        @Html.Raw("showHint(\"" + Request["message"].ToString().Trim() + "\")")
+    }  
+
+    function setColor()
+    {
+        $('#new_tag tr:even').css('background', '#ABC8E2');
+        $('#new_tag tr:odd').css('background', '#E1E6FA');
+    }
+
+    function setDataAreaSize()
+    {
+        var height = $(document).height() - 170;
+        if (height <= 360)
+            height = 360;
+        $(".dataArea").height(height);
+    }
+
+    $(document).ready(function () {
+
+        //tooltip
+        $(".tooltip").tooltip({
+            content: function () {
+                return $(this).attr('title');
+            }
+        });
+
+        // 新增標籤視窗
+        $("#add_dtl").click(function () {
+            var top = $(this).position().top + $(this).height() + 10;
+            var left = $(this).position().left;
+            $("#new_tag").css({
+                "top": top,
+                "left": left
+            });
+
+            if (!$("#new_tag").is(":visible")) {
+                $('#new_tag').slideDown(500);
+                $(this).val("關閉新增").css("background-color", "#FFFFCC");
+            } else {
+                $('#new_tag').slideUp(500);
+                $(this).val("新增細項").css("background-color", "");
+            }
+        });
+
+        // 新增細項按鈕
+        $("#but_inc_dtl").click(function () {
+
+            var checkFlag = true;
+            $("#new_tag").find("[checknull]").each(function () {
+                if ($(this).val() == "") {
+                    $(this).css("background-color", "#FFCCCC").stop(true, true).animate({ backgroundColor: "#FFFFFF" }, 5000);
+                    checkFlag = false;
+                }
+            });
+
+            if (checkFlag == false) {
+                showHint("請確認必填欄位未填寫");
+                return false;
+            }
+            var dataStr = "na_id=" + encodeURIComponent($("input[name=na_id]").val());
+            dataStr += "&tag_id=" + encodeURIComponent($("input[name=tag_id]").val());
+            dataStr += "&dtl_title=" + encodeURIComponent($("input[name=inc_dtl_title]").val());
+            dataStr += "&dtl_type=" + encodeURIComponent($("select[name=inc_dtl_type]").val());
+            dataStr += "&dtl_length=" + encodeURIComponent($("input[name=inc_dtl_length]").val());
+            dataStr += "&dtl_parent_id=" + encodeURIComponent($("select[name=inc_dtl_parent_id]").val());
+            if ($("input[name=inc_dtl_child_hide]").is(":checked"))
+                dataStr += "&dtl_child_hide=Y";
+            else
+                dataStr += "&dtl_child_hide=N";
+            dataStr += "&dtl_show_value=" + encodeURIComponent($("input[name=inc_dtl_show_value]").val());
+            dataStr += "&dtl_value=" + encodeURIComponent($("input[name=inc_dtl_value]").val());
+            dataStr += "&dtl_default_value=" + encodeURIComponent($("input[name=inc_dtl_default_value]").val());
+            var htmlHelp = $("textarea[name=inc_dtl_help]").html().replace(/\</g, "[").replace(/\>/g, "]");
+            dataStr += "&dtl_help=" + encodeURIComponent(htmlHelp);
+            dataStr += "&dtl_rear_word=" + encodeURIComponent($("input[name=inc_dtl_rear_word]").val());
+            dataStr += "&dtl_sort=" + encodeURIComponent($("input[name=inc_dtl_sort]").val());
+            if ($("input[name=inc_dtl_must]").is(":checked"))
+                dataStr += "&dtl_must=Y";
+            else
+                dataStr += "&dtl_must=N";
+            $.ajax({
+                url: '../Function/Na_Dtl_Add',
+                type: 'post',
+                data: dataStr,
+                success: function (data) {
+                    if (data == "Y")
+                        location.reload(true);
+                    else
+                        showHint(data);
+                }
+            });
+            
+        });
+
+        // 儲存
+        $("#but_dtl_save").click(function () {
+            $('form[name=dtl_form]').submit();
+        });
+
+        // keydonw或keyup才能解決新注音輸入不會觸發event的問題
+        $("[counttarget]").keydown(function () {
+            var tagertObj = $("input[name=" + $(this).attr("counttarget") + "]");
+            var valArr = $(this).val().split('|');
+            var maxLength = 10;
+            for (var i = 0; i <= valArr.length - 1; i++) {
+                if (valArr[i].length > maxLength)
+                    maxLength = valArr[i].length;
+            }
+            $(tagertObj).val(maxLength);
+        });
+
+        $(".tv-handle").hover(
+            function () {
+                var title = $(this).attr("showtitle");
+                var help = $(this).attr("showhelp");
+                $(".hideInfo #na_name").html(title).attr("title", help);
+                $(".hideInfo").show();
+            },
+            function () {
+                $(".hideInfo #na_name").html("").attr("title", "");
+                $(".hideInfo").hide();
+            }
+            );
+
+        // 刪除
+        $("#but_del_dtl").click(function () {
+
+            if ($("input[name=del_flag]:checked").length <= 0) {
+                showHint("沒有選擇要刪除的資料");
+            } else {
+                if (confirm("[系統確認]\n此動作將會刪除選取的細項，\n如果是父階項目，子階也會一併刪除，\n確任是否繼續進行刪除？")) {
+                    var del_list = new Array($("input[name=del_flag]:checked").length);
+                    $("input[name=del_flag]:checked").each(function (index) {
+                        del_list[index] = $(this).val();
+                    });
+                    var postDataStr = "del_id=" + del_list.join(",") + "&tag_id=" + $("input[name=tag_id]").val();
+                    postDataStr += "&na_id=" + $("input[name=na_id]").val();
+
+                    $.ajax({
+                        url: "../Function/Na_Dtl_Delete",
+                        type: "post",
+                        timeout: 5000,
+                        data: postDataStr,
+                        success: function (data) {
+                            if (data == "Y") {
+                                location.reload(true);
+                            } else {
+                                showHint("沒有資料被刪除");
+                            }
+                        }
+                    });
+                }
+            }
+        });
+        $(window).resize(function () { setDataAreaSize(); }).trigger('resize');
+        setColor();
+        MoveScroll(".dataArea", "bottom");
+    });
+</script>
+
+@{
+    NursingAssessmentMain namain_info = (NursingAssessmentMain)ViewData["namain_info"];
+    NursingAssessmentTag natag_info = (NursingAssessmentTag)ViewData["natag_info"];
+    List<NursingAssessmentDtlObj> nadtl_obj = (List<NursingAssessmentDtlObj>)ViewData["nadtl_obj"];
+    Dictionary<string, string> parent_list = (Dictionary<string, string>)ViewData["parent_list"];
+    Dictionary<string, string> dtl_type_list = (Dictionary<string, string>)ViewData["dtl_type_list"];
+}
+<form action="Na_Dtl_Save" method="post" name="dtl_form">
+    <div id="na_information">
+        <span id="na_name" title="@(namain_info.na_desc)">@(namain_info.na_name)</span>
+        <span id="na_version">ver @(namain_info.na_version)</span>
+    </div>
+    <img src="~/Images/Form/next.png" alt="" />
+    <div id="na_information">
+        <span id="na_name" title="@(natag_info.tag_help)">@(natag_info.tag_name)</span><br />
+    </div>
+    <span class="hideInfo" style="display:none;">
+        <img src="~/Images/Form/next.png" alt="" />
+        <div id="na_information">
+            <span id="na_name" title=""></span><br />
+        </div>
+    </span>
+    <p>
+        @Html.Raw("<input type=\"button\" value=\"返回\" onclick=\"location.href='../Function/Na_Tag?na_id=" + ViewData["na_id"].ToString().Trim() + "' \"/>")
+        <input type="button" id="add_dtl" value="新增細項" title="新增細項" />
+        <input type="button" value="儲存" id="but_dtl_save" title="儲存目前編輯的細項" />
+        <input type="button" value="刪除" id="but_del_dtl" title="刪除所勾選的細項" />
+        
+        @{
+            string helpStr = "";
+            helpStr += "<table cellpadding='1' cellspacing='2' style='table-layout:inherit; white-space:normal; text-align:left; '>";
+            helpStr += "<tr style='background-color:#ccccff;'><td valign=top>儲存</td>";
+            helpStr += "<td valign=top>儲存後將會已最新版本列為正式版本</td></tr><tr style='background-color:#ccccff;'><td valign=top>新增細項</td>";
+            helpStr += "<td valign=top>父階選項就是此項目是屬於某個項目下的選項時使用，資料長度則為輸入框實際能輸入的資料長度，";
+            helpStr += "<br />若有輸入選單直的情況下系統會自動判斷<br/></td></tr>";
+            helpStr += "<tr style='background-color:#ccccff;'><td>刪除</td><td valign=top>請先勾選要刪除的選項，再點選刪除鍵</td></tr>";
+            helpStr += "<tr style='background-color:#ccccff;'><td valign=top><font color=red>注意事項</font></td><td>";
+            helpStr += "<font color=red>※刪除功能會將自己包含以下子標籤一併刪除請謹慎使用<br/>一次僅能新增一個版本</font></td></tr></table>";
+        }
+        <a href="javascript:void(0);" class="tooltip"
+            title="@(helpStr)">操作說明</a>
+        <!-- debug用 -->
+        <input type="hidden" name="na_id" value="@(ViewData["na_id"].ToString().Trim())" />
+        <input type="hidden" name="tag_id" value="@(ViewData["tag_id"].ToString().Trim())" />
+    </p>
+
+
+    @helper GenDtlHtmlCode(List<NursingAssessmentDtlObj> inObj)
+    {
+        
+        Dictionary<string, string> parent_list = (Dictionary<string, string>)ViewData["parent_list"];
+        Dictionary<string, string> dtl_type_list = (Dictionary<string, string>)ViewData["dtl_type_list"];
+        <ol class="tv-list">
+            @for (int i = 0; i <= inObj.Count - 1; i++)
+            {
+                string dtl_id = inObj[i].dtl_id;
+                
+                <li class="tv-item">
+                    <div class="tv-handle" showtitle="@(inObj[i].dtl_title)" showhelp="@(inObj[i].dtl_help)">
+                        <table class="tv-detial" border="1" cellpadding="1" cellspacing="1">
+                            <tr>
+                                <td rowspan="4" valign="top">
+                                    <input type="checkbox" name="del_flag" value="@(dtl_id)" title="刪除細項" />
+                                </td>
+                                <td width="60">欄位抬頭</td>
+                                <td width="120">
+                                    <input type="text" name="@(dtl_id + "_dtl_title")" value="@(inObj[i].dtl_title)" />
+                                    <input type="hidden" name="dtl_id" value="@(dtl_id)" />
+                                </td>
+                                <td width="60">選單類型</td>
+                                <td width="120">
+                                    @(Html.DropDownList(dtl_id + "_dtl_type", new SelectList(dtl_type_list, "Value", "key", inObj[i].dtl_type)))
+                                </td>
+                                <td width="60">是否隱藏</td>
+                                <td width="120">
+                                    @if (inObj[i].dtl_child_hide == "Y")
+                                    {
+                                        <input type="checkbox" name="@(dtl_id + "_dtl_child_hide")" checked="checked" />
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="@(dtl_id + "_dtl_child_hide")" />
+                                    }
+                                </td>
+                                <td width="60">顯示條件</td>
+                                <td width="120">
+                                    <input type="text" name="@(dtl_id + "_dtl_show_value")" value="@(inObj[i].dtl_show_value)" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="60">後置文字</td>
+                                <td width="120">
+                                    <input type="text" name="@(dtl_id + "_dtl_rear_word")" value="@(inObj[i].dtl_rear_word)" />
+                                </td>
+                                <td width="60">父階選項</td>
+                                <td width="120">
+                                    @(Html.DropDownList(dtl_id + "_dtl_parent_id", new SelectList(parent_list, "key", "Value", inObj[i].dtl_parent_id)))
+                                </td>
+                                <td width="60">資料長度</td>
+                                <td width="120">
+                                    <input type="text" name="@(dtl_id + "_dtl_length")" value="@(inObj[i].dtl_length)" maxlength="20" />
+                                </td>
+                                <td width="60">排序</td>
+                                <td width="120">
+                                    <input type="text" name="@(dtl_id + "_dtl_sort")" value="@(inObj[i].dtl_sort.ToString())" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="60">選單值</td>
+                                <td align="left" colspan="3">
+                                    <input type="text" name="@(dtl_id + "_dtl_value")" value="@(inObj[i].dtl_value)" counttarget="@(dtl_id + "_dtl_length")"/>
+                                </td>
+                                <td width="60">是否必填</td>
+                                <td width="120">
+                                @if (inObj[i].dtl_must == "Y")
+                                    {
+                                        <input type="checkbox" name="@(dtl_id + "_dtl_must")" checked="checked" />
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="@(dtl_id + "_dtl_must")" />
+                                    }
+                                </td>
+                                <td width="60">預設值：</td>
+                                <td width="120">
+                                    <input type="text" name="@(dtl_id + "_dtl_default_value")" value="@(inObj[i].dtl_default_value)" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="60">說明文字</td>
+                                <td align="left" colspan="7">
+                                    <textarea rows="2" cols="80" name="@(dtl_id + "_dtl_help")">@(inObj[i].dtl_help)</textarea>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    @if (inObj[i].child_obj != null)
+                    {
+                        @GenDtlHtmlCode(inObj[i].child_obj);
+                    }
+                </li>
+            }
+        </ol>
+    }
+    @{       
+        <div class="dataArea">
+            <!-- tree view start -->
+            <div class="tv">
+                @GenDtlHtmlCode(nadtl_obj)
+            </div>
+            <!-- end of tree view -->
+        </div>
+    
+    }
+</form>
+
+<div id="new_tag">
+    <p>
+        <input type="button" name="but_inc_dtl" id="but_inc_dtl" value="新增細項" />
+        <a class="tooltip" href="javascript:void(0);" title="新增護理評估單評細項">說明</a>
+    </p>
+    <table border="0" cellpadding="4" cellspacing="1">
+        <tr>
+            <td width="60">欄位抬頭</td>
+            <td width="120">
+                <input type="text" name="inc_dtl_title" />
+            </td>
+            <td width="60">選單類型</td>
+            <td width="120">
+                @(Html.DropDownList("inc_dtl_type", new SelectList(dtl_type_list, "Value", "key")))
+            </td>
+        </tr>
+        <tr>
+            <td width="60">是否隱藏</td>
+            <td width="120">
+                <input type="checkbox" name="inc_dtl_child_hide" />
+            </td>
+            <td width="60">是否必填</td>
+            <td width="120">
+                <input type="checkbox" name="inc_dtl_must" />
+            </td>
+        </tr>
+        <tr>
+            <td width="60">顯示條件</td>
+            <td align="left" colspan="3">
+                <input type="text" name="inc_dtl_show_value" />
+            </td>
+        </tr>
+        <tr>
+            <td width="60">後置文字</td>
+            <td width="120">
+                <input type="text" name="inc_dtl_rear_word" />
+            </td>
+            <td width="60">父階選項</td>
+            <td width="120">
+                @(Html.DropDownList("inc_dtl_parent_id", new SelectList(parent_list, "key", "Value")))
+            </td>
+        </tr>
+        <tr>
+            <td width="60">資料長度</td>
+            <td width="120">
+                <input type="text" name="inc_dtl_length" maxlength="20" checknull />
+            </td>
+            <td width="60">排序</td>
+            <td width="120">
+                <input type="text" name="inc_dtl_sort" checknull />
+            </td>
+        </tr>
+        <tr>
+            <td width="60">選單值</td>
+            <td align="left" colspan="3">
+                <input type="text" name="inc_dtl_value" style="width:95%;" counttarget="inc_dtl_length"/>
+            </td>
+        </tr>
+        <tr>
+            <td width="60">預設值：</td>
+            <td width="120" colspan="3">
+                <input type="text" name="inc_dtl_default_value" style="width:95%;" />
+            </td>
+        </tr>
+        <tr>
+            <td width="60">說明文字</td>
+            <td align="left" colspan="3">
+                <textarea rows="2" cols="50" name="inc_dtl_help"></textarea>
+            </td>
+        </tr>
+    </table>
+</div>

@@ -1,0 +1,132 @@
+﻿@{
+    ViewBag.Title = "Bloodsugar_report";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string start_date, start_time, end_date, end_time;
+    DateTime check_time1 = DateTime.Now.AddHours(-1);
+    DateTime check_time2 = DateTime.Now.AddHours(1);
+    if (ViewBag.start_date == null && ViewBag.end_date == null)
+    {
+        start_date = DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd");
+        start_time = "00:00";
+        end_date = start_date;
+        end_time = "23:59";
+    }
+    else
+    {
+        start_date = ViewBag.start_date;
+        start_time = ViewBag.start_time;
+        end_date = ViewBag.end_date;
+        end_time = ViewBag.end_time;
+    }
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<script type="text/javascript">
+    $(window).load(function () {
+        factory.printing.header = "護理資訊系統 - 血糖監測批價單&b&b 第&p页/共&P页" //設定頁首的文字 
+        factory.printing.footer = "&b&b 列印時間：&d &t" //設定頁尾的文字 
+        factory.printing.portrait = true //設定trun為直印,false為橫印 
+        factory.printing.leftMargin = 3.0 //設定左邊界 
+        factory.printing.topMargin = 3.0  //設定上邊界 
+        factory.printing.rightMargin = 3.0 //設定右邊界 
+        factory.printing.bottomMargin = 3.0 //設定下邊界
+    })
+    $(document).ready(function () {
+        //格行換色
+        $('.dataBlock tr:odd').css('background', '#ABC8E2');
+        $('.dataBlock tr:even').css('background', '#E1E6FA');
+    });
+    function print_page() {
+        $(".funcArea").hide();
+        $("#l_time").text("查詢時間：" + $("#start_date").val() +" "+ $("#start_time").val() + " ~ " + $("#end_date").val() +" "+ $("#end_time").val());
+        wb.execwb(7, 1);
+        $("#l_time").text("");
+        $(".funcArea").show();
+    }
+    function to_submit() {
+        $("#ExecFlag").val($("#selStation").val());
+        $("form").submit();
+    }
+</script>
+<style>
+    .dataTable {
+        border-top-color: currentColor;
+        border-right-color: currentColor;
+        border-bottom-color: currentColor; 
+        border-left-color: currentColor; 
+        border-top-width: 0px; 
+        border-right-width: 0px; 
+        border-bottom-width: 0px; 
+        border-left-width: 0px; 
+        border-top-style: none; 
+        border-right-style: none;
+        border-bottom-style: none; 
+        border-left-style: none;
+        text-align:center;
+    }
+</style>
+<OBJECT classid="CLSID:8856F961-340A-11D0-A96B-00C04FD705A2" height=0 id=wb name=wb width=0></OBJECT>
+<OBJECT classid="clsid:1663ed61-23eb-11d2-b92f-008048fdd814" id="factory" style="display:none" codebase="ScriptX.cab#Version=6,2,433,14"> </OBJECT> 
+<body background="../Images/bg157.gif">
+<form method="post" action="Bloodsugar_report">
+    <input id="ExecFlag" type="hidden" value="" name="ExecFlag" />
+    <div class="funcArea" id="funcArea">  
+    <table>
+        <tr>
+            <td>護理站：@Html.DropDownList("selStation", (List<SelectListItem>)ViewData["costlist"], new { })</td>
+            <td>
+                查詢區間：
+                @Html.TextBox("start_date", @start_date, new { style = "width:60px;", @readonly = "readonly" })
+                @Html.TextBox("start_time", @start_time, new { style = "width:40px;", @readonly = "readonly" })
+                @*@WebTool.setDateTime("start_date", "start_time", "", "0")*@
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "start_time", false)
+                @Html.Label("lab", " ~ ")
+                @Html.TextBox("end_date", @end_date, new { style = "width:60px;", @readonly = "readonly" })
+                @Html.TextBox("end_time", @end_time, new { style = "width:40px;", @readonly = "readonly" })
+                @*@WebTool.setDateTime("end_date", "end_time", "0", "1")*@
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "end_time", false)
+            </td>
+            <td><input id="search" class="btn_m" type="button" value="查詢" onclick="to_submit();" />
+                <input type="button" value="列印" id="printpage" onclick="print_page();" />   
+            </td>
+        </tr>
+    </table>
+    </div>
+    
+    <div class="dataBlock" width="100%" align="center">
+    <label id="l_time"></label> 
+    @if (ViewBag.bloods_list != null)
+    {
+        List<List<string>> Bloods_list = ViewBag.bloods_list;
+        if (Bloods_list.Count > 0)
+        {
+            <table class="dataTable" width="70%" border="1" cellspacing="0" cellpadding="3">
+                <tr>
+                    <th>護理站</th>
+                    <th>床號</th>
+                    <th>病歷號</th>
+                    <th>姓名</th>
+                    <th>血糖監測次數</th>
+                </tr>
+                @for (int i = 0; i <= Bloods_list.Count - 1; i++)
+                {
+                    if (Bloods_list[i][4] != "0")
+                    {
+                    <tr><td>@Bloods_list[i][0]</td>
+                    <td>@Bloods_list[i][1]</td>
+                    <td>@Bloods_list[i][2]</td>
+                    <td>@Bloods_list[i][3]</td>
+                    <td>@Bloods_list[i][4]</td></tr>
+                    }
+                }
+            </table>
+        }
+        else
+        {
+         <h2>查無資料</h2>
+        }
+    }
+    </div>
+</form>
+</body>

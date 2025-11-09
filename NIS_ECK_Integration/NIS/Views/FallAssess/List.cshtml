@@ -1,0 +1,133 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable dt = ViewBag.dt;
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+
+<script type="text/javascript">
+
+    $(document).ready(function() {
+        setGridColor();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 140);
+        }).trigger("resize");
+        @if (dt == null || dt.Rows.Count == 0) 
+        {
+            dt = new DataTable();
+            <TEXT>
+        toAdd();
+            </TEXT>
+        }
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    function toAdd() {
+        window.location.href ='@Url.Content("~/FallAssess/Insert")?num=@(dt.Rows.Count + 1)';
+    }
+
+    function toUpdate(obj) {
+        window.location.href = '@Url.Content("~/FallAssess/Insert")?id=' + $(obj).attr('data-fid');
+    }
+
+    function toDelete(obj) {
+        if (confirm('確認刪除?')) {
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/FallAssess/Del_FallAssess")',
+                data: { 'id': $(obj).attr('data-fid') },
+                success: function (data) {
+                    alert(data);
+                    window.location.href = 'List';
+                }
+            });
+        }
+    }
+
+</script>
+
+<div id="module_define">成人跌倒評估清單</div>
+<div class="funcArea">
+    <div style="padding:5px 0 5px 0;text-align:center;">
+        <input id="add_pain" type="button" value="新增成人跌倒評估" onclick="toAdd();" />
+        <input type="button" value="詳細列表" onclick="window.location.href = 'Detail';" />
+        <input type="button" value="返回" onclick="window.location.href = 'ListIndex?modeval=Y';" />
+    </div>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <tr>
+                <td style="width:15%;">評估日期</td>
+                <td style="width:6%;">總分</td>
+                <td style="width:10%;">編輯者</td>
+                <td style="width:11%;">評估原因</td>
+                <td style="width:50%;">處置措施</td>
+                <td style="width:8%;"></td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+        @if (dt != null && dt.Rows.Count > 0)
+        {
+            int j;
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+            <tr>
+                <td style="width:15%;text-align:center;">
+                    @Convert.ToDateTime(dt.Rows[i]["RECORDTIME"]).ToString("yyyy/MM/dd HH:mm")
+                </td>
+                <td style="width:6%;text-align:center;">
+                    <span style="@((int.Parse(dt.Rows[i]["TOTAL"].ToString()) > 2) ? "color:red;" : "")">@dt.Rows[i]["TOTAL"]</span>
+                </td>
+                <td style="width:10%;text-align:center;">@dt.Rows[i]["CREATNAME"]</td>
+                <td style="width:11%;">@dt.Rows[i]["REASON"]</td>
+                <td style="width:50%;">
+                    @{
+                        j = 1;
+                        foreach (string item in dt.Rows[i]["PRECAUTION"].ToString().Split(','))
+                        {
+                            if (!string.IsNullOrWhiteSpace(item))
+                            {
+                    <div>@(j). @(item)。</div>
+                            j++;
+                            }
+                        }
+                    }
+                </td>
+                <td style="width:8%;text-align:center;">
+                @if (dt.Rows[i]["CREATNO"].ToString() == ViewBag.userno)
+                {
+                    <div style="padding-bottom:5px;"><input type="button" value="編輯" data-fid="@dt.Rows[i]["FALL_ID"]" style="width:50px;" onclick="toUpdate(this);" /></div>
+                    <div><input type="button" value="刪除" style="width:50px;" data-fid="@dt.Rows[i]["FALL_ID"]" onclick="toDelete(this);" /></div>
+                }
+                </td>
+            </tr> 
+            }
+        }
+        </table>
+    </div>
+</div>

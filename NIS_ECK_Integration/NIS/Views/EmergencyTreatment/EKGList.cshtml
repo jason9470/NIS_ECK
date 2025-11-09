@@ -1,0 +1,119 @@
+﻿@using NIS.Data;
+@using System.Data;
+@{
+    //Layout = "~/Views/Layout/Main.cshtml";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string feeno = ViewBag.feeno;
+    string Category = ViewBag.Category;
+    string RootDocument = ViewBag.RootDocument;
+
+    DataTable dt = ViewBag.dt;
+    DateTime start_date = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00"));
+    DateTime end_date = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd HH:mm"));
+    if (ViewBag.start_date != null)
+    { start_date = ViewBag.start_date; }
+    if (ViewBag.end_date != null)
+    { end_date = ViewBag.end_date; }
+
+    //日期選擇
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    .EKGBtn {
+        background-color: #FFC000 !important;
+    }
+</style>
+
+<script type="text/javascript">
+    // 帶入EKG
+    function insertEKG() {
+        var selArr = [];
+        var saveList = [];
+        $("input:radio[name=selEKG]:checked").each(function () {
+            selArr.push($(this).val());
+        });
+
+        if (selArr.length > 0) {
+            var ekgDate = $("#ekgDate_" + selArr[0]).text();
+            var fileName = $("#ekg_" + selArr[0]).text();
+
+            $.ajax({
+                type: 'POST',
+                cache: false,
+                async: true,
+                dataType: 'json',
+                contentType: "application/json",
+                url: '@Url.Content("~/EmergencyTreatment/DownloadEKGPicture")',
+                data: JSON.stringify({
+                    url: fileName
+                }),
+                success: function (data) {
+                    /*$(".loading").fadeOut(500);*/
+                    if (data.status == 0) {
+                        var srcString = "data:image/png;base64," + data.message;
+                        window.opener.document.getElementById('EKGPicture').src = srcString;
+                        window.opener.document.getElementsByName('EKG_Picture_Base64')[0].value = data.message;
+                        window.opener.ShowSpan(['span_EKG_Picture']);
+                        window.close();
+                    }
+                }
+            });
+        }
+    }
+
+</script>
+<div class="loading" id="cover"></div>
+<div class="loading" id="loading">
+    <label for="lab">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>
+<div class="funcArea">
+    <div border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <div class="dataHeader">
+            <div style="text-align:center;padding:5px 0 5px 0;">
+                <span style="font-size:22px;color:blue;">電擊器EKG(帶入)</span>
+            </div>
+        </div>
+        <div style="height:500px; overflow: auto;">
+            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;table-layout:fixed;">
+                <tr class="dataHeader">
+                    <td style="width:10%;">勾選</td>
+                    <td style="width:15%;">紀錄時間</td>
+                    <td style="width:75%;">電擊器EKG紀錄</td>
+                </tr>
+                @if (dt != null)
+                {
+                    int i = 0;
+                    foreach (DataRow r in dt.Rows)
+                    {
+                        <tr style="background: rgb(225, 230, 250);">
+                            <td style="width:10%;text-align:center;">
+                                <input type="radio" name="selEKG" value="@i">
+                            </td>
+                            <td style="width:15%;text-align:center;">
+                                <label id="ekgDate_@i">@r["IMGDATETIME"]</label>
+                            </td>
+                            <td style="width:75%;line-height: 24px;text-align:center;">
+                                <img src="@r["IMGFILENAME"]">
+                                <label id="ekg_@i" style="display:none">@r["IMGFILENAME"]</label>
+                            </td>
+                        </tr>
+                        i++;
+                    }
+                }
+            </table>
+        </div>
+    </div>
+    <div>
+        <button class="funcArea" style="margin-top:1rem" onclick="insertEKG();">帶入</button>
+    </div>
+</div>

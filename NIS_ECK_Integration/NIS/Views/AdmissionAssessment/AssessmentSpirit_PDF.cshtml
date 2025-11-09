@@ -1,0 +1,1471 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+}
+
+<style type="text/css">
+    .ui-tabs .ui-tabs-nav li a {
+        font-size: 16px;
+        padding: 3px 5px 3px 5px;
+    }
+
+    .ui-tabs {
+        font-size: 16px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        dtl_check();
+        $('input[type=text], textarea').each(function () {
+            $(this).replaceWith("<span>" + $(this).val().replace(/\|/g, ',') + "</span>");
+        });
+        $('input[type=radio], input[type=checkbox]').each(function () {
+            if (this.checked)
+                $(this).remove();
+            else
+                $(this.parentElement).remove();
+        });
+    });
+
+    function PainSDAmount() {
+        var total = 0;
+        var ObjList = ["param_PainSDBrief", "param_PainSDLang", "param_PainSDFace", "param_PainSDBodyLang", "param_PainSDPiece"];
+        for (var i = 0 ; i <= ObjList.length; i++) {
+            if ($('input[name=' + ObjList[i] + ']:checked').val() != undefined)
+                total += parseInt($('input[name=' + ObjList[i] + ']:checked').val().substring(1, 2));
+        }
+        $('input[name=param_PainSDScole]').val(total);
+    }
+
+    //驗證欄位_數字
+    function numcheck(id, time) {
+        if (time.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(time.value) && time.value != "") {
+            alert("只能輸入數字");
+            document.getElementById(id).value = "";
+            return false;
+        }
+        else
+            return true;
+    }
+
+    function con_bmi() {
+        if ($("#param_BodyWeight").val() != '' && $("#param_BodyHeight").val() != '') {
+            var result = ($("#param_BodyWeight").val() / ($("#param_BodyHeight").val() * $("#param_BodyHeight").val() / 10000)).toFixed(2);
+            if (result < 18.5)
+                advice = "體重過輕";
+            else if (result < 24)
+                advice = "";
+            else if (result < 27)
+                advice = "過重";
+            else if (result < 30)
+                advice = "輕度肥胖";
+            else if (result < 35)
+                advice = "中度肥胖";
+            else
+                advice = "重度肥胖";
+            document.getElementById('bmiHint').innerHTML = advice + " " + result;
+        }
+        else
+            document.getElementById('bmiHint').innerHTML = "";
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue != '') {
+            $('input[name=' + rb_name + ']').each(function () {
+                if ($(this).val() == dvalue)
+                    $(this).click();
+                else
+                    $(this.parentElement).remove();
+            });
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            $('input[name=' + ck_name + ']').each(function () {
+                var success = false;
+                for (var i = 0; i < default_val.length; i++) {
+                    if ($(this).val() == default_val[i] || (ck_name = "param_allergy_other_other" && $(this).val().indexOf("麈") > -1))
+                        success = true;
+                }
+                if (success)
+                    $(this).click();
+                else
+                    $(this.parentElement).remove();
+            });
+        }
+    }
+
+    function set_for_txt(txt_name, dvalue) {
+        if (dvalue != '') {
+            var default_val = dvalue.split(",");
+            var txt = document.getElementsByName(txt_name);
+            if (txt.length > 1) {
+                for (var i = 0; i < txt.length; i++) {
+                    $(txt[i]).val(default_val[i]);
+                }
+            }
+            else
+                $(txt[0]).val(dvalue);
+        }
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0 ; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    function dtl_check() {
+        $('p:visible').each(function () {
+            var input_list = $(this).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                var success = true;
+                for (var j = 0; j < input_list.length; j++) {
+                    if (input_list[j].type == 'text' || input_list[j].type == 'textarea')
+                        var input_val = $.trim(input_list[j].value);
+                    else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox')
+                        var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+
+                    if (input_val != undefined && input_val != '')
+                        success = false;
+                }
+                if (success)
+                    document.getElementById('unfilled').appendChild(this);
+            }
+        });
+    }
+
+    //複製div
+    function clonediv(p_id, btnid, div_id) {
+        //取得屬性值
+        var countid = parseInt($('#' + p_id).attr("countid")) + 1;
+        var copyPart = $('#' + p_id).clone();     //複製一份
+        $('#' + p_id).attr("countid", countid);  //修改id
+        $(copyPart).attr('id', p_id + '_' + countid);
+        //修改按鈕id,name,value,bind click事件
+        $('#' + btnid, copyPart)
+                .attr('id', p_id + 'btnDel' + countid)
+                .attr('src', '../Images/minus.png')
+                .attr('title', '刪除')
+                .attr('alt', '刪除')
+                .attr('delid', p_id + '_' + countid);
+        //清空Textbox值
+        $('input[type=text]', copyPart).each(function () {
+            $(this).val('');
+        });
+        //設定radio_清空值
+        $('input[type=radio]', copyPart).each(function () {
+            $(this).attr('name', $(this).attr('name') + '_' + countid);
+            this.checked = false;
+        });
+
+        //加入複製出來的項目
+        $('#' + div_id).append(copyPart);
+        $('#' + p_id + '_' + countid).css('opacity', '100');
+        document.getElementById(p_id + 'btnDel' + countid).setAttribute('onclick', 'colDel(this)');
+    }
+    //新增緊急聯絡人
+    function add_new_contact() {
+        var count = $("#contant_count").val() * 1 + 1 * 1;
+        $("#contant_count").val(count);
+        var TmpContent = ""
+        TmpContent += "<div id='contact_" + count + "' countid='" + count + "'>";
+
+        TmpContent += "<p must='Y'>";
+        TmpContent += "<img id='contactbtnDel1' src='../Images/minus.png'; style='cursor: pointer; width: 15px;' title='刪除' alt='刪除' onclick='colDel(this)' delid='contact_" + count + "'>";
+        TmpContent += "<span style='color: red'>＊</span><label class='subtitle'>緊急聯絡人姓名</label>";
+        TmpContent += "<input id='param_EMGContact' name='param_EMGContact' style='width:150px' type='text' value=''>";
+        TmpContent += "</p>";
+
+        TmpContent += "<p must='Y' style='padding-left: 24px;'>";
+        TmpContent += " <span style='color: red'>＊</span><label class='subtitle'>稱謂</label>";
+
+        TmpContent += "<label><input type='radio' name='param_ContactRole_" + count + "' value='本人' onclick='div_hidden(&quot;span_param_ContactRole_other_" + count + "&quot;)'>本人</label>";
+        TmpContent += "<label><input type='radio' name='param_ContactRole_" + count + "' value='父親' onclick='div_hidden(&quot;span_param_ContactRole_other_" + count + "&quot;)'>父親</label>";
+        TmpContent += "<label><input type='radio' name='param_ContactRole_" + count + "' value='母親' onclick='div_hidden(&quot;span_param_ContactRole_other_" + count + "&quot;)'>母親</label>";
+        TmpContent += "<label><input type='radio' name='param_ContactRole_" + count + "' value='祖父' onclick='div_hidden(&quot;span_param_ContactRole_other_" + count + "&quot;)'>祖父</label>";
+        TmpContent += "<label><input type='radio' name='param_ContactRole_" + count + "' value='祖母' onclick='div_hidden(&quot;span_param_ContactRole_other_" + count + "&quot;)'>祖母</label>";
+        TmpContent += "<label><input type='radio' name='param_ContactRole_" + count + "' value='外傭' onclick='div_hidden(&quot;span_param_ContactRole_other_" + count + "&quot;)'>外傭</label>";
+        TmpContent += "<label><input type='radio' name='param_ContactRole_" + count + "' value='配偶' onclick='div_hidden(&quot;span_param_ContactRole_other_" + count + "&quot;)'>配偶</label>";
+        TmpContent += "<label><input type='radio' name='param_ContactRole_" + count + "' value='子女' onclick='div_hidden(&quot;span_param_ContactRole_other_" + count + "&quot;)'>子女</label>";
+        TmpContent += "<label><input type='radio' name='param_ContactRole_" + count + "' value='兄弟姊妹' onclick='div_hidden(&quot;span_param_ContactRole_other_" + count + "&quot;)'>兄弟姊妹</label>";
+        TmpContent += "<label><input type='radio' name='param_ContactRole_" + count + "' value='其他' onclick='$(&quot;.span_param_ContactRole_other_" + count + "&quot;).fadeIn(0);'>其他</label>";
+
+        TmpContent += "<span class='span_param_ContactRole_other_" + count + "' style='display: none;'>";
+        TmpContent += "<input id='param_ContactRole_other_" + count + "' name='param_ContactRole_other' style='width:150px' type='text' value=''>";
+        TmpContent += "</span>";
+
+        TmpContent += "</p>";
+        TmpContent += "<p style='padding-left: 24px;'>";
+        TmpContent += "<label class='subtitle'>連絡電話</label>";
+        TmpContent += "公司 <input id='param_EMGContact_1_" + count + "' name='param_EMGContact_1' style='width:150px' type='text' value=''>";
+        TmpContent += "住家 <input id='param_EMGContact_2_" + count + "' name='param_EMGContact_2' style='width:150px' type='text' value=''>";
+        TmpContent += "手機 <input id='param_EMGContact_3_" + count + "' name='param_EMGContact_3' style='width:150px' type='text' value=''>";
+        TmpContent += "</p>";
+        TmpContent += "</div>";
+        $("#add_contact").append(TmpContent);
+
+
+    }
+
+
+</script>
+
+@using System.Data;
+@{
+    string reason = "";
+    if (ViewBag.pt_icd9 != null)
+    {
+        reason = ViewBag.pt_icd9.Substring(ViewBag.pt_icd9.IndexOf("(") + 1, ViewBag.pt_icd9.Length - ViewBag.pt_icd9.IndexOf("(") - 2);
+    }
+    DataTable dt = ViewBag.dt;
+    List<NIS.Data.DrugOrder> Drug_list = (List<NIS.Data.DrugOrder>)ViewData["Drug_list"];
+    //20140119 新增
+    string createuser = ViewBag.createuser;
+    string createtime = ViewBag.createtime;
+    string modifyuser = ViewBag.modifyuser;
+    string modifytime = ViewBag.modifytime;
+}
+<input type ="hidden" value="0" id="contant_count"/>
+    <div class="tabArea">
+            <!--Title-->
+            <div style="width:100%;text-align:center;"><span style="font-weight:bold;">精神入院護理評估</span></div>
+            <table border="2" style="width:99%;">
+                <tr>
+                    <td>病人姓名：@ptinof.PatientName</td>
+                    @if (ptinof.Birthday != null)
+                    {
+                    <td>生日：@Convert.ToDateTime(ptinof.Birthday).ToString("yyyy/MM/dd")</td>
+                    }
+                    else
+                    {
+                    <td>生日：</td>
+                    }
+                    <td>年齡：@ptinof.Age</td>
+                    <td>病床號：@ptinof.BedNo</td>
+                    <td>病歷號：@ptinof.ChartNo</td>
+                </tr>
+                <tr>
+                    <td>科別：@ptinof.DeptName</td>
+                    <td>主治醫師：@ptinof.DocName</td>
+                    @if (ptinof.InDate != null)
+                    {
+                    <td>住院日期：@Convert.ToDateTime(ptinof.InDate).ToString("yyyy/MM/dd HH:mm") (@ptinof.InDay)</td>
+                    }
+                    else
+                    {
+                    <td>住院日期：</td>
+                    }
+                    <td>性別：@ptinof.PatientGender</td>
+                    <td>診斷：@ptinof.ICD9_code1</td>
+                </tr>
+            </table>
+        <!-- 基本資料 -->
+        <div class="tab">
+            <p must="Y">
+                <label class = "subtitle">入院日期</label>
+                @Html.TextBox("param_tube_date", ptinof.InDate.ToString("yyyy/MM/dd"))
+                @Html.TextBox("param_tube_time", ptinof.InDate.ToString("HH:mm"))
+            </p>
+            <p must="Y">
+                <label class = "subtitle">入院原因</label>
+                @Html.TextArea("param_ipd_reason", reason, 5, 80, new { })
+            </p>
+            <p must="Y">
+                <label class = "subtitle">入院方式</label>
+                @VitalSign_Helper.assess_radio("param_ipd_style", "步行|輪椅|推床|扶持|其他", "其他", "span_param_ipd_style_other")
+                <span class="span_param_ipd_style_other" style="display:none;">
+                    :@Html.TextBox("param_ipd_style_other", "", new { style = "width:200px" })
+                </span>
+            </p>
+            <p must="Y">
+                <label class = "subtitle">教育</label>
+                @VitalSign_Helper.assess_radio("param_education", "不識字|小學|國中|高中|大專或大學|研究所以上|不詳", "", "")
+            </p>
+            <p must="Y">
+				<label class = "subtitle">職業</label>
+				@VitalSign_Helper.assess_radio("param_job", "無|公務員|農|工|商|服務業|教職|家管|退休|自由業|其他", "其他", "span_param_job_other")
+                <span class="span_param_job_other" style="display:none;">
+                    :@Html.TextBox("param_job_other", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">經濟狀況</label>
+				@VitalSign_Helper.assess_radio("param_economy", "富裕|小康|低收入戶", "", "")
+            </p>
+            <p must="Y">
+				<label class = "subtitle">身分別</label>
+				@VitalSign_Helper.assess_checkbox("param_payment", "健保|自費|榮民|身心障礙|重大傷病", "", "")
+            </p>
+            <p must="Y">
+				<label class = "subtitle">宗教</label>
+				@VitalSign_Helper.assess_radio("param_religion", "無|佛|道|回|天主|基督|其他", "其他", "span_param_religion_other")
+                <span class="span_param_religion_other" style="display:none;">
+                    :@Html.TextBox("param_religion_other", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">語言</label>
+				@VitalSign_Helper.assess_checkbox("param_lang", "國語|閩南語|客家語|英語|日語|越南語|廣東話|其他", "其他", "span_param_lang_other")
+                <span class="span_param_lang_other" style="display:none;">
+                    :@Html.TextBox("param_lang_other", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">需翻譯</label>
+				@VitalSign_Helper.assess_radio("param_needtrans", "是|否", "", "")
+            </p>
+            <p must="Y">
+				<label class = "subtitle">婚姻狀況</label>
+				@VitalSign_Helper.assess_radio("param_marrage", "未婚|已婚|離婚|分居|同居|喪偶|不詳", "", "")
+            </p>
+            <p must="Y">
+				<label class = "subtitle">主要照顧者</label>
+				@VitalSign_Helper.assess_checkbox("param_care", "本人|父母|祖父母|配偶|兒女|孫子女|朋友|看護|外傭|其他", "其他", "span_param_care_other")
+                <span class="span_param_care_other" style="display:none;">
+                    :@Html.TextBox("param_care_other", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">心理狀況</label>
+				@VitalSign_Helper.assess_checkbox("param_psychological", "穩定|焦慮|不安|憤怒|無助|其他", "其他", "span_param_psychological_other")
+                <span class="span_param_psychological_other" style="display:none;">
+                    :@Html.TextBox("param_psychological_other", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">子女</label>
+				@VitalSign_Helper.assess_radio("param_child", "無|有", "有", "param_child_desc")
+                <span class="param_child_desc" style="display:none;">
+					，男 @Html.TextBox("param_child_f", "", new { style = "width:60px;" }) 人
+					，女 @Html.TextBox("param_child_m", "", new { style = "width:60px;" }) 人
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">居住方式</label>
+				@VitalSign_Helper.assess_radio("param_living", "獨居|與家人同住|遊民|養護機構", "養護機構", "span_param_living_other")
+                <span class="span_param_living_other" style="display:none;">
+                    ，@Html.TextBox("param_living_other", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">需社工幫助</label>
+				@VitalSign_Helper.assess_radio("param_Volunteer_Help", "否|是", "是", "span_param_Volunteer_Help_Dtl")
+                <span class="span_param_Volunteer_Help_Dtl" style="width: 180px; display: none;">
+                    ，@Html.TextBox("param_Volunteer_Help_Dtl", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">抽菸</label>
+                <label><input type="radio" name="param_cigarette" value="1" onclick="div_hidden('param_cigarette_yes,param_cigarette_stop');" />無</label>
+                <label><input type="radio" name="param_cigarette" value="2" onclick="$('.param_cigarette_yes').fadeIn(500); div_hidden('param_cigarette_stop');" />有</label>
+                <label><input type="radio" name="param_cigarette" value="3" onclick="div_hidden('param_cigarette_yes'); $('.param_cigarette_stop').fadeIn(500);" />戒菸</label>
+                <span class="param_cigarette_yes" style="display: none;">
+                    ，每日 @Html.TextBox("param_cigarette_yes_amount", "", new { style = "width:40px" }) 支
+					，已抽 @Html.TextBox("param_cigarette_yes_year", "", new { style = "width:40px" }) 年
+					，有無戒菸意願： 
+					    @VitalSign_Helper.assess_radio("param_cigarette_agree_stop", "無|有", "", "")
+                </span>
+                <span class="param_cigarette_stop" style="width: 180px; display: none;">
+                    ，@Html.TextBox("param_cigarette_stop_year", "", new { style = "width:40px" }) 年
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">喝酒</label>
+				@VitalSign_Helper.assess_radio("param_drink", "不喝|偶爾|每天喝", "每天喝", "param_drink_each")
+                <span class="param_drink_each" style="display:none;">
+                    ，每日劑量 @Html.TextBox("param_drink_day", "", new { style = "width:40px" }) 瓶
+                    @Html.TextBox("param_drink_unit", "", new { style = "width:40px" }) mL
+                </span>
+            </p>
+        <!-- 過去病史 -->
+            <p must="Y">
+				<label class = "subtitle">首次發病時間</label>
+                @Html.TextBox("param_First", "不詳", new { style = "width:150px" })
+            </p>
+            <p must="Y">
+				<label class = "subtitle">當時處理</label>
+				@VitalSign_Helper.assess_radio("param_Process", "西醫|中醫|其他", "其他", "sapn_param_Process_Other")
+                <span class="sapn_param_Process_Other" style="display:none;">
+                    ：@Html.TextBox("param_Process_Other", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p fid="param_hasipd" must="Y">
+				<label class = "subtitle">住院次數</label>
+				@VitalSign_Helper.assess_radio("param_hasipd", "無|有|不詳", "有", "param_hasipd_dtl")
+				<span class="param_hasipd_dtl" style="display:none;">
+					，@VitalSign_Helper.assess_radio("param_ipd_count", "1次|2次|3次|4次|5次以上", "", "")
+				</span>
+				<span class="param_hasipd_dtl" style="display:none;">
+					，最近一次時間 @Html.TextBox("param_ipd_lasttime", "", new { style = "width:150px" })
+					，診斷 @Html.TextBox("param_ipd_diag", "", new { style = "width:450px" })
+				</span>
+            </p>
+            <p fid="param_im_history" must="Y">
+				<label class = "subtitle">內科病史</label>
+				@VitalSign_Helper.assess_radio("param_im_history", "無|不詳|有", "有", "param_im_history_desc")
+            </p>
+            <p fid="param_im_history" class="param_im_history_desc" style="display:none;">
+				<span class="param_im_history_item1" style="display:none;"> 高血壓 </span>@Html.TextBox("param_im_history_item1", "", new { style = "width:40px" })<span class="param_im_history_item1" style="display:none;"> 年</span>
+				<span class="param_im_history_item2" style="display:none;"> 心臟病 </span>@Html.TextBox("param_im_history_item2", "", new { style = "width:40px" })<span class="param_im_history_item2" style="display:none;"> 年</span>
+				<span class="param_im_history_item3" style="display:none;"> 糖尿病 </span>@Html.TextBox("param_im_history_item3", "", new { style = "width:40px" })<span class="param_im_history_item3" style="display:none;"> 年</span>
+				<span class="param_im_history_item4" style="display:none;"> 氣喘 </span>@Html.TextBox("param_im_history_item4", "", new { style = "width:40px" })<span class="param_im_history_item4" style="display:none;"> 年</span>
+            </p>
+            <p fid="param_im_history" class="param_im_history_desc" style="display:none;">
+				<span class="param_im_history_item_other" style="display:none;">其他疾病：</span>
+				@VitalSign_Helper.assess_checkbox("param_im_history_item_other", "腎臟病|消化潰瘍|癌症|肺結核|肝臟病|精神病|影響空間知覺疾病|多發性硬化症|半身麻痺|可能會暫時喪失|癲癇|其他", "其他", "span_param_im_history_item_other_txt")
+				<span class="span_param_im_history_item_other_txt" style="display:none;">
+                    @Html.TextArea("param_im_history_item_other_txt", "", 5, 80, new { })
+				</span>
+            </p>
+            <p fid="param_im_history" class="param_im_history_desc" style="display:none;">
+				<span class="param_im_history_status" style="display:none;">疾病發生時間，處理情形及目前狀況： </span>@Html.TextBox("param_im_history_status", "", new { style = "width:180px" })
+            </p>
+            <p fid="param_su_history" must="Y">
+				<label class = "subtitle">外科病史</label>
+				@VitalSign_Helper.assess_radio("param_su_history", "無|有", "有", "span_param_su_history")
+            </p>
+            <p fid="param_su_history" must="Y" class="span_param_su_history" style="display:none;">
+				外傷 @Html.TextArea("param_su_history_trauma_txt", "", new { style = "width:30%;height:60px;" })
+				<label class = "subnote">(發生時間/處理情形/目前狀況)</label>
+				手術 @Html.TextArea("param_su_history_surgery_txt", "", new { style = "width:30%;height:60px;" })
+            </p>
+            <p fid="param_su_history" must="Y" class="span_param_su_history" style="display:none;">
+				外傷/手術/外科疾病 @Html.TextArea("param_su_history_other_txt", "", new { style = "width:60%;height:60px;" })
+				<label class = "subnote">(發生時間/處理情形/目前狀況)</label>
+            </p>
+            <p>
+				<label class = "subtitle">其他病史</label>
+				@VitalSign_Helper.assess_radio("param_other_history", "無|有", "有", "span_param_other_history_desc")
+                <span class="span_param_other_history_desc" style="display:none;">
+                    ，@Html.TextArea("param_other_history_desc", "", new { style = "width:50%;height:60px;" })
+                </span>
+            </p>
+            <p fid="param_med" must="Y">
+				<label class = "subtitle">目前服用藥物</label>
+				@VitalSign_Helper.assess_radio("param_med", "無|有", "有", "span_param_med")
+            </p>
+            @for (int i = 0; i < Drug_list.Count; i++)
+            {
+            <p fid="param_med" class="span_param_med" style="display:none;">
+				門診用藥-藥物名稱：<label style="color:blue;">@Drug_list[i].DrugName</label>
+				頻次：<label style="color:blue;">@Drug_list[i].Feq</label>
+				劑量：<label style="color:blue;">@Drug_list[i].Dose</label>
+				途徑：<label style="color:blue;">@Drug_list[i].Route</label>
+            </p>
+            }
+            <p fid="param_med" class="span_param_med" style="display:none;" id="med" countid="0">
+                <img id="btn_add_med" src="~/Images/plus.png" style="cursor:pointer;width:15px;display:none;" title="新增一筆" alt="新增一筆" onclick="clonediv('med', this.id, 'add_med');" />
+				藥物名稱 @Html.TextBox("param_med_name", "", new { style = "width:100px" })
+				頻次 @Html.TextBox("param_med_frequency", "", new { style = "width:100px" })
+				劑量 @Html.TextBox("param_med_amount", "", new { style = "width:100px" })
+				途徑 @Html.TextBox("param_med_way", "", new { style = "width:100px" })
+            </p>
+            <div id="add_med">
+            </div>
+            <p fid="param_allergy_med" must="Y">
+				<label class = "subtitle">過敏史藥物</label>
+				@VitalSign_Helper.assess_radio("param_allergy_med", "無|有", "有", "span_param_allergy_med,span_param_allergy_med_other_1,span_param_allergy_med_other_2,span_param_allergy_med_other_3,span_param_allergy_med_other_4,span_param_allergy_med_other_5,span_param_allergy_med_other_6,span_param_allergy_med_other_7,span_param_allergy_med_other_8,span_param_allergy_med_other_9")
+            </p>
+            <p fid="param_allergy_med" must="Y" class="span_param_allergy_med" style="display:none;">
+				<label><input type="checkbox" name="param_allergy_med_other" value="不詳" />不詳</label>
+				<label><input type="checkbox" name="param_allergy_med_other" value="pyrin" onclick="if (this.checked) { $('.span_param_allergy_med_other_2').fadeIn(500); } else { div_hidden('span_param_allergy_med_other_2'); }" />pyrin</label>
+				<span class="span_param_allergy_med_other_2" style="display:none;">
+					<span class="param_allergy_med_other_2_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_med_other_2_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_med_other" value="aspirin" />aspirin</label>
+				<label><input type="checkbox" name="param_allergy_med_other" value="NSAID" onclick="if (this.checked) { $('.span_param_allergy_med_other_4').fadeIn(500); } else { div_hidden('span_param_allergy_med_other_4'); }" />NSAID</label>
+				<span class="span_param_allergy_med_other_4" style="display:none;">
+					<span class="param_allergy_med_other_4_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_med_other_4_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_med_other" value="顯影劑" />顯影劑</label>
+				<label><input type="checkbox" name="param_allergy_med_other" value="磺氨類" onclick="if (this.checked) { $('.span_param_allergy_med_other_6').fadeIn(500); } else { div_hidden('span_param_allergy_med_other_6'); }" />磺氨類</label>
+				<span class="span_param_allergy_med_other_6" style="display:none;">
+					<span class="param_allergy_med_other_6_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_med_other_6_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_med_other" value="盤尼西林類" onclick="if (this.checked) { $('.span_param_allergy_med_other_7').fadeIn(500); } else { div_hidden('span_param_allergy_med_other_7'); }" />盤尼西林類</label>
+				<span class="span_param_allergy_med_other_7" style="display:none;">
+					<span class="param_allergy_med_other_7_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_med_other_7_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_med_other" value="抗生素類" onclick="if (this.checked) { $('.span_param_allergy_med_other_8').fadeIn(500); } else { div_hidden('span_param_allergy_med_other_8'); }" />抗生素類</label>
+				<span class="span_param_allergy_med_other_8" style="display:none;">
+					<span class="param_allergy_med_other_8_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_med_other_8_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_med_other" value="麻醉藥" onclick="if (this.checked) { $('.span_param_allergy_med_other_9').fadeIn(500); } else { div_hidden('span_param_allergy_med_other_9'); }" />麻醉藥</label>
+				<span class="span_param_allergy_med_other_9" style="display:none;">
+					<span class="param_allergy_med_other_9_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_med_other_9_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_med_other" value="其他" onclick="if (this.checked) { $('.span_param_allergy_med_other_10').fadeIn(500); } else { div_hidden('span_param_allergy_med_other_10'); }" />其他</label>
+				<span class="span_param_allergy_med_other_10" style="display:none;">
+					<span class="param_allergy_med_other_10_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_med_other_10_name", "", new { style = "width:150px" })
+				</span>
+            </p>
+            <p fid="param_allergy_food" must="Y">
+				<label class = "subtitle">過敏史食物</label>
+				@VitalSign_Helper.assess_radio("param_allergy_food", "無|有", "有", "span_param_allergy_food,span_param_allergy_food_other_1,span_param_allergy_food_other_2,span_param_allergy_food_other_3,span_param_allergy_food_other_4,span_param_allergy_food_other_5,span_param_allergy_food_other_6")
+            </p>
+            <p fid="param_allergy_food" must="Y" class="span_param_allergy_food" style="display:none;">
+				<label><input type="checkbox" name="param_allergy_food_other" value="不詳" />不詳</label>
+				<label><input type="checkbox" name="param_allergy_food_other" value="海鮮類" onclick="if (this.checked) { $('.span_param_allergy_food_other_2').fadeIn(500); } else { div_hidden('span_param_allergy_food_other_2'); }" />海鮮類</label>
+				<span class="span_param_allergy_food_other_2" style="display:none;">
+					<span class="param_allergy_food_other_2_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_food_other_2_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_food_other" value="蛋" />蛋</label>
+				<label><input type="checkbox" name="param_allergy_food_other" value="水果" onclick="if (this.checked) { $('.span_param_allergy_food_other_4').fadeIn(500); } else { div_hidden('span_param_allergy_food_other_4'); }" />水果</label>
+				<span class="span_param_allergy_food_other_4" style="display:none;">
+					<span class="param_allergy_food_other_4_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_food_other_4_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_food_other" value="花生" />花生</label>
+				<label><input type="checkbox" name="param_allergy_food_other" value="其他" onclick="if (this.checked) { $('.span_param_allergy_food_other_6').fadeIn(600); } else { div_hidden('span_param_allergy_food_other_6'); }" />其他</label>
+				<span class="span_param_allergy_food_other_6" style="display:none;">
+					<span class="param_allergy_food_other_6_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_food_other_6_name", "", new { style = "width:150px" })
+				</span>
+			</p>
+            <p fid="param_allergy_other">
+				<label class = "subtitle">過敏史其他</label>
+				@VitalSign_Helper.assess_radio("param_allergy_other", "無|有", "有", "span_param_allergy_other,span_param_allergy_other_other_1,span_param_allergy_other_other_2,span_param_allergy_other_other_3,span_param_allergy_other_other_4,span_param_allergy_other_other_5,span_param_allergy_other_other_6")
+            </p>
+            <p fid="param_allergy_other" class="span_param_allergy_other" style="display:none;">
+				<label><input type="checkbox" name="param_allergy_other_other" value="不詳" onclick="if (this.checked) { $('.span_param_allergy_other_other_1').fadeIn(500); } else { div_hidden('span_param_allergy_other_other_1'); }" />不詳</label>
+				<span class="span_param_allergy_other_other_1" style="display:none;">
+					<span class="param_allergy_other_other_1_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_other_other_1_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_other_other" value="輸血" onclick="if (this.checked) { $('.span_param_allergy_other_other_2').fadeIn(500); } else { div_hidden('span_param_allergy_other_other_2'); }" />輸血</label>
+				<span class="span_param_allergy_other_other_2" style="display:none;">
+					<span class="param_allergy_other_other_2_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_other_other_2_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_other_other" value="油漆" onclick="if (this.checked) { $('.span_param_allergy_other_other_3').fadeIn(500); } else { div_hidden('span_param_allergy_other_other_3'); }" />油漆</label>
+				<span class="span_param_allergy_other_other_3" style="display:none;">
+					<span class="param_allergy_other_other_3_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_other_other_3_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_other_other" value="昆蟲" onclick="if (this.checked) { $('.span_param_allergy_other_other_4').fadeIn(500); } else { div_hidden('span_param_allergy_other_other_4'); }" />昆蟲</label>
+				<span class="span_param_allergy_other_other_4" style="display:none;">
+					<span class="param_allergy_other_other_4_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_other_other_4_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_other_other" value="麈蟎" onclick="if (this.checked) { $('.span_param_allergy_other_other_5').fadeIn(500); } else { div_hidden('span_param_allergy_other_other_5'); }" />麈蟎</label>
+				<span class="span_param_allergy_other_other_5" style="display:none;">
+					<span class="param_allergy_other_other_5_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_other_other_5_name", "", new { style = "width:150px" })
+				</span>
+				<label><input type="checkbox" name="param_allergy_other_other" value="其他" onclick="if (this.checked) { $('.span_param_allergy_other_other_6').fadeIn(600); } else { div_hidden('span_param_allergy_other_other_6'); }" />其他</label>
+				<span class="span_param_allergy_other_other_6" style="display:none;">
+					<span class="param_allergy_other_other_6_name" style="display:none;">，名稱 </span>@Html.TextBox("param_allergy_other_other_6_name", "", new { style = "width:150px" })
+				</span>
+			</p>
+        <!-- 家族病史 -->
+            <p fid="param_family_history" must="Y">
+				<label class = "subtitle">家族病史</label>
+				@VitalSign_Helper.assess_radio("param_family_history", "無|有", "有", "sp_param_family_history")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">高血壓</label>
+				@VitalSign_Helper.assess_checkbox("param_bp", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">腎臟病</label>
+				@VitalSign_Helper.assess_checkbox("param_kind", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">氣喘</label>
+				@VitalSign_Helper.assess_checkbox("param_asthma", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">癲癇</label>
+				@VitalSign_Helper.assess_checkbox("param_epilepsy", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">心臟病</label>
+				@VitalSign_Helper.assess_checkbox("param_HeartDisease", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">消化性潰瘍</label>
+				@VitalSign_Helper.assess_checkbox("param_PepticUlcer", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">肺結核</label>
+				@VitalSign_Helper.assess_checkbox("param_tuberculosis", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">精神病</label>
+				@VitalSign_Helper.assess_checkbox("param_MentalIllness", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">糖尿病</label>
+				@VitalSign_Helper.assess_checkbox("param_Diabetes", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">癌症</label>
+				@VitalSign_Helper.assess_checkbox("param_Cancer", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">肝臟疾病</label>
+				@VitalSign_Helper.assess_checkbox("param_LiverDisease", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+            <p fid="param_family_history" class="sp_param_family_history" style="display:none;">
+				<label class = "subtitle">其他疾病名稱</label>
+				@Html.TextBox("param_OtherDiseaseDesc", "", new { style = "width:150px" })
+				@VitalSign_Helper.assess_checkbox("param_OtherDisease", "父|母|祖父|祖母|外祖父|外祖母", "", "")
+            </p>
+        <!-- 一般外觀 -->
+            <p fid="param_LeftEye_Clear" must="Y">
+				<label class = "subtitle">左眼視力</label>
+                <label><input type="checkbox" name="param_LeftEye" value="清晰" onclick="if (this.checked) { div_hidden('span_param_LeftEye_Clear'); } else { $('.span_param_LeftEye_Clear').fadeIn(500); }" />清晰</label>
+				@VitalSign_Helper.assess_checkbox("param_LeftEye", "失明|斜視|近視|遠視|老花|弱視|偏盲|白內障|其他", "其他", "span_param_LeftEyeOther")
+                <span class="span_param_LeftEyeOther" style="display:none;">
+                    ，@Html.TextBox("param_LeftEyeOther", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p fid="param_LeftEye_Clear" must="Y" class="span_param_LeftEye_Clear">
+				<label class = "subtitle">左眼矯正</label>
+				@VitalSign_Helper.assess_checkbox("param_LeftEyeRedress", "義眼|眼鏡|隱形眼鏡|手術|其他", "其他", "span_param_LeftEyeRedressDesc")
+                <span class="span_param_LeftEyeRedressDesc" style="display:none;">
+                    ，@Html.TextBox("param_LeftEyeRedressDesc", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p fid="param_RightEye_Clear" must="Y">
+				<label class = "subtitle">右眼視力</label>
+                <label><input type="checkbox" name="param_RightEye" value="清晰" onclick="if (this.checked) { div_hidden('span_param_RightEye_Clear'); } else { $('.span_param_RightEye_Clear').fadeIn(500); }" />清晰</label>
+				@VitalSign_Helper.assess_checkbox("param_RightEye", "失明|斜視|近視|遠視|老花|弱視|偏盲|白內障|其他", "其他", "span_param_RightEyeOther")
+                <span class="span_param_RightEyeOther" style="display:none;">
+                    ，@Html.TextBox("param_RightEyeOther", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p fid="param_RightEye_Clear" must="Y" class="span_param_RightEye_Clear">
+				<label class = "subtitle">右眼矯正</label>
+				@VitalSign_Helper.assess_checkbox("param_RightEyeRedress", "義眼|眼鏡|隱形眼鏡|手術|其他", "其他", "span_param_RightEyeRedressDesc")
+                <span class="span_param_RightEyeRedressDesc" style="display:none;">
+                    @Html.TextBox("param_RightEyeRedressDesc", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">左耳聽力</label>
+				@VitalSign_Helper.assess_checkbox("param_LeftEra", "清晰|重聽|失聰|耳鳴|助聽器|其他", "其他", "span_param_LeftEraDesc")
+                <span class="span_param_LeftEraDesc" style="display:none;">
+                    ，@Html.TextBox("param_LeftEraDesc", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">右耳聽力</label>
+				@VitalSign_Helper.assess_checkbox("param_RightEra", "清晰|重聽|失聰|耳鳴|助聽器|其他", "其他", "span_param_RightEraDesc")
+                <span class="span_param_RightEraDesc" style="display:none;">
+                    ，@Html.TextBox("param_RightEraDesc", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">口腔，黏膜</label>
+				@VitalSign_Helper.assess_radio("param_Mouth", "黏膜完整|異常", "異常", "span_param_Mouth_Abnormal")
+                <span class="span_param_Mouth_Abnormal" style="display:none;">
+					， @VitalSign_Helper.assess_checkbox("param_Mouth_Abnormal", "潰瘍|乾躁|發紅|腫脹", "", "")
+                </span>
+            </p>
+            <p fid="param_Tooth" must="Y">
+				<label class = "subtitle">假牙</label>
+				@VitalSign_Helper.assess_radio("param_Tooth", "無|有", "有", "span_param_ToothDesc")
+				<span fid="param_Tooth" class="span_param_ToothDesc" style="display:none;">
+					，上： @VitalSign_Helper.assess_radio("param_ToothUpDesc", "固定|活動", "", "")
+					，下： @VitalSign_Helper.assess_radio("param_ToothDownDesc", "固定|活動", "", "")
+				</span>
+            </p>
+        <!-- 皮膚狀況 -->
+            <p fid="param_Skin_Temp" must="Y">
+				<label class = "subtitle">皮膚溫度</label>
+				@VitalSign_Helper.assess_radio("param_Skin_Temp", "正常|異常", "異常", "span_param_Skin_Temp_Abnormal")
+            </p>
+            <p fid="param_Skin_Temp" must="Y" class="span_param_Skin_Temp_Abnormal" style="display:none;">
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Temp_Abnormal" id="param_Skin_Temp_Abnormal_1" value="發熱" onclick="if (this.checked) { $('.span_param_Skin_Temp_Abnormal_Hot_position').fadeIn(500); } else { div_hidden('span_param_Skin_Temp_Abnormal_Hot_position,span_param_Skin_Temp_Abnormal_Hot_position_other'); }" />
+                    <label for="param_Skin_Temp_Abnormal_1">發熱</label>
+				    <span class="span_param_Skin_Temp_Abnormal_Hot_position" style="display:none;">
+					    ，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Temp_Abnormal_Hot_position", "左上肢|右上肢|左下肢|右下肢|其他", "其他", "span_param_Skin_Temp_Abnormal_Hot_position_other")
+					    <span class="span_param_Skin_Temp_Abnormal_Hot_position_other" style="display:none;">
+						    ，@Html.TextBox("param_Skin_Temp_Abnormal_Hot_position_other", "", new { style = "width:150px" })
+					    </span>
+				    </span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Temp_Abnormal" id="param_Skin_Temp_Abnormal_2" value="冰冷" onclick="if (this.checked) { $('.span_param_Skin_Temp_Abnormal_Cold_position').fadeIn(500); } else { div_hidden('span_param_Skin_Temp_Abnormal_Cold_position,span_param_Skin_Temp_Abnormal_Cold_position_other'); }" />
+                    <label for="param_Skin_Temp_Abnormal_2">冰冷</label>
+				    <span class="span_param_Skin_Temp_Abnormal_Cold_position" style="display:none;">
+					    ，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Temp_Abnormal_Cold_position", "左上肢|右上肢|左下肢|右下肢|其他", "其他", "span_param_Skin_Temp_Abnormal_Cold_position_other")
+					    <span class="span_param_Skin_Temp_Abnormal_Cold_position_other" style="display:none;">
+						    ，@Html.TextBox("param_Skin_Temp_Abnormal_Cold_position_other", "", new { style = "width:150px" })
+					    </span>
+				    </span>
+                </span>
+            </p>
+            <p fid="param_Skin_Exterior" must="Y">
+				<label class = "subtitle">皮膚外觀</label>
+				@VitalSign_Helper.assess_radio("param_Skin_Exterior", "正常|異常", "異常", "span_param_Skin_Exterior_Abnormal")
+            </p>
+            <p fid="param_Skin_Exterior" must="Y" class="span_param_Skin_Exterior_Abnormal" style="display:none;">
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Exterior_Abnormal" id="param_Skin_Exterior_Abnormal_1" value="蒼白" onclick="if (this.checked) { $('.span_param_Skin_Exterior_Abnormal_Pale_position').fadeIn(500); } else { div_hidden('span_param_Skin_Exterior_Abnormal_Pale_position,span_param_Skin_Exterior_Abnormal_Pale_position_other'); }" />
+					<label for="param_Skin_Exterior_Abnormal_1">蒼白</label>
+					<span class="span_param_Skin_Exterior_Abnormal_Pale_position" style="display:none;">
+						，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Exterior_Abnormal_Pale_position", "左上肢|右上肢|左下肢|右下肢|其他", "其他", "span_param_Skin_Exterior_Abnormal_Pale_position_other")
+						<span class="span_param_Skin_Exterior_Abnormal_Pale_position_other" style="display:none;">
+							，@Html.TextBox("param_Skin_Exterior_Abnormal_Pale_position_other", "", new { style = "width:150px" })
+						</span>
+					</span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Exterior_Abnormal" id="param_Skin_Exterior_Abnormal_2" value="發紺" onclick="if (this.checked) { $('.span_param_Skin_Exterior_Abnormal_Cyanotic_position').fadeIn(500); } else { div_hidden('span_param_Skin_Exterior_Abnormal_Cyanotic_position,span_param_Skin_Exterior_Abnormal_Cyanotic_position_other'); }" />
+					<label for="param_Skin_Exterior_Abnormal_2">發紺</label>
+					<span class="span_param_Skin_Exterior_Abnormal_Cyanotic_position" style="display:none;">
+						，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Exterior_Abnormal_Cyanotic_position", "左上肢|右上肢|左下肢|右下肢|其他", "其他", "span_param_Skin_Exterior_Abnormal_Cyanotic_position_other")
+						<span class="span_param_Skin_Exterior_Abnormal_Cyanotic_position_other" style="display:none;">
+							，@Html.TextBox("param_Skin_Exterior_Abnormal_Cyanotic_position_other", "", new { style = "width:150px" })
+						</span>
+					</span>
+                    <br />
+                </span>
+                  <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Exterior_Abnormal" id="param_Skin_Exterior_Abnormal_3" value="紅疹" onclick="if (this.checked) { $('.span_param_Skin_Exterior_Abnormal_Rash_position').fadeIn(500); } else { div_hidden('span_param_Skin_Exterior_Abnormal_Rash_position,span_param_Skin_Exterior_Abnormal_Rash_position_other'); }" />
+					<label for="param_Skin_Exterior_Abnormal_3">紅疹</label>
+					<span class="span_param_Skin_Exterior_Abnormal_Rash_position" style="display:none;">
+						，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Exterior_Abnormal_Rash_position", "頭頸部|胸部|腹部|背部|會陰部|臀部|左上肢|右上肢|左下肢|右下肢|其他", "其他", "span_param_Skin_Exterior_Abnormal_Rash_position_other")
+						<span class="span_param_Skin_Exterior_Abnormal_Rash_position_other" style="display:none;">
+							，@Html.TextBox("param_Skin_Exterior_Abnormal_Rash_position_other", "", new { style = "width:150px" })
+						</span>
+					</span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Exterior_Abnormal" id="param_Skin_Exterior_Abnormal_4" value="黃疸" onclick="if (this.checked) { $('.span_param_Skin_Exterior_Abnormal_Jaundice_position').fadeIn(500); } else { div_hidden('span_param_Skin_Exterior_Abnormal_Jaundice_position'); }" />
+                    <label for="param_Skin_Exterior_Abnormal_4">黃疸</label>
+					<span class="span_param_Skin_Exterior_Abnormal_Jaundice_position" style="display:none;">
+					，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Exterior_Abnormal_Jaundice_position", "頭頸部|胸部|腹部|背部|會陰部|臀部|全身|其他", "其他", "param_Skin_Exterior_Abnormal_Jaundice_position_other")
+			    	<span class="param_Skin_Exterior_Abnormal_Jaundice_position_other" style="display:none;">
+						，@Html.TextBox("param_Skin_Exterior_Abnormal_Jaundice_position_other", "", new { style = "width:150px" })
+					</span>
+                </span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Exterior_Abnormal" id="param_Skin_Exterior_Abnormal_5" value="瘀青" onclick="if (this.checked) { $('.span_param_Skin_Exterior_Abnormal_Bruises_position').fadeIn(500); } else { div_hidden('span_param_Skin_Exterior_Abnormal_Bruises_position'); }" />
+					<label for="param_Skin_Exterior_Abnormal_5">瘀青</label>
+					<span class="span_param_Skin_Exterior_Abnormal_Bruises_position" style="display:none;">
+					，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Exterior_Abnormal_Bruises_position", "頭頸部|胸部|腹部|背部|會陰部|臀部|其他", "其他", "param_Skin_Exterior_Abnormal_Bruises_position_other")
+					<span class="param_Skin_Exterior_Abnormal_Bruises_position_other" style="display:none;">
+						，@Html.TextBox("param_Skin_Exterior_Abnormal_Bruises_position_other", "", new { style = "width:150px" })
+					</span>
+                </span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Exterior_Abnormal" id="param_Skin_Exterior_Abnormal_6" value="脫屑" onclick="if (this.checked) { $('.span_param_Skin_Exterior_Abnormal_Desquamation_position').fadeIn(500); } else { div_hidden('span_param_Skin_Exterior_Abnormal_Desquamation_position'); }" />
+					<label for="param_Skin_Exterior_Abnormal_6">脫屑</label>
+					<span class="span_param_Skin_Exterior_Abnormal_Desquamation_position" style="display:none;">
+					，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Exterior_Abnormal_Desquamation_position", "頭頸部|胸部|腹部|背部|會陰部|臀部|其他", "其他", "param_Skin_Exterior_Abnormal_Desquamation_position_other")
+				    <span class="param_Skin_Exterior_Abnormal_Desquamation_position_other" style="display:none;">
+						   ，@Html.TextBox("param_Skin_Exterior_Abnormal_Desquamation_position_other", "", new { style = "width:150px" })
+					    </span>
+                    </span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Exterior_Abnormal" id="param_Skin_Exterior_Abnormal_7" value="潮濕" onclick="if (this.checked) { $('.span_param_Skin_Exterior_Abnormal_Moist_position').fadeIn(500); } else { div_hidden('span_param_Skin_Exterior_Abnormal_Moist_position'); }" />
+					<label for="param_Skin_Exterior_Abnormal_7">潮濕</label>
+					<span class="span_param_Skin_Exterior_Abnormal_Moist_position" style="display:none;">
+					，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Exterior_Abnormal_Moist_position", "頭頸部|胸部|腹部|背部|會陰部|臀部|其他", "其他", "param_Skin_Exterior_Abnormal_Moist_position_other")
+				<span class="param_Skin_Exterior_Abnormal_Moist_position_other" style="display:none;">
+						，@Html.TextBox("param_Skin_Exterior_Abnormal_Moist_position_other", "", new { style = "width:150px" })
+					</span>
+                </span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Exterior_Abnormal" id="param_Skin_Exterior_Abnormal_8" value="水泡" onclick="if (this.checked) { $('.span_param_Skin_Exterior_Abnormal_Blister_position').fadeIn(500); } else { div_hidden('span_param_Skin_Exterior_Abnormal_Blister_position'); }" />
+					<label for="param_Skin_Exterior_Abnormal_8">水泡</label>
+					<span class="span_param_Skin_Exterior_Abnormal_Blister_position" style="display:none;">
+					，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Exterior_Abnormal_Blister_position", "頭頸部|胸部|腹部|背部|會陰部|臀部|左上肢|右上肢|左下肢|右下肢|左大腿|右大腿|左小腿|右小腿|其他", "其他", "param_Skin_Exterior_Abnormal_Blister_position_other")
+				<span class="param_Skin_Exterior_Abnormal_Blister_position_other" style="display:none;">
+						，@Html.TextBox("param_Skin_Exterior_Abnormal_Blister_position_other", "", new { style = "width:150px" })
+					</span>
+                </span>
+                      </span>
+            </p>
+            <p fid="param_Skin_Wound" must="Y">
+				<label class = "subtitle">傷口</label>
+				@VitalSign_Helper.assess_radio("param_Skin_Wound", "無|有", "有", "span_param_Skin_Wound_Abnormal")
+            </p>
+			<p fid="param_Skin_Wound" must="Y" class="span_param_Skin_Wound_Abnormal" style="display:none;">
+                <span style="padding-bottom:5px;">
+                    <input type="checkbox" name="param_Skin_Wound_Abnormal" id="param_Skin_Wound_Abnormal_1" value="壓傷" onclick="if (this.checked) { $('.span_param_Skin_Wound_Abnormal_Pressure_sores_position').fadeIn(500); } else { div_hidden('span_param_Skin_Wound_Abnormal_Pressure_sores_position,span_param_Skin_Wound_Abnormal_Pressure_sores_position_other'); }" />
+                    <label for="param_Skin_Wound_Abnormal_1">壓傷</label>
+					<span class="span_param_Skin_Wound_Abnormal_Pressure_sores_position" style="display:none;">
+						，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Wound_Abnormal_Pressure_sores_position", "薦骨|坐骨粗隆-左|坐骨粗隆-右|大粗隆-左|大粗隆-右|腸骨瘠-左|腸骨瘠-右|左肩胛|右肩胛|左手肘|右手肘|左踝骨外側|右踝骨外側|左足跟|右足跟|枕骨|左膝|右膝", "", "")
+					</span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Wound_Abnormal" id="param_Skin_Wound_Abnormal_2" value="手術" onclick="if (this.checked) { $('.span_param_Skin_Wound_Abnormal_Surgery_position').fadeIn(500); } else { div_hidden('span_param_Skin_Wound_Abnormal_Surgery_position,span_param_Skin_Wound_Abnormal_Surgery_position_other'); }" />
+					<label for="param_Skin_Wound_Abnormal_2">手術</label>
+					<span class="span_param_Skin_Wound_Abnormal_Surgery_position" style="display:none;">
+						，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Wound_Abnormal_Surgery_position", "頭|枕部|頸|臉|胸部|左肩|右肩|背部|腹部|左臀|右臀|左上臂|右上臂|左下臂|右下臂|左手掌|右手掌|左手背|右手背|左手指|右手指|左大腿|右大腿|左小腿|右小腿|左足背|右足背|左足踝|右足踝|左足跟|右足跟|左足底|右足底|左腳趾|右腳趾", "", "")
+					</span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Wound_Abnormal" id="param_Skin_Wound_Abnormal_3" value="外傷" onclick="if (this.checked) { $('.span_param_Skin_Wound_Abnormal_Trauma_position').fadeIn(500); } else { div_hidden('span_param_Skin_Wound_Abnormal_Trauma_position,span_param_Skin_Wound_Abnormal_Trauma_position_other'); }" />
+					<label for="param_Skin_Wound_Abnormal_3">外傷</label>
+					<span class="span_param_Skin_Wound_Abnormal_Trauma_position" style="display:none;">
+						，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Wound_Abnormal_Trauma_position", "頭|枕部|頸|臉|胸部|左肩|右肩|背部|腹部|左臀|右臀|左上臂|右上臂|左下臂|右下臂|左手掌|右手掌|左手背|右手背|左手指|右手指|左大腿|右大腿|左小腿|右小腿|左足背|右足背|左足踝|右足踝|左足跟|右足跟|左足底|右足底|左腳趾|右腳趾", "", "")
+					</span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Wound_Abnormal" id="param_Skin_Wound_Abnormal_4" value="燙傷" onclick="if (this.checked) { $('.span_param_Skin_Wound_Abnormal_Scald_position').fadeIn(500); } else { div_hidden('span_param_Skin_Wound_Abnormal_Scald_position,span_param_Skin_Wound_Abnormal_Scald_position_other'); }" />
+					<label for="param_Skin_Wound_Abnormal_4">燙傷</label>
+					<span class="span_param_Skin_Wound_Abnormal_Scald_position" style="display:none;">
+						，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Wound_Abnormal_Scald_position", "頭頸|胸部|背部|左上臂|右上臂|左下臂|右下臂|左大腿|右大腿|左小腿|右小腿|會陰", "", "")
+					</span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Wound_Abnormal" id="param_Skin_Wound_Abnormal_5" value="蜂窩性組織炎" onclick="if (this.checked) { $('.span_param_Skin_Wound_Abnormal_Cellulitis_position').fadeIn(500); } else { div_hidden('span_param_Skin_Wound_Abnormal_Cellulitis_position,span_param_Skin_Wound_Abnormal_Cellulitis_position_other'); }" />
+					<label for="param_Skin_Wound_Abnormal_5">蜂窩性組織炎</label>
+					<span class="span_param_Skin_Wound_Abnormal_Cellulitis_position" style="display:none;">
+						，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Wound_Abnormal_Cellulitis_position", "頭|枕部|頸|臉|胸部|左肩|右肩|背部|腹部|左臀|右臀|左上臂|右上臂|左下臂|右下臂|左手掌|右手掌|左手背|右手背|左手指|右手指|左大腿|右大腿|左小腿|右小腿|左足背|右足背|左足踝|右足踝|左足跟|右足跟|左足底|右足底|左腳趾|右腳趾", "", "")
+					</span>
+                    <br />
+                </span>
+                <span style="padding-bottom:5px;">
+					<input type="checkbox" name="param_Skin_Wound_Abnormal" id="param_Skin_Wound_Abnormal_6" value="糖尿病足(DM Foot)" onclick="if (this.checked) { $('.span_param_Skin_Wound_Abnormal_DM_Foot_position').fadeIn(500); } else { div_hidden('span_param_Skin_Wound_Abnormal_DM_Foot_position,span_param_Skin_Wound_Abnormal_DM_Foot_position_other'); }" />
+					<label for="param_Skin_Wound_Abnormal_6">糖尿病足(DM Foot)</label>
+					<span class="span_param_Skin_Wound_Abnormal_DM_Foot_position" style="display:none;">
+						，部位 @VitalSign_Helper.assess_checkbox("param_Skin_Wound_Abnormal_DM_Foot_position", "左小腿|右小腿|左足背|右足背|左足踝|右足踝|左足跟|右足跟|左足底|右足底|左腳趾|右腳趾", "", "")
+					</span>
+                </span>
+			</p>
+        <!-- 心肺系統 -->
+            <p fid="param_Breathing_Type" must="Y">
+				<label class = "subtitle">呼吸型態</label>
+				@VitalSign_Helper.assess_radio("param_Breathing_Type", "正常|異常", "異常", "span_param_Breathing_Type_Abnormal")
+                <span class="span_param_Breathing_Type_Abnormal" style="display:none;">
+				    ，@VitalSign_Helper.assess_radio("param_Breathing_Type_Abnormal", "呼吸急促|過度換氣|庫斯模式呼吸|陳施氏呼吸|畢歐氏呼吸", "", "")
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">呼吸音-左側</label>
+				@VitalSign_Helper.assess_radio("param_Breathing_LeftVoive", "正常|異常", "異常", "span_param_Breathing_LeftVoive_Abnormal")
+                <span class="span_param_Breathing_LeftVoive_Abnormal" style="display:none;">
+					， @VitalSign_Helper.assess_radio("param_Breathing_LeftVoive_Abnormal", "哮鳴音|囉音|乾囉音|喘鳴音|無呼吸音", "", "")
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">呼吸音-右側</label>
+				@VitalSign_Helper.assess_radio("param_Breathing_RightVoive", "正常|異常", "異常", "span_param_Breathing_RightVoive_Abnormal")
+                <span class="span_param_Breathing_RightVoive_Abnormal" style="display:none;">
+					， @VitalSign_Helper.assess_radio("param_Breathing_RightVoive_Abnormal", "哮鳴音|囉音|乾囉音|喘鳴音|無呼吸音", "", "")
+                </span>
+            </p>
+            <p fid="param_Breathing_Treatment" must="Y">
+				<label class = "subtitle">氧氣治療</label>
+				@VitalSign_Helper.assess_radio("param_Breathing_Treatment", "無|有", "有", "span_param_Breathing_Treatment_Abnormal,span_param_Breathing_Treatment_Abnormal_Mask,span_param_Breathing_Treatment_Abnormal_Desc")
+                <span class="span_param_Breathing_Treatment_Abnormal" style="display:none;">，
+				    <label><input type="radio" name="param_Breathing_Treatment_Abnormal" value="鼻導管" onclick="$('.span_param_Breathing_Treatment_Abnormal_Mask').fadeIn(500); div_hidden('span_param_Breathing_Treatment_Abnormal_Desc');" />鼻導管(Nasal Cannula)</label>
+				    <label><input type="radio" name="param_Breathing_Treatment_Abnormal" value="簡易面罩" onclick="$('.span_param_Breathing_Treatment_Abnormal_Mask').fadeIn(500); div_hidden('span_param_Breathing_Treatment_Abnormal_Desc');" />簡易面罩(Simple mask)</label>
+				    <label><input type="radio" name="param_Breathing_Treatment_Abnormal" value="霧氣面罩" onclick="$('.span_param_Breathing_Treatment_Abnormal_Mask').fadeIn(500); div_hidden('span_param_Breathing_Treatment_Abnormal_Desc');" />霧氣面罩(Aerosol mask)</label>
+				    <label><input type="radio" name="param_Breathing_Treatment_Abnormal" value="純氧面罩" onclick="$('.span_param_Breathing_Treatment_Abnormal_Mask').fadeIn(500); div_hidden('span_param_Breathing_Treatment_Abnormal_Desc');" />純氧面罩(Non-rebreathing mask)</label>
+				    <label><input type="radio" name="param_Breathing_Treatment_Abnormal" value="呼吸器" onclick="$('.span_param_Breathing_Treatment_Abnormal_Desc').fadeIn(500); div_hidden('span_param_Breathing_Treatment_Abnormal_Mask');" />呼吸器</label>
+				    <label><input type="radio" name="param_Breathing_Treatment_Abnormal" value="其他" onclick="$('.span_param_Breathing_Treatment_Abnormal_Desc').fadeIn(500); div_hidden('span_param_Breathing_Treatment_Abnormal_Mask');" />其他</label>
+				    <span class="span_param_Breathing_Treatment_Abnormal_Mask" style="display:none;">
+                        ， @Html.TextBox("param_Breathing_Treatment_Abnormal_Mask_1", "", new { style = "width:150px" }) L/min
+                        ， @Html.TextBox("param_Breathing_Treatment_Abnormal_Mask_2", "", new { style = "width:150px" }) %
+                    </span>
+				    <span class="span_param_Breathing_Treatment_Abnormal_Desc" style="display:none;">
+                        ， @Html.TextBox("param_Breathing_Treatment_Abnormal_Desc", "", new { style = "width:150px" })
+                    </span>
+			    </span>
+            </p>
+            <p fid="param_Sputum_Amount" must="Y">
+				<label class = "subtitle">痰液量</label>
+				@VitalSign_Helper.assess_radio("param_Sputum_Amount", "無|有", "有", "span_param_Sputum_Amount_Dtl,span_param_Sputum_Amount_Color_other")
+				<span class="span_param_Sputum_Amount_Dtl" style="display:none;">
+					， @VitalSign_Helper.assess_radio("param_Sputum_Amount_Option", "少|中|多", "", "")
+					，痰液色：
+					@VitalSign_Helper.assess_radio("param_Sputum_Amount_Color", "白|黃|褐|綠|紅|其他", "其他", "span_param_Sputum_Amount_Color_other")
+					<span class="span_param_Sputum_Amount_Color_other" style="display:none;">
+						， @Html.TextBox("param_Sputum_Amount_Color_other", "", new { style = "width:150px" })
+					</span>
+					，痰液性質：
+					@VitalSign_Helper.assess_radio("param_Sputum_Amount_Type", "稀|黏稠|泡沫", "", "")
+				</span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">心跳節律</label>
+				@VitalSign_Helper.assess_radio("param_Heart_Rhythm", "規律|不規律|心律調節器", "心律調節器", "span_param_Heart_Rhythm_Name")
+                <span class="span_param_Heart_Rhythm_Name" style="display:none;">
+                    ，@Html.TextBox("param_Heart_Rhythm_Name", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p fid="param_Heart_Symptoms" must="Y">
+				<label class = "subtitle">病徵</label>
+				@VitalSign_Helper.assess_radio("param_Heart_Symptoms", "無|有", "有", "span_param_Heart_Symptoms_Dtl")
+                <span class="span_param_Heart_Symptoms_Dtl" style="display:none;">，
+				    @VitalSign_Helper.assess_checkbox("param_Heart_Symptoms_Dtl", "心雜音|頸靜脈怒張|心悸|胸悶(痛)|上腹灼熱|暈厥|杵狀指|其他", "其他", "span_param_Heart_Symptoms_Dtl_Other")
+                    <span class="span_param_Heart_Symptoms_Dtl_Other" style="display:none;">
+                        ，@Html.TextBox("param_Heart_Symptoms_Dtl_Other", "", new { style = "width:150px" })
+                    </span>
+                </span>
+            </p>
+            <p fid="param_Foot_Artery_Strength">
+				<label class = "subtitle">足背動脈強度</label>
+				強度：- 表示沒有心跳；± 表示似有若無；+ 表示心跳弱；++ 表示脈博正常；+++ 表示心跳很強
+            </p>
+            <p fid="param_Foot_Artery_Strength" must="Y">
+				左：
+				@VitalSign_Helper.assess_radio("param_LeftFoot_Artery_Strength", "-|±|+|++|+++|截肢", "", "")
+            </p>
+            <p fid="param_Foot_Artery_Strength" must="Y">
+				右：
+				@VitalSign_Helper.assess_radio("param_RightFoot_Artery_Strength", "-|±|+|++|+++|截肢", "", "")
+            </p>
+            <p fid="param_Tip" must="Y">
+				<label class = "subtitle">末梢</label>
+				@VitalSign_Helper.assess_radio("param_Tip", "正常|水腫", "水腫", "span_param_Tip_Abnormal")
+            </p>
+            <p fid="param_Tip" class="span_param_Tip_Abnormal" style="display:none;">
+				水腫程度以局部施壓測量，若下陷2mm紀錄 +，下陷4mm紀錄 ++，下陷6mm紀錄 +++，下陷8mm紀錄 ++++
+            </p>
+            <p fid="param_Tip" class="span_param_Tip_Abnormal" style="display:none;">
+				左上肢：
+				@VitalSign_Helper.assess_radio("param_Tip_Abnormal_LeftTop", "+|++|+++|++++", "", "")
+            </p>
+            <p fid="param_Tip" class="span_param_Tip_Abnormal" style="display:none;">
+				右上肢：
+				@VitalSign_Helper.assess_radio("param_Tip_Abnormal_RightTop", "+|++|+++|++++", "", "")
+            </p>
+            <p fid="param_Tip" class="span_param_Tip_Abnormal" style="display:none;">
+				左下肢：
+				@VitalSign_Helper.assess_radio("param_Tip_Abnormal_LeftDown", "+|++|+++|++++", "", "")
+            </p>
+            <p fid="param_Tip" class="span_param_Tip_Abnormal" style="display:none;">
+				右下肢：
+				@VitalSign_Helper.assess_radio("param_Tip_Abnormal_RightDown", "+|++|+++|++++", "", "")
+            </p>
+        <!-- 泌尿系統 -->
+            <p must="Y">
+				<label class = "subtitle">排尿方式</label>
+				@VitalSign_Helper.assess_checkbox("param_Voiding_Way", "自解|尿套|尿布|單導|尿管留置|膀胱造廔", "", "")
+            </p>
+            <p must="Y">
+				<label class = "subtitle">排尿型態</label>
+				@VitalSign_Helper.assess_radio("param_Voiding_Type", "正常|異常", "異常", "span_param_Voiding_Type_Desc")
+                <span class="span_param_Voiding_Type_Desc" style="display:none;">
+                    ， @VitalSign_Helper.assess_checkbox("param_Voiding_Type_Desc", "失禁|頻尿|少尿|滲尿|解尿困難|解尿疼痛|燒灼感|無尿", "", "")
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">排尿性狀</label>
+				@VitalSign_Helper.assess_radio("param_Voiding_Characters", "正常|異常", "異常", "span_param_Voiding_Characters_Desc,span_param_Voiding_Characters_Desc_other")
+                <span class="span_param_Voiding_Characters_Desc" style="display:none;">
+                    ， @VitalSign_Helper.assess_checkbox("param_Voiding_Characters_Desc", "血尿|茶色尿|混濁|其他", "其他", "span_param_Voiding_Characters_Desc_other")
+					<span class="span_param_Voiding_Characters_Desc_other" style="display:none;">
+						@Html.TextBox("param_Voiding_Characters_Desc_other", "", new { style = "width:150px" })
+					</span>
+                </span>
+            </p>
+        <!-- 腸胃及營養評估 -->
+            <p must="Y">
+				<label class = "subtitle">飲食種類</label>
+				@VitalSign_Helper.assess_checkbox("param_FoodKind", "普通|軟食|流質|素食|管灌飲食", "管灌飲食", "param_FoodKind_Desc")
+                <span class="param_FoodKind_Desc" style="display:none">
+                    ，@VitalSign_Helper.assess_radio("param_FoodKind_Tube","使用院內配方|自備伙食","","")
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">食慾</label>
+				@VitalSign_Helper.assess_radio("param_Appetite", "正常|欠佳|增加", "", "")
+            </p>
+            <p must="Y">
+				<label class = "subtitle">咀嚼</label>
+				@VitalSign_Helper.assess_radio("param_Chew", "正常|困難", "", "")
+            </p>
+            <p must="Y">
+				<label class = "subtitle">吞嚥</label>
+				@VitalSign_Helper.assess_radio("param_Swallowing", "正常|異常", "異常", "span_param_SwallowingStatus")
+                <span class="span_param_SwallowingStatus" style="display:none;">
+					， @VitalSign_Helper.assess_checkbox("param_SwallowingStatus", "易嗆|困難|鼻胃管|胃造廔|腸造廔", "", "")
+                </span>
+            </p>
+            <p fid="param_Eating" must="Y">
+				<label class = "subtitle">進食方式</label>
+				<label><input type="radio" name="param_Eating" value="禁食" onclick="div_hidden('span_param_EatingStatus1,span_param_EatingStatus2');" />禁食</label>
+				<label><input type="radio" name="param_Eating" value="由口進食" onclick="div_hidden('span_param_EatingStatus1,span_param_EatingStatus2');" />由口進食</label>
+                <label><input type="radio" name="param_Eating" value="管灌飲食" onclick="$('.span_param_EatingStatus1').fadeIn(500); div_hidden('span_param_EatingStatus2');" />管灌飲食</label>
+				<label><input type="radio" name="param_Eating" value="靜脈營養" onclick="$('.span_param_EatingStatus2').fadeIn(500); div_hidden('span_param_EatingStatus1');" />靜脈營養</label> 
+				<span class="span_param_EatingStatus1" style="display:none;">
+					，@VitalSign_Helper.assess_checkbox("param_EatingStatus1", "鼻胃管(NG tube)|鼻腸管(ND tube)|腸造廔(jujunostomy)|胃造廔(PEG)|灌食袋(feeding bag)|灌食幫浦(feeding pump)", "", "")
+				</span>
+				<span class="span_param_EatingStatus2" style="display:none;">，
+					<label><input type="checkbox" name="param_EatingStatus2" value="全靜脈營養(TPN)" onclick="if (this.checked) { $('.span_param_EatingStatus2_1').fadeIn(500); } else { div_hidden('span_param_EatingStatus2_1'); }" >全靜脈營養(TPN)</label>
+					<span class="span_param_EatingStatus2_1" style="display:none;">
+						：@Html.TextBox("param_EatingStatus2_1", "", new { style = "width:150px" })
+					</span>
+					<label><input type="checkbox" name="param_EatingStatus2" value="周邊靜脈營養(PPN)" onclick="if (this.checked) { $('.span_param_EatingStatus2_2').fadeIn(500); } else { div_hidden('span_param_EatingStatus2_2'); }" >周邊靜脈營養(PPN)</label>
+					<span class="span_param_EatingStatus2_2" style="display:none;">	
+						：@Html.TextBox("param_EatingStatus2_2", "", new { style = "width:150px" })
+					</span>
+				</span>  
+            </p>    
+            <p must="Y">
+				<label class = "subtitle">腸蠕動</label>
+				@VitalSign_Helper.assess_radio("param_Peristalsis", "正常(5-30次/分)|異常", "異常", "span_param_PeristalsisStatus")
+                <span class="span_param_PeristalsisStatus" style="display:none;">
+					， @VitalSign_Helper.assess_radio("param_PeristalsisStatus", "過快 (大於30次/分)|過慢 (小於5次/分)|無腸蠕動音", "", "")
+                </span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">腸胃症狀</label>
+				@VitalSign_Helper.assess_radio("param_Gastrointestinal", "正常|異常", "異常", "param_GastrointestinalDesc")
+				<span class="param_GastrointestinalDesc" style="display: none;">
+					<span class="param_GastrointestinalStatus_1" style="display: none;">，嘔吐 </span>@Html.TextBox("param_GastrointestinalStatus_1", "", new { style = "width:30px" })<span class="param_GastrointestinalStatus_1" style="display: none;"> 天</span>
+					<span class="param_GastrointestinalStatus_2" style="display: none;">，噁心 </span>@Html.TextBox("param_GastrointestinalStatus_2", "", new { style = "width:30px" })<span class="param_GastrointestinalStatus_2" style="display: none;"> 天</span>
+					<span class="param_GastrointestinalStatus_3" style="display: none;">，腹脹 </span>@Html.TextBox("param_GastrointestinalStatus_3", "", new { style = "width:30px" })<span class="param_GastrointestinalStatus_3" style="display: none;"> 天</span>
+					<span class="param_GastrointestinalStatus_4" style="display: none;">，腹瀉 </span>@Html.TextBox("param_GastrointestinalStatus_4", "", new { style = "width:30px" })<span class="param_GastrointestinalStatus_4" style="display: none;"> 天</span>
+					<span class="param_GastrointestinalStatus_5" style="display: none;">，厭食 </span>@Html.TextBox("param_GastrointestinalStatus_5", "", new { style = "width:30px" })<span class="param_GastrointestinalStatus_5" style="display: none;"> 天</span>
+					<span class="param_GastrointestinalStatus_6" style="display: none;">，其他 </span>@Html.TextBox("param_GastrointestinalStatus_reason", "", new { style = "width:90px" })：@Html.TextBox("param_GastrointestinalStatus_6", "", new { style = "width:30px" })<span class="param_GastrointestinalStatus_6" style="display: none;"> 天</span>
+				</span>
+            </p>
+            <p must="Y">
+				<label class = "subtitle">排便</label>
+                <label><input type="radio" name="param_StoolStatus" value="正常" onclick="$('.param_StoolNormal').fadeIn(500); div_hidden('param_StoolAbnormal');" />正常</label>
+                <label><input type="radio" name="param_StoolStatus" value="不正常" onclick="$('.param_StoolAbnormal').fadeIn(500); div_hidden('param_StoolNormal');" />不正常</label>
+				<span class="param_StoolNormal" style="display: none;">
+					， @Html.TextBox("param_StoolCount", "", new { style = "width:150px" }) 次/
+					@Html.TextBox("param_StoolSequence", "", new { style = "width:150px" }) 日
+				</span>
+				<span class="param_StoolAbnormal" style="display: none;">
+					， @VitalSign_Helper.assess_checkbox("param_StoolAbnormal", "失禁|便秘|習慣性灌腸|服用軟便藥|腸造口", "", "")
+				</span>
+            </p>
+            <p fid="param_Nutritional">
+				<label class = "subtitle">營養評估</label>
+                [身體質量指數 = 體重(kg) / 身高(m) &sup2;]
+            </p>
+            <p fid="param_Nutritional" must="Y">
+				身高 @Html.TextBox("param_BodyHeight", "", new { style = "width:150px", onchange = "if(numcheck(this.id,this)){ con_bmi(); }" }) cm
+				體重 @Html.TextBox("param_BodyWeight", "", new { style = "width:150px", onchange = "if(numcheck(this.id,this)){ con_bmi(); }" }) kg
+				BMI： <font color="red"><span id="bmiHint"></span></font>
+            </p>
+            <p fid="param_Nutritional" must="Y">
+				半年內體重下降6Kg：
+				@VitalSign_Helper.assess_radio("param_BWDown", "是|否", "", "")
+            </p>
+            <p fid="param_Nutritional" must="Y">
+				食物攝取量：
+				@VitalSign_Helper.assess_radio("param_FoodUnit", "沒有改變|少於50%以上|禁食大於 5 天", "", "")
+            </p>
+        <!-- 肌肉骨骼系統 -->
+            <p fid="param_Limb">
+				<label class = "subtitle">肌力</label>
+            </p>
+            <p fid="param_Limb" must="Y">
+				<label>右上肢</label>
+                ， @VitalSign_Helper.assess_radio("param_RULimb", "0|1|2|3|4|5", "", "")
+            </p>
+            <p fid="param_Limb" must="Y">
+				<label>右下肢</label>
+				， @VitalSign_Helper.assess_radio("param_RDLimb", "0|1|2|3|4|5", "", "")
+            </p>
+            <p fid="param_Limb" must="Y">
+				<label>左上肢</label>
+				， @VitalSign_Helper.assess_radio("param_LULimb", "0|1|2|3|4|5", "", "")
+            </p>
+            <p fid="param_Limb" must="Y">
+				<label>左下肢</label>
+				， @VitalSign_Helper.assess_radio("param_LDLimb", "0|1|2|3|4|5", "", "")
+            </p>
+            <p fid="param_ActiveStatus" must="Y">
+				<label class = "subtitle">活動情形</label>
+				<label><input type="radio" name="param_ActiveStatus" value="無法下床活動" onclick="$('.span_param_UnActiveDesc').fadeIn(500); div_hidden('span_param_ActiveDesc');" />無法下床活動</label>
+				<label><input type="radio" name="param_ActiveStatus" value="可下床活動" onclick="$('.span_param_ActiveDesc').fadeIn(500); div_hidden('span_param_UnActiveDesc');" />可下床活動</label>
+				<span class="span_param_UnActiveDesc" style="display:none;">
+					，@VitalSign_Helper.assess_radio("param_UnActiveDesc", "自行翻身|部份協助翻身|完全依賴", "", "")
+				</span>
+				<span class="span_param_ActiveDesc" style="display:none;">
+					，@VitalSign_Helper.assess_checkbox("param_ActiveDesc", "自行|扶持|拐杖|手杖|助行器|輪椅|義肢", "", "")
+				</span>
+            </p>
+            <p fid="param_care_yourself">
+				<label class = "subtitle">自我照護能力</label> (ADL)
+            </p>
+            <p fid="param_care_yourself" must="Y">
+				<label>進食</label>
+				， @VitalSign_Helper.assess_radio("param_Eat", "完全依賴|部分依賴|自理", "", "")
+            </p>
+            <p fid="param_care_yourself" must="Y">
+				<label>穿衣</label>
+				， @VitalSign_Helper.assess_radio("param_Dressing", "完全依賴|部分依賴|自理", "", "")
+            </p>
+            <p fid="param_care_yourself" must="Y">
+				<label>沐浴</label>
+				， @VitalSign_Helper.assess_radio("param_Bathing", "完全依賴|部分依賴|自理", "", "")
+            </p>
+            <p fid="param_care_yourself" must="Y">
+				<label>如廁</label>
+				， @VitalSign_Helper.assess_radio("param_Toilet", "完全依賴|部分依賴|自理", "", "")
+            </p>
+            <p fid="param_care_yourself" must="Y">
+				<label>一般運動</label>
+				， @VitalSign_Helper.assess_radio("param_Sport", "完全依賴|部分依賴|自理", "", "")
+            </p>
+            <p fid="param_MotionRange" must="Y">
+				<label class = "subtitle">關節活動度</label>
+				@VitalSign_Helper.assess_radio("param_MotionRange", "正常|異常", "異常", "span_param_MotionAbnormalDesc")
+				<span class="span_param_MotionAbnormalDesc" style="display: none;">，
+					<label><input type="checkbox" name="param_MotionAbnormalDesc" value="肢體攣縮" onclick="if (this.checked) { $('.span_param_MotionAbnormalDesc_1').fadeIn(500); } else { div_hidden('span_param_MotionAbnormalDesc_1'); }" />肢體攣縮</label>
+					<span class="span_param_MotionAbnormalDesc_1" style="display:none;">
+						，部位 @Html.TextBox("param_MotionAbnormalDesc_1_name", "", new { style = "width:150px" })
+					</span>
+					<label><input type="checkbox" name="param_MotionAbnormalDesc" value="關節腫脹" onclick="if (this.checked) { $('.span_param_MotionAbnormalDesc_2').fadeIn(500); } else { div_hidden('span_param_MotionAbnormalDesc_2'); }" />關節腫脹</label>
+					<span class="span_param_MotionAbnormalDesc_2" style="display:none;">
+						，部位 @Html.TextBox("param_MotionAbnormalDesc_2_name", "", new { style = "width:150px" })
+					</span>
+					<label><input type="checkbox" name="param_MotionAbnormalDesc" value="關節變形" onclick="if (this.checked) { $('.span_param_MotionAbnormalDesc_3').fadeIn(500); } else { div_hidden('span_param_MotionAbnormalDesc_3'); }" />關節變形</label>
+					<span class="span_param_MotionAbnormalDesc_3" style="display:none;">
+						，部位 @Html.TextBox("param_MotionAbnormalDesc_3_name", "", new { style = "width:150px" })
+					</span>
+					<label><input type="checkbox" name="param_MotionAbnormalDesc" value="晨間僵硬" onclick="if (this.checked) { $('.span_param_MotionAbnormalDesc_4').fadeIn(500); } else { div_hidden('span_param_MotionAbnormalDesc_4'); }" />晨間僵硬</label>
+					<span class="span_param_MotionAbnormalDesc_4" style="display:none;">
+						，部位 @Html.TextBox("param_MotionAbnormalDesc_4_name", "", new { style = "width:150px" })
+					</span>
+					<label><input type="checkbox" name="param_MotionAbnormalDesc" value="關節疼痛" onclick="if (this.checked) { $('.span_param_MotionAbnormalDesc_5').fadeIn(500); } else { div_hidden('span_param_MotionAbnormalDesc_5'); }" />關節疼痛</label>
+					<span class="span_param_MotionAbnormalDesc_5" style="display:none;">
+						，部位 @Html.TextBox("param_MotionAbnormalDesc_5_name", "", new { style = "width:150px" })
+					</span>
+				</span>
+            </p>
+        <!-- 產科史 -->
+            <p fid="param_Gynecology" must="Y">
+				<label class = "subtitle">產科史</label>
+				@VitalSign_Helper.assess_radio("param_Gynecology", "無法評估|男性不適用|女", "女", "span_param_GynecologyDtl,span_param_BornHistory_Dtl,span_param_AbortionN,span_param_ContraceptionDesc")
+            </p>
+			<p fid="param_Gynecology" must="Y" class="span_param_GynecologyDtl" style="display: none;">
+				<label class = "subtitle">月經</label>
+				<label><input type="radio" name="param_MC" value="已停經" onclick="$('.span_param_MC_unstop').fadeIn(500); div_hidden('span_param_MC_stop,span_param_MCCycle_rule_day');" />已停經</label>
+				<label><input type="radio" name="param_MC" value="未停經" onclick="$('.span_param_MC_stop').fadeIn(500); div_hidden('span_param_MC_unstop');" />未停經</label>
+			</p>
+			<p fid="param_Gynecology" class="span_param_MC_stop" style="display: none;">
+				初經年齡： @Html.TextBox("param_MCStart", "", new { style = "width:150px" }) 歲
+			</p>
+			<p fid="param_Gynecology" class="span_param_MC_stop" style="display: none;">
+				最後月經日： @Html.TextBox("param_Last_MC", "", new { style = "width:150px" })
+			</p>
+			<p fid="param_Gynecology" class="span_param_MC_stop" style="display: none;">
+				月經週期： @VitalSign_Helper.assess_radio("param_MCCycle_rule", "規則|不規則", "規則", "span_param_MCCycle_rule_day")
+                <span class="span_param_MCCycle_rule_day" style="display:none;">
+                    <span class="param_MCCycle_rule_day" style="display:none;">，</span>@Html.TextBox("param_MCCycle_rule_day", "", new { style = "width:150px" })<span class="param_MCCycle_rule_day" style="display:none;"> 天</span>
+                </span>
+			</p>
+			<p fid="param_Gynecology" class="span_param_MC_stop" style="display: none;">
+				月經天數： @Html.TextBox("param_MCDay", "", new { style = "width:150px" }) 天
+			</p>
+			<p fid="param_Gynecology" class="span_param_MC_stop" style="display: none;">
+				月經量： @VitalSign_Helper.assess_radio("param_MCAmount", "多量|中量|少量", "", "")
+			</p>
+			<p fid="param_Gynecology" class="span_param_MC_stop" style="display: none;">
+				月經期間：
+				@VitalSign_Helper.assess_checkbox("param_FBAbnormalDtl", "無不適|腹痛|腰痛|頭痛|其他", "其他", "span_param_FBAbnormalOther")
+                <span class="span_param_FBAbnormalOther" style="display:none;">
+                    <span class="param_FBAbnormalOther" style="display:none;">，</span>@Html.TextBox("param_FBAbnormalOther", "", new { style = "width:150px" })
+                </span>
+			</p>
+			<p fid="param_Gynecology" class="span_param_MC_unstop" style="display: none;">
+                停經： @Html.TextBox("param_MCEnd", "", new { style = "width:150px" }) 歲
+            </p>
+			<p fid="param_Gynecology" must="Y" class="span_param_GynecologyDtl" style="display: none;">
+				<label class = "subtitle">乳房自我檢查</label>
+				@VitalSign_Helper.assess_radio("param_SelfCheck_Breast", "無|有", "", "")
+			</p>
+			<p fid="param_Gynecology" must="Y" class="span_param_GynecologyDtl" style="display: none;">
+				<label class = "subtitle">陰道抹片檢查</label>
+				@VitalSign_Helper.assess_radio("param_SelfCheck_Vagina", "無|有", "有", "span_param_SelfCheck_Vagina_Date")
+				<span class="span_param_SelfCheck_Vagina_Date" style="display:none;">
+                    ，最後一次檢查日期： @Html.TextBox("param_SelfCheck_Vagina_Date", "", new { style = "width:150px" })
+                </span>
+			</p>
+			<p fid="param_Gynecology" must="Y" class="span_param_GynecologyDtl" style="display: none;">
+				<label class = "subtitle">生產史</label>
+				@VitalSign_Helper.assess_radio("param_BornHistory", "無|有", "有", "span_param_BornHistory_Dtl")
+			</p>
+			<p fid="param_Gynecology" class="span_param_BornHistory_Dtl" style="display: none;">
+				自然產，活產數 @Html.TextBox("param_BornHistoryNL", "", new { style = "width:150px" }) 人
+			</p>
+            <p fid="param_Gynecology" class="span_param_BornHistory_Dtl" style="display: none;">
+				自然產，死產數(懷孕20週以上) @Html.TextBox("param_BornHistoryND", "", new { style = "width:150px" }) 人
+			</p>
+            <p fid="param_Gynecology" class="span_param_BornHistory_Dtl" style="display: none;">
+				剖腹產，活產數 @Html.TextBox("param_BornHistoryHL", "", new { style = "width:80px" })人
+            </p>
+            <p fid="param_Gynecology" class="span_param_BornHistory_Dtl" style="display: none;">
+				剖腹產，死產數(懷孕20週以上) @Html.TextBox("param_BornHistoryHD", "", new { style = "width:80px" }) 人
+			</p>
+            <p fid="param_Gynecology" must="Y" class="span_param_GynecologyDtl" style="display: none;">
+				<label class = "subtitle">流產史</label>(懷孕週數<20週)：
+				@VitalSign_Helper.assess_radio("param_AbortionHistory", "無|有", "有", "span_param_AbortionN")
+			</p>
+            <p fid="param_Gynecology" class="span_param_AbortionN" style="display: none;">
+				自然流產： @Html.TextBox("param_AbortionN", "", new { style = "width:80px" }) 人
+			</p>
+            <p fid="param_Gynecology" class="span_param_AbortionN" style="display: none;">
+				人工流產： @Html.TextBox("param_AbortionH", "", new { style = "width:80px" }) 次
+            </p>
+            <p fid="param_Gynecology" must="Y" class="span_param_GynecologyDtl" style="display: none;">
+				<label class = "subtitle">避孕</label>(懷孕週數<20週)：
+				@VitalSign_Helper.assess_radio("param_Contraception", "無|有", "有", "span_param_ContraceptionDesc")
+			</p>
+            <p fid="param_Gynecology" must="Y" class="span_param_ContraceptionDesc" style="display: none;">
+				@VitalSign_Helper.assess_checkbox("param_ContraceptionDesc", "口服避孕藥|保險套|子宮內避孕器|安全期計算|體外射精|避孕貼紙|其他", "其他", "param_ContraceptionDesc_other")
+                <span class="param_ContraceptionDesc_other" style="display:none;">
+                    :@Html.TextBox("param_ContraceptionDesc_other", "", new { style = "width:150px" })
+                </span>
+            </p>
+        <!-- 疼痛評估 -->
+            <p must="Y">
+				<label class = "subtitle">目前意識狀態</label>
+				@VitalSign_Helper.assess_radio("param_Awareness", "清醒|嗜睡|半昏迷|昏迷", "", "")
+            </p>
+            <p fid="param_PainScale" must="Y">
+				<label class = "subtitle">疼痛</label>
+				<label><input type="radio" name="param_PainScale" value="一般疼痛" onclick="$('.span_param_PainSt').fadeIn(500); div_hidden('span_param_PainSD');" />一般疼痛</label>
+				<label><input type="radio" name="param_PainScale" value="困難評估" onclick="$('.span_param_PainSD').fadeIn(500); div_hidden('span_param_PainSt');" />困難評估</label>
+            </p>
+			<p fid="param_PainScale" must="Y" class="span_param_PainSt" style="display: none;">
+				<label>疼痛強度：</label>
+                @VitalSign_Helper.assess_onchange("radio", "param_PainSt", "0分|1分|2分|3分|4分|5分|6分|7分|8分|9分|10分", "(0)|(1)|(2)|(3)|(4)|(5)|(6)|(7)|(8)|(9)|(10)", "")
+			</p>
+			<p fid="param_PainScale" class="span_param_PainSt" style="display: none;">
+				<label style="color:red;">>= 1：初始疼痛評估表；>= 4：通知醫師處理</label>
+			</p>
+			<p fid="param_PainScale" must="Y" class="span_param_PainSD" style="display: none;">
+				呼吸：
+				@VitalSign_Helper.assess_onchange("radio", "param_PainSDBrief", "(0)正常|(1)略喘|(2)喘(有明顯呼吸音)/呼吸呈現陳施氏呼吸型態(Cheyne-Stokes respiration)", "(0)正常|(1)略喘|(2)喘(有明顯呼吸音)/呼吸呈現陳施氏呼吸型態(Cheyne-Stokes respiration)", "PainSDAmount();")
+			</p>
+			<p fid="param_PainScale" must="Y" class="span_param_PainSD" style="display: none;">
+				非言語表達：
+				@VitalSign_Helper.assess_onchange("radio", "param_PainSDLang", "(0)無|(1)呻吟聲|(2)大聲呻吟/哭泣", "(0)無|(1)呻吟聲|(2)大聲呻吟/哭泣", "PainSDAmount();")
+			</p>
+			<p fid="param_PainScale" must="Y" class="span_param_PainSD" style="display: none;">
+				臉部表情：
+				@VitalSign_Helper.assess_onchange("radio", "param_PainSDFace", "(0)輕鬆自然|(1)蹙眉/憂愁|(2)痛苦狀", "(0)輕鬆自然|(1)蹙眉/憂愁|(2)痛苦狀", "PainSDAmount();")
+			</p>
+			<p fid="param_PainScale" must="Y" class="span_param_PainSD" style="display: none;">
+				肢體語言：
+				@VitalSign_Helper.assess_onchange("radio", "param_PainSDBodyLang", "(0)微笑/輕鬆|(1)緊張|(2)僵硬/咬緊牙關", "(0)微笑/輕鬆|(1)緊張|(2)僵硬/咬緊牙關", "PainSDAmount();")
+			</p>
+			<p fid="param_PainScale" must="Y" class="span_param_PainSD" style="display: none;">
+				安撫：
+				@VitalSign_Helper.assess_onchange("radio", "param_PainSDPiece", "(0)不需要|(1)需要|(2)無法安撫", "(0)不需要|(1)需要|(2)無法安撫", "PainSDAmount();")
+			</p>
+			<p fid="param_PainScale" class="span_param_PainSD" style="display: none;">
+				總分：
+				@Html.TextBox("param_PainSDScole", "", new { style = "width:80px", @readonly = "readonly" })
+			</p>
+        <!-- 精神狀態評估 -->
+		    <p must="Y">
+				<label class = "subtitle">外觀</label>
+				@VitalSign_Helper.assess_radio("param_Exterior", "整潔|凌亂|過份裝扮|其他", "其他", "span_param_Exterior_other")
+                <span class="span_param_Exterior_other" style="display:none;">
+                    ：@Html.TextBox("param_Exterior_other", "", new { style = "width:150px" })
+                </span>
+		    </p>
+		    <p must="Y">
+				<label class = "subtitle">行為</label>
+				@VitalSign_Helper.assess_checkbox("param_Behavor", "合作|不合作|具攻擊性，壞性|怪異|退縮|其他", "其他", "span_param_Behavor_other")
+                <span class="span_param_Behavor_other" style="display:none;">
+                    ：@Html.TextBox("param_Behavor_other", "", new { style = "width:150px" })
+                </span>
+		    </p>
+		    <p must="Y">
+				<label class = "subtitle">活動量</label>
+				@VitalSign_Helper.assess_radio("param_SportAMT", "正常|過多|過少|其他", "其他", "span_param_SportAMT_other")
+                <span class="span_param_SportAMT_other" style="display:none;">
+                    ：@Html.TextBox("param_SportAMT_other", "", new { style = "width:150px" })
+                </span>
+		    </p>
+		    <p must="Y" fid="param_SLang">
+				<label class = "subtitle">語言</label>
+				@VitalSign_Helper.assess_radio("param_SLang", "正常|不正常", "不正常", "span_param_SLang_Dtl,span_param_SLang_Dtl_Other")
+				<span class="span_param_SLang_Dtl" style="display:none;">
+					，@VitalSign_Helper.assess_radio("param_SLang_Dtl", "話多|寡言|不語|自言自語|語無倫次|其他", "其他", "span_param_SLang_Dtl_Other")
+					<span class="span_param_SLang_Dtl_Other" style="display:none;">
+						：@Html.TextBox("param_SLang_Dtl_Other", "", new { style = "width:150px" })
+					</span>
+				</span>
+		    </p>
+		    <p must="Y">
+				<label class = "subtitle">情緒</label>
+				@VitalSign_Helper.assess_checkbox("param_Emotion", "合宜|欣快感|高昂|憂鬱|焦慮|害怕|生氣|淡漠|變化大|其他", "其他", "span_param_Emotion_other")
+                <span class="span_param_Emotion_other" style="display:none;">
+                    ：@Html.TextBox("param_Emotion_other", "", new { style = "width:150px" })
+                </span>
+		    </p>
+		    <p must="Y">
+				<label class = "subtitle">意識狀態</label>
+				@VitalSign_Helper.assess_radio("param_Consciousness", "清醒|嗜睡|混亂|半昏迷|昏迷", "", "")
+		    </p>
+		    <p must="Y">
+				<label class = "subtitle">定向感</label>
+				@VitalSign_Helper.assess_radio("param_Disorientation", "正常|差", "", "")
+		    </p>
+		    <p must="Y">
+				<label class = "subtitle">思想</label>
+				@VitalSign_Helper.assess_checkbox("param_Think", "自殺意念|強迫意念|被害妄想|誇大妄想|關係妄想|其他", "其他", "span_param_Think_other")
+				<span class="span_param_Think_other" style="display:none;">
+                    ：@Html.TextBox("param_Think_other", "", new { style = "width:150px" })
+                </span>
+		    </p>
+		    <p must="Y">
+				<label class = "subtitle">幻覺狀況</label>
+				@VitalSign_Helper.assess_radio("param_Hallucination", "無|有", "有", "param_Hallucination_desc")
+                <span class="param_Hallucination_desc" style="display:none;">
+					， @VitalSign_Helper.assess_checkbox("param_Hallucination_option", "聽幻覺|視幻覺|觸幻覺|嗅幻覺", "", "")
+                </span>
+		    </p>
+		    <p must="Y">
+				<label class = "subtitle" style="font-size:13px;">意外事件預防要點</label>
+				@VitalSign_Helper.assess_radio("param_Event", "無|有", "有", "param_Event_desc")
+                <span class="param_Event_desc" style="display:none;">
+					， @VitalSign_Helper.assess_checkbox("param_Event_option", "自殺|攻擊|逃跑|其他", "其他", "param_Event_option_desc")
+                    <span class="param_Event_option_desc" style="display:none;">
+                        @Html.TextBox("param_Event_option_other", "", new { style = "width:100px" })
+                    </span>
+                </span>
+		    </p>
+		    <p must="Y">
+				<label class = "subtitle">病識感</label>
+				@VitalSign_Helper.assess_radio("param_FeedSick", "無|部分|有", "", "")
+		    </p>
+        <!-- 聯絡資料 -->
+            <div id="contact" countid="0">
+                <p must="Y">
+                   <img id="btn_add_contact" src="~/Images/plus.png" style="cursor: pointer; width: 15px;" title="新增一筆" alt="新增一筆" onclick="add_new_contact();" />
+				    <label class = "subtitle">緊急聯絡人姓名</label>
+                     @Html.TextBox("param_EMGContact", "", new { style = "width:150px" })
+                </p>
+                <p must="Y">
+				    <label class = "subtitle">稱謂</label>
+				    @VitalSign_Helper.assess_radio("param_ContactRole", "本人|父親|母親|祖父|祖母|外傭|配偶|子女|兄弟姊妹|其他", "其他", "span_param_ContactRole_other")
+                    <span class="span_param_ContactRole_other" style="display:none;">
+                        @Html.TextBox("param_ContactRole_other", "", new { style = "width:150px" })
+                    </span>
+                </p>
+                <p>
+				    <label class = "subtitle">連絡電話</label>
+				    公司 @Html.TextBox("param_EMGContact_1", "", new { style = "width:150px" })
+                    住家 @Html.TextBox("param_EMGContact_2", "", new { style = "width:150px" })
+                    手機 @Html.TextBox("param_EMGContact_3", "", new { style = "width:150px" })
+                </p>
+            </div>
+            <div id="add_contact">
+            </div>
+
+            <table>
+                <tr>
+                    <td>首次評估者：@createuser </td>
+                    <td>首次評估日期：@createtime</td>
+                </tr>
+                <tr>
+                    <td>最後評估者：@modifyuser</td>
+                    <td>最後修改日期：@modifytime</td>
+                </tr>
+            </table>
+
+        </div>
+    </div>
+    
+    <div id="unfilled" class="tabArea" style="display:none;overflow-y:auto;padding-left:5px;">
+    </div>
+
+<script type="text/javascript">
+    @if (dt != null && dt.Rows.Count > 0)
+    {
+        string med_name = "", med_feq = "", med_amount = "", med_way = "";
+        @:$('#maode').val('@ViewBag.mode');
+        @:$('#tableid').val('@dt.Rows[0]["TABLEID"]');
+        foreach (DataRow r in dt.Rows)
+        {
+            @:$('.@r["ITEMID"]').fadeIn(0);
+            if (r["ITEMTYPE"].ToString() == "radio")
+            {
+                @:set_for_rb('@r["ITEMID"]', '@r["ITEMVALUE"]');
+            }
+            else if (r["ITEMTYPE"].ToString() == "checkbox")
+            {
+                @:set_for_ck('@r["ITEMID"]', '@r["ITEMVALUE"]');
+            }
+            else if (r["ITEMTYPE"].ToString() == "text" || r["ITEMTYPE"].ToString() == "textarea")
+            {
+                if (r["ITEMID"].ToString() == "param_med_name")
+                {
+                    med_name = r["ITEMVALUE"].ToString();
+                }
+                if (r["ITEMID"].ToString() == "param_med_frequency")
+                {
+                    med_feq = r["ITEMVALUE"].ToString();
+                }
+                if (r["ITEMID"].ToString() == "param_med_amount")
+                {
+                    med_amount = r["ITEMVALUE"].ToString();
+                }
+                if (r["ITEMID"].ToString() == "param_med_way")
+                {
+                    med_way = r["ITEMVALUE"].ToString();
+                }
+                if (r["ITEMID"].ToString() == "param_EMGContact")
+                {
+                    for (int i = 0; i < r["ITEMVALUE"].ToString().Split(',').Length - 1; i++)
+                    {
+                    @:$('#btn_add_contact').click();
+                    }
+                }
+                if (r["ITEMVALUE"].ToString().Split(',').Length > 0)
+                {
+                @:set_for_txt('@r["ITEMID"]', '@r["ITEMVALUE"]');
+                }
+                else
+                {
+                @:$('#@r["ITEMID"]').val('@r["ITEMVALUE"].ToString()');
+                }
+            }
+        }
+        @:con_bmi();
+        if (med_name != "" || med_feq != "" || med_amount != "" || med_way != "")
+        {
+            for (int i = 0; i < med_name.Split(',').Length - 1; i++)
+            {
+            @:$('#btn_add_med').click();
+            }
+            @:set_for_txt('param_med_name', '@med_name');
+            @:set_for_txt('param_med_frequency', '@med_feq');
+            @:set_for_txt('param_med_amount', '@med_amount');
+            @:set_for_txt('param_med_way', '@med_way');
+        }
+    }
+</script>

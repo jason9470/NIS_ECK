@@ -1,0 +1,255 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //Layout = "~/Views/Layout/Main.cshtml";
+}
+
+<style type="text/css">
+.dataArea td {
+    border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+    text-align: left;
+  }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        @if(ViewBag.mode == "insert")
+        {
+        @:io_change('io_select');
+        }
+        else if(ViewBag.mode == "update"){
+        @:$("select").each(function () {
+        @:    $(this).val($(this).attr('defaultvalue'));
+        @:});
+        }
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    //驗證欄位_數字
+    function numcheck(id, time) {
+        if (time.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(time.value) && time.value != "") {
+            alert("只能輸入數字");
+            time.value = "";
+        }
+    }
+
+    //複製div
+    function clonediv(trid, btnid) {
+        //取得屬性值
+        var countid = parseInt($('#' + trid).attr("countid")) + 1;
+        var copyPart = $('#' + trid).clone();     //複製一份
+        $('#' + trid).attr("countid", countid);  //修改id
+        $(copyPart).attr('id', trid + '_' + countid);
+        //修改按鈕id,name,value,bind click事件
+        $('#' + btnid, copyPart)
+                .attr('id', trid + 'btnDel' + countid)
+                .attr('src', '../Images/minus.png')
+                .attr('title', '刪除')
+                .attr('alt', '刪除')
+                .attr('delid', trid + '_' + countid);
+        //修改Textbox的名稱&清空值
+        $('input[type=text]', copyPart).each(function () {
+            $(this).val('');
+        });
+        $('input[type=hidden]', copyPart).each(function () {
+            $(this).attr('id', $(this).attr('id') + '_' + countid)
+        });
+        //修改select
+        $('select', copyPart).each(function () {
+            $(this).attr('id', $(this).attr('id') + '_' + countid);
+            $(this).attr('markid', $(this).attr('markid') + '_' + countid);
+        });
+
+        //加入複製出來的項目
+        $('#table_io').append(copyPart);
+
+        //修改select內部的value
+        var list = document.getElementById('io_select' + '_' + countid);
+        for (var i = 0; i < list.length; i++) {
+            list[i].value = list[i].value + "_" + countid;
+        }
+        io_change('io_select' + '_' + countid);
+
+        document.getElementById(trid + 'btnDel' + countid).setAttribute('onclick', 'colDel(this)');
+        setGridColor();
+    }
+
+    //刪除事件 
+    function colDel(obj) {
+        var delid = $(obj).attr('delid');
+        $('#' + delid).remove();
+        setGridColor();
+    }
+
+    //輸入輸出切換
+    function io_change(id) {
+        var list = document.getElementById(id);
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].selected)
+                $('#' + list[i].value).fadeIn(500);
+            else
+                $('#' + list[i].value).fadeOut(0);
+        }
+    }
+
+    //記錄所屬項目所屬typeid
+    function mark_typeid() {
+        var namelist = document.getElementsByName('txt_tube[]');
+        var success = true;
+        for (var j = 0; j < namelist.length; j++) {
+            if ($.trim(namelist[j].value) == '') {
+                alert('請輸入名稱');
+                success = false;
+                j = namelist.length;
+            }
+        }
+        if (success) {
+            var list = $('.typeid');
+            for (var i = 0; i < list.length; i++) {
+                $('#' + $(list[i]).attr('markid')).val($('#' + $(list[i]).val()).val());
+            }
+        }
+        return success;
+    }
+
+    //點選刪除紀錄刪除ID
+    function btn_delete(obj) {
+        $('#kindid').val($(obj).attr('itemid'));
+        $('#form_edit').attr('action', 'IO_Function_Maintain_Delete');
+    }
+</script>
+
+<div class="funcArea">
+@using System.Data;
+@{   
+    DataTable dt = ViewBag.dt;
+}
+@if (ViewBag.mode == "insert")
+{
+<form action="IO_Function_Maintain_Insert" method="post" >
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+            <td>
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td style="width:67%;">名稱</td>
+                            <td style="width:33%;">熱量(kcal/mL)</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:360px;">
+                    <table id="table_io" border="0" cellpadding="4" cellspacing="1" style="width:100%;background-color: #FFFFFF;">
+                        <tr id="tr_io" countid="0">
+                            <td style="width:67%;">
+                                <img id="btn_add" src="~/Images/plus.png" style="cursor:pointer;padding-right:5px;width:15px;" title="新增一筆" alt="新增一筆" onclick="clonediv('tr_io',this.id);" />
+                                <select class="typeid" id="io_select" markid="io_typeid" onchange="io_change(this.id);">
+                                    <option value="intake">輸入</option>
+                                    <option value="output">輸出</option>
+                                </select>
+                                @Html.DropDownList("intake_tube[]", (List<SelectListItem>)ViewData["intake_tube"], new { id = "intake" })
+                                @Html.DropDownList("output_tube[]", (List<SelectListItem>)ViewData["output_tube"], new { id = "output" })
+                                <input name="io_typeid[]" id="io_typeid" type="hidden" value="" />
+                                @Html.TextBox("txt_tube[]", "", new { })
+                            </td>
+                            <td style="width:33%;text-align:center;">
+                                @Html.TextBox("txt_calories[]", "", new { style = "width:80px;", onchange = "numcheck(this.id,this)" })
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:5px 0 5px 0;text-align:center;">
+                <input type="button" value="儲存" style="width:60px;" onclick="if(mark_typeid())submit();" />
+                <input type="button" value="取消" style="width:60px;" onclick="if(confirm('確認取消?'))window.close();" />
+            </td>
+        </tr>
+    </table>
+</form>
+}
+else if (ViewBag.mode == "update")
+{
+<form id="form_edit" action="IO_Function_Maintain_Update" method="post" >
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+            <td>
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td style="width:60%;">種類名稱</td>
+                            <td style="width:20%;">熱量(kcal/mL)</td>
+                            <td style="width:11%;">排序</td>
+                            <td style="width:9%;"><div style="width:40px; overflow:hidden;"></div></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:360px;">
+                    @if (dt != null)
+                    {
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;background-color: #FFFFFF;">
+                        @foreach (DataRow r in dt.Rows)
+                        {
+                        <tr>
+                            <td style="width:60%;">
+                                <input type="hidden" name="id[]" value="@r["ITEMID"]" />
+                                @if (int.Parse(r["TYPEID"].ToString()) < 6)
+                                {
+                                <select class="typeid" id="io_select@(r["ITEMID"])" markid="io_typeid@(r["ITEMID"])" defaultvalue="intake@(r["ITEMID"])" onchange="io_change(this.id);">
+                                    <option value="intake@(r["ITEMID"])">輸入</option>
+                                    <option value="output@(r["ITEMID"])">輸出</option>
+                                </select>
+                                @Html.DropDownList("intake_tube[]", (List<SelectListItem>)ViewData["intake_tube"], new { id = "intake" + r["ITEMID"], defaultvalue = r["TYPEID"] })
+                                @Html.DropDownList("output_tube[]", (List<SelectListItem>)ViewData["output_tube"], new { id = "output" + r["ITEMID"], style = "display:none;" })
+                                }
+                                else
+                                {
+                                <select class="typeid" id="io_select@(r["ITEMID"])" markid="io_typeid@(r["ITEMID"])" defaultvalue="output@(r["ITEMID"])" onchange="io_change(this.id);">
+                                    <option value="intake@(r["ITEMID"])">輸入</option>
+                                    <option value="output@(r["ITEMID"])">輸出</option>
+                                </select>
+                                @Html.DropDownList("intake_tube[]", (List<SelectListItem>)ViewData["intake_tube"], new { id = "intake" + r["ITEMID"], style = "display:none;" })
+                                @Html.DropDownList("output_tube[]", (List<SelectListItem>)ViewData["output_tube"], new { id = "output" + r["ITEMID"], defaultvalue = r["TYPEID"] })
+                                }
+                                <input name="io_typeid[]" id="io_typeid@(r["ITEMID"])" type="hidden" defaultvalue="@r["TYPEID"]" value="@r["TYPEID"]" />
+                                @Html.TextBox("txt_tube[]", r["NAME"], new { })
+                            </td>
+                            <td style="width:20%;">
+                                @Html.TextBox("txt_calories[]",  Convert.ToDouble(r["CALORIES"]), new { style = "width:80px;", onchange = "numcheck(this.id,this)" })
+                            </td>
+                            <td style="width:11%;">
+                                @Html.TextBox("txt_squence[]", r["SEQUENCE"], new { style = "width:80px;", onchange = "numcheck(this.id,this)" })
+                            </td>
+                            <td style="width:9%;">
+                                <input type="button" value="刪除" itemid="@r["ITEMID"]" style="width:40px;" onclick="if (confirm('確認刪除?')) { btn_delete(this); submit(); }" />
+                            </td>
+                        </tr>
+                        }
+                    </table>
+                    <input id="kindid" name="kindid" type="hidden" value="" />
+                    }
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:5px 0 5px 0;text-align:center;">
+                <input type="button" value="儲存" style="width:60px;" onclick="if (mark_typeid()) submit();" />
+                <input type="button" value="取消" style="width:60px;" onclick="if(confirm('確認取消?'))window.close();" />
+            </td>
+        </tr>
+    </table>
+</form>    
+}
+</div>

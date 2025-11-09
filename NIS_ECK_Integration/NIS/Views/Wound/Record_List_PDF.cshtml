@@ -1,0 +1,367 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+    string[] StrArr_WoundLevel = { "N/A", "第I級(Superficial burn)：表皮層受損，皮膚發紅沒有水泡。", "第II級(Superficial partial thickness burn)：表皮及部分真皮破損。", "第III級(Deep partial thickness burn)：表皮及真皮破損，有傷及毛囊及毛脂腺。", "第IV級(Full partial thickness burn)：表皮、真皮及皮下組織。" };
+    DataTable dt_wound_data = ViewBag.dt_wound_data;
+    DataTable dt_wound_record = ViewBag.dt_wound_record;
+}
+<style type="text/css">
+    .popup {
+        width: auto;
+        height: auto;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -150px 0 0 -300px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    .wound_record td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        /*white-space: pre-line;*/
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        $("#dv_del").draggable();
+        //$('#wound_record').load('../Wound/Partial_Record');
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.wound_record tr:odd').css('background', '#ABC8E2');
+        $('.wound_record tr:even').css('background', '#E1E6FA');
+    }
+</script>
+
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;table-layout:fixed">
+        <tr>
+            <td>
+                <table border="0" style="width:100%;font-size:14px;">
+                    <tr>
+                        <td>病人姓名：@ptinof.PatientName</td>
+                        @if (ptinof.Birthday != null)
+                        {
+                            <td>生日：@Convert.ToDateTime(ptinof.Birthday).ToString("yyyy/MM/dd")</td>
+                        }
+                        else
+                        {
+                            <td>生日：</td>
+                        }
+                        <td>年齡：@ptinof.Age</td>
+                        <td>病床號：@ptinof.BedNo</td>
+                        <td>病歷號：@ptinof.ChartNo</td>
+                    </tr>
+                    <tr>
+                        <td>科別：@ptinof.DeptName</td>
+                        <td>主治醫師：@ptinof.DocName</td>
+                        @if (ptinof.InDate != null)
+                        {
+                            <td>住院日期：@Convert.ToDateTime(ptinof.InDate).ToString("yyyy/MM/dd HH:mm") (@ptinof.InDay)</td>
+                        }
+                        else
+                        {
+                            <td>住院日期：</td>
+                        }
+                        <td>性別：@ptinof.PatientGender</td>
+                        <td>診斷：@ptinof.ICD9_code1</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="dataHeader" style="margin-right:0px;">
+                    <table border="0" cellpadding="4" cellspacing="2" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width:7%;">編號</td>
+                            <td style="width:8%;">發生日期</td>
+                            <td style="width:10%;">傷口種類</td>
+                            <td style="width:13%;">部位</td>
+                            <td style="width:15%;">發生地點</td>
+                            <td style="width:23%;">發生原因</td>
+                            <td style="width:14%;">結束時間</td>
+                            <td style="width:10%;">結束原因</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="wound_record">
+                    @if (dt_wound_data != null)
+                    {
+                        <table border="0" cellpadding="4" cellspacing="2" style="width:100%;font-size:14px;vertical-align:middle;">
+                            @foreach (DataRow r in dt_wound_data.Rows)
+                            {
+                                if (r["DELETED"].ToString() == "")
+                                {
+                                    <tr style="text-align:center">
+                                        <td style="width:7%;white-space:nowrap;">
+                                            <label>@r["NUM"]</label>
+                                        </td>
+                                        <td style="width:8%;white-space:nowrap;">
+                                            @if (r["CREATTIME"].ToString() != "")
+                                            {
+                                                @Convert.ToDateTime(r["CREATTIME"]).ToString("yyyy/MM/dd")
+                                            }
+                                            else
+                                            {
+                                                @:不詳
+                                            }
+                                        </td>
+                                        <td style="width:10%;">@r["TYPE"]</td>
+                                        <td style="width:13%;">@r["POSITION"]</td>
+                                        <td style="width:15%;">@r["LOCATION"]</td>
+                                        <td style="width:23%;">@r["REASON"]</td>
+                                        <td style="width:14%;white-space:nowrap;">
+                                            @if (r["ENDTIME"].ToString() != "")
+                                            {
+                                                @Convert.ToDateTime(r["ENDTIME"]).ToString("yyyy/MM/dd HH:mm")
+                                            }
+                                        </td>
+                                        <td style="width:10%;">@r["ENDT_REASON"]</td>
+                                    </tr>
+                                }
+                            }
+                        </table>
+                    }
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding-top:10px;">
+                <div class="dataHeader" style="margin-right:0px;">
+                    <table border="0" cellpadding="4" cellspacing="2" style="width:100%;font-size:12px;">
+
+                        <tr>
+                            <td rowspan="2" style="width: 3%; padding: 0px; ">編號</td>
+                            <td rowspan="2" style="width: 7%; padding: 0px; ">紀錄日期</td>
+                            <td rowspan="2" style="width: 7%; padding: 0px; ">壓傷<br />分級</td>
+                            <td colspan="3" style="width: 12%;padding: 0px; ">範圍</td>
+                            <td rowspan="2" style="width: 7%; padding: 0px; ">燙傷範圍</td>
+                            <td rowspan="2" style="width: 7%; padding: 0px; ">傷口等級</td>
+                            <td rowspan="2" style="width: 18%; padding: 0px; ">外觀</td>
+                            <td colspan="4" style="width: 19%; padding: 0px; ">滲出液</td>
+                            <td rowspan="2" style="width: 6%; padding: 0px; ">是否有縫線</td>
+                            <td rowspan="2" style="width: 9%; padding: 0px; ">處置</td>
+                            <td rowspan="2" style="width: 5%; padding: 0px; ">紀錄者</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 4%; padding: 0px;">長</td>
+                            <td style="width: 4%; padding: 0px;">寬</td>
+                            <td style="width: 4%; padding: 0px;">深</td>
+                            <td style="width: 3%; padding: 0px;">量</td>
+                            <td style="width: 5%; padding: 0px;">性質</td>
+                            <td style="width: 5%; padding: 0px;">性狀</td>
+                            <td style="width: 6%; padding: 0px;">顏色</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="wound_record">
+                    @if (dt_wound_record != null)
+                    {
+                        //備註：非壓傷皆為一般傷口
+                        <table border="0" cellpadding="4" cellspacing="2" style="width:100%;font-size:9px;/*vertical-align:middle;*/">
+                            @foreach (DataRow r in dt_wound_record.Rows)
+                            {
+                                string HandleVal = "";
+                                if (r["HANDLE_YN"].ToString() == "是")
+                                {
+                                    HandleVal = r["HANDLE_ITEM"].ToString().Replace("其他", r["HANDLE_OTHER"].ToString()).Replace("|", ",");
+                                }
+                                <tr>
+                                    <td style="width:3%;text-align:center;">@r["NUM"]</td>
+                                    <td style="width:7%;text-align:center;">@(Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd HH:mm"))</td>
+                                    <td style="width:7%;text-align: left;word-break: break-all;">
+                                        <!-- 壓傷分級 -->
+                                        @if (r["TYPE"].ToString() == "壓瘡" || r["TYPE"].ToString() == "壓傷")
+                                        {
+                                            //@r["grade"].ToString()
+                                            if (r["grade"] != "" && r["grade"] != null)
+                                            {
+                                                @Html.Raw(r["grade"].ToString())
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @:--
+                                        }
+                                    </td>
+                                    <td style="width:4%;text-align:center;">
+                                        @if (!string.IsNullOrEmpty(r["RANGE_HEIGHT"].ToString()))
+                                        {
+                                            @r["RANGE_HEIGHT"]
+                                        }
+                                        else
+                                        {
+                                            @:--
+                                        }
+                                    </td>
+                                    <td style="width:4%;text-align:center;">
+                                        @if (!string.IsNullOrEmpty(r["RANGE_WIDTH"].ToString()))
+                                        {
+                                            @r["RANGE_WIDTH"]
+                                        }
+                                        else
+                                        {
+                                            @:--
+                                        }
+                                    </td>
+                                    <td style="width:4%;text-align:center;">
+                                        @if (!string.IsNullOrEmpty(r["RANGE_DEPTH"].ToString()))
+                                        {
+                                            @r["RANGE_DEPTH"]
+                                        }
+                                        else
+                                        {
+                                            @:--
+                                        }
+                                    </td>
+                                    <td style="width:7%;text-align:center;word-break: break-all;">
+                                        @if (!string.IsNullOrEmpty(r["SCALD_RANGE"].ToString()))
+                                        {
+                                            @(r["SCALD_RANGE"] + "%")
+                                        }
+                                        else
+                                        {
+                                            @:--
+                                        }
+                                    </td>
+                                    <td style="width:7%;text-align:center;word-break: break-all;">
+                                        @if (!string.IsNullOrEmpty(r["WOUND_LEVEL"].ToString()))
+                                        {
+                                            @(StrArr_WoundLevel[Convert.ToInt32(r["WOUND_LEVEL"])])
+                                        }
+                                        else
+                                        {
+                                            @:--
+                                        }
+                                    </td>
+                                    <td style="width:18%;word-break: break-all;">
+                                        @r["EXTERIOR"].ToString().Replace("其他", r["EXTERIOR_OTHER"].ToString()).Replace("|", ",")
+                                    </td>
+                                    @if (r["EXUDATE_YN"].ToString() != "無")
+                                    {
+                                        <td style="width: 3%;word-break: break-all;text-align:center;">
+                                            @(r["EXUDATE_AMOUNT"].ToString())
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td style="width:3%;text-align:center;">
+                                            --
+                                        </td>
+                                    }
+
+                                    <!-- 壓傷 性質 -->
+                                    @if (r["TYPE"].ToString() == "壓瘡" || r["TYPE"].ToString() == "壓傷")
+                                    {
+                                        if (r["EXUDATE_YN"].ToString() != "無")
+                                        {
+                                            <td style="width:5%;word-break: break-all;">
+                                                @r["EXUDATE_NATURE"].ToString().Replace("其他", r["EXUDATE_NATURE_OTHER"].ToString()).Replace("|", ",")
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td style="width:5%;text-align:center;">
+                                                --
+                                            </td>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <td style="width:5%;text-align:center;">
+                                            --
+                                        </td>
+                                    }
+                                    <!-- 一般傷口 性狀 -->
+                                    @if (r["TYPE"].ToString() != "壓瘡" && r["TYPE"].ToString() != "壓傷")
+                                    {//非壓傷皆為一般傷口
+                                        if (r["EXUDATE_YN"].ToString() != "無")
+                                        {
+                                            <td style="width: 5%;word-break: break-all;">
+                                                @r["EXUDATE_NATURE"].ToString().Replace("其他", r["EXUDATE_NATURE_OTHER"].ToString()).Replace("|", ",")
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td style="width:5%;text-align:center;">
+                                                --
+                                            </td>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <td style="width: 5%; text-align: center;">
+                                            --
+                                        </td>
+                                    }
+                                    <!-- 一般傷口 顏色 -->
+                                    @if (r["TYPE"].ToString() != "壓瘡" && r["TYPE"].ToString() != "壓傷")
+                                    {//非壓傷皆為一般傷口
+                                        if (r["EXUDATE_YN"].ToString() != "無")
+                                        {
+                                            <td style="width: 6%;word-break: break-all;">
+                                                @r["EXUDATE_COLOR"].ToString().Replace("其他", r["EXUDATE_COLOR_OTHER"].ToString()).Replace("|", ",")
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td style="width:6%;text-align:center;">
+                                                --
+                                            </td>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <td style="width: 6%; text-align: center;">
+                                            --
+                                        </td>
+                                    }
+
+                                    <td style="width: 6%; text-align: center">
+                                        <!-- 一般傷口 是否有縫線 -->
+                                        @if (r["TYPE"].ToString() != "壓瘡" && r["TYPE"].ToString() != "壓傷")
+                                        {//非壓傷皆為一般傷口
+                                            @r["SUTURES_YN"].ToString()
+                                        }
+                                        else
+                                        {
+                                            @:--
+                                        }
+                                    </td>
+
+                                    @if (r["HANDLE_YN"].ToString() != "否")
+                                    {
+                                        <td style="width:9%;word-break: break-all;">
+                                            @HandleVal
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td style="width:9%;text-align:center;">
+                                            --
+                                        </td>
+                                    }
+
+                                    <td style="width:5%;text-align:center;">@r["username"]</td>
+                                </tr>
+
+                            }
+                        </table>
+                    }
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>

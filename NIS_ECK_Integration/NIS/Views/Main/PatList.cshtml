@@ -1,0 +1,183 @@
+﻿@using NIS.Data;
+@{
+    string mode_pat = ViewBag.mode;
+    string Category = ViewBag.Category;
+}
+<script type="text/javascript">
+    $(document).ready(function () {
+        var Category = "@Category";
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".plBody").outerHeight(height - 207);
+        }).trigger("resize");
+
+        // 帶入病人
+        $("td[type]").click(function () {
+            var type = $(this).attr("type");
+            var feeno = $(this).attr("feeno");
+            var charno = $(this).attr("charno");
+            $.ajax({
+                url: "SetPatient", timeout: 5000, type: "post",
+                data: "fee_no=" + $(this).attr("feeno"),
+                success: function () {
+                    GetPtInfoArea();
+                    readMqList();
+                    hasPat = "Y";
+                },
+                complete: function () {
+                    if (type == 'dtl') {
+                        //ReloadModule('dtl', feeno, charno);
+                        ReloadModule($("#model_id").val());
+                    }
+                    else if (type == 'vs')
+                        ReloadModule($("#model_id").val());
+                    else if (type == 'med')
+                        ReloadModule('M12');
+                }
+            });
+        });
+
+        $(".plBody tr").hover(
+            function () {
+                $(this).find(".plDtl").css({ "background-color": "#99ff66" });
+                $(this).find(".plData").css({ "background-color": "#dbed69" });
+            },
+            function () {
+                var color = $(this).css("background-color");
+                $(this).find(".plDtl, .plData").css({ "background-color": color });
+                //$(this).find(".plDtl, .plData").css({ "background-color": "#D3DAED" });
+            }
+        );
+
+        // 右鍵拷貝資料
+
+        $(".plBody td").contextmenu(function () {
+            if (Category == "NA") {
+                var mode = '@mode_pat';
+                var alert_str = "";
+                var url = "";
+                var model_name = $(this).closest("tr").attr("pat_name");
+
+                if (mode == "clist") {
+                    alert_str = "是否將【" + model_name + "】加入我的病人?";
+                    url = "addPat";
+                }
+                else if (mode == "mylist") {
+                    alert_str = "是否將【" + model_name + "】移出我的病人?";
+                    url = "delPat";
+                }
+                if (confirm(alert_str)) {
+                    var model_id = $(this).attr("feeno");
+                    var model_bedno = $(this).attr("bedno");
+                    $.ajax({
+                        url: "../Main/" + url,
+                        type: "post",
+                        timeout: 5000,
+                        data:
+                    {
+                        model_id: model_id,
+                        model_name: model_name,
+                        model_bedno: model_bedno
+                    },
+                        success: function (data) {
+                            showHint(data);
+                            loadPatList(mode);
+                            //$(this).closest("tr").attr('fav', 'Y');
+                            //console.log(model_name);
+                        }
+                    });
+                }
+            }
+            copy_clip($(this).attr("hinfo"));
+            return false;
+        });
+    });
+    function loadFav() {
+        $.ajax({
+            url: '../Main/MyFunction',
+            type: "post",
+            timeout: 5000,
+            success: function (data) {
+                $("#bottomMenuPanel").html(data).show();
+                $("#FavList span").unbind('hover');
+                // 我的最愛換色
+                $("#FavList span").hover(
+                    function () { $(this).css("background-color", "#FCFB26") },
+                    function () { $(this).css("background-color", "#FFECA2"); }
+                );
+            },
+            complete: function () {
+                // 如果有點選病人，讀取跑馬燈
+                readMqList();
+            }
+        });
+    }
+</script>
+@{
+    <div class="plHeader">
+        <table width="210" border="0" style="table-layout: fixed; white-space: nowrap;">
+            <tr>
+                <td width="70">@(LanguagePack.Menu.TitleBedNo)</td>
+                <td width="110">姓名</td>
+                <td width="26"></td>
+            </tr>
+        </table>
+    </div>
+    <div class="plBody">
+        <table width="210" border="0" style="table-layout: fixed; white-space: nowrap;">
+            @if (ViewData["patList"] != null)
+            {
+                List<PatientList> pList = (List<PatientList>)ViewData["patList"];
+
+                for (int i = 0; i <= pList.Count - 1; i++)
+                {
+
+
+                    if (System.Configuration.ConfigurationManager.AppSettings["Isolation"].ToString() == "N"
+                            || pList[i].Note == "0")
+                    {
+                        <tr style="background-color: #D3DAED;" pat_name="@pList[i].PatientName.Trim()" fav="N">
+                            <td hinfo="@pList[i].ChrNo.Trim()" title="@(pList[i].PatientName.Trim())_詳細資料" class="plDtl" type="dtl" feeno="@pList[i].FeeNo.Trim()" bedno="@pList[i].BedNo.Trim()" charno="@pList[i].ChrNo.Trim()" style="width:70px;">@pList[i].BedNo.Trim()</td>
+                            <td hinfo="@pList[i].FeeNo.Trim()" title="@(pList[i].PatientName.Trim())_護理資訊" class="plData" type="vs" feeno="@pList[i].FeeNo.Trim()" bedno="@pList[i].BedNo.Trim()" style="width:110px;">@pList[i].PatientName.Trim()</td>
+
+                            @if (pList[i].New_Med_Advice)
+                            {
+                                <td title="@(pList[i].PatientName.Trim())_有新醫囑" class="plNewMed" type="med" feeno="@pList[i].FeeNo.Trim()" style="width:26px;">
+                                    <img src="../Images/med.png" />
+                                </td>
+                            }
+                            else
+                            {
+                                <td style="background-color: #D3DAED;width:26px;"></td>
+                            }
+                        </tr>
+                    }
+                    else
+                    {
+                        <tr style="background-color: red;" pat_name="@pList[i].PatientName.Trim()" fav="N">
+                            <td hinfo="@pList[i].ChrNo.Trim()" title="@(pList[i].PatientName.Trim())_詳細資料" class="plDtl" type="dtl" feeno="@pList[i].FeeNo.Trim()" charno="@pList[i].ChrNo.Trim()" style="width:70px;background-color:red;">@pList[i].BedNo.Trim()</td>
+                            <td hinfo="@pList[i].FeeNo.Trim()" title="@(pList[i].PatientName.Trim())_護理資訊" class="plData" type="vs" feeno="@pList[i].FeeNo.Trim()" style="width:110px;background-color:red;">@pList[i].PatientName.Trim()</td>
+
+                            @if (pList[i].New_Med_Advice)
+                            {
+                                <td title="@(pList[i].PatientName.Trim())_有新醫囑" class="plNewMed" type="med" feeno="@pList[i].FeeNo.Trim()" style="width:26px;">
+                                    <img src="../Images/med.png" />
+                                </td>
+                            }
+                            else
+                            {
+                                <td style="background-color: #D3DAED;width:26px;"></td>
+                            }
+                        </tr>
+                    }
+
+
+
+                }
+                pList = null;
+            }
+        </table>
+    </div>
+}

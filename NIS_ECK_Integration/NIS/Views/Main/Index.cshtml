@@ -1,0 +1,1158 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    ViewBag.Title = LanguagePack.SiteInfo.SiteName;
+    ViewBag.SiteName = LanguagePack.SiteInfo.SiteName;
+
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    string start_date, start_time, end_date, end_time;
+    if (ViewBag.start_date == null)
+    {
+        start_date = DateTime.Now.AddHours(-8).ToString("d");
+        start_time = DateTime.Now.AddHours(-8).ToString("HH:mm");
+    }
+    else
+    {
+        start_date = ViewBag.start_date;
+        start_time = ViewBag.start_time;
+    }
+    if (ViewBag.end_date == null)
+    {
+        end_date = DateTime.Now.AddHours(1).ToString("d");
+        end_time = DateTime.Now.AddHours(1).ToString("HH:mm");
+    }
+    else
+    {
+        end_date = ViewBag.end_date;
+        end_time = ViewBag.end_time;
+    }
+}
+
+<style type="text/css">
+    #Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 10;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #DivSetGuider {
+        display: none;
+        position: absolute;
+        overflow-x: hidden;
+        background-color: #fff;
+        width: 600px;
+        height: 450px;
+        padding: 10px 15px 10px 15px;
+        z-index: 99;
+        border-radius: 6px;
+    }
+</style>
+
+<link rel="Stylesheet" type="text/css" href="~/Content/StyleSheet/jquery.notty.css" />
+<script type="text/javascript" src="~/Scripts/jquery.notty.js"></script>
+<script type="text/javascript" src="~/Scripts/jquery.contextmenu.r2.js"></script>
+<script type="text/javascript">
+    var CurrentModule;
+    var timer;  // 計時器
+    $(document).css('-moz-user-select', 'none'); //禁止fx選取文字
+    $(document).get(0).onselectstart = function () { return true; }; //禁止IE選取文字
+
+    //每分鐘檢查一次Session
+    setInterval(function () {
+        $.ajax({
+            url: "../Main/CheckSession",
+            success: function (data) {
+                if (data == "Y")
+                    //alert('@Session["UserInfo"]');
+                    if (data == "N")
+                        logout();
+            }
+        })
+    }, 60000);
+
+    @* 手術室叫刀通知 2024.04.25 Ryan*@
+    //var notificationStatus = 'true';
+    //var notificationConfirmKeyList = [];
+    //setInterval(function () {
+        //if (notificationStatus == 'true') {
+            //GetOPS_WardNotification();
+        //}
+    //},60000)
+
+    @* 手術室叫刀通知 2024.04.25 Ryan*@
+    function GetOPS_WardNotification() {
+        if (notificationStatus == 'true') {
+            $.ajax({
+                url: "../AIS/GetOPS_WardNotification",
+                type: "post",
+                timeout: 6000,
+                success: function (data) {
+                    var jsonResult = JSON.parse(data);
+                    if (jsonResult.Notifications.length>0) {
+                        var NotificationList = jsonResult.Notifications;
+                        notificationConfirmKeyList = [];
+                        for (var i = 0; i < NotificationList.length;i++) {
+                            notificationConfirmKeyList.push(NotificationList[i].Key);
+                        }
+                        Show_Notification_Modal(NotificationList);
+                    }
+                },
+                error: function () {
+                }
+            });
+        }
+    }
+
+    @* 手術室叫刀通知視窗呈現 2024.04.25 Ryan *@
+    function Show_Notification_Modal(NotificationList) {
+        notificationStatus = 'false';
+        var div_view = $('#notification_modal');
+        $('#notifivation_list').empty();
+        for (var i = 0; i < NotificationList.length; i++) {
+            var Key = NotificationList[i].Key;
+            var MessageTime = NotificationList[i].MessageTime;
+            var PatientName = NotificationList[i].PatientName;
+            var BedNo = NotificationList[i].BedNo;
+            var SurgeryDate = NotificationList[i].SurgeryDate;
+            var SurgeryRoom = NotificationList[i].SurgeryRoom;
+            var PredictProcedure = NotificationList[i].PredictProcedure;
+            var PatientID = NotificationList[i].PatientID;
+            var el = `<div id='${Key}' >
+                <hr>
+                <div>通知時間:${MessageTime}</div>
+                <div>${BedNo} ${PatientName} ${PatientID}</div>
+                <div>手術日期:${SurgeryDate}</div>
+                <div>${PredictProcedure}</div>
+            </div > `;
+            $('#notifivation_list').append(el);
+        }
+        $.blockUI({
+            message: div_view,
+            onOverlayClick: $.unblockUI(),
+            overlayCSS: {
+                border: 'none',
+                cursor: 'default'
+            },
+            css: {
+                top: ($(window).height() - div_view.height()) / 2 + 'px',
+                left: ($(window).width() - div_view.width()) / 2 + 'px',
+                width: 'min-content',
+                border: 'none',
+                cursor: 'default'
+            },
+            onBlock: function () {
+
+            }
+        });
+    }
+
+    @* 手術室叫刀通知確認 2024.04.25 Ryan *@
+    function ConfirmWardNotification() {
+        if (notificationConfirmKeyList.length > 0) {
+            $.ajax({
+                url: "../AIS/PatchD_ConfirmeWardNotification",
+                method: 'POST',
+                contentType: "application/json",
+                data: JSON.stringify( notificationConfirmKeyList ),
+                success: function (data) {
+                    window.alert('已確認手術通知!(確認過的通知將不會出現於下次通知中)')
+                },
+                error: function () {
+                    window.alert('確認手術通知失敗!')
+                }
+            })
+        }
+    }
+
+
+
+    function logout() {
+        location.href = "../Main/Login?message=" + encodeURIComponent("登入逾時");
+    }
+
+    function open_cover() {
+        $(".loading").fadeIn(500);
+    }
+
+    function close_cover() {
+        $(".loading").fadeOut(500);
+    }
+
+    // 是否有病人
+    var hasPat = "@(ViewData["hasPat"].ToString())";
+    // 是否有派班資料
+    var noSetShift = "@(ViewData["noSetShift"].ToString())";
+
+    // 設定內嵌式窗大小
+    function reSettingIframe(url, title) {
+        var height;
+        if ($('.patinfo').is(":hidden"))
+            height = $(window).outerHeight() - $("#bottomMenuPanel").outerHeight() - 40;
+        else
+            height = $(window).outerHeight() - $('.patinfo').outerHeight() - $("#bottomMenuPanel").outerHeight() - 40;
+
+        if (height <= 430)
+            height = 430;
+
+        $('.mainContent').height(height);
+        $('.mainContent').empty();
+        //載入模組
+        $('.mainContent').attr("src", url).load(function () {
+            //當網頁載入完畢後
+            if (title == undefined)
+                title = '';
+            $(document).attr('title', '@(LanguagePack.SiteInfo.SiteName)' + ' - ' + title);
+            $('.loading').hide();
+            $('.mainContent').fadeIn(500);
+        });
+
+    }
+
+    //I_FRAME裡頭使用
+    function hide_ptinfo(url, title) {
+        $(".patinfo").slideUp(500, function () {
+            $(".mainContent").css("top", "10px");
+            reSettingIframe(url, title);
+        });
+    }
+
+    //I_FRAME裡頭使用
+    function show_ptinfo(url, title) {
+        $(".patinfo").slideDown(500, function () {
+            $(".mainContent").css("top", "90px");
+            reSettingIframe(url, title);
+        });
+    }
+
+    //I_FRAME裡頭使用
+    function set_fav(num, favlist) {
+        $('#fav_amount').val(num);
+        var fav = favlist.split(',');
+        for (var i = 0; i < fav.length; i++) {
+			//20230313 ken model_id加入引號以防止錯誤
+            $('button[module][model_id="' + fav[i] + '"]').attr('fav', 'Y');
+        }
+    }
+
+    // 檢查Session是否為正確的病人
+    function check_session() {
+        var paramdata = {};
+        paramdata.user_id = "";
+        paramdata.fee_no = "";
+        if ($("#leftMenuPanel").attr("userid") != undefined)
+            paramdata.user_id = $("#leftMenuPanel").attr("userid");
+        if ($(".patmain").attr("feeno") != undefined)
+            paramdata.fee_no = $(".patmain").attr("feeno");
+        if ($("#Guiderid").val() != "")
+            paramdata.Guiderid = $("#Guiderid").val();
+
+
+        $.ajax({
+            url: "SessionCheck",
+            type: "post", timeout: 10000,
+            data: "fee_no=" + paramdata.fee_no + "&user_id=" + paramdata.user_id + "&Guiderid=" + paramdata.Guiderid,
+            success: function (data) {
+                if (data == "C") {
+                    $.ajax({
+                        url: "SetPatient", timeout: 5000, type: "post", data: "fee_no=" + paramdata.fee_no,
+                        complete: function () {
+                            loadFav();
+                        },
+                        error: function () {
+                            showHint("病人資料更新失敗");
+                        }
+                    });
+                }
+                else if (data == "T")
+                    logout();
+            }
+        });
+    }
+
+    // 載入病人基本資料
+    function GetPtInfoArea(whetherOpen) {
+        if (whetherOpen != "1") {
+            $('#leftFuncName').click();
+        }
+        $.ajax({
+            url: "../Main/GetPatInfo",
+            success: function (data) {
+                $("#patinfo").html(data);
+
+                $("#alert_tag").css("color", "white");
+                $("#patinfo .tooltip").tooltip({
+                    position: {
+                        my: "left bottom",
+                        at: "right  bottom"
+                    },
+                    tooltipClass: "patientInfo_tooltip",
+                    content: function () {
+                        return $(this).attr('title');
+                    },
+                    open: function (event, ui) {
+                        ui.tooltip.css("left", $("#alert_tag").position().left + 52);
+                        ui.tooltip.css("top", $("#alert_tag").position().top + 33);
+                    }
+                });
+            }
+        });
+    }
+
+
+    // 重新載入模組
+    function ReloadModule(toModule, feeno, charn, shiftcate, type, paramsdata) {
+        if (toModule != null && toModule != '' && toModule != 'M07' && toModule != 'M11' && toModule != 'M32') {// && toModule != 'T02'
+            if (toModule != 'dtl') {
+                // 如果帶入的模組不見了，就改用生命徵象
+                var findModule = "N";
+                $(".rightMainMenu button:not(:disabled)").each(function () {
+                    if ($(this).attr("model_id") == toModule) {
+                        findModule = "Y";
+                        return;
+                    }
+                });
+                if (findModule == "N")
+                    toModule = "M14";
+                if (toModule != "M08") {
+                    $("button[model_id='" + toModule + "']").trigger('click');
+                } else { //交班單管理者返回原選擇項目
+                    var url = "../TransferDuty/TransferDuty_Manager" + "?paramsdata=" + paramsdata;
+                    show_ptinfo(url, '交班單_管理者');
+                }
+            }
+            else {
+                //(一般交班)產嬰交班單(M06BM), (管理者)產嬰交班單(M08BM)
+                if (type == "M06BM" || type == "M08BM") {
+                    var url = "../OBSShiftManage/Kardex" + "?shiftcate=" + shiftcate + "&type=" + type + "&paramsdata=" + paramsdata;
+                }
+                else {
+                    var url = "../ShiftManage/Kardex" + "?shiftcate=" + shiftcate + "&type=" + type + "&paramsdata=" + paramsdata;
+                }
+                show_ptinfo(url, '交班明細');
+            }
+        }
+        else
+            $("button[setDefault=Y]").trigger('click');
+    }
+
+    //讀取我的最愛
+    function loadFav() {
+        $.ajax({
+            url: '../Main/MyFunction',
+            type: "post",
+            timeout: 5000,
+            success: function (data) {
+                $("#bottomMenuPanel").html(data).show();
+                $("#FavList span").unbind('hover');
+                // 我的最愛換色
+                $("#FavList span").hover(
+                    function () { $(this).css("background-color", "#FCFB26") },
+                    function () { $(this).css("background-color", "#FFECA2"); }
+                );
+            },
+            complete: function () {
+                // 如果有點選病人，讀取跑馬燈
+                    readMqList();
+            }
+        });
+    }
+
+    // 載入病人清單
+    function loadPatList(open_mode) {
+        $('#renew_ptlist').attr('onclick', "loadPatList('" + open_mode + "')");
+        $('#temp').val(open_mode);
+        var paramsdata = "mode=" + open_mode + "&costcode=" + Trim($("#selStation").val());
+        $("#listcheck").val(open_mode);
+        $(".selStation").attr('disabled', 'disabled');
+        $(".plBody").css("overflow-y", "hidden");
+        $(".patList").hide("slide", {
+            direction: 'left',
+            duration: 500,
+            complete: function () {
+                $.ajax({
+                    url: "../Main/PatList",
+                    data: paramsdata,
+                    timeout: 10000,
+                    success: function (data) {
+                        $(".patList").html(data);
+                        $(".plBody").css("overflow-y", "scroll");
+                        $(".selStation").removeAttr('disabled');
+                        $(".patList").show("slide", { direction: 'right', duration: 500 });
+                        if (open_mode == "mylist") {
+                            $("#but_clist").show();
+                            $("#but_mylist").hide();
+                        }
+                        else {
+                            $("#but_clist").hide();
+                            $("#but_mylist").show();
+                        }
+                    },
+                    error: function (XMLHttpRequest, textStatus) {
+                        if (textStatus == 'timeout')
+                            showHint("載入病人清單逾時，請重新載入病人清單");
+                        else
+                            showHint("載入病人清單失敗，請聯絡資訊室");
+                    }
+                });
+            }
+        });
+
+    }
+
+    // 讀取跑馬燈
+    //function readMqList() {
+    //    $.ajax({
+    //        url: "../Main/MqInfo",
+    //        success: function (data) {
+    //            $("#slideText").unbind();
+    //            $("#slideText").empty();
+    //            $("#slideText").html(data);
+    //            $(".slideText").list_slider({
+    //                direction: 'scrollDown', // 捲動方向: scrollUp向上, scrollDown向下
+    //                scrollNum: 1, // 一次捲動幾個元素
+    //                scrollSpeed: 800, // 捲動速度(ms)
+    //                pause: 2000 // 停頓時間(ms)
+    //            });
+    //        }
+    //    });
+    //}
+
+    // 讀取跑馬燈
+    function readMqList(shownum) {
+        hasPat = "Y";
+        $("#nottys").remove();
+        $("#span_not").hide();
+        var notice = "";
+        var notice_count = 0;
+        $.ajax({
+            url: "@Url.Content("../Main/MqInfo")",
+            success: function (data) {
+                if (data != "") {
+                    var obj = $.parseJSON(data);
+                    if (obj.length > 0) {
+                        notice = "<ul style='margin:0;padding-left:10px'>";
+                        for (var i = 0; i < obj.length; i++) {
+                            if (obj[i][0].toString() == "") {
+                                notice += "<li>" + obj[i][1] + "</li>";
+                            }
+                            else {
+                                notice += "<li onclick=ReloadModule('" + obj[i][0] + "')><a href='#'>" + obj[i][1] + "</a></li>";
+                            }
+                        }
+                        notice += "</ul>";
+                        if (shownum == "N") {
+                            $.notty({
+                                content: notice,
+                                showTime: false
+                            });
+                        }
+                        else {
+                            $.notty({
+                                content: notice,
+                                timeout: 10000,
+                                showTime: false
+                            });
+                        }
+                    }
+                    $("#span_not").text(obj.length);
+                    $("#span_not").show();
+                }
+            }
+        });
+    }
+
+    //(function ($) {
+    //    $.fn.list_slider = function (options) {
+
+    //        clearTimeout(timer);
+
+    //        // 設定參數
+    //        var _defaultOptions = {
+    //            direction: 'scrollUp', // 捲動方向: scrollUp向上, scrollDown向下
+    //            scrollNum: 1, // 一次捲動幾個<li>
+    //            scrollSpeed: 800, // 捲動速度(ms)
+    //            pause: 4200  // 停頓時間(ms)
+    //        };
+    //        var _options = $.extend(_defaultOptions, options);
+
+    //        var $sliderUl = $(this).children('ul');  // 容器物件裡面的<ul>
+    //        var $sliderLi = $sliderUl.append($sliderUl.html()).children();  // 把<ul>中的內容再重覆加入<ul>中，讓裡面有兩組內容
+    //        var numLi = $sliderUl.children().length;  // 全部有幾個<li>項目
+    //        var _scrollHeight = multiplication($sliderLi.height(), _options.scrollNum);  // 捲動的高度 = 一個<li>的高度 * 一次捲動幾個<li>
+    //        var _pause = _options.pause = _options.pause + _options.scrollSpeed; // 計時器的總時間，應該要再加上捲動的時間
+
+    //        // 捲動方向: scrollUp向上, scrollDown向下
+    //        switch (_options.direction) {
+    //            default:
+    //            case 'scrollUp':
+    //                _scrollHeight = _scrollHeight * -1;  // 向上捲動，css的top屬性要設成負值
+    //                break;
+    //            case 'scrollDown':
+    //                _scrollHeight = Math.abs(_scrollHeight); // 向下捲動，css的top屬性要設成正值
+    //                $sliderUl.css({ 'top': (numLi - 1) * $sliderLi.height() * -1 });  // 先把 $sliderUl 的位置往上拉一半，這樣捲下來的時候才會有內容
+    //                break;
+    //        }
+
+    //        // 控制捲動的函數
+    //        function startSlide() {
+    //            // 計算現在$sliderUl的位置是第幾次的捲動
+    //            var _now = division($sliderUl.position().top, _scrollHeight);
+    //            _now = (_now + 1) % division($sliderLi.length, _options.scrollNum);
+
+    //             // 捲動
+    //             $sliderUl.animate(
+    //                 { top: _now * _scrollHeight },   // 要捲動到下一個<li>的位置
+    //                 _options.scrollSpeed, // 捲動速度
+    //                 "easeInExpo",
+    //                 function () {
+    //                     if (_options.direction == 'scrollDown') {
+    //                         // 如果 $sliderUl 已經捲動到 top=0 的位置時，馬上再把位置往上拉一半
+    //                         if (_now >= 1) {
+    //                             $sliderUl.css({ 'top': (numLi - 1) * $sliderLi.height() * -1 });
+    //                         }
+    //                     }
+    //                 }
+    //            );
+    //            // 再重啟計時器
+    //            timer = setTimeout(startSlide, _pause);
+    //        }
+    //        // 啟動計時器
+    //        timer = setTimeout(startSlide, _pause);
+    //    };
+    //})(jQuery);
+
+    //右方Menu
+    $(document).ready(function () {
+
+        // 載入病人資訊
+        GetPtInfoArea();
+
+        //定位寬度_登入者姓名
+        $('#user_title').width($('.leftMainMenu').width());
+
+        //讀取我的最愛列
+        loadFav();
+
+        // 載入病人清單
+        @if (ViewData["mode"].ToString() == "mylist")
+        {
+            @:loadPatList("mylist");
+            @:$("#but_clist").hide();
+        } else {
+            @:loadPatList("clist");
+            @:$("#but_mylist").hide();
+        }
+
+        var easingTouch = "easeInCirc";
+        var easingMouse = "easeOutSine";
+        var delayTouch = 1000;
+        var delayMouse = 500;
+        var clearQuery = true, jumpToEnd = false;
+
+        //左邊MenuPanel
+        $('#subTitleLeft', $(this)).animate({ 'margin-left': '-250px' }, 0);
+        //$('#subTitleLeft').hover(
+        //    function (event) {
+        //        $("#leftMenuPanel").css({ 'z-index': '98' });
+        //        $('#subTitleLeft').stop(clearQuery, jumpToEnd).animate({ 'margin-left': '0px' }, delayMouse, easingMouse, function () {
+        //            $("#leftMenuPanel").css({ 'z-index': '98' });
+        //        });
+        //        event.stopPropagation();
+        //    },
+        //    function (event) {
+        //        $('#subTitleLeft').stop(clearQuery, jumpToEnd).animate({ 'margin-left': '-250px' }, delayMouse, easingMouse, function () {
+        //            $("#leftMenuPanel").css({ 'z-index': '-1' });
+        //        });
+        //        event.stopPropagation();
+        //    }
+        //);
+        $('#leftFuncName').click(
+            function (event) {
+                if ($('#subTitleLeft').css('margin-left') == '0px') {
+
+                    $('#subTitleLeft').stop(clearQuery, jumpToEnd).animate({ 'margin-left': '-250px' }, 300, easingTouch, function () {
+                        $("#leftMenuPanel").css({ 'z-index': '-1' });
+                        $("#bottomMenuPanel").css({ 'z-index': '99' });
+                    });
+                }
+                else {
+                    $("#leftMenuPanel").css({ 'z-index': '98' }).find("td").each(function () {
+                        $(this).prop("disabled", true);
+                    });
+                    $("#bottomMenuPanel").css({ 'z-index': '-1' });
+
+                    $('#subTitleLeft').stop(clearQuery, jumpToEnd).animate({ 'margin-left': '0px' }, 300, easingTouch, function () {
+                        setTimeout(function () {
+                            $("#leftMenuPanel").find("td").each(function () {
+                                $(this).prop("disabled", false);
+                            })
+                        }, 500);
+                    });
+                }
+                event.stopPropagation();
+                //20150312
+                if ( $('#temp').val() == "mylist")
+                {
+                    loadPatList("mylist");
+                                    $("#but_clist").hide();
+                }else{
+                   loadPatList("clist");
+                                    $("#but_mylist").hide();
+                }
+            }
+        );
+        // 阻止發生冒泡的節點發生問題，請勿移除此段
+        $(".selStation").hover(
+            function (event) { event.stopPropagation(); },
+            function (event) { event.stopPropagation(); }
+        );
+
+        // 右邊MenuBar滑鼠開啟
+        $('#subTitleRight', $(this)).animate({ 'margin-left': '290px' }, 0);
+        //$('#subTitleRight').hover(
+        //    /*
+        //    function (event) {
+        //        $("#rightMenuPanel").css({ 'z-index': '98' });
+        //        $('#subTitleRight').stop(clearQuery, jumpToEnd).animate({ 'margin-left': '0px' }, delayMouse, easingMouse, function () {
+        //            $("#rightMenuPanel").css({ 'z-index': '98' });
+        //        });
+        //        event.stopPropagation();
+        //    },
+        //    */
+        //    function (event) {
+        //        $('#subTitleRight').stop(clearQuery, jumpToEnd).animate({ 'margin-left': '290px' }, delayMouse, easingMouse, function () {
+        //            $("#rightMenuPanel").css({ 'z-index': '-1' });
+        //        });
+        //        event.stopPropagation();
+        //    }
+        //);
+
+        // 右邊MenuBar單點開啟
+        $('#rightFuncName').click(
+            function (event) {
+                if ($('#subTitleRight').css('margin-left') == '290px') {
+                    $("#rightMenuPanel").css({ 'z-index': '98' }).find("button").each(function () {
+                        $(this).prop("disabled", true);
+                    });
+                    $("#bottomMenuPanel").css({ 'z-index': '-1' });
+                    $('#subTitleRight').stop(clearQuery, jumpToEnd).animate({ 'margin-left': '0px' }, 300, easingTouch, function () {
+                        setTimeout(function () {
+                            $("#rightMenuPanel").find("button").each(function () {
+                                $(this).prop("disabled", false);
+                            });
+                        }, 500);
+                    });
+                } else {
+                    $('#subTitleRight').stop(clearQuery, jumpToEnd).animate({ 'margin-left': '290px' }, 300, easingTouch, function () {
+                        $("#rightMenuPanel").css({ 'z-index': '-1' });
+                        $("#bottomMenuPanel").css({ 'z-index': '99' });
+                    });
+                }
+                event.stopPropagation();
+
+            }
+        );
+
+        $('#but_clist').contextmenu(function () {
+            alert('ttest');
+            return false;
+        });
+
+        //20230628 ken 新增未簽筆數更新
+        var page = document.getElementById("mainContent");
+
+        page.addEventListener("load", displayMessage)
+
+        function displayMessage() {
+
+            $.ajax({
+                url: "../Main/SignCount",
+                type: "post",
+                success: function (data) {
+                    $("#signCount").text(data.toString());
+                }
+            });
+
+            $.ajax({
+                url: "../Main/SignErrCount",
+                type: "post",
+                success: function (data) {
+                    if (data > 0)
+                    {
+                        $("#signCount").css("color", "black");
+                        $("#signpush").css("background-color", "red");
+
+                    }
+                    else
+                    {
+                        $("#signCount").css("color", "black");
+                    }
+
+                }
+            });
+
+            $.ajax({
+                url: "../BloodSugarAndInsulin/BSugarInsulin_AutoGenerate",
+                type: "post",
+                data: {
+                    UserID:'@ui.EmployeesNo'
+                },
+                success: function (data) {
+                }
+            });
+
+            //叫刀通知
+            //if (notificationStatus == 'true') {
+            //    GetOPS_WardNotification();
+            //}
+        }
+
+        // 設定右方Menu按鈕功能
+        $('button[module]').contextmenu(function () {
+            if (parseInt($('#fav_amount').val()) < 8) {
+                if ($(this).attr('fav') != 'Y') {
+                    if (confirm("是否將【" + $(this).html() + "】加入我的最愛?")) {
+                        var model_name = $(this).html();
+                        var model_id = $(this).attr("model_id");
+                        $.ajax({
+                            url: "../Main/addFav",
+                            type: "post",
+                            timeout: 5000,
+                            data: "model_id=" + model_id + "&model_name=" + model_name,
+                            success: function (data) {
+                                showHint(data);
+                                loadFav();
+                            }
+                        });
+                    }
+                }
+                else
+                    showHint('此項目已加入我的最愛!');
+            }
+            else
+                showHint('我的最愛數量已達上限!');
+            return false;
+        }).click(function () {
+            var needCheck = $(this).attr('checkpat');
+            var hidePtList = $(this).attr('pathide');
+            var openWindow = $(this).attr('blank');
+            var title = $(this).html();
+            var modelType = $(this).attr('modelType');
+            var url = $(this).attr('module');
+            //CurrentModule = $(this).attr("model_id");
+            $("#model_id").val($(this).attr("model_id"));
+            if (modelType == "A") {
+                //var ws = new ActiveXObject("WScript.Shell");
+                ws.Exec(url);
+            }
+            else if (openWindow == "Y")
+                window.open($(this).attr('module'), 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,resizable=yes,left=200,toolbar=no');
+            else {
+                if ($('#subTitleRight').css('margin-left') == '290px') {
+
+                }
+                else
+                {
+                    $('#rightFuncName').click();
+                }
+                // 確認是否有載入病人資料
+                if (hasPat == "Y" || needCheck == "N") {
+                    $('.loading').show();
+                    $('.mainContent').fadeOut(500);
+                    //確認是否要隱藏病人
+                    if (hidePtList == "Y")
+                    {
+                        hide_ptinfo(url, title);
+                    }
+                    else
+                    {
+                        show_ptinfo(url, title);
+                    }
+
+                }
+                else
+                {
+                    showHint("請先選擇病人");
+                }
+
+            }
+        });
+
+        //未派班_派班
+        if (noSetShift == "Y") {
+            hide_ptinfo("../Function/ShiftAsign", "");
+        }//或者工作清單
+        else if (hasPat == "N") {
+            hide_ptinfo($("button[model_id='M11']").attr('module'), $("button[model_id='M11']").html());
+            //hide_ptinfo($("button[model_id='T02']").attr('module'), $("button[model_id='T02']").html());
+        }
+        else if (hasPat == "Y")
+        {
+            reSettingIframe("../VitalSign/VitalSignSingle", "");
+        }
+        else
+        {
+            hide_ptinfo("../Function/ShiftAsign", "");
+        }
+
+        // 加入focus事件
+        $(window).focus(function () {
+            check_session();
+        });
+
+        // 變更大小時執行
+        $(window).resize(function () { reSettingIframe(); });
+
+        //病歷號 ENTER
+        $("#PatientNo").keypress(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) { //Enter keycode
+                var ptno = $.trim($("#PatientNo").val());
+                if (ptno != "") {
+                    //判斷是否本地端IP
+                    if ("@(global_asax.localIp)".substring(0, 7) == "10.168.")
+                    {
+                        $.trim($("#PatientNo").val());
+                    }else {
+                        $("#PatientNo").val(padLeft(ptno, 10, "0"));
+
+                    }
+                    //$("#PatientNo").val(padLeft(ptno, 8, "0"));  //josan
+                    if (ptno != null) {
+                        $.ajax({
+                            type: 'POST',
+                            url: "WebS_InHistory",
+                            data: "str_Barcode=" + ptno,
+                            success: function (data) {
+                                if (data == "Error")
+                                    alert("此病歷號[" + ptno + "]無住院紀錄，請重新確認。");
+                                else if (data == "NotInIpd")
+                                    ipdhistory();
+                                else {
+                                    $.ajax({
+                                        url: "SetPatient", timeout: 5000, type: "post",
+                                        data: "fee_no=" + data,
+                                        success: function () {
+                                            GetPtInfoArea();
+                                            readMqList();
+                                        },
+                                        complete: function () {
+                                            ReloadModule("M01");
+                                        }
+                                    });
+                                }
+                            },
+                            error: function (data) {
+                                alert("查無此病歷號[" + ptno + "]，請重新確認。");
+                            }
+                        });
+                    }
+                }
+                else
+                    alert("未輸入病歷號，請重新確認。");
+
+                return false;
+            }
+        });
+
+        //若為實習生，開啟指導者頁面
+        @*if ('@ui.Category' == "ND")  //SN實習生  ND護理長
+            ShowSetGuiderInfo($("#DdlGuiderStation"));*@
+        //if (notificationStatus == 'true') {
+        //    GetOPS_WardNotification();
+        //}
+    });
+
+    //搜尋病歷號
+    function ipdhistory() {
+        if ($("#PatientNo").val() != "") {
+            //var chrno = padLeft(Trim($("#PatientNo").val().toString()), 10, "0"); //josan
+            //判斷是否本地端IP
+            if ("@(global_asax.localIp)".substring(0, 7) == "10.168.")
+            {
+                var chrno = Trim($("#PatientNo").val().toString());
+            }else {
+                var chrno = padLeft(Trim($("#PatientNo").val().toString()), 10, "0");
+            }
+
+            $("#PatientNo").val(chrno);
+            window.open("../TransferDuty/InHistory?chr_no=" + chrno, "top_dialog", "menubar=no,status=no,scrollbars=yes,top=0,resizable=yes,left=200,toolbar=no,width=630,height=300");
+        }
+        else
+            alert('請輸入病歷號!');
+    }
+
+    //出院3天內病人查詢
+    function discharged() {
+        if ($("#selStation").val() != "") {
+            window.open("../TransferDuty/Discharged?station=" + $("#selStation").val(), "top_dialog", "menubar=no,status=no,scrollbars=yes,top=0,resizable=yes,left=200,toolbar=no,width=500,height=700");
+        }
+    }
+
+    //查病歷號_切病人
+    function Redirect(feeno) {
+        if (feeno != "") {
+            $(".patmain").attr("feeno", feeno);
+            $.ajax({
+                url: "SetPatient", timeout: 5000, type: "post",
+                data: "fee_no=" + feeno,
+                success: function () {
+                    GetPtInfoArea();
+                    readMqList();
+                },
+                complete: function () {
+                    ReloadModule($("#model_id").val());
+                }
+            });
+        }
+    }
+
+    //顯示 設定指導員
+    function ShowSetGuiderInfo(ObjVal) {
+        var costcenter = $(ObjVal).val();
+        $.ajax({
+            url: "../Main/SetGuider",
+            data: {
+                costcenter: costcenter
+            },
+            success: function (data) {
+                $("#Block").fadeIn(0);
+                $("#DivSetGuiderShow").html(data);
+                $("#DivSetGuider").center().fadeIn(0);
+
+            }
+        });
+    }
+
+    //儲存 指導員資訊
+    function SaveGuiderInfo() {
+        var BoolVal = true;
+        if ($(".BlockEmployeeSel").attr("employeeid") == undefined) {
+            BoolVal = false;
+            alert("請先選擇指導員。");
+            return;
+        }
+
+        if (BoolVal) {
+            var GuiderID = $(".BlockEmployeeSel").attr("employeeid");
+            var GuiderName = $(".BlockEmployeeSel").attr("employeename");
+
+            $.ajax({
+                url: "../Main/SetGuiderToSession",
+                data: {
+                    GuiderID: GuiderID,
+                    GuiderName: GuiderName
+                },
+                success: function (data) {
+                    if (data != "N") {
+                        alert("您選擇的指導員為：" + data.split("_")[0]);
+                        $("#Block").fadeOut(0);
+                        $("#DivSetGuiderShow").html("");
+                        $("#DivSetGuider").fadeOut(0);
+                        $("#Guiderid").val(data.split("_")[1]);
+                    } else {
+                        alert("發生錯誤，請連絡資訊人員。");
+                    }
+
+                }
+            });
+        }
+    }
+
+    //設定 Patinfo 排版
+    function PatinfoTooltip() {
+        $("#alert_tag").css("color", "white");
+        $("#patinfo .tooltip").tooltip({
+            position: {
+                my: "left bottom",
+                at: "right  bottom"
+            },
+            tooltipClass: "patientInfo_tooltip",
+            content: function () {
+                return $(this).attr('title');
+            },
+            open: function (event, ui) {
+                ui.tooltip.css("left", $("#alert_tag").position().left + 52);
+                ui.tooltip.css("top", $("#alert_tag").position().top + 33);
+            }
+        });
+    }
+
+</script>
+<div id="fav_amount"></div>
+<div class="loading" id="cover"></div>
+<div class="loading" id="loading">
+    <label for="lab">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>
+
+<!-- 上方病人資訊 -->
+<div class="patinfo" style="font-family:EUDC !important;">
+    <div id="patinfo"></div>
+    <!-- 跑馬燈 -->
+    @*<div class="slideText">
+            <ul id="slideText">
+            </ul>
+        </div>*@
+</div>
+
+<!-- 主要內容 -->
+<iframe class="mainContent" id="mainContent" src="" width="100%" scrolling="no" frameborder="0" allowtransparency="true" style="font-family:EUDC !important;" onfocus="check_session();"></iframe>
+
+<!-- 我的最愛列 -->
+<div id="bottomMenuPanel"></div>
+
+<!-- 左方病人清單 -->
+<div id="leftMenuPanel" userid="@(ViewData["userid"].ToString())" style="font-family:EUDC !important;">
+    <input type="hidden" id="Guiderid" name="Guiderid" value="@(ViewData["Guiderid"].ToString())" />
+    <div id="subTitleLeft">
+        <div id="leftFuncName">@(LanguagePack.Menu.PatListTitle)</div>
+        <div class="leftMainMenu">
+            <table id="user_title" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed">
+                <tr>
+                    <td style="width:72%;font-weight:200;word-wrap:break-word;word-break:break-all;">
+                        <span style="color:blue;">@ViewBag.username</span> 您好
+                    </td>
+                    <td style="width:28%;">
+                        <input type="button" value="登出" onclick="location.href = 'Logout'" />
+                    </td>
+                </tr>
+            </table><hr />
+            <div class="title">
+                <label>病歷號：</label>
+                @Html.TextBox("PatientNo", "", new { style = "width:80px", @id = "PatientNo", tabindex = "1" })
+                <input type="button" id="inHistory" value="查" onclick="ipdhistory()" />
+                <input type="hidden" id="listcheck" value="clist" />
+                <input type="hidden" id="temp" value="" />
+                <input type="hidden" id="model_id" value="" />
+                <br />
+                @(LanguagePack.Menu.NursingStation)
+                &nbsp;&nbsp;&nbsp;
+                <input type="button" value="檢查新醫囑" id="renew_ptlist" onclick="" />
+            </div>
+            <div class="title">
+                @Html.DropDownList("selStation", (List<SelectListItem>)ViewData["costlist"], new { @class = "selStation", @onchange = "loadPatList('clist');" })
+            </div>
+            <div class="title">
+                <input type="button" value="我的清單" id="but_mylist" onclick="loadPatList('mylist');" />
+                <input type="button" value="護理站清單" id="but_clist" onclick="loadPatList('clist');" />
+                <input type="button" value="單位出院病人" id="but_outlist" onclick="discharged();" />
+            </div>
+
+            <div class="patList">
+                <!-- 病人清單位置 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Right Menu Start -->
+<div id="rightMenuPanel" style="font-family:EUDC !important;">
+    <div id="subTitleRight">
+        <div id="rightFuncName">@(LanguagePack.Menu.FuncListTitle)</div>
+        <!-- Menu Start -->
+        <div class="rightMainMenu">
+            <table>
+                <tr>
+                    <td valign="top">
+                        @{
+                            string button_str = string.Empty;
+                            if (ViewData["left_models"] != null)
+                            {
+                                List<ModelItem> left_models = (List<ModelItem>)ViewData["left_models"];
+                                for (int i = 0; i <= left_models.Count - 1; i++)
+                                {
+                                    button_str = " \t <button ";
+                                    button_str += " model_id=\"" + left_models[i].mo_id + "\" ";
+                                    button_str += " checkpat=\"" + left_models[i].check_patinfo + "\" ";
+                                    button_str += " pathide=\"" + left_models[i].hide_patinfo + "\" ";
+                                    button_str += " blank=\"" + left_models[i].open_window + "\" ";
+                                    button_str += " setDefault=\"" + left_models[i].set_default_page + "\" ";
+                                    button_str += " modelType=\"" + left_models[i].model_type + "\" ";
+                                    button_str += " class=\"" + left_models[i].classname + "\" ";
+                                    button_str += " module=\"" + left_models[i].model_url + "\" ";
+                                    button_str += " fav=\"\" ";
+                                    button_str += " >" + left_models[i].button_name + "</button> \n";
+                                    @Html.Raw(button_str)
+                                }
+                            }
+                        }
+                    </td>
+                    <td valign="top">
+                        @{
+                            if (ViewData["right_models"] != null)
+                            {
+                                List<ModelItem> right_models = (List<ModelItem>)ViewData["right_models"];
+                                for (int i = 0; i <= right_models.Count - 1; i++)
+                                {
+                                    button_str = " \t <button ";
+                                    button_str += " model_id=\"" + right_models[i].mo_id + "\" ";
+                                    button_str += " checkpat=\"" + right_models[i].check_patinfo + "\" ";
+                                    button_str += " pathide=\"" + right_models[i].hide_patinfo + "\" ";
+                                    button_str += " blank=\"" + right_models[i].open_window + "\" ";
+                                    button_str += " setDefault=\"" + right_models[i].set_default_page + "\" ";
+                                    button_str += " modelType=\"" + right_models[i].model_type + "\" ";
+                                    button_str += " class=\"" + right_models[i].classname + "\" ";
+                                    button_str += " module=\"" + right_models[i].model_url + "\" ";
+                                    button_str += " fav=\"\" ";
+                                    button_str += " >" + right_models[i].button_name + "</button> \n";
+                                    @Html.Raw(button_str)
+                                }
+                            }
+                        }
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- End of right menu -->
+<div id="Block"></div>
+<div id="DivSetGuider">
+    <table style="width:100%">
+        <tr>
+            <td style="text-align:center">
+                @Html.TextBox("start_date", @start_date, new { style = "width:80px;", @readonly = "readonly" })
+                @Html.TextBox("start_time", @start_time, new { style = "width:50px;", @readonly = "readonly" })
+                @WebTool.setDateTime("start_date", "start_time", "", "0")
+                @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "start_time", false)*@
+                @Html.Label("lab", " ~ ")
+                @Html.TextBox("end_date", @end_date, new { style = "width:80px;", @readonly = "readonly" })
+                @Html.TextBox("end_time", @end_time, new { style = "width:50px;", @readonly = "readonly" })
+                @WebTool.setDateTime("end_date", "end_time", "", "1")
+                @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "end_time", false)*@
+                <input type="button" value="儲存指導員" onclick="SaveGuiderInfo();" />
+            </td>
+        </tr>
+        <tr>
+            <td style="padding-left:25px;">
+                護理站：@(Html.DropDownList("DdlGuiderStation", (List<SelectListItem>)ViewData["costlist"], "全部", new { @onchange = "ShowSetGuiderInfo(this);" }))
+            </td>
+        </tr>
+    </table>
+    <div id="DivSetGuiderShow"></div>
+</div>
+
+@*手術室叫刀通知 2024.04.25 Ryan*@
+<div id="notification_modal" style="display: none; max-height: 500px; font-size: 20px">
+    <div id="notifivation_table">
+        <div style="padding-top: 15px; padding-bottom: 15px; background-color: yellow; font-weight: bold;font-size:35px">手術室叫刀通知</div>
+        <div id="notifivation_list" style="display: grid; width: 300px; overflow-y: scroll; max-height: 400px;padding-left:15px;padding-right:15px">
+        </div>
+    </div>
+    <div style="margin-top:15px;margin-bottom:15px">
+        <button type="button" onclick="$.unblockUI(); notificationStatus = 'true';ConfirmWardNotification()">確認</button>
+    </div>
+</div>

@@ -1,0 +1,640 @@
+﻿@{
+    ViewBag.Title = "SameBedroom";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    bool isKardex = ViewBag.Kardex;
+}
+<style>
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: center;
+        white-space: pre-line;
+        word-break: break-all;
+    }
+
+    .dataHeader {
+        margin-right: 17px !important;
+        overflow: hidden;
+    }
+</style>
+
+<link href="~/Content/StyleSheet/BabySystem.css" rel="stylesheet" />
+
+<script type="text/javascript">
+    $(window).load(function () {
+        if ('@ViewBag.mode' == "1")
+            $('#ui-id-2').trigger('click');
+        else if ('@ViewBag.mode' == "2")
+            $('#ui-id-3').trigger('click');
+    });
+
+    function check(obj) {
+        var num = $('#check_tab').val();
+        $('#check_tab').val($(obj).attr('num'));
+        var success = dtl_check();
+        if (success)
+            $('a[num=' + num + ']').attr('must', 'N');
+        else
+            $('a[num=' + num + ']').attr('must', 'Y');
+    }
+
+    function dtl_check() {
+        var success = true;
+        var tr_list = $('p[must=Y]:visible');
+        for (var i = 0; i < tr_list.length; i++) {
+            var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                var input_name = '';
+                for (var j = 0; j < input_list.length; j++) {
+                    if (input_name != $(input_list[j]).attr('name')) {
+                        input_name = $(input_list[j]).attr('name');
+                        if (input_list[j].type == 'text' || input_list[j].type == 'textarea')
+                            var input_val = $.trim(input_list[j].value);
+                        else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox')
+                            var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+
+                        if (input_val == undefined || input_val == '') {
+                            success = false;
+                            j = input_list.length;
+                            i = tr_list.length;
+                        }
+                    }
+                }
+            }
+        }
+        return success;
+    }
+
+    $(function () {
+        close_pup_window();
+        //設定高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 400;
+            $(".dataArea").outerHeight(height - 250);
+        }).trigger("resize");
+        setGridColor();
+    });
+
+    function setGridColor() {
+        //格行換色
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function set_row(url, title, name) {
+        var ck = $('input[type=checkbox][class=' + name + ']:checked');
+        if (ck.length == 0)
+            alert('請選擇' + title + '紀錄!');
+        else if (ck.length > 1)
+            alert("只能選擇一筆!");
+        else {
+            var row = '';
+            for (var i = 0; i < ck.length; i++) {
+                if (ck[i].checked)
+                    row = row + ck[i].value + ',';
+            }
+            if (row != '') {
+                row = row.substring(0, row.length - 1);
+                new_window.push(window.open(url + '?IID=' + row, '', 'menubar=no,status=no,scrollbars=yes,top=10,left=25,toolbar=no,width=950,height=650'));
+            }
+        }
+    }
+
+    function update_end_roomin(iid, type) {
+        new_window.push(window.open('Insert_Roomin?IID=' + iid + "&Type=" + type, '', 'menubar=no,status=no,scrollbars=yes,top=10,left=25,toolbar=no,width=950,height=650'));
+    }
+
+    function Delete() {
+        $.ajax({
+            url: 'Del_Roomin',
+            type: 'post',
+            dataType: 'json',
+            data: $('form').serialize(),
+            success: function (data) {
+                alert(data);
+                window.location.href = 'Roomin_List';
+            },
+            failure: function (errMsg) {
+                alert('刪除失敗');
+                window.location.href = 'Roomin_List';
+            }
+        });
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+    var Feed = ViewBag.Feed;
+    var Roomin = ViewBag.Roomin;
+    var BirthDay = ViewBag.BirthDay;
+    string RootDocument = ViewBag.RootDocument;
+}
+
+<div class="funcArea">
+    <input type="hidden" id="check_tab" value="0" />
+    <input type="button" style="font-size:16px;" value="回母嬰護理" onclick="window.location.href = '../Obstetrics/Index?active=Breast_Fedding_List&show=Y'" />
+    <div id="filled" class="tabArea" style="margin-bottom:5px;">
+        <ul>
+            <li><a href="#tabs-1" must="Y" num="0" onclick="check(this);">親子同室</a></li>
+            <li><a href="#tabs-2" must="Y" num="1" onclick="check(this);">皮膚接觸</a></li>
+            <li><a href="#tabs-3" must="Y" num="2" onclick="check(this);">哺餵母乳轉介</a></li>
+        </ul>
+        <!-- 親子同室 -->
+        <div id="tabs-1" class="tab">
+            <div class="funcArea" style="text-align:center">
+                @if (isKardex == false)
+                {
+                    <input type="button" value="人工新增" onclick="window.open('Insert_Roomin?Type=Hand', '', 'menubar=no,status=no,scrollbars=yes,top=10,left=25,toolbar=no,width=950,height=650')">
+                    <input type="button" value="條碼新增" onclick="window.open('Insert_Roomin?Type=Barcode', '', 'menubar=no,status=no,scrollbars=yes,top=10,left=25,toolbar=no,width=950,height=650')">
+                    <input type="button" value="修改" onclick="set_row('Insert_Roomin','親子同室', 'Roomin_List');">
+                    <input type="button" value="刪除" style="width:50px;" onclick="if ($('input[type=checkbox]:checked').length > 0) { if (confirm('確認刪除?')) { Delete(); } } else { alert('請選擇一筆紀錄!'); }" />
+                }
+                @if (Roomin != "")
+                {
+                    var result = "決定實施親子同室的方式：";
+                    if (Roomin == "0")
+                    {
+                        result += "24小時";
+                    }
+                    else if (Roomin == "1")
+                    {
+                        result += "部份時段";
+                    }
+                    else if (Roomin == "2")
+                    {
+                        result += "分離照顧";
+                    }
+                    <input type="button" value="@result" onclick="">
+                }
+                @if (Feed != "")
+                {
+                    var result = "新生兒餵食的選擇：";
+                    if (Feed == "0")
+                    {
+                        result += "純母乳";
+                    }
+                    else if (Feed == "1")
+                    {
+                        result += "混合乳";
+                    }
+                    else if (Feed == "2")
+                    {
+                        result += "配方奶";
+                    }
+                    else if (Feed == "3")
+                    {
+                        result += "尚未決定";
+                    }
+                    <input type="button" value="@result" onclick="">
+                }
+            </div>
+            <div class="funcArea">
+                <form action="Del_Roomin" method="post">
+                    <table border="0" cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed">
+                        <tr>
+                            <td>
+                                <div class="dataHeader">
+                                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                                        <tr>
+                                            <td style="width:3%">選取</td>
+                                            <td style="width:5%">結<br />案</td>
+                                            <td style="width:7%">親子同室</td>
+                                            <td style="width:10%">開始日期/時間</td>
+                                            <td style="width:10%">結束日期/時間</td>
+                                            <td style="width:10%">同室時間</td>
+                                            <td style="width:10%">母親病歷號</td>
+                                            <td style="width:10%">新生兒病歷號</td>
+                                            <td style="width:3%">胎序</td>
+                                            <td style="width:29%">結束原因</td>
+                                            <td style="width:4%">紀錄者</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="dataArea" style="height:170px">
+                                    @if (dt != null)
+                                    {
+                                        var i = -1;
+                                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                                            @foreach (DataRow r in dt.Rows)
+                                            {
+                                                i = i + 1;
+                                                <tr>
+                                                    <td style="width:3%;text-align:center;vertical-align:central">
+                                                        <input type="checkbox" name="IID" class="Roomin_List" value="@r["IID"]" />
+                                                    </td>
+                                                    <td style="width:5%;text-align:center;vertical-align:central">
+                                                        @if (r["END_TIME"].ToString() == "")
+                                                        {
+                                                            <input type="button" value="人工" onclick="update_end_roomin('@r["IID"]', 'Close')">
+                                                            <input type="button" value="條碼" onclick="update_end_roomin('@r["IID"]','BarcodeClose')">
+                                                        }
+                                                    </td>
+                                                    @if (r["EXCLUDE"].ToString() == "1")
+                                                    {
+                                                        <td style="width:7%;">排除親子同室</td>
+                                                    }
+                                                    else
+                                                    {
+                                                        if (r["END_STA"].ToString() == "0")
+                                                        {
+                                                            <td style="width:7%;">親子同室24HRS</td>
+                                                        }
+                                                        else if (r["END_STA"].ToString() == "1")
+                                                        {
+                                                            <td style="width:7%;">親子同室12HRS</td>
+                                                        }
+                                                        else if (r["END_STA"].ToString() == "2")
+                                                        {
+                                                            <td style="width:7%;">未親子同室</td>
+                                                        }
+                                                        else
+                                                        {
+                                                            <td style="width:7%;"></td>
+                                                        }
+                                                    }
+                                                    @if (r["START_TIME"].ToString() != "")
+                                                    {
+                                                        if (i == dt.Rows.Count - 1)
+                                                        {
+                                                            var Time = Convert.ToDateTime(r["START_TIME"]).Subtract(Convert.ToDateTime(BirthDay));
+                                                            var TimeDiff = Time.Days.ToString() + "天" + Time.Hours.ToString() + "小時" + Time.Minutes.ToString() + "分鐘" + Time.Seconds.ToString() + "秒";
+
+                                                            if (Time.Hours >= 4)
+                                                            {
+                                                                <td style="width:10%;color:red">@Convert.ToDateTime(r["START_TIME"]).ToString("yyyy/MM/dd HH:mm")</td>
+                                                            }
+                                                            else
+                                                            {
+                                                                <td style="width:10%;">@Convert.ToDateTime(r["START_TIME"]).ToString("yyyy/MM/dd HH:mm")</td>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <td style="width:10%;">@Convert.ToDateTime(r["START_TIME"]).ToString("yyyy/MM/dd HH:mm")</td>
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        <td style="width:10%;"></td>
+                                                    }
+                                                    @if (r["END_TIME"].ToString() != "")
+                                                    {
+                                                        <td style="width:10%;">@Convert.ToDateTime(r["END_TIME"]).ToString("yyyy/MM/dd HH:mm")</td>
+                                                    }
+                                                    else
+                                                    {
+                                                        <td style="width:10%;"></td>
+                                                    }
+                                                    @if (r["START_TIME"].ToString() != "" && r["END_TIME"].ToString() != "")
+                                                    {
+                                                        var Time = Convert.ToDateTime(r["END_TIME"]).Subtract(Convert.ToDateTime(r["START_TIME"].ToString()));
+                                                        var TimeDiff = String.Format("{0}{1}{2}", (Time.Days == 0 ? "" : String.Format("{0}天", Time.Days)), (Time.Hours == 0 ? "" : String.Format("{0}時", Time.Hours)), (Time.Minutes == 0 ? "" : String.Format("{0}分鐘", Time.Minutes)));
+                                                        <td style="width:10%;">@TimeDiff</td>
+                                                    }
+                                                    else
+                                                    {
+                                                        <td style="width:10%;"></td>
+                                                    }
+                                                    @if (r["PAT_FEENO"].ToString() != "")
+                                                    {
+                                                        <td style="width:10%;">@r["PAT_FEENO"]</td>
+                                                    }
+                                                    else
+                                                    {
+                                                        <td style="width:10%;"></td>
+                                                    }
+                                                    @if (r["START_TIME"].ToString() != "")
+                                                    {
+                                                        if (r["NB_CHARTNO"].ToString() != "")
+                                                        {
+                                                            <td style="width:10%;">@r["NB_CHARTNO"]</td>
+                                                        }
+                                                        else
+                                                        {
+                                                            <td style="width:10%;"></td>
+                                                        }
+                                                    }
+                                                    else if (r["END_TIME"].ToString() != "")
+                                                    {
+                                                        if (r["NB_CHARTNO_E"].ToString() != "")
+                                                        {
+                                                            <td style="width:10%;">@r["NB_CHARTNO_E"]</td>
+                                                        }
+                                                        else
+                                                        {
+                                                            <td style="width:10%;"></td>
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        <td style="width:10%;"></td>
+                                                    }
+                                                    @if (r["SEQ_OF_NB"].ToString() != "")
+                                                    {
+                                                        <td style="width:3%;">@r["SEQ_OF_NB"]</td>
+                                                    }
+                                                    else
+                                                    {
+                                                        <td style="width:3%;"></td>
+                                                    }
+                                                    @if (r["END_STA"].ToString() != "")
+                                                    {
+                                                        var result = new List<string>();
+                                                        if (r["END_STA"].ToString() == "0")
+                                                        {
+                                                            result.Add("親子同室24HR：");
+                                                        }
+                                                        if (r["END_STA"].ToString() == "1")
+                                                        {
+                                                            result.Add("親子同室12HR：");
+                                                        }
+                                                        if (r["END_STA"].ToString() == "2")
+                                                        {
+                                                            result.Add("未親子同室：");
+                                                        }
+                                                        if (r["END_RS_24"].ToString() != "" && r["END_RS_24"].ToString().Length == 4)
+                                                        {
+                                                            var data = r["END_RS_24"].ToString();
+                                                            if (data[0] == '1')
+                                                            {
+                                                                result.Add("正常返室");
+                                                            }
+                                                            if (data[1] == '1')
+                                                            {
+                                                                result.Add("媽媽出院");
+                                                            }
+                                                            if (data[2] == '1')
+                                                            {
+                                                                result.Add("新生兒洗澡");
+                                                            }
+                                                            if (data[3] == '1')
+                                                            {
+                                                                result.Add("新生兒檢查");
+                                                            }
+                                                        }
+                                                        if (r["END_RS_P"].ToString() != "" && r["END_RS_P"].ToString().Length == 23)
+                                                        {
+                                                            var data = r["END_RS_P"].ToString();
+                                                            if (data[0] == '1')
+                                                            {
+                                                                result.Add("1.媽媽想休息");
+                                                            }
+                                                            if (data[1] == '1')
+                                                            {
+                                                                result.Add("2.媽媽沒有乳汁分泌");
+                                                            }
+                                                            if (data[2] == '1')
+                                                            {
+                                                                result.Add("3.媽媽身體不適");
+                                                            }
+                                                            if (data[3] == '1')
+                                                            {
+                                                                result.Add("4.擔心睡著後新生兒被抱走");
+                                                            }
+                                                            if (data[4] == '1')
+                                                            {
+                                                                result.Add("5.怕嬰兒太吵");
+                                                            }
+                                                            if (data[5] == '1')
+                                                            {
+                                                                result.Add("6.媽媽出院");
+                                                            }
+                                                            if (data[6] == '1')
+                                                            {
+                                                                result.Add("7.媽媽自退奶");
+                                                            }
+                                                            if (data[7] == '1')
+                                                            {
+                                                                result.Add("8.媽媽產後發燒");
+                                                            }
+                                                            if (data[8] == '1')
+                                                            {
+                                                                result.Add("9.媽媽待產發燒");
+                                                            }
+                                                            if (data[9] == '1')
+                                                            {
+                                                                result.Add("10.媽媽服用不宜餵母乳之藥物");
+                                                            }
+                                                            if (data[10] == '1')
+                                                            {
+                                                                result.Add("11.擔心新生兒被感染");
+                                                            }
+                                                            if (data[11] == '1')
+                                                            {
+                                                                result.Add("12.媽媽GBS(+)，抗生素未打滿4小時/未打抗生素");
+                                                            }
+                                                            if (data[12] == '1')
+                                                            {
+                                                                result.Add("13.媽媽/同住家人(小孩)感冒");
+                                                            }
+                                                            if (data[13] == '1')
+                                                            {
+                                                                result.Add("14.媽媽住9樓");
+                                                            }
+                                                            if (data[14] == '1')
+                                                            {
+                                                                result.Add("15.媽媽破水大於24小時");
+                                                            }
+                                                            if (data[15] == '1')
+                                                            {
+                                                                result.Add("16.媽媽PPH");
+                                                            }
+                                                            if (data[16] == '1')
+                                                            {
+                                                                result.Add("17.媽媽PIH");
+                                                            }
+                                                            if (data[17] == '1')
+                                                            {
+                                                                result.Add("18.多胞胎無法同時兼顧");
+                                                            }
+                                                            if (data[18] == '1')
+                                                            {
+                                                                result.Add("19.有其他小孩要顧");
+                                                            }
+                                                            if (data[19] == '1')
+                                                            {
+                                                                result.Add("20.請假(外出)");
+                                                            }
+                                                            if (data[20] == '1')
+                                                            {
+                                                                result.Add("21.訪客多");
+                                                            }
+                                                            if (data[21] == '1')
+                                                            {
+                                                                result.Add("22.拒絕");
+                                                            }
+                                                            if (data[22] == '1')
+                                                            {
+                                                                var d = "23.其他";
+                                                                if (r["END_RS_P_OTH"].ToString() != "")
+                                                                {
+                                                                    d += "-" + r["END_RS_P_OTH"].ToString();
+                                                                }
+                                                                result.Add(d);
+                                                            }
+                                                        }
+                                                        if (r["END_RS_NB"].ToString() != "" && r["END_RS_NB"].ToString().Length == 8)
+                                                        {
+                                                            var data = r["END_RS_NB"].ToString();
+                                                            if (data[0] == '1')
+                                                            {
+                                                                result.Add("24.新生兒體溫不穩");
+                                                            }
+                                                            if (data[1] == '1')
+                                                            {
+                                                                result.Add("25.新生兒洗澡");
+                                                            }
+                                                            if (data[2] == '1')
+                                                            {
+                                                                result.Add("26.新生兒檢查");
+                                                            }
+                                                            if (data[3] == '1')
+                                                            {
+                                                                result.Add("27.新生兒一直哭泣");
+                                                            }
+                                                            if (data[4] == '1')
+                                                            {
+                                                                var d = "28.新生兒自身問題";
+                                                                if (r["END_RS_NB_S"].ToString() != "")
+                                                                {
+                                                                    d += "-" + r["END_RS_NB_S"].ToString();
+                                                                }
+                                                                result.Add(d);
+                                                            }
+                                                            if (data[5] == '1')
+                                                            {
+                                                                result.Add("29.新生兒預計出院");
+                                                            }
+                                                            if (data[6] == '1')
+                                                            {
+                                                                var d = "30.入PICU";
+                                                                if (r["END_RS_NB_PICU"].ToString() != "")
+                                                                {
+                                                                    d += "-" + r["END_RS_NB_PICU"].ToString();
+                                                                }
+                                                                result.Add(d);
+                                                            }
+                                                            if (data[7] == '1')
+                                                            {
+                                                                var d = "31.入NBC";
+                                                                if (r["END_RS_NB_NBC"].ToString() != "")
+                                                                {
+                                                                    d += "-" + r["END_RS_NB_NBC"].ToString();
+                                                                }
+                                                                result.Add(d);
+                                                            }
+                                                        }
+                                                        if (r["END_RS_OTH"].ToString() != "" && r["END_RS_OTH"].ToString().Length == 5)
+                                                        {
+                                                            var data = r["END_RS_OTH"].ToString();
+                                                            if (data[0] == '1')
+                                                            {
+                                                                result.Add("32.病房太冷");
+                                                            }
+                                                            if (data[1] == '1')
+                                                            {
+                                                                result.Add("33.病房環境太吵");
+                                                            }
+                                                            if (data[2] == '1')
+                                                            {
+                                                                result.Add("34.病房打蠟");
+                                                            }
+                                                            if (data[3] == '1')
+                                                            {
+                                                                result.Add("35.其他家人干預");
+                                                            }
+                                                            if (data[4] == '1')
+                                                            {
+                                                                var d = "36.其他";
+                                                                if (r["OTH_RS"].ToString() != "")
+                                                                {
+                                                                    d += "-" + r["OTH_RS"].ToString();
+                                                                }
+                                                                result.Add(d);
+                                                            }
+                                                        }
+                                                        <td style="width:29%;text-align:left !important">@Html.Raw(String.Join("<br/>", result)) </td>
+                                                    }
+                                                    else
+                                                    {
+                                                        <td style="width:29%;"></td>
+                                                    }
+                                                    <td style="width:4%">@r["UPDNO_NAME"]</td>
+                                                </tr>
+                                            }
+                                        </table>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </form>
+            </div>
+        </div>
+        <!-- 皮膚接觸 -->
+        <div id="tabs-2" class="tab">
+            @{Html.RenderPartial("SkinTouch_List");}
+        </div>
+        <!-- 哺餵母乳轉介 -->
+        <div id="tabs-3" class="tab">
+            @{Html.RenderPartial("Feeding_Breast_Referral_List");}
+        </div>
+        <div id="unfilled" class="tabArea" style="display:none;overflow-y:auto;padding-left:5px;">
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    $.fn.getType = function () { return this[0].tagName == "INPUT" ? this[0].type.toLowerCase() : this[0].tagName.toLowerCase(); };
+    $(document).ready(function () {
+        //自動調整頁面高度   //分頁選項高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 400;
+            $("#unfilled").outerHeight(height - 150);
+            $(".tabArea").outerHeight(height - 60);
+            $(".tab").outerHeight($(".tabArea").outerHeight());
+        }).trigger("resize");
+
+        $(".tabArea").tabs({ active: 0 });
+
+        // inital tooltip
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+
+        var activePage = 0;
+        var tabCount = 0;
+        if ($(".tabArea").length > 0) {
+            $(".tab_control").click(function () {
+                activePage = $(".tabArea").tabs("option", "active");
+                tabCount = $(".tabArea").find("li").length - 1;
+                switch ($(this).attr("control_code")) {
+                    case "page_up":
+                        window.scrollTo(0, 0);
+                        if (activePage > 0)
+                            $(".tabArea").tabs("option", "active", activePage - 1);
+                        break;
+                    case "page_down":
+                        window.scrollTo(0, 0);
+                        if (activePage < tabCount)
+                            $(".tabArea").tabs("option", "active", activePage + 1);
+                        break;
+                }
+            }).prop("disabled", false);
+        }
+    });
+</script>

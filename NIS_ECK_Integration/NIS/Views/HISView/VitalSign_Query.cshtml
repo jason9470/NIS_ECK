@@ -1,0 +1,1594 @@
+﻿@using NIS.Controllers;
+@using System.Data;
+@using System.Text.RegularExpressions;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    int age = ViewBag.age;
+    string type = "a";
+    if (age < 19)
+    {
+        type = "y";
+    }
+
+    if (age < 12)
+    {
+        type = "c";
+    }
+
+    if (age < 5)
+    {
+        type = "t";
+        DateTime Birthday = ViewBag.Birthday;
+        int totalMonth = DateTime.Now.Year * 12 + DateTime.Now.Month - Birthday.Year * 12 - Birthday.Month;
+        if (totalMonth < 18)
+        {
+
+            type = "b";
+        }
+        if (totalMonth < 1)
+        {
+            type = "n";
+        }
+
+    }
+
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        //格行換色
+        setTimeout(function () { $(".dtl_VS").gridColor(); }, 800);
+
+        @if (Request["message"] != null)
+        {
+        @:showHint("@(Request["message"].ToString())");
+        }
+    });
+</script>
+
+@{
+    DateTime start = Convert.ToDateTime(ViewBag.start);
+    DateTime end = Convert.ToDateTime(ViewBag.end);
+    DataTable dt_check = ViewBag.dt_check;
+    string func = "window.location.href = 'VitalSign_Query?feeno=" + @ViewBag.feeno + "&starttime=' + $('#stDate').val() + ' ' + $('#stTime').val() + '&endtime=' + $('#edDate').val() + ' ' + $('#edTime').val()";
+}
+<div class="funcArea">
+    <table style="width:100%;">
+        <tr>
+            <td>
+                <fieldset>
+                    <legend>查詢區間</legend>
+                    @(Html.TextBox("stDate", start.ToString("yyyy/MM/dd")))
+                    @(Html.TextBox("stTime", start.ToString("HH:mm")))
+                    ~
+                    @(Html.TextBox("edDate", end.ToString("yyyy/MM/dd")))
+                    @(Html.TextBox("edTime", end.ToString("HH:mm")))
+                    @*@WebTool.setDateTime("stDate", "stTime")
+                    @WebTool.setDateTime("edDate", "edTime")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "stDate", "stTime", false)
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "edDate", "edTime", false)
+                    <input type="button" value="查詢" onclick="@func" />
+                    (紅色數值表過高，藍色數值表過低)
+                </fieldset>
+            </td>
+        </tr>
+    </table>
+</div>
+<div>
+    <table style="width: 100%;border-spacing:0px 0px;" cellspacing="0">
+        <tr>
+            <td style="vertical-align: top; width: 10%;margin-right:0px;">
+                <div class="dataHeader" id="dataHeader_" style="width: 100%;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="table-layout: fixed; white-space: nowrap; font-size: 14px; width: 100%; /*width: 2px; */" class="dtl_VS">
+                        <tr>
+
+                            <td style="width:100px; height: 35px; ">日期時間</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" id="dataArea_" @*onscroll="document.getElementById('dataHeader_').scrollLeft = this.scrollLeft;"*@ style="width:100%;overflow-y:hidden;overflow-x:scroll;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="table-layout: fixed; white-space: nowrap; width: 100%;" class="dtl_VS">
+                        @{
+                            if (ViewData["VSData"] != null)
+                            {
+                                List<VitalSignDataList> vsDataList = (List<VitalSignDataList>)ViewData["VSData"];
+                                for (int i = 0; i <= vsDataList.Count - 1; i++)
+                                {
+                                    List<VitalSignData> vsd = vsDataList[i].DataList;
+                                    <tr>
+
+                                        <td style="width: 100px; height: 40px;" align="center" title="@vsd[0].create_user ">
+                                            <!-- 維護時間 -->
+                                            @Convert.ToDateTime(vsd[0].modify_date).ToString("yyyy/MM/dd HH:mm")
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        }
+                    </table>
+                </div>
+            </td>
+            <td style="vertical-align: top; width: 90%;">
+                <div class="dataHeader" id="dataHeader" style="width: 850px;">
+                    <table id="table_dataHeader" border="0" cellpadding="4" cellspacing="1" style="table-layout: fixed; white-space: nowrap; font-size: 14px; width: 100%;" class="dtl_VS">
+                        @*width:2240px;*@
+                    <tr>
+                        <td style="width: 40px; height: 35px;">體溫</td>
+                        <td style="width: 40px;">心跳</td>
+                        <td style="width: 40px;">呼吸</td>
+                        <td style="width: 150px;">血壓(H/L)</td>
+                        <td style="width: 40px;">血氧</td>
+                        <td style="width: 250px;">排便</td>
+                        <td style="width: 110px;">飲食</td>
+                        <td style="width: 200px;">疼痛</td>
+                        <td style="width: 150px;">RASS鎮靜程度評估</td>
+                        <td style="width: 100px;">GCS</td>
+                        <td style="width: 200px;">瞳孔指標(左、右)</td>
+                        <td style="width: 200px;">肌力測量(左、右)</td>
+                        <td style="width: 80px;">身高</td>
+                        <td style="width: 80px;">體重</td>
+                        @* <td width="80">痰</td>
+                            <td width="80">水腫</td>*@
+                        <td style="width: 80px;">圍長</td>
+                        <td style="width: 80px;">
+                            中心靜脈壓<br />
+                            (mmHg)
+                        </td>
+                        <td style="width: 80px;">
+                            中心靜脈壓<br />
+                            (cmH2O)
+                        </td>
+                        <td style="width: 80px;">
+                            顱內壓<br />
+                            (mmHg)
+                        </td>
+                        <td style="width: 80px;">
+                            顱內壓<br />
+                            (cmH2O)
+                        </td>
+                        <td style="width: 80px;">CPP<br />(mmHg)</td>
+                        <td style="width: 130px;">ABP<br />(mmHg)</td>
+                        <td style="width: 130px;">PA<br />(mmHg)</td>
+                        <td style="width:80px;">PCWP<br />(mmHg)</td>
+                        <td style="width:80px;">ETCO2<br />(mmHg)</td>
+                        @*<td style="width:80px;">血流動力</td>*@
+                        <td style="width: 80px;" class="picco_co">血流動力<br /> CO</td>
+                        <td style="width: 80px;" class="picco_ci">血流動力<br /> CI</td>
+                        <td style="width: 80px;" class="picco_sv">血流動力<br /> SV</td>
+                        <td style="width: 80px;" class="picco_svi">血流動力<br /> SVI</td>
+                        <td style="width: 80px;" class="picco_svr">血流動力<br /> SVR</td>
+                        <td style="width: 80px;" class="picco_svri">血流動力<br /> SVRI</td>
+                        <td style="width: 80px;" class="picco_svv">血流動力<br />SVV</td>
+                        <td style="width: 80px;" class="picco_scvo2">血流動力<br />ScvO2 </td>
+                        <td style="width:80px;">保溫箱溫度</td>
+                        @*<td style="width:80px;">黃疸</td>*@
+                        <td style="width:80px;">總膽紅素</td>
+                        <td style="width:80px;">臍帶</td>
+                        @*<td style="width:80px;">尿液次數</td>*@
+                        <td style="width:80px;">尿液性質</td>
+                        <td style="width:80px;">保溫箱溫度</td>
+                        <td style="width:80px;">膚色</td>
+                        <td style="width:80px;">呼吸型態</td>
+                        <td style="width:80px;">呼吸品質</td>
+                        <td style="width:80px;">痰液</td>
+                        <td style="width:80px;">翻身</td>
+                        @*<td width="80">動脈血壓</td>
+                            <td width="80">肺動脈壓</td>
+                            <td width="80">腦灌流壓</td>
+                            <td width="120">足背動脈(左/右)</td>
+                            <td width="80">心輸出量</td>
+                            <td width="90">心輸出量指數</td>
+                            <td width="150">混合靜脈血氧飽合度</td>
+                            <td width="80">橈動脈(左)</td>
+                            <td width="80">橈動脈(右)</td>
+                            <td width="90">穿刺傷口滲血</td>
+                            <td width="90">穿刺傷口血腫</td>*@
+                    </tr>
+                </table>
+            </div>
+            <!-- 表頭隨著資料內容一起動 -->
+            <div class="dataArea" @*onscroll="document.getElementById('dataHeader').scrollLeft = this.scrollLeft;" *@ style="width:866px;overflow-x:scroll;" onscroll="document.getElementById('dataArea_').scrollTop = this.scrollTop;document.getElementById('dataHeader').scrollLeft = this.scrollLeft;">
+                <table id="table_dataArea" border="0" cellpadding="4" cellspacing="1" style="table-layout: fixed; white-space: nowrap; width: 100%" class="dtl_VS">
+                    @*width:2240px;1430px*@
+                @{
+                    if (ViewData["VSData"] != null)
+                    {
+                        List<VitalSignDataList> vsDataList = (List<VitalSignDataList>)ViewData["VSData"];
+                        for (int i = 0; i <= vsDataList.Count - 1; i++)
+                        {
+                            List<VitalSignData> vsd = vsDataList[i].DataList;
+                            <tr>
+                                <td style="width: 40px; height: 40px;" align="center">
+                                    <!-- 體溫 -->
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "bt", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "bt", VitalSignDataField.Record);
+                                            string color = "black";
+                                            string l_check = "btl_e", h_check = "bth_e", part = VitalSignData.getItem(vsd, "bt", VitalSignDataField.Part);
+                                            if (part == "腋溫")
+                                            {
+                                                l_check = "btl_a";
+                                                h_check = "bth_a";
+                                            }
+                                            else if (part == "肛溫")
+                                            {
+                                                l_check = "btl_r";
+                                                h_check = "bth_r";
+                                            }
+                                            else if (part == "額溫")
+                                            {
+                                                l_check = "btl_f";
+                                                h_check = "bth_f";
+                                            }
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                if (r["MODEL_ID"].ToString() == l_check || r["MODEL_ID"].ToString() == h_check)
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "red"; }
+                                                    }
+                                                    else if (r["DECIDE"].ToString() == "<")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "blue"; }
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "bt", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "bt", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "bt", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 40px;" align="center">
+                                    <!-- 心跳 -->
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "mp", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "mp", VitalSignDataField.Record);
+                                            string color = "black";
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                if (r["MODEL_ID"].ToString() == "mpl_" + type || r["MODEL_ID"].ToString() == "mph_" + type)
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "red"; }
+                                                    }
+                                                    else if (r["DECIDE"].ToString() == "<")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "blue"; }
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "mp", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "mp", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "mp", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 40px;" align="center">
+                                    <!-- 呼吸 -->
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "bf", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "bf", VitalSignDataField.Record);
+                                            string color = "black";
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                if (r["MODEL_ID"].ToString() == "bfl_" + type || r["MODEL_ID"].ToString() == "bfh_" + type)
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "red"; }
+                                                    }
+                                                    else if (r["DECIDE"].ToString() == "<")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "blue"; }
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "bf", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "bf", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "bf", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 150px;" align="center">
+                                    <!-- 血壓 -->
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "bp", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "bp", VitalSignDataField.Record);
+                                            string[] ck_value_list = ck_value.Split('|');
+                                            if (ck_value_list.Length > 1)
+                                            {
+                                                if (ck_value_list[0] != "")
+                                                {
+                                                    string color = "black";
+                                                    foreach (DataRow r in dt_check.Rows)
+                                                    {
+                                                        if (r["MODEL_ID"].ToString() == "bpls_" + type || r["MODEL_ID"].ToString() == "bphs_" + type)
+                                                        {
+                                                            if (r["DECIDE"].ToString() == ">")
+                                                            {
+                                                                if (double.Parse(ck_value_list[0].Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "red"; }
+                                                            }
+                                                            else if (r["DECIDE"].ToString() == "<")
+                                                            {
+                                                                if (double.Parse(ck_value_list[0].Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "blue"; }
+                                                            }
+                                                        }
+                                                    }
+                                                    @Html.Raw("<label style='color:" + color + ";'>" + ck_value_list[0] + "</label>")
+                                                }
+                                                @Html.Raw(" / ")
+                                                if (ck_value_list[1] != "")
+                                                {
+                                                    string color = "black";
+                                                    foreach (DataRow r in dt_check.Rows)
+                                                    {
+                                                        if (r["MODEL_ID"].ToString() == "bpld_" + type || r["MODEL_ID"].ToString() == "bphd_" + type)
+                                                        {
+                                                            if (r["DECIDE"].ToString() == ">")
+                                                            {
+                                                                if (double.Parse(ck_value_list[1].Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "red"; }
+                                                            }
+                                                            else if (r["DECIDE"].ToString() == "<")
+                                                            {
+                                                                if (double.Parse(ck_value_list[1].Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "blue"; }
+                                                            }
+                                                        }
+                                                    }
+                                                    @Html.Raw("<label style='color:" + color + ";'>" + ck_value_list[1] + "</label>")
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "bp", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "bp", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "bp", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 40px;" align="center">
+                                    <!-- SPO2 -->
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "sp", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "sp", VitalSignDataField.Record);
+                                            string color = "black";
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                if (r["MODEL_ID"].ToString() == "spl" || r["MODEL_ID"].ToString() == "sph")
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "red"; }
+                                                    }
+                                                    else if (r["DECIDE"].ToString() == "<")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "blue"; }
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "sp", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "sp", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "sp", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 250px;">
+                                    <!-- 排便 -->
+                                    @* @if (VitalSignData.getItem(vsd, "st", VitalSignDataField.Reason) != "無")
+                                        {
+                                            string temp = VitalSignData.getItem(vsd, "st", VitalSignDataField.Record);
+
+                                            @Html.Raw(temp.ToString().Substring(3));
+                                        }*@
+                                    @if (VitalSignData.getItem(vsd, "st", VitalSignDataField.Reason) != "無")
+                                    {
+                                        string temp = VitalSignData.getItem(vsd, "st", VitalSignDataField.Record);
+                                        @*@Html.Raw(VitalSignData.getItem(vsd, "st", VitalSignDataField.Record))*@
+                                        @Html.Raw(temp.ToString().Replace("99|", "/").Replace("|", " "));
+                                    }
+                                </td>
+                                <td style="width: 110px;">
+                                    <!-- 飲食 -->
+                                    @Html.Raw(VitalSignData.getItem(vsd, "eat", VitalSignDataField.Record).Replace("|", ""))
+                                    &nbsp;
+                                </td>
+                                <td style="width: 200px;">
+                                    <!-- 疼痛 -->
+                                    @{
+                                        if (VitalSignData.getItem(vsd, "ps", VitalSignDataField.Record).ToString().Trim() != "")
+                                        {
+                                            string[] ps = VitalSignData.getItem(vsd, "ps", VitalSignDataField.Record).ToString().Split('|');
+                                            int ps_value = 0;
+                                            string ck_up = string.Empty;
+                                            Regex rgx = new Regex(@"^([(]\d+[)])|^(\d+)");
+                                            for (int k = 0; k < ps.Length; k++)
+                                            {
+                                                if (ps[k] != "")
+                                                {
+                                                    ps_value += int.Parse(rgx.Match(ps[k]).ToString().Replace("(", "").Replace(")", ""));
+                                                    if (ps[k].IndexOf("#") != -1)
+                                                    {
+                                                        ck_up = "#";
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw(VitalSignData.getItem(vsd, "ps", VitalSignDataField.Part) + "  " + ck_up + ps_value.ToString() + "分")
+                                        }
+                                        if (VitalSignData.getItem(vsd, "ps", VitalSignDataField.Reason) != "無")
+                                        {
+                                            @Html.Raw(VitalSignData.getItem(vsd, "ps", VitalSignDataField.Reason))
+                                        }
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 150px;">
+                                    <!-- RASS -->
+                                    @{
+                                        if (VitalSignData.getItem(vsd, "ra", VitalSignDataField.Part).ToString().Trim() != "")
+                                        {
+                                            @Html.Raw(VitalSignData.getItem(vsd, "ra", VitalSignDataField.Part))
+                                        }
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 100px;">
+                                    <!-- GCS 150-->
+                                    @{
+                                        string[] record = VitalSignData.getItem(vsd, "gc", VitalSignDataField.Record).ToString().Split('|');
+                                        string content = "";
+                                        if (record.Length > 1)
+                                        {
+                                            if (record[0] != "")
+                                            { content += "E" + record[0].Substring(1, 1); }
+                                            if (record[1] != "")
+                                            { content += "V" + record[1].Substring(1, 1); }
+                                            if (record[2] != "")
+                                            { content += "M" + record[2].Substring(1, 1); }
+                                        }
+                                    }
+                                    @Html.Raw(content)
+                                    @if (VitalSignData.getItem(vsd, "gc", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "gc", VitalSignDataField.Reason))
+                                    }
+                                </td>
+                                <td style="width: 200px;">
+                                    <!-- 睜眼反射 -->
+                                    @{
+                                        string[] pupils = VitalSignData.getItem(vsd, "pupils", VitalSignDataField.Record).ToString().Split('|');
+                                        string pupils_content = "";
+                                        if (pupils.Length > 1)
+                                        {
+                                            pupils_content = pupils[1] + pupils[0] + " / " + pupils[3] + pupils[2];
+                                        }
+                                        @Html.Raw(pupils_content);
+                                        if (VitalSignData.getItem(vsd, "pupils", VitalSignDataField.Reason) != "無")
+                                        {
+                                            @Html.Raw(VitalSignData.getItem(vsd, "pupils", VitalSignDataField.Reason))
+                                        }
+                                    }
+                                </td>
+                                <td style="width: 200px;">
+                                    <!-- 肌力測量 -->
+                                    @{
+                                        string[] ms = VitalSignData.getItem(vsd, "msPower", VitalSignDataField.Record).ToString().Split('|');
+                                        if (ms.Length > 1)
+                                        {
+                                            string content_ms = "";
+                                            if (ms[0] != "" || ms[1] != "")
+                                            {
+                                                content_ms += "上肢：" + ms[0] + "，" + ms[1];
+                                            }
+                                            else
+                                            {
+                                                content_ms += "無";
+                                            }
+                                            if (ms[2] != "" || ms[3] != "")
+                                            {
+                                                content_ms += " / 下肢：" + ms[2] + "，" + ms[3];
+                                            }
+                                            else
+                                            {
+                                                content_ms += " / 無";
+                                            }
+                                            @Html.Raw(content_ms)
+                                        }
+                                        if (VitalSignData.getItem(vsd, "ms", VitalSignDataField.Reason) != "無")
+                                        {
+                                            @Html.Raw(VitalSignData.getItem(vsd, "ms", VitalSignDataField.Reason))
+                                        }
+                                    }
+                                </td>
+                                <td style="width: 80px;">
+                                    <!-- 身高 -->
+                                    @Html.Raw(VitalSignData.getItem(vsd, "bh", VitalSignDataField.Record))
+                                    @if (VitalSignData.getItem(vsd, "bh", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "bh", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 80px;">
+                                    <!-- 體重 -->
+                                    @Html.Raw(VitalSignData.getItem(vsd, "bw", VitalSignDataField.Record).Replace("|", "").Replace("請選擇", ""))
+                                    @if (VitalSignData.getItem(vsd, "bw", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "bw", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                @*<td width="80">
+                                        <!-- 痰 -->
+                                        @Html.Raw(VitalSignData.getItem(vsd, "su", VitalSignDataField.Record).Replace("|", " / "))
+                                        @if (VitalSignData.getItem(vsd, "su", VitalSignDataField.Reason) != "無")
+                                        {
+                                            @Html.Raw(VitalSignData.getItem(vsd, "su", VitalSignDataField.Reason))
+                                        }
+                                        &nbsp;
+                                    </td>
+                                    <td width="80">
+                                        <!-- 水腫 -->
+                                        @Html.Raw(VitalSignData.getItem(vsd, "ed", VitalSignDataField.Record))
+                                        @if (VitalSignData.getItem(vsd, "ed", VitalSignDataField.Reason) != "無")
+                                        {
+                                            @Html.Raw(VitalSignData.getItem(vsd, "ed", VitalSignDataField.Reason))
+                                        }
+                                        &nbsp;
+                                    </td>*@
+                                <td style="width: 80px;">
+                                    <!-- 圍長 -->
+                                    @{
+                                        string value = "";
+                                        value += VitalSignData.getItem(vsd, "gtwl", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gthr", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtbu", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtbl", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gthl", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtlf", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtrf", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtlua", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtrua", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtlt", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtrt", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtll", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtrl", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtla", VitalSignDataField.Record) + ",";
+                                        value += VitalSignData.getItem(vsd, "gtra", VitalSignDataField.Record);
+                                        if (value.Replace(",", "") != "")
+                                        {
+                                            value = value.Replace("#", "|");
+                                            <input type="button" value="詳細資料" onclick="@Java_funcion.pup_window("../VitalSign/VitalSign_group?group=GW&value_list=" + value, 450, 450, "")" />
+                                        }
+                                    }
+                                </td>
+                                <td style="width: 80px;">
+                                    <!-- 中心靜脈壓(mmHg) -->
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "cv1", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "cv1", VitalSignDataField.Record);
+                                            string color = "black";
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                if (r["MODEL_ID"].ToString() == "cv1_h" || r["MODEL_ID"].ToString() == "cv1_l")
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|mmHg", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "red"; }
+                                                    }
+                                                    else if (r["DECIDE"].ToString() == "<")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|mmHg", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "blue"; }
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value.Replace("|mmHg", "") + "</label>")
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "cv1", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "cv1", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "cv1", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 80px;">
+                                    <!-- 中心靜脈壓(cmH2O) -->
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "cv2", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "cv2", VitalSignDataField.Record);
+                                            string color = "black";
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                if (r["MODEL_ID"].ToString() == "cv2_h" || r["MODEL_ID"].ToString() == "cv2_l")
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|cmH2O", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "red"; }
+                                                    }
+                                                    else if (r["DECIDE"].ToString() == "<")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|cmH2O", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "blue"; }
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value.Replace("|cmH2O", "") + "</label>")
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "cv2", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "cv2", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "cv2", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 80px;">
+                                    <!-- 顱內壓(mmHg) -->
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "ic1", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "ic1", VitalSignDataField.Record);
+                                            string color = "black";
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                if (r["MODEL_ID"].ToString() == "ic1_l")
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|mmHg", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "red"; }
+                                                    }
+                                                    else if (r["DECIDE"].ToString() == "<")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|mmHg", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "blue"; }
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value.Replace("|mmHg", "") + "</label>")
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "ic1", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "ic1", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "ic1", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <td style="width: 80px;">
+                                    <!-- 顱內壓(cmH2O) -->
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "ic2", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "ic2", VitalSignDataField.Record);
+                                            string color = "black";
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                if (r["MODEL_ID"].ToString() == "ic2_l")
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|cmH2O", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "red"; }
+                                                    }
+                                                    else if (r["DECIDE"].ToString() == "<")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|cmH2O", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        { color = "blue"; }
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value.Replace("|cmH2O", "") + "</label>")
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "ic2", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "ic2", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "ic2", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <!--CPP-->
+                                <td style="width: 80px;">
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "cpp", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "cpp", VitalSignDataField.Record);
+                                            string color = "black";
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                //判斷模組欄位是否上下限 上限過高顯示紅色 下限過低顯示藍色
+                                                if (r["MODEL_ID"].ToString() == "cpp")
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|mmHg", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        {
+                                                            color = "red";
+                                                        }
+                                                    }
+                                                    else if (r["DECIDE"].ToString() == "<")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|mmHg", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        {
+                                                            {
+                                                                color = "blue";
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value.Replace("|mmHg", "") + "</label>")
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+
+                                        @:@VitalSignData.getItem(vsd, "cpp", VitalSignDataField.Record)
+                                            }
+                                    @if (VitalSignData.getItem(vsd, "cpp", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "cpp", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+                                <!--ABP-->
+                                <td style="width: 130px;">
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "abp", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "abp", VitalSignDataField.Record);
+                                            string[] ck_value_list = ck_value.Split('|');
+                                            if (ck_value_list.Length > 1)
+                                            {
+                                                if (ck_value_list[0] != "")
+                                                {
+                                                    string color = "black";
+                                                    foreach (DataRow r in dt_check.Rows)//Systolic收縮壓
+                                                    {
+                                                        if (r["MODEL_ID"].ToString() == "abphs_" + type || r["MODEL_ID"].ToString() == "abpls_" + type)
+                                                        {
+                                                            if (r["DECIDE"].ToString() == ">")
+                                                            {
+                                                                if (double.Parse(ck_value_list[0].Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "red"; }
+                                                            }
+                                                            else if (r["DECIDE"].ToString() == "<")
+                                                            {
+                                                                if (double.Parse(ck_value_list[0].Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "blue"; }
+                                                            }
+                                                        }
+                                                    }
+                                                    @Html.Raw("<label style='color:" + color + ";'>" + ck_value_list[0] + "</label>")
+                                                }
+                                                //Diastolic舒張壓
+                                                if (!(string.IsNullOrEmpty(ck_value_list[0]) && string.IsNullOrEmpty(ck_value_list[1])))
+                                                {
+                                                    @Html.Raw(" / ")
+                                                }
+                                                if (ck_value_list[1] != "")
+                                                {
+                                                    string color = "black";
+                                                    foreach (DataRow r in dt_check.Rows)
+                                                    {
+                                                        if (r["MODEL_ID"].ToString() == "abphd_" + type || r["MODEL_ID"].ToString() == "abpld_" + type)
+                                                        {
+                                                            if (r["DECIDE"].ToString() == ">")
+                                                            {
+                                                                if (double.Parse(ck_value_list[1].Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "red"; }
+                                                            }
+                                                            else if (r["DECIDE"].ToString() == "<")
+                                                            {
+                                                                if (double.Parse(ck_value_list[1].Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "blue"; }
+                                                            }
+                                                        }
+                                                    }
+                                                    @Html.Raw("<label style='color:" + color + ";'>" + ck_value_list[1] + "</label>")
+                                                }
+
+                                                @Html.Raw("   ")
+                                                //平均值
+                                                if (ck_value_list[0] != "" && ck_value_list[1] != "")
+                                                {
+                                                    double abpm = double.Parse(ck_value_list[0].Replace("#", "")) / 3 + double.Parse(ck_value_list[1].Replace("#", "")) / 3 * 2;
+                                                    @Html.Raw("<label>" + "(" + Math.Round(abpm, 2) + ")" + "</label>")
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "abp", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "abp", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "abp", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+
+                                    @*@try
+                                        {
+                                            if (VitalSignData.getItem(vsd, "abp", VitalSignDataField.Record) != "")
+                                            {
+                                                string ck_value = VitalSignData.getItem(vsd, "abp", VitalSignDataField.Record);
+                                                string color = "black";
+                                                foreach (DataRow r in dt_check.Rows)
+                                                {
+                                                    if (r["MODEL_ID"].ToString() == "abp")
+                                                    {
+                                                        if (r["DECIDE"].ToString() == ">")
+                                                        {
+                                                            if (double.Parse(ck_value.Replace("|mmHg", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                            {
+                                                                color = "red";
+                                                            }
+                                                        }
+                                                        else if (r["DECIDE"].ToString() == "<")
+                                                        {
+                                                            if (double.Parse(ck_value.Replace("|mmHg", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                            {
+                                                                color = "blue";
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                @Html.Raw("<label style='color:" + color + ";'>" + ck_value.Replace("|mmHg", "") + "</label>")
+                                            }
+                                        }
+                                        catch (Exception)
+                                        {
+
+                                            @:@VitalSignData.getItem(vsd, "abp", VitalSignDataField.Record)
+                                        }
+                                        @if (VitalSignData.getItem(vsd, "abp", VitalSignDataField.Reason) != "無")
+                                        {
+                                            @Html.Raw(VitalSignData.getItem(vsd, "abp", VitalSignDataField.Reason))
+                                        }*@
+                                    &nbsp;
+                                </td>
+
+                                <!--PA-->
+                                <td style="width:130px;">
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "pa", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "pa", VitalSignDataField.Record);
+                                            string[] ck_value_list = ck_value.Split('|');
+                                            if (ck_value_list.Length > 1)
+                                            {
+                                                if (ck_value_list[0] != "")
+                                                {
+                                                    string color = "black";
+                                                    foreach (DataRow r in dt_check.Rows)
+                                                    {
+                                                        if (r["MODEL_ID"].ToString() == "pah_s" || r["MODEL_ID"].ToString() == "pal_s")
+                                                        {
+                                                            if (r["DECIDE"].ToString() == ">")
+                                                            {
+                                                                if (double.Parse(ck_value_list[0].Replace("|mmHg", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "red"; }
+                                                            }
+                                                            else if (r["DECIDE"].ToString() == "<")
+                                                            {
+                                                                if (double.Parse(ck_value_list[0].Replace("mmHg", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "blue"; }
+                                                            }
+                                                        }
+                                                    }
+                                                    @Html.Raw("<label style='color:" + color + ";'>" + ck_value_list[0] + "</label>")
+                                                }
+                                                //舒張壓
+                                                if (!(string.IsNullOrEmpty(ck_value_list[0]) && string.IsNullOrEmpty(ck_value_list[1])))
+                                                {
+                                                    @Html.Raw(" / ")
+                                                }
+                                                if (ck_value_list[1] != "")
+                                                {
+                                                    string color = "black";
+                                                    foreach (DataRow r in dt_check.Rows)
+                                                    {
+                                                        if (r["MODEL_ID"].ToString() == "pal_d" || r["MODEL_ID"].ToString() == "pah_d")
+                                                        {
+                                                            if (r["DECIDE"].ToString() == ">")
+                                                            {
+                                                                if (double.Parse(ck_value_list[1].Replace("|mmHg", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "red"; }
+                                                            }
+                                                            else if (r["DECIDE"].ToString() == "<")
+                                                            {
+                                                                if (double.Parse(ck_value_list[1].Replace("|mmHg", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                { color = "blue"; }
+                                                            }
+                                                        }
+                                                    }
+                                                    @Html.Raw("<label style='color:" + color + ";'>" + ck_value_list[1] + "</label>")
+                                                }
+                                                @Html.Raw("   ")
+                                                //平均值
+                                                if (ck_value_list[0] != "" && ck_value_list[1] != "")
+                                                {
+                                                    double pam = double.Parse(ck_value_list[0].Replace("#", "")) / 3 + double.Parse(ck_value_list[1].Replace("#", "")) / 3 * 2;
+                                                    @Html.Raw("<label>" + "(" + Math.Round(pam, 2) + ")" + "</label>")
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "pa", VitalSignDataField.Record)
+                                                        }
+                                    @if (VitalSignData.getItem(vsd, "pa", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "pa", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+
+
+
+                                    @*@try
+                                        {
+                                            if (VitalSignData.getItem(vsd, "pa", VitalSignDataField.Record) != "")
+                                            {
+                                                string ck_value = VitalSignData.getItem(vsd, "pa", VitalSignDataField.Record);
+                                                string color = "black";
+                                                foreach (DataRow r in dt_check.Rows)
+                                                {
+                                                    if (r["MODEL_ID"].ToString() == "pah_s" || r["MODEL_ID"].ToString() == "pal_s")
+                                                    {
+                                                        if (r["DECIDE"].ToString() == ">")
+                                                        {
+                                                            if (double.Parse(ck_value.Replace("|mmHg", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                            {
+                                                                color = "red";
+                                                            }
+                                                        }
+                                                    }
+                                                    else if (r["DECIDE"].ToString() == "<")
+                                                    {*@
+                                    @*if (double.Parse(ck_value.Replace("|mmHg", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        {
+                                                            color = "blue";
+                                                        }
+                                                    }
+                                                }
+                                                @Html.Raw("<label style='color:" + color + ";'>" + ck_value.Replace("|mmHg", "") + "</label>")
+                                            }
+                                        }
+                                        catch (Exception)
+                                        {
+                                            @:@VitalSignData.getItem(vsd, "pa", VitalSignDataField.Record)
+                                        }
+                                        @if (VitalSignData.getItem(vsd, "pa", VitalSignDataField.Reason) != "無")
+                                        {
+                                            @Html.Raw(VitalSignData.getItem(vsd, "pa", VitalSignDataField.Reason))
+                                        }
+                                        &nbsp;*@
+                                </td>
+
+                                <!--PCWP-->
+                                <td style="width:80px;">
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "pcwp", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "pcwp", VitalSignDataField.Record);
+                                            string color = "black";
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                if (r["MODEL_ID"].ToString() == "pcwph" || r["MODEL_ID"].ToString() == "pcwpl")
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|mmHg", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        {
+                                                            color = "red";
+                                                        }
+                                                    }
+                                                }
+                                                else if (r["DECIDE"].ToString() == "<")
+                                                {
+                                                    if (double.Parse(ck_value.Replace("|mmHg", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                    {
+                                                        color = "blue";
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value.Replace("|mmHg", "") + "</label>")
+                                        }
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "pcwp", VitalSignDataField.Record)
+                                            }
+                                    @if (VitalSignData.getItem(vsd, "pcwp", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "pcwp", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+
+                                <!--ETCO2-->
+                                <td style="width:80px;">
+                                    @try
+                                    {
+                                        if (VitalSignData.getItem(vsd, "etco", VitalSignDataField.Record) != "")
+                                        {
+                                            string ck_value = VitalSignData.getItem(vsd, "etco", VitalSignDataField.Record);
+                                            string color = "black";
+                                            foreach (DataRow r in dt_check.Rows)
+                                            {
+                                                if (r["MODEL_ID"].ToString() == "etcoh" || r["MODEL_ID"].ToString() == "etcol")
+                                                {
+                                                    if (r["DECIDE"].ToString() == ">")
+                                                    {
+                                                        if (double.Parse(ck_value.Replace("|mmHg", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                        {
+                                                            color = "red";
+                                                        }
+                                                    }
+                                                }
+                                                else if (r["DECIDE"].ToString() == "<")
+                                                {
+                                                    if (double.Parse(ck_value.Replace("|mmHg", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                    {
+                                                        color = "blue";
+                                                    }
+                                                }
+                                            }
+                                            @Html.Raw("<label style='color:" + color + ";'>" + ck_value.Replace("|mmHg", "") + "</label>")
+                                        }
+
+                                    }
+                                    catch (Exception)
+                                    {
+                                        @:@VitalSignData.getItem(vsd, "etco", VitalSignDataField.Record)
+                                            }
+                                    @if (VitalSignData.getItem(vsd, "etco", VitalSignDataField.Reason) != "無")
+                                    {
+                                        @Html.Raw(VitalSignData.getItem(vsd, "etco", VitalSignDataField.Reason))
+                                    }
+                                    &nbsp;
+                                </td>
+
+                                <!-- 血流動力 PICCO -->
+                                 @*<td style="width: 80px;" class="picco">
+                                    @{
+                                        string picco_value = "";
+                                        picco_value += VitalSignData.getItem(vsd, "picco_co", VitalSignDataField.Record) + ",";
+                                        picco_value += VitalSignData.getItem(vsd, "picco_ci", VitalSignDataField.Record) + ",";
+                                        picco_value += VitalSignData.getItem(vsd, "picco_sv", VitalSignDataField.Record) + ",";
+                                        picco_value += VitalSignData.getItem(vsd, "picco_svi", VitalSignDataField.Record) + ",";
+                                        picco_value += VitalSignData.getItem(vsd, "picco_svr", VitalSignDataField.Record) + ",";
+                                        picco_value += VitalSignData.getItem(vsd, "picco_svri", VitalSignDataField.Record) + ",";
+                                        picco_value += VitalSignData.getItem(vsd, "picco_svv", VitalSignDataField.Record) + ",";
+                                        picco_value += VitalSignData.getItem(vsd, "picco_scvo2", VitalSignDataField.Record);
+                                        if (picco_value.Replace(",", "") != "")
+                                        {
+                                            picco_value = picco_value.Replace("#", "|");
+                                            <input type="button" value="詳細資料" onclick="@Java_funcion.pup_window("../VitalSign/VitalSign_group?group=picco&value_list=" + picco_value, 450, 450, "")" />
+                                        }
+                                    }
+                                </td>*@
+                                <td style="width: 80px;" class="picco">
+                                    @Html.Raw("<label style='color:" + VitalSignData.getItem(vsd, "picco_co", VitalSignDataField.color) + ";'>" + VitalSignData.getItem(vsd, "picco_co", VitalSignDataField.Record) + "</label>")
+                                </td>
+                                <td style="width: 80px;" class="picco">
+                                    @Html.Raw("<label style='color:" + VitalSignData.getItem(vsd, "picco_ci", VitalSignDataField.color) + ";'>" + VitalSignData.getItem(vsd, "picco_ci", VitalSignDataField.Record) + "</label>")
+                                </td>
+                                <td style="width: 80px;" class="picco">
+                                    @Html.Raw("<label style='color:" + VitalSignData.getItem(vsd, "picco_sv", VitalSignDataField.color) + ";'>" + VitalSignData.getItem(vsd, "picco_sv", VitalSignDataField.Record) + "</label>")
+                                </td>
+                                <td style="width: 80px;" class="picco">
+                                    @Html.Raw("<label style='color:" + VitalSignData.getItem(vsd, "picco_svi", VitalSignDataField.color) + ";'>" + VitalSignData.getItem(vsd, "picco_svi", VitalSignDataField.Record) + "</label>")
+                                </td>
+                                <td style="width: 80px;" class="picco">
+                                    @Html.Raw("<label style='color:" + VitalSignData.getItem(vsd, "picco_svr", VitalSignDataField.color) + ";'>" + VitalSignData.getItem(vsd, "picco_svr", VitalSignDataField.Record) + "</label>")
+                                </td>
+                                <td style="width: 80px;" class="picco">
+                                    @Html.Raw("<label style='color:" + VitalSignData.getItem(vsd, "picco_svri", VitalSignDataField.color) + ";'>" + VitalSignData.getItem(vsd, "picco_svri", VitalSignDataField.Record) + "</label>")
+                                </td>
+                                <td style="width: 80px;" class="picco">
+                                    @Html.Raw("<label style='color:" + VitalSignData.getItem(vsd, "picco_svv", VitalSignDataField.color) + ";'>" + VitalSignData.getItem(vsd, "picco_svv", VitalSignDataField.Record) + "</label>")
+                                </td>
+                                <td style="width: 80px;" class="picco">
+                                    @Html.Raw("<label style='color:" + VitalSignData.getItem(vsd, "picco_scvo2", VitalSignDataField.color) + ";'>" + VitalSignData.getItem(vsd, "picco_scvo2", VitalSignDataField.Record) + "</label>")
+                                </td>
+
+
+                                <!--保溫箱溫度-->
+                                <td style="width:80px;">
+                                    @Html.Raw(VitalSignData.getItem(vsd, "gi", VitalSignDataField.Record).Replace("|", ""))
+                                    &nbsp;
+                                </td>
+                                <!--黃疸-->
+                                <td style="width:80px;">
+                                    @Html.Raw(VitalSignData.getItem(vsd, "gi_j", VitalSignDataField.Record).Replace("|", ""))
+                                    @*@{
+                                            if (VitalSignData.getItem(vsd, "gi_j", VitalSignDataField.Part).ToString().Trim() != "")
+                                            {
+                                                @Html.Raw(VitalSignData.getItem(vsd, "gi_j", VitalSignDataField.Part))
+                                            }
+                                            if (VitalSignData.getItem(vsd, "gi_j", VitalSignDataField.Reason) != "無")
+                                            {
+                                                @Html.Raw(VitalSignData.getItem(vsd,"gi_j",VitalSignDataField.Reason))
+                                            }
+                                        }*@
+                                </td>
+                                <!--臍帶-->
+                                <td style="width:80px;">
+                                    @Html.Raw(VitalSignData.getItem(vsd, "gi_c", VitalSignDataField.Record).Replace("|", ""))
+                                    &nbsp;
+                                </td>
+                                <!--尿液次數-->
+                                @*<td style="width:80px;">
+                                        @Html.Raw(VitalSignData.getItem(vsd, "gi_t", VitalSignDataField.Record).Replace("|", ""))
+                                        &nbsp;
+                                    </td>*@
+                                <!--尿液性質-->
+                                <td style="width:80px;">
+                                    @Html.Raw(VitalSignData.getItem(vsd, "gi_u", VitalSignDataField.Record).Replace("|", "次/"))
+                                    &nbsp;
+                                </td>
+                                <!--重症嬰兒:保溫箱溫度-->
+                                <td style="width:80px;">
+                                    @Html.Raw(VitalSignData.getItem(vsd, "si", VitalSignDataField.Record).Replace("|", ""))
+                                    &nbsp;
+                                </td>
+                                <!--膚色-->
+                                <td style="width:80px;">
+                                    @Html.Raw(VitalSignData.getItem(vsd, "si_n", VitalSignDataField.Record).Replace("|", ""))
+                                    &nbsp;
+                                </td>
+                                <!--呼吸型態-->
+                                <td style="width:80px;">
+                                    @Html.Raw(VitalSignData.getItem(vsd, "si_b", VitalSignDataField.Record).Replace("|", ""))
+                                    &nbsp;
+                                </td>
+                                <!--呼吸品質-->
+                                <td style="width:80px;">
+                                    @Html.Raw(VitalSignData.getItem(vsd, "si_r", VitalSignDataField.Record).Replace("|", ""))
+                                    &nbsp;
+                                </td>
+                                <!--痰液-->
+                                <td style="width:80px;">
+                                    @Html.Raw(VitalSignData.getItem(vsd, "si_s", VitalSignDataField.Record).Replace("|", "/"))
+                                    &nbsp;
+                                </td>
+                                <!--翻身-->
+                                <td style="width:80px;">
+                                    @Html.Raw(VitalSignData.getItem(vsd, "si_o", VitalSignDataField.Record).Replace("|", ""))
+                                    &nbsp;
+                                </td>
+                                @*  <td width="80">
+                                         <!-- 動脈血壓 -->
+                                         @try
+                                         {
+                                             if (VitalSignData.getItem(vsd, "ab", VitalSignDataField.Record) != "")
+                                             {
+                                                 string ck_value = VitalSignData.getItem(vsd, "ab", VitalSignDataField.Record);
+                                                 string[] ck_value_list = ck_value.Split('|');
+                                                 if (ck_value_list.Length > 1)
+                                                 {
+                                                     if (ck_value_list[0] != "")
+                                                     {
+                                                         string color = "black";
+                                                         foreach (DataRow r in dt_check.Rows)
+                                                         {
+                                                             if (r["MODEL_ID"].ToString() == "abls" || r["MODEL_ID"].ToString() == "abhs")
+                                                             {
+                                                                 if (r["DECIDE"].ToString() == ">")
+                                                                 {
+                                                                     if (double.Parse(ck_value_list[0].Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                     { color = "red"; }
+                                                                 }
+                                                                 else if (r["DECIDE"].ToString() == "<")
+                                                                 {
+                                                                     if (double.Parse(ck_value_list[0].Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                     { color = "blue"; }
+                                                                 }
+                                                             }
+                                                         }
+                                                         @Html.Raw("<label style='color:" + color + ";'>" + ck_value_list[0] + "</label>")
+                                                     }
+                                                     @Html.Raw(" / ")
+                                                     if (ck_value_list[1] != "")
+                                                     {
+                                                         string color = "black";
+                                                         foreach (DataRow r in dt_check.Rows)
+                                                         {
+                                                             if (r["MODEL_ID"].ToString() == "abld" || r["MODEL_ID"].ToString() == "abhd" )
+                                                             {
+                                                                 if (r["DECIDE"].ToString() == ">")
+                                                                 {
+                                                                     if (double.Parse(ck_value_list[1].Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                     { color = "red"; }
+                                                                 }
+                                                                 else if (r["DECIDE"].ToString() == "<")
+                                                                 {
+                                                                     if (double.Parse(ck_value_list[1].Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                     { color = "blue"; }
+                                                                 }
+                                                             }
+                                                         }
+                                                         @Html.Raw("<label style='color:" + color + ";'>" + ck_value_list[1] + "</label>")
+                                                     }
+                                                 }
+                                             }
+                                         }
+                                         catch (Exception)
+                                         {
+                                             @:@VitalSignData.getItem(vsd, "ab", VitalSignDataField.Record)
+                                         }
+                                         @if (VitalSignData.getItem(vsd, "ab", VitalSignDataField.Reason) != "無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "ab", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>
+                                    <td width="80">
+                                         <!-- 肺動脈壓 -->
+                                         @try
+                                         {
+                                             if (VitalSignData.getItem(vsd, "pa", VitalSignDataField.Record) != "")
+                                             {
+                                                 string ck_value = VitalSignData.getItem(vsd, "pa", VitalSignDataField.Record);
+                                                 string[] ck_value_list = ck_value.Split('|');
+                                                 if (ck_value_list.Length > 1)
+                                                 {
+                                                     if (ck_value_list[0] != "")
+                                                     {
+                                                         string color = "black";
+                                                         foreach (DataRow r in dt_check.Rows)
+                                                         {
+                                                             if (r["MODEL_ID"].ToString() == "pals" || r["MODEL_ID"].ToString() == "pahs")
+                                                             {
+                                                                 if (r["DECIDE"].ToString() == ">")
+                                                                 {
+                                                                     if (double.Parse(ck_value_list[0].Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                     { color = "red"; }
+                                                                 }
+                                                                 else if (r["DECIDE"].ToString() == "<")
+                                                                 {
+                                                                     if (double.Parse(ck_value_list[0].Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                     { color = "blue"; }
+                                                                 }
+                                                             }
+                                                         }
+                                                         @Html.Raw("<label style='color:" + color + ";'>" + ck_value_list[0] + "</label>")
+                                                     }
+                                                     @Html.Raw(" / ")
+                                                     if (ck_value_list[1] != "")
+                                                     {
+                                                         string color = "black";
+                                                         foreach (DataRow r in dt_check.Rows)
+                                                         {
+                                                             if (r["MODEL_ID"].ToString() == "pald" || r["MODEL_ID"].ToString() == "pahd")
+                                                             {
+                                                                 if (r["DECIDE"].ToString() == ">")
+                                                                 {
+                                                                     if (double.Parse(ck_value_list[1].Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                     { color = "red"; }
+                                                                 }
+                                                                 else if (r["DECIDE"].ToString() == "<")
+                                                                 {
+                                                                     if (double.Parse(ck_value_list[1].Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                     { color = "blue"; }
+                                                                 }
+                                                             }
+                                                         }
+                                                         @Html.Raw("<label style='color:" + color + ";'>" + ck_value_list[1] + "</label>")
+                                                     }
+                                                 }
+                                             }
+                                         }
+                                         catch (Exception)
+                                         {
+                                             @:@VitalSignData.getItem(vsd, "pa", VitalSignDataField.Record)
+                                         }
+                                         @if (VitalSignData.getItem(vsd, "pa", VitalSignDataField.Reason) != "無" && VitalSignData.getItem(vsd, "pa", VitalSignDataField.Reason) != "無,無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "pa", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>
+                                     <td width="80">
+                                         <!-- 腦灌流壓 -->
+                                         @try
+                                         {
+                                             if (VitalSignData.getItem(vsd, "cp", VitalSignDataField.Record) != "")
+                                             {
+                                                 string ck_value = VitalSignData.getItem(vsd, "cp", VitalSignDataField.Record);
+                                                 string color = "black";
+                                                 foreach (DataRow r in dt_check.Rows)
+                                                 {
+                                                     if (r["MODEL_ID"].ToString() == "cpl")
+                                                     {
+                                                         if (r["DECIDE"].ToString() == ">")
+                                                         {
+                                                             if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                             { color = "red"; }
+                                                         }
+                                                         else if (r["DECIDE"].ToString() == "<")
+                                                         {
+                                                             if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                             { color = "blue"; }
+                                                         }
+                                                     }
+                                                 }
+                                                 @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                             }
+                                         }
+                                         catch (Exception)
+                                         {
+                                             @:@VitalSignData.getItem(vsd, "cp", VitalSignDataField.Record)
+                                         }
+                                         @if (VitalSignData.getItem(vsd, "cp", VitalSignDataField.Reason) != "無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "cp", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>
+                                     <td width="120">
+                                         <!-- 足背動脈 -->
+                                         @Html.Raw(VitalSignData.getItem(vsd, "fb", VitalSignDataField.Record).Replace("|", " / "))
+                                         @if (VitalSignData.getItem(vsd, "fb", VitalSignDataField.Reason) != "無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "fb", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>
+                                     <td width="80">
+                                         <!-- 心輸出量 -->
+                                         @try
+                                         {
+                                             if (VitalSignData.getItem(vsd, "co", VitalSignDataField.Record) != "")
+                                             {
+                                                 string ck_value = VitalSignData.getItem(vsd, "co", VitalSignDataField.Record);
+                                                 string color = "black";
+                                                 foreach (DataRow r in dt_check.Rows)
+                                                 {
+                                                     if (r["MODEL_ID"].ToString() == "col" || r["MODEL_ID"].ToString() == "coh")
+                                                     {
+                                                         if (r["DECIDE"].ToString() == ">")
+                                                         {
+                                                             if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                             { color = "red"; }
+                                                         }
+                                                         else if (r["DECIDE"].ToString() == "<")
+                                                         {
+                                                             if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                             { color = "blue"; }
+                                                         }
+                                                     }
+                                                 }
+                                                 @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                             }
+                                         }
+                                         catch (Exception)
+                                         {
+                                             @:@VitalSignData.getItem(vsd, "co", VitalSignDataField.Record)
+                                         }
+                                         @if (VitalSignData.getItem(vsd, "co", VitalSignDataField.Reason) != "無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "co", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>
+                                     <td width="90">
+                                         <!-- 心輸出量指數 -->
+                                         @try
+                                         {
+                                             if (VitalSignData.getItem(vsd, "ci", VitalSignDataField.Record) != "")
+                                             {
+                                                 string ck_value = VitalSignData.getItem(vsd, "ci", VitalSignDataField.Record);
+                                                 string color = "black";
+                                                 foreach (DataRow r in dt_check.Rows)
+                                                 {
+                                                     if (r["MODEL_ID"].ToString() == "cil" || r["MODEL_ID"].ToString() == "cih")
+                                                     {
+                                                         if (r["DECIDE"].ToString() == ">")
+                                                         {
+                                                             if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                             { color = "red"; }
+                                                         }
+                                                         else if (r["DECIDE"].ToString() == "<")
+                                                         {
+                                                             if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                             { color = "blue"; }
+                                                         }
+                                                     }
+                                                 }
+                                                 @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                             }
+                                         }
+                                         catch (Exception)
+                                         {
+                                             @:@VitalSignData.getItem(vsd, "ci", VitalSignDataField.Record)
+                                         }
+                                         @if (VitalSignData.getItem(vsd, "ci", VitalSignDataField.Reason) != "無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "ci", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>
+                                     <td width="150">
+                                         <!-- 混合靜脈血氧飽合度 -->
+                                         @try
+                                         {
+                                             if (VitalSignData.getItem(vsd, "sv", VitalSignDataField.Record) != "")
+                                             {
+                                                 string ck_value = VitalSignData.getItem(vsd, "sv", VitalSignDataField.Record);
+                                                 string color = "black";
+                                                 foreach (DataRow r in dt_check.Rows)
+                                                 {
+                                                     if (r["MODEL_ID"].ToString() == "svl" || r["MODEL_ID"].ToString() == "svh")
+                                                     {
+                                                         if (r["DECIDE"].ToString() == ">")
+                                                         {
+                                                             if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                             { color = "red"; }
+                                                         }
+                                                         else if (r["DECIDE"].ToString() == "<")
+                                                         {
+                                                             if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                             { color = "blue"; }
+                                                         }
+                                                     }
+                                                 }
+                                                 @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                             }
+                                         }
+                                         catch (Exception)
+                                         {
+                                             @:@VitalSignData.getItem(vsd, "sv", VitalSignDataField.Record)
+                                         }
+                                         @if (VitalSignData.getItem(vsd, "sv", VitalSignDataField.Reason) != "無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "sv", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>
+                                     <td width="80">
+                                         <!-- 橈動脈(左) -->
+                                         @Html.Raw(VitalSignData.getItem(vsd, "ral", VitalSignDataField.Record))
+                                         @if (VitalSignData.getItem(vsd, "ral", VitalSignDataField.Reason) != "無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "ral", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>
+                                     <td width="80">
+                                         <!-- 橈動脈(右) -->
+                                         @Html.Raw(VitalSignData.getItem(vsd, "rar", VitalSignDataField.Record))
+                                         @if (VitalSignData.getItem(vsd, "rar", VitalSignDataField.Reason) != "無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "rar", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>
+                                     <td width="90">
+                                         <!-- 穿刺傷口滲血 -->
+                                         @Html.Raw(VitalSignData.getItem(vsd, "pwo", VitalSignDataField.Record))
+                                         @if (VitalSignData.getItem(vsd, "pwo", VitalSignDataField.Reason) != "無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "pwo", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>
+                                     <td width="90">
+                                         <!-- 穿刺傷口血腫 -->
+                                         @if (VitalSignData.getItem(vsd, "pwh", VitalSignDataField.Record) != "")
+                                         {
+                                             string[] pwh_record = VitalSignData.getItem(vsd, "pwh", VitalSignDataField.Record).Split('|');
+                                             if(pwh_record[1] != "")
+                                             {
+                                                 @Html.Raw(pwh_record[0] + "，" + pwh_record[1] + "cm")
+                                             }
+                                             else
+                                             {
+                                                 @Html.Raw(pwh_record[0])
+                                             }
+                                         }
+                                         @if (VitalSignData.getItem(vsd, "pwh", VitalSignDataField.Reason) != "無")
+                                         {
+                                             @Html.Raw(VitalSignData.getItem(vsd, "pwh", VitalSignDataField.Reason))
+                                         }
+                                         &nbsp;
+                                     </td>*@
+                            </tr>
+                                            }
+                                        }
+                }
+            </table>
+        </div>
+    </td>
+</tr>
+</table>
+</div>

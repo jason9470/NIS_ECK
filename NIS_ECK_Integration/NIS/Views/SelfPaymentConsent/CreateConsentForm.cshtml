@@ -1,0 +1,294 @@
+﻿@using System.Data;
+@using NIS.Data
+@using NIS.Controllers;
+@using Newtonsoft.Json;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    PatientInfo ptInfo = (PatientInfo)Session["PatInfo"];
+    DataTable ComfirmDetail = ViewBag.ComfirmDetail;
+    string title = "建立自費同意書";
+}
+<style type="text/css" scoped>
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #d5d5f7 !important;
+        width: 100%;
+        border-radius: 10px !important;
+        font-size: 28px;
+        font-weight: 800;
+        border: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        font-family: Arial, EUDC !important;
+    }
+
+    .funcArea {
+        margin: 0.5rem !important;
+        font-size: 18px !important;
+    }
+
+    .fun_btn {
+        font-size: 17px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 5px 5px 4px 4px !important;
+    }
+
+    .check_btn {
+        background-color: #3c7ec3 !important;
+    }
+
+    .add_btn {
+        background-color: #42b55b !important;
+    }
+
+    .modify_btn {
+        background-color: #ed9017 !important;
+    }
+
+    .delete_btn {
+        background-color: #ed6f6f !important;
+    }
+
+    .dataHeader td {
+        font-weight: bold;
+        margin: 1px 1px 1px 1px;
+        background-color: #cfe1eb;
+        text-align: center;
+        vertical-align: middle;
+        height: 26px;
+    }
+
+    .dataHeader {
+        border-radius: 10px !important;
+        margin-right: 15px !important;
+    }
+
+    .funcArea table {
+        font-family: Arial, EUDC;
+    }
+
+    .dataArea {
+        border: 0 !important;
+    }
+
+        .dataArea td {
+            border-bottom: 0 !important;
+            text-align: center;
+        }
+</style>
+<script type="text/javascript">
+    var itemList = [];
+
+    $(document).ready(function () {
+        setGridColor();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 250);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    // 增加自費項目
+    function addItem(serial_d, record_date, ho_id, item_name, self_price, count, item_price, create_id, create_name) {
+        if (itemList.length >= 10) {
+            $('#checkbox_' + serial_d)[0].checked = false;
+            alert('自費項目超過10項!');
+            return;
+        }
+        if (itemList.length > 0 && itemList.find(data => data.serial_d == serial_d)) {
+            return;
+        }
+        itemList.push({
+            serial_d: serial_d,
+            recordTime: record_date,
+            ho_id: ho_id,
+            itemName: item_name,
+            selfPrice: self_price,
+            count: count,
+            itemPrice: item_price,
+            itemCreateId: create_id,
+            itemCreateName: create_name
+        });
+    }
+
+    // 取消自費項目
+    function removeItem(serial_d) {
+        if (itemList.length > 0 && itemList.find(data => data.serial_d == serial_d)) {
+            itemList = itemList.filter(data => data.serial_d != serial_d);
+        }
+    }
+
+    // 建立自費同意書
+    function generateConsent() {
+        $("#save").prop('disabled', true);
+        loop_windows("open_cover");
+
+        // 檢查選取自費項目數量
+        if (itemList.length == 0) {
+            alert('請選取選取自費項目!')
+            $("#save").prop('disabled', false);
+            loop_windows("close_cover");
+            return;
+        }
+        else if (itemList.length > 10) {
+            alert('自費項目超過10項!')
+            $("#save").prop('disabled', false);
+            loop_windows("close_cover");
+            return;
+        }
+
+        $.ajax({
+            type: "post",
+            url: '@Url.Content("~/SelfPaymentConsent/GenerateConsent")',
+            contentType: 'application/json',
+            data: JSON.stringify(itemList),
+            success: function (data) {
+                let alert_message = "";
+                switch (data.status) {
+                    case 0:
+                        if (data.message) {
+                            alert_message = data.message;
+                        }
+                        alert(alert_message);
+                        window.close();
+                        window.opener.location.href = 'Index?type=consent';
+                        break;
+                    default:
+                        if (data.message) {
+                            alert_message = data.message;
+                        }
+                        alert(alert_message);
+                        $("#save").prop('disabled', false);
+                        loop_windows("close_cover");
+                        break;
+                }
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    //自動選取10項自費項目
+    function autoCheckItems() {
+        const itemListCountMax = 10;//選取最大值
+        const itemListCount = itemList.length;
+        const itemListRemainCount = itemListCountMax - itemListCount;
+        if (itemListRemainCount > 0) {
+            $('input[type=checkbox][name=itemCheckbox]:not(:checked)').slice(0, itemListRemainCount).each(function () {
+                this.click();
+            })
+        }
+
+        //console.log('autoCheckItems',itemList);
+    }
+
+    //取消選取所有自費項目
+    function clearAllItemList() {
+        $('input[type=checkbox][name=itemCheckbox]:checked').each(function () {
+            this.click();
+        });
+
+        //console.log('clearAllItemList',itemList);
+    }
+
+    //顯示已選擇的自費項目筆數
+    function displaySelectedCount() {
+        const itemListCount = itemList.length;
+        if (itemListCount >= 10) {
+            $('#selectedCount').css('color', 'red');
+        }
+        else {
+            $('#selectedCount').css('color', '#2e7d32');
+        }
+        $('#selectedCount').html(itemListCount);
+    }
+</script>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+    <tr>
+        <td>
+            <div id="module_define">@(title)</div>
+        </td>
+    </tr>
+    <tr>
+        <td style="width: 100%;">
+            <div class="funcArea" style="display: flex; justify-content: space-between; align-items: center; ">
+                <div style="width: 33%; text-align: left;">
+                    <label style="padding:5px;border:1px solid black;border-radius:5px">已選擇項目數量：<label id="selectedCount" style="color: #2e7d32">0</label> / 10</label>
+                </div>
+                <div style="width: 34%; text-align: center">
+                    <input type="button" id="save" class="fun_btn add_btn" value="建立" onclick="generateConsent()" />
+                </div>
+                <div style="width: 33%;"></div>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:16px;">
+                    <tr>
+                        <td style="width: 5%">
+                            <input type="checkbox" onclick="if (this.checked) { autoCheckItems() } else { clearAllItemList() };displaySelectedCount();" />
+                        </td>
+                        <td style="width: 10%">時間</td>
+                        <td style="width: 35%">自費項目</td>
+                        <td style="width: 10%">院內碼</td>
+                        <td style="width: 10%">單價</td>
+                        <td style="width: 10%">數量</td>
+                        <td style="width: 10%">金額</td>
+                        <td style="width: 10%">計價護理師</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea">
+                @if (ComfirmDetail != null && ComfirmDetail.Rows.Count > 0)
+                {
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:16px;">
+                        @foreach (DataRow r in ComfirmDetail.Rows)
+                        {
+                            var recordDate = "";
+                            var recordTime = "";
+                            if (r["RECORD_DATE"] != null && r["RECORD_DATE"].ToString() != "")
+                            {
+                                DateTime dateTryParse;
+                                if (DateTime.TryParse(r["RECORD_DATE"].ToString(), out dateTryParse))
+                                {
+                                    recordDate = dateTryParse.ToString("yyyy/MM/dd");
+                                    recordTime = dateTryParse.ToString("HH:mm");
+                                }
+                            }
+                            <tr>
+                                <td style="width: 5%">
+                                    <input type="checkbox" name="itemCheckbox" id="checkbox_@r["SERIAL_D"]"
+                                           onclick="if (this.checked) { addItem('@r["SERIAL_D"]', '@recordDate' + ' ' + '@recordTime', '@r["HO_ID"]', '@r["ITEM_NAME"]', '@r["SELF_PRICE"]', '@r["COUNT"]', '@r["ITEM_PRICE"]', '@r["CREATE_ID"]', '@r["CREATE_NAME"]') } else { removeItem('@r["SERIAL_D"]') };displaySelectedCount();" />
+                                </td>
+                                <td style="width: 10%">@recordDate<br>@recordTime</td>
+                                <td style="width: 35%">@r["ITEM_NAME"]</td>
+                                <td style="width: 10%">@r["HO_ID"]</td>
+                                <td style="width: 10%">@r["SELF_PRICE"]</td>
+                                <td style="width: 10%">@r["COUNT"]</td>
+                                <td style="width: 10%">@r["ITEM_PRICE"]</td>
+                                <td style="width: 10%">@r["CREATE_NAME"]</td>
+                            </tr>
+                            <tr></tr>
+                        }
+                    </table>
+                }
+            </div>
+        </td>
+    </tr>
+</table>

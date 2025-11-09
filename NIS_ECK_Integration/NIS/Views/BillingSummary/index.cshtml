@@ -1,0 +1,307 @@
+﻿@using NIS.Data;
+@using NIS.Controllers;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "待送出計價摘要查詢";
+    string StartDate = ViewBag.StartDate;
+    string EndDate = ViewBag.EndDate;
+    string RootDocument = ViewBag.RootDocument;
+    //日期選擇器，鎖定時間
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    List<Bill_Summary_Master> Summarydata = ViewBag.Summary;
+    List<SelectListItem> costcodelist = (List<SelectListItem>)ViewData["costlist"];
+    List<SelectListItem> typeList = (List<SelectListItem>)ViewData["typeList"];
+
+    int patientCount = 0;
+    if (Summarydata != null )
+    {
+        patientCount = Summarydata.Count();
+    }
+
+}
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: left;
+        background-color: #d5d5f7 !important;
+        width: 100%;
+        border-radius: 10px !important;
+        font-size: 20px;
+        font-weight: 800;
+        border: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        font-family: Arial, EUDC !important;
+    }
+
+    .funcArea {
+        margin: 0.5rem !important;
+        font-size: 14px !important;
+    }
+
+    .fun_btn {
+        font-size: 14px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 4px 4px 3px 3px !important;
+    }
+
+    .dataHeader td {
+        font-weight: bold;
+        background-color: #cfe1eb;
+        text-align: center;
+        vertical-align: middle;
+        height: 20px;
+    }
+
+    .dataHeaderFun td {
+        font-weight: bold;
+        background-color: #dbcfeb;
+        text-align: center;
+        vertical-align: middle;
+        height: 20px;
+    }
+
+    .dataHeaderFun {
+        border-radius: 10px !important;
+    }
+
+    .dataHeader {
+        border-radius: 10px !important;
+        margin-right: 0px;
+    }
+
+    .funcArea table {
+        font-family: Arial, EUDC;
+    }
+
+    .dataArea {
+        border: 0 !important;
+    }
+
+        .dataArea td {
+            border-bottom: 0 !important;
+        }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".card").outerHeight(height - 180);
+
+        }).trigger("resize");
+        DataQuery();
+        $("#list_rb").click();
+        $("#myFav").click();
+
+        $("#billing").click(function () {
+            window.open("../Billing/index", "top_dialog", "menubar=no,status=no,scrollbars=yes,top=0,resizable=yes,left=300,toolbar=no,width=1290,height=800");
+        });
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', 'rgb(211 237 249)');
+        $('.dataArea tr:even').css('background', 'rgb(231, 238, 245)');
+    }
+    //撈資料
+    function DataQuery() {
+        loop_windows("open_cover");
+        var chartNO; var bedNO; var costCode;
+
+        var filter = $("input[name=select_type]:checked").val();
+        switch (filter) {
+            case "病歷號":
+                chartNO = $("#chartno_val").val();
+                //chartNO = chartNO.padStart(10, '0');
+                $("#chartno_val").val(chartNO);
+                break;
+            case "病床號":
+                bedNO = $("#bedno_val").val();
+                break;
+            case "病人清單":
+                var listSelect = $("input[name=select_cost]:checked").val()
+                if (listSelect == "單位") {
+                    costCode = $("#selStationName").val();
+                }
+                break;
+        }
+
+
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/BillingSummary/TempListData")',
+            dataType: 'html',
+            data: { Starttime: $('#StartDate').val(), endtime: $('#EndDate').val(), chartNO: chartNO, bedNO: bedNO, costCode: costCode },
+            cache: false,
+            success: function (response) {
+                $('.dataAreaX').html(response);
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+    //刪除
+    function DelData(tr, index) {
+        debugger
+        if (confirm("確定要刪除嗎？")) {
+            var serial = $("#serial_" + tr + index).html();
+
+            $("#" + tr + index).remove();
+            console.log(serial);
+
+
+              $.ajax({
+                type: 'POST',
+                cache: false,
+                dataType: 'json',
+                contentType: "application/json",
+                url: '@Url.Content("~/BillingSummary/delTempDetail")',
+                data: JSON.stringify({
+                    serial: serial ,
+                }),
+                success: function (data) {
+                    if (data.status == 0) {
+                    }
+                    loop_windows("close_cover");
+                }
+            });
+        }
+    }
+
+
+    function plus(pt,index) {
+
+        var quantity = parseInt($("#count_" + pt + index).val());
+        quantity += 1;
+        $("#count_" + pt + index).val(quantity);
+        priceCount(pt, index);
+    }
+
+    function less(pt, index) {
+
+        var quantity = parseInt($("#count_" + pt + index).val());
+        if (quantity > 0) {
+            quantity -= 1;
+            $("#count_" + pt + index).val(quantity);
+            priceCount(pt, index);
+        }
+    }
+
+    function priceCount(pt, index) {
+
+        var type = $("#type_" + pt +  index).val();
+        var price = 0;
+        if (type == "健保") {
+            price = parseInt($("#priceNH_" + pt + index).text());
+
+        }
+        else {
+            price = parseInt($("#priceSF_" + pt + index).text());
+
+        }
+        var count = parseInt($("#count_" + pt + index).val());
+        var sum = price * count;
+        $("#pricesum_" + pt + index).text(sum)
+    }
+
+</script>
+<div class="funcArea" style="height:40px">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+            <td colspan="3">
+                <div style="display:flex"> 
+                    <div id="module_define" style="display: flex; ">
+                        <div style="width: 83%; text-align:left">
+                            <label style="margin-left: 0.8rem;">@title</label>
+
+                        </div>
+                        <div style="width: 15%; text-align: right">
+                            <label style="margin-left: 0.8rem;">使用者 : @ui.EmployeesName</label>
+
+                        </div>
+
+                    </div>
+                </div>
+
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="funcArea" style="height:120px">
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr>
+            <td colspan="3">
+                <div id="module_define" style="background-color: #d7efe4 !important">
+                    <div style="display:flex">
+                        <label style="margin-left: 0.8rem;">使用時間</label>
+                        <div style="margin-left:1rem">
+                            @Html.TextBox("StartDate", DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd"), new { @OnBlur = "", @class = "", style = "width:150px !important; text-align:center;border-radius :10px !important;height: 20px;" })
+                            @Html.Label("lab", " ~ ")
+                            @Html.TextBox("EndDate", DateTime.Now.ToUniversalTime().AddHours(8).ToString("yyyy/MM/dd"), new { @OnBlur = "", @class = "", style = "width:150px !important;text-align:center;border-radius :10px !important;height: 20px;" })
+                            @WebTool.complementList_Status(complement_List.Status, DateTime.Now.AddDays(-30).ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "StartDate", "", false)
+                            @WebTool.complementList_Status(complement_List.Status, DateTime.Now.AddDays(-30).ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "EndDate", "", false)
+                        </div>
+                    </div>
+                    <div style="display:flex">
+                        <div style="display:flex;margin-top:0.5rem">
+                            <input type="radio" id="chartno_rb" class="" name="select_type" style="margin-left: 0.8rem;" value="病歷號" onclick="$('#chartno').show();$('#bedno').hide();$('#list_search').hide();" />
+                            <label label for="chartno_rb">病歷號</label>
+                            <div id="chartno" style="margin-left:1rem;display:none">
+                                <input type='text' id="chartno_val" onchange="DataQuery()" style="width: 100px; text-align: center; border-radius: 10px !important; margin-left: 0.5rem; height: 20px;"/>
+                            </div>
+                        </div>
+                        <div style="display: flex; margin-top: 0.5rem">
+                            <input type="radio" id="bedno_rb" class="" name="select_type" style="margin-left: 0.8rem;" value="病床號" onclick="$('#bedno').show();$('#chartno').hide();$('#list_search').hide();" />
+                            <label label for="bedno_rb">病床號</label>
+                            <div id="bedno" style="margin-left: 1rem; display: none">
+                                <input type='text' id="bedno_val" onchange="" style="width: 100px; text-align: center; border-radius: 10px !important; margin-left: 0.5rem; height: 20px;" />
+                            </div>
+                        </div>
+                        <div style="display: flex; margin-top: 0.5rem">
+                            <input type="radio" id="list_rb" class="" name="select_type" style="margin-left: 0.8rem;" value="病人清單" onclick="$('#list_search').show();$('#chartno').hide();$('#bedno').hide();" />
+                            <label label for="list_rb">病人清單</label>
+                            <div id="list_search" style="margin-left: 1rem; display: none">
+                                <input type="radio" id="cost_rb" class="" name="select_cost" value="單位" onclick="$('.costlist').show()" />
+                                <label for="cost_rb" style="font-size: 16px">單位</label>
+                                <span class="costlist" style="display:none">
+                                    @Html.DropDownList("selStationName", (List<SelectListItem>)ViewData["costlistName"], new { style = "width:180px;text-align:center;border-radius :10px !important;height: 20px;" })
+                                </span>
+                                <input type="radio" id="myFav" name="select_cost" class="" value="我的清單" onclick="$('.costlist').hide()" />
+                                <label for="myFav" style="font-size: 16px">我的清單</label>
+                            </div>
+                        </div>
+                    </div>
+                  
+                    <div style="display: flex; margin-top: 0.5rem;margin-bottom :0.5rem">
+                        <input type="button" class="fun_btn" style="width: 80px; margin-left: 0.8rem; background-color: #3c7ec3; " value="查詢" onclick="DataQuery();" />
+                        <input type="button" id="save_btn" class="fun_btn" style="width: 80px; margin-left: 0.8rem; background-color: #269f1e; " value="儲存" onclick="svae();" />
+                        <input type="button" id="save" class="fun_btn btn-primary" value="已送出計價摘要查詢" style="width: 160px; margin-left: 1rem; background-color: #4b94b7 " onclick="window.location.href = '../BillingSummary/summary'" />
+                        <button id="billing" class="fun_btn btn-primary" style="width: 80px; margin-left: 1rem; background-color: #3c7ec3 ">
+                            計價介面
+                        </button>
+                        @*<input type="button" id="save" class="fun_btn btn-primary" value="護理計價摘要(帳務員)" style="width: 160px; margin-left: 1rem; background-color: #9854a7 " onclick="window.location.href = '../BillingSummary/summaryAccounts'" />*@
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div class="dataAreaX" style="margin-top: 0.1rem; font-size: 16px;">
+</div>
+
+
+
+
+
+
+
+
+

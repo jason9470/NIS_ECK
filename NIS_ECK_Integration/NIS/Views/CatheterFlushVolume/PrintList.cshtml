@@ -1,0 +1,327 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+    string[] itemname = { "沖入量(ml)", "沖出量(ml)", "尿量/小時 (ml/hr)", "尿液顏色", "餘量(ml)" };
+    //string[] classhourRangeStart = { "07:00", "15:00", "23:00" };
+    //string[] classhourRangeEnd = { "14:59", "22:59", "06:59" };
+    string[] classhourRangeStart = { "07:01", "15:01", "23:01" };
+    string[] classhourRangeEnd = { "15:00", "23:00", "07:00" };
+}
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+    });
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+</script>
+@using System.Data;
+@{
+    DateTime start_date = DateTime.Now;
+    DateTime end_date = DateTime.Now;
+    if(ViewBag.StartDate != null && ViewBag.StartDate != "")
+    { start_date = Convert.ToDateTime(ViewBag.StartDate); }
+    if(ViewBag.EndDate != null && ViewBag.EndDate != "")
+    { end_date = Convert.ToDateTime(ViewBag.EndDate); }
+}
+<form id="edu_form" action="Score" method="post">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; font-size: 14px;">
+            <tr>
+                <td>
+                    <table border="0" style="width: 100%;">
+                        <tr>
+                            <td>病人姓名：@ptinof.PatientName</td>
+                            @if(ptinof.Birthday != null)
+                            {
+                                <td>生日：@Convert.ToDateTime(ptinof.Birthday).ToString("yyyy/MM/dd")</td>
+                            }
+                            else
+                            {
+                                <td>生日：</td>
+                            }
+                            <td>年齡：@(ptinof.Age)  &nbsp; 性別：@(ptinof.PatientGender)</td>
+                            @*<td>病床號：@ptinof.BedNo</td>*@
+
+                            <td colspan="2">病歷號：@ptinof.ChartNo</td>
+                        </tr>
+                        <tr>
+                            <td>科別：@ptinof.DeptName</td>
+                            <td>主治醫師：@ptinof.DocName</td>
+                            @if(ptinof.InDate != null)
+                            {
+                                <td>住院日期：@Convert.ToDateTime(ptinof.InDate).ToString("yyyy/MM/dd HH:mm") (@ptinof.InDay)</td>
+                            }
+                            else
+                            {
+                                <td>住院日期：</td>
+                            }
+                            <td colspan="2">診斷：@ptinof.ICD9_code1</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 5px 0px 5px 0px">
+                    <div class="dataHeader" style="margin-right: 0px;">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; cursor: pointer; font-size: 14px;" onclick="">
+                            <tr>
+                                <td style="width: 12%; text-align: center;" rowspan="2">
+                                    <div style="overflow: hidden;">日期</div>
+                                </td>
+                                <td style="width: 17%; text-align: center;" rowspan="2">項目</td>
+                                <td style="width: 17%; text-align: center;" rowspan="2">總計</td>
+                                <td style="width: 18%; text-align: center;" colspan="1" rowspan="2">
+                                    <div style="overflow: hidden;">白班</div>
+                                </td>
+                                <td style="width: 18%; text-align: center;" colspan="1" rowspan="2">
+                                    <div style="overflow: hidden;">小夜班</div>
+                                </td>
+                                <td style="width: 18%; text-align: center;" colspan="1" rowspan="2">
+                                    <div style="overflow: hidden;">大夜班</div>
+                                </td>
+                                @*<td style="width: 10%; text-align: center;" rowspan="2">明細查詢</td>*@
+                            </tr>
+                            @*<tr>
+                                <td style="text-align: center; font-size: 12px;" colspan="3">小計</td>
+                            </tr>*@
+                        </table>
+                    </div>
+                    <div class="dataArea_PDF">
+                        @Html.Raw("<table border='0' cellpadding='4' cellspacing='1' style='width:100%;font-size:14px;background-color: #FFFFFF;'>")
+                        @{
+                            List<NIS.Models.FlushCatheter.flush_catheter_data> fc_List = (List<NIS.Models.FlushCatheter.flush_catheter_data>)ViewData["fc_List"];
+                            DataTable dt_time_table = ViewBag.dt_time_table;
+                            int count = 0;
+                        }
+                        @for(DateTime x = start_date; x <= end_date; x = x.AddDays(1))
+                        {
+                            @Html.Raw("<tr style='background: rgb(171, 200, 226);'>")
+                            if(x <= end_date)
+                            {
+                            @Html.Raw("<td style='width: 12%;text-align: center;' rowspan='6'>")
+                            @Html.Raw("<div style='overflow: hidden;'><label style='font-size:12px;'>")
+                            @(x.ToString("yyyy/MM/dd"))
+                            @Html.Raw("</label></div>")
+                            @Html.Raw("</td>")
+                            @Html.Raw("</tr>")
+                                for(int y = 0; y < 5; y++)
+                                {
+                            @Html.Raw("<tr>")
+                    
+                            @Html.Raw("<td style='width: 17%;text-align: center;' >")
+                            @Html.Raw(itemname[y])
+                            @Html.Raw("</td>")
+                                    switch(y)
+                                    {
+                                        case 0:
+                                            double total_i = 0;
+                                            bool bol_total_i = false;//有值才顯示(true)
+                                            for(int i = 0; i < fc_List.Count; i++)
+                                            {
+                                                //一天的日期區間改成 0701~隔天07:00
+                                                DateTime TempDataTime = fc_List[i].RECORD_TIME;//List裡存的記錄時間
+                                                //DateTime TempStart = Convert.ToDateTime(x.AddDays(-1).ToString("yyyy/MM/dd") + " 23:00:00");
+                                                //DateTime TempEnd = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " 22:59:59");
+                                                DateTime TempStart = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " 07:01:00");
+                                                DateTime TempEnd = Convert.ToDateTime(x.AddDays(1).ToString("yyyy/MM/dd") + " 07:00:59");
+                                                if(fc_List[i].RECORD_CLASS == "0" && TempStart <= TempDataTime && TempDataTime <= TempEnd)
+                                                {
+                                                    total_i += Convert.ToDouble(fc_List[i].AMOUNT);
+                                                    bol_total_i = true;
+                                                }
+                                            }
+                            @Html.Raw("<td style='width: 15%;text-align: center; word-break:break-all;' >")
+                                            if(bol_total_i == true)
+                                            { 
+                                @Html.Raw(total_i)
+                                            }
+                            @Html.Raw("</td>")
+                                            for(int z = 0; z < 3; z++)
+                                            {
+                            @Html.Raw("<td style='width: 15%;text-align: center; word-break:break-all;' >")
+                                                double TempAmount = 0;
+                                                bool bol_TempAmount = false;
+                                                for(int i = 0; i < fc_List.Count; i++)
+                                                {
+                                                    DateTime TempDataTime = fc_List[i].RECORD_TIME;//List裡存的記錄時間
+                                                    //DateTime TempStart = (z != 2) ? Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]) : Convert.ToDateTime(x.AddDays(-1).ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]);
+                                                    //DateTime TempEnd = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]);
+                                                    DateTime TempStart = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]);
+                                                    DateTime TempEnd = (z != 2) ? Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]) : Convert.ToDateTime(x.AddDays(1).ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]);
+                                                    if(fc_List[i].RECORD_CLASS == "0" && TempStart <= TempDataTime && TempDataTime <= TempEnd)
+                                                    {
+                                                        TempAmount += Convert.ToDouble(fc_List[i].AMOUNT);
+                                                        bol_TempAmount = true;
+                                                    }
+                                                }
+                                                if(bol_TempAmount == true)
+                                                { 
+                                    @Html.Raw(TempAmount)
+                                                }
+                            @Html.Raw("</td>")
+                                            }
+                           @*@Html.Raw("<td style='width: 10%;text-align: center;' rowspan='5'>")
+                       
+                            @Html.Raw("</td>")*@
+                                            break;
+                                        case 1:
+                                            double total_o = 0;
+                            bool bol_total_o=false;
+                            for(int i = 0; i < fc_List.Count; i++)
+                            {
+                                DateTime TempDataTime = fc_List[i].RECORD_TIME;//List裡存的記錄時間
+                                //DateTime TempStart = Convert.ToDateTime(x.AddDays(-1).ToString("yyyy/MM/dd") + " 23:00:00");
+                                //DateTime TempEnd = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " 22:59:59");
+                                DateTime TempStart = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " 07:01:00");
+                                DateTime TempEnd = Convert.ToDateTime(x.AddDays(1).ToString("yyyy/MM/dd") + " 07:00:59");
+                                if(fc_List[i].RECORD_CLASS == "1" && TempStart <= TempDataTime && TempDataTime <= TempEnd)
+                                {
+                                    total_o += Convert.ToDouble(fc_List[i].AMOUNT);
+                                    bol_total_o = true;
+                                }
+                            }
+                            @Html.Raw("<td style='width: 15%;text-align: center; word-break:break-all;' >")
+                            if(bol_total_o == true) { 
+                                @Html.Raw(total_o)
+                            }
+                            @Html.Raw("</td>")  
+                            for(int z = 0; z < 3; z++)
+                            {  
+                            @Html.Raw("<td style='width: 15%;text-align: center; word-break:break-all;' >")
+                                double TempAmount = 0;
+                                bool bol_TempAmount=false;
+                                for(int i = 0; i < fc_List.Count; i++)
+                                {
+                                    DateTime TempDataTime = fc_List[i].RECORD_TIME;//List裡存的記錄時間
+                                    // DateTime TempStart = (z != 2) ? Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]) : Convert.ToDateTime(x.AddDays(-1).ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]);
+                                    //DateTime TempEnd = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]);
+                                    DateTime TempStart = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]);
+                                    DateTime TempEnd = (z != 2) ? Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]) : Convert.ToDateTime(x.AddDays(1).ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]);
+                                    if(fc_List[i].RECORD_CLASS == "1" && TempStart <= TempDataTime && TempDataTime <= TempEnd)
+                                    //if(fc_List[i].RECORD_CLASS == "0" && DateTime.Compare(TempStart, TempDataTime) == -1 && DateTime.Compare(TempDataTime, TempEnd) == -1)
+                                    {
+                                        TempAmount += Convert.ToDouble(fc_List[i].AMOUNT);
+                                        bol_TempAmount = true;
+                                    }
+                                }
+                                if(bol_TempAmount == true) { 
+                            @Html.Raw(TempAmount)
+                            }
+                            @Html.Raw("</td>")
+                            }
+                            break;
+                                        case 2:
+                            @Html.Raw("<td style='width: 17%;text-align: center;' >-")
+                            @Html.Raw("</td>")  
+                                            for(int z = 0; z < 3; z++)
+                                            {   
+                            @Html.Raw("<td style='width: 18%;text-align: center; word-break:break-all;' >")
+                                                double TempAmount_i = 0, TempAmount_o = 0;
+                                                for(int i = 0; i < fc_List.Count; i++)
+                                                {
+                                                    DateTime TempDataTime = fc_List[i].RECORD_TIME;//List裡存的記錄時間
+                                                    //DateTime TempStart = (z != 2) ? Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]) : Convert.ToDateTime(x.AddDays(-1).ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]);
+                                                    //DateTime TempEnd = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]);
+                                                    DateTime TempStart = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]);
+                                                    DateTime TempEnd = (z != 2) ? Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]) : Convert.ToDateTime(x.AddDays(1).ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]);
+                                                    if(fc_List[i].RECORD_CLASS == "0" && TempStart <= TempDataTime && TempDataTime <= TempEnd)
+                                                    {
+                                                        TempAmount_i += Convert.ToDouble(fc_List[i].AMOUNT);
+                                                    }
+                                                    else if(fc_List[i].RECORD_CLASS == "1" && TempStart <= TempDataTime && TempDataTime <= TempEnd)
+                                                    {
+                                                        TempAmount_o += Convert.ToDouble(fc_List[i].AMOUNT);
+                                                    }
+                                                }
+                                               if((TempAmount_o - TempAmount_i) > 0)
+                                {
+                                    @Html.Raw("+")
+                                }
+                                @Html.Raw((TempAmount_o - TempAmount_i) + "ml / " + dt_time_table.Rows[count][z])
+                                @Html.Raw("hr </td>")
+                                            }
+                                            break;
+                                        case 3:
+                            @Html.Raw("<td style='width: 17%;text-align: center;' >-</td>")
+                                            for(int z = 0; z < 3; z++)
+                                            {
+                            @Html.Raw("<td style='width: 18%;text-align: center; word-break:break-all;' >")
+                                                string TempColorName = "";
+                                                for(int i = 0; i < fc_List.Count; i++)
+                                                {
+                                                    DateTime TempDataTime = fc_List[i].RECORD_TIME;//List裡存的記錄時間
+                                                    //DateTime TempStart = (z != 2) ? Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]) : Convert.ToDateTime(x.AddDays(-1).ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]);
+                                                    //DateTime TempEnd = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]);
+                                                    DateTime TempStart = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]);
+                                                    DateTime TempEnd = (z != 2) ? Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]) : Convert.ToDateTime(x.AddDays(1).ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]);
+                                                    if(fc_List[i].RECORD_CLASS == "1" && TempStart <= TempDataTime && TempDataTime <= TempEnd)
+                                                    {
+                                                        if(fc_List[i].COLORID == "-1")
+                                                        {
+                                                            TempColorName = "";
+                                                        }
+                                                        else if(fc_List[i].COLORID == "99")
+                                                        {
+                                                            TempColorName = fc_List[i].COLOROTHER;
+                                                        }
+                                                        else
+                                                        {
+                                                            TempColorName = fc_List[i].COLORNAME;
+                                                        }
+                                                    }
+                                                }
+                            @Html.Raw(TempColorName)
+                            @Html.Raw("</td>")
+                                            }
+                                            break;
+                                        case 4:
+                            @Html.Raw("<td style='width: 17%;text-align: center;'>-</td>") 
+                                            for(int z = 0; z < 3; z++)
+                                            {
+                            @Html.Raw("<td style='width: 18%;text-align: center; word-break:break-all;'>")
+                                                double TempAmount = 0;
+                                                bool bol_temp_show = false;
+                                                for(int i = 0; i < fc_List.Count; i++)
+                                                {
+                                                    DateTime TempDataTime = fc_List[i].RECORD_TIME;//List裡存的記錄時間
+                                                    //DateTime TempStart = (z != 2) ? Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]) : Convert.ToDateTime(x.AddDays(-1).ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]);
+                                                    //DateTime TempEnd = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]);
+                                                    DateTime TempStart = Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeStart[z]);
+                                                    DateTime TempEnd = (z != 2) ? Convert.ToDateTime(x.ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]) : Convert.ToDateTime(x.AddDays(1).ToString("yyyy/MM/dd") + " " + classhourRangeEnd[z]);
+                                                    if(fc_List[i].RECORD_CLASS == "0" && TempStart <= TempDataTime && TempDataTime <= TempEnd)
+                                                    {
+                                                        if(fc_List[i].BIT_SURPLUS != "")
+                                                        {
+                                                            bol_temp_show = true;
+                                                            TempAmount = Convert.ToDouble(fc_List[i].BIT_SURPLUS);
+                                                        }
+                                                        else
+                                                        {
+                                                            TempAmount = 0;
+                                                        }
+                                                    }
+                                                }
+                                                if(bol_temp_show == true)
+                                                { 
+                                     @Html.Raw(TempAmount)
+                                                }
+                            @Html.Raw("</td>")
+                                            }
+                                            break;
+                                    }
+                                }
+                            @Html.Raw("</tr>")
+                                count++;
+                            }
+                        }
+                        @Html.Raw("</table>")
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>

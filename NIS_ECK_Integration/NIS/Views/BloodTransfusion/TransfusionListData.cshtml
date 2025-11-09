@@ -1,0 +1,362 @@
+﻿@using System.Data;
+@using NIS.Data
+@using NIS.Controllers;
+@using Newtonsoft.Json;
+
+@{
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    PatientInfo ptInfo = (PatientInfo)Session["PatInfo"];
+    DataTable BloodTransfusionList = ViewBag.BloodTransfusionList;
+    DataTable VerificationList = ViewBag.VerificationList;
+    string JsonVerificationList = JsonConvert.SerializeObject(VerificationList);
+    DataTable BloodVitalSignData = ViewBag.BloodVitalSignData;
+    string JsonBloodVitalSignData = JsonConvert.SerializeObject(BloodVitalSignData);
+    DataTable TransfusionReactionList = ViewBag.TransfusionReactionList;
+    string JsonTransfusionReactionList = JsonConvert.SerializeObject(TransfusionReactionList);
+}
+<style type="text/css" scoped>
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    .card {
+        background-color: white;
+        /*box-shadow: 0 4px 20px rgba(0,0,0,0.1);*/
+        min-width: 220px;
+        padding: 5px;
+        text-align: center;
+        margin: 2px;
+        border-radius: 15px;
+        border-style: solid;
+        border-color: #cfe1eb;
+        border-width: 3px;
+        transition: transform 0.2s;
+    }
+</style>
+<script type="text/javascript">
+    var BloodVitalSignData = @Html.Raw(JsonBloodVitalSignData);
+    var VerificationList = @Html.Raw(JsonVerificationList);
+    var TransfusionReaction = @Html.Raw(JsonTransfusionReactionList);
+
+    $(document).ready(function () {
+        setGridColor();
+        LoadBloodVitalSignData();
+        LoadVerificationList();
+        LoadTransfusionReaction();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 200);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', 'rgb(211 237 249)');
+        $('.dataArea tr:even').css('background', 'rgb(231, 238, 245)');
+    }
+
+    //載入生命徵象資料
+    function LoadBloodVitalSignData() {
+        if (BloodVitalSignData.length > 0) {
+            for (let i = 0; i < BloodVitalSignData.length; i++) {
+                let Data = BloodVitalSignData[i];
+                let Period = Data.PERIOD;
+                let dataTXT = '';
+                if (Data.ASSESS_TIME != null && Data.ASSESS_TIME != '') {
+                    dataTXT += '<div>'+ moment(Data.ASSESS_TIME).format('YYYY/MM/DD HH:mm') + '</div>';
+                }
+                if (Data.BT != null && Data.BT != '') {
+                    dataTXT += '<div>體溫: ' + Data.BT + ' °C</div>';
+                }
+                if (Data.HR != null && Data.HR != '') {
+                    dataTXT += '<div>心跳: ' + Data.HR + ' bpm</div>';
+                }
+                if (Data.RESPIRATORY != null && Data.RESPIRATORY != '') {
+                    dataTXT += '<div>呼吸: ' + Data.RESPIRATORY + ' bpm</div>';
+                }
+                if ((Data.BP_SYSTOLIC != null && Data.BP_SYSTOLIC != '') || (Data.BP_DIASTOLIC != null && Data.BP_DIASTOLIC != '')) {
+                    dataTXT += '<div>血壓: ' + Data.BP_SYSTOLIC + '/' + Data.BP_DIASTOLIC + ' mmHg</div>';
+                }
+                if (Data.SPO2 != null && Data.SPO2 != '') {
+                    dataTXT += '<div>SPO2: ' + Data.SPO2 + ' %</div>';
+                }
+
+                let dataElement = $('#VitalSign_' + Period + '_' + Data.BLOODTARNSFUSION_SERIAL);
+                if (dataElement!=null) {
+                    dataElement.html(dataTXT);
+                }
+            }
+        }
+    }
+
+    //載入核血作業資料
+    function LoadVerificationList() {
+        if (VerificationList.length > 0) {
+            let grouped = VerificationList.reduce((acc, blood) => {
+                const key = blood.BLOODTARNSFUSION_SERIAL;
+                if (!acc[key]) {
+                    acc[key] = [];
+                }
+                acc[key].push(blood);
+                return acc;
+            }, {});
+            let groupedData = Object.values(grouped);
+            if (groupedData.length == 0) {
+                return;
+            }
+
+            for (let i = 0; i < groupedData.length; i++) {
+                let totalTXT = '';
+                let group = groupedData[i];
+                let StartTime = moment(group[0].START_TIME).format('YYYY/MM/DD HH:mm');
+                $('#Verification_StartTime_' + group[0].BLOODTARNSFUSION_SERIAL).html(StartTime);
+                if (group[0].BLOOD_VERIFYUSER1_NAME != null && group[0].BLOOD_VERIFYUSER1_NAME != '') {
+                    let DualVerificationTXT = `${group[0].CREATE_USER} ${group[0].CREATE_NAME}<br>${group[0].BLOOD_VERIFYUSER1_ID} ${group[0].BLOOD_VERIFYUSER1_NAME}`;
+                    $('#Verification_DualVerification_' + group[0].BLOODTARNSFUSION_SERIAL).html(DualVerificationTXT);
+                }
+
+                for (let j = 0; j < group.length; j++) {
+                    let Data = group[j];
+                    let dataTXT = '';
+                    if (Data.BLOOD_NAME != null && Data.BLOOD_NAME != '') {
+                        dataTXT += '血品名稱: ' + Data.BLOOD_NAME + ' \n';
+                    }
+                    if (Data.BLOOD_NUMBER != null && Data.BLOOD_NUMBER != '') {
+                        dataTXT += '血袋號碼: ' + Data.BLOOD_NUMBER + ' \n';
+                    }
+                    if (Data.BLOOD_TYPE != null && Data.BLOOD_TYPE != '') {
+                        dataTXT += '血型、Rh(D): ' + Data.BLOOD_TYPE + ' \n';
+                    }
+                    if (Data.BLOOD_UNIT != null && Data.BLOOD_UNIT != '') {
+                        dataTXT += '血品單位: ' + Data.BLOOD_UNIT + ' \n';
+                    }
+                    if (Data.BLOOD_EXP != null && Data.BLOOD_EXP != '') {
+                        dataTXT += '血品效期: ' + moment(Data.BLOOD_EXP).format('YYYY/MM/DD') + ' \n';
+                    }
+
+                    totalTXT += totalTXT == '' ? '' : '\n';
+                    totalTXT += dataTXT;
+                }
+
+                let tooltipOuterDiv = document.createElement('div');
+                tooltipOuterDiv.textContent = '詳細';
+                tooltipOuterDiv.style = 'text-decoration: underline;color:blue';
+                tooltipOuterDiv.title = totalTXT;
+                tooltipOuterDiv.id = group[0].BLOODTARNSFUSION_SERIAL;
+                //tooltipOuterDiv.addEventListener('click', () => {
+                //    setBloodViewList(group[0].BLOODTARNSFUSION_SERIAL);
+                //    showmodal();
+                //});
+
+                let dataElement = document.getElementById('Verification_BloodImformation_' + group[0].BLOODTARNSFUSION_SERIAL);
+                if (dataElement!=null) {
+                    dataElement.appendChild(tooltipOuterDiv);
+                }
+            }
+        }
+    }
+
+    //載入輸血反應資料
+    function LoadTransfusionReaction() {
+        if (TransfusionReaction.length > 0) {
+            let grouped = TransfusionReaction.reduce((acc, reaction) => {
+                const key = reaction.BLOODTARNSFUSION_SERIAL;
+                (acc[key] ||= []).push(reaction);
+                return acc;
+            }, {});
+            let groupedData = Object.values(grouped);
+            if (groupedData.length == 0) {
+                return;
+            }
+            for (let i = 0; i < groupedData.length; i++) {
+                let totalTXT = '';
+                let group = groupedData[i];
+
+                for (let j = 0; j < group.length; j++) {
+                    let Data = group[j];
+                    let dataTXT = '';
+                    if (Data.RECORD_TIME != null && Data.RECORD_TIME != '') {
+                        recordTime = moment(Data.RECORD_TIME).format('YYYY/MM/DD HH:mm');
+                        dataTXT += '紀錄時間: ' + recordTime + ' \n';
+                    }
+                    if (Data.TRANSFUSION_REACT == '有') {
+                        let assessTime = '';
+                        if (Data.REACT_SYMPTOM != null && Data.REACT_SYMPTOM != '') {
+                            dataTXT += '反應症狀: ' + Data.REACT_SYMPTOM;
+                            if (Data.TXT_REACT_SYMPTOM_OTHER != null && Data.TXT_REACT_SYMPTOM_OTHER != '') {
+                                dataTXT += '(' + Data.TXT_REACT_SYMPTOM_OTHER + ')';
+                            }
+                            dataTXT += ' \n';
+                        }
+                        if (Data.REACT_PROCEDURE != null && Data.REACT_PROCEDURE != '') {
+                            dataTXT += '反應處置: ' + Data.REACT_PROCEDURE + ' \n';
+                        }
+                        if (Data.ASSESS_TIME != null && Data.ASSESS_TIME != '') {
+                            assessTime = moment(Data.ASSESS_TIME).format('YYYY/MM/DD HH:mm');
+                            dataTXT += '測量時間: ' + assessTime + ' \n';
+                        }
+                        if (Data.BT != null && Data.BT != '') {
+                            dataTXT += '體溫: ' + Data.BT + '°C \n';
+                        }
+                        if (Data.HR != null && Data.HR != '') {
+                            dataTXT += '心跳: ' + Data.HR + 'bpm \n';
+                        }
+                        if (Data.RESPIRATORY != null && Data.RESPIRATORY != '') {
+                            dataTXT += '呼吸: ' + Data.BT + 'bpm \n';
+                        }
+                        if ((Data.BP_SYSTOLIC != null && Data.BP_SYSTOLIC != '') || (Data.BP_DIASTOLIC != null && Data.BP_DIASTOLIC != '')) {
+                            dataTXT += '血壓: ' + Data.BP_SYSTOLIC + '/' + Data.BP_DIASTOLIC + 'mmHg \n';
+                        }
+                        if (Data.SPO2 != null && Data.SPO2 != '') {
+                            dataTXT += 'SPO2: ' + Data.SPO2 + '% \n';
+                        }
+                    }
+                    else {
+                        dataTXT += '輸血反應: 無 \n';
+                    }
+
+                    totalTXT += totalTXT == '' ? '' : '\n';
+                    totalTXT += dataTXT;
+                }
+                let tooltipOuterDiv = document.createElement('div');
+                tooltipOuterDiv.textContent = '詳細';
+                tooltipOuterDiv.style = 'text-decoration: underline;color:blue';
+                tooltipOuterDiv.title = totalTXT;
+
+                let dataElement = document.getElementById('TransReaction_' + group[0].BLOODTARNSFUSION_SERIAL);
+                if (dataElement!=null) {
+                    dataElement.appendChild(tooltipOuterDiv);
+                }
+            }
+        }
+    }
+
+    // 顯示已選取的血品卡片
+    function setBloodViewList(bloodTransfusionSerial) {
+        let showList = ['BLOOD_TIME', 'BLOOD_NAME', 'BLOOD_NUMBER', 'BLOOD_TYPE', 'BLOOD_UNIT', 'BLOOD_EXP'];
+        document.getElementById('bloodCardList').innerHTML = '';
+        let BloodList = VerificationList.filter(data => data.BLOODTARNSFUSION_SERIAL == bloodTransfusionSerial);
+        if (BloodList.length == 0) {
+            return;
+        }
+        for (let i = 0; i < BloodList.length; i++) {
+            let bloodID = BloodList[i].BLOOD_ID;
+            let card = document.createElement('div');
+            card.className = 'card';
+            card.id = BloodList[i].BLOOD_ID;
+
+            let table = document.createElement('table');
+            //var funDiv = document.createElement('div');
+            //funDiv.style = 'width:100%;display:flex;justify-content:end';
+            //card.appendChild(funDiv);
+            Object.entries(BloodList[i]).forEach(([key, value]) => {
+                if (!showList.includes(key)) {
+                    return;
+                }
+                let thName = '';
+                switch (key) {
+                    case 'BLOOD_TIME':
+                        thName = '發血時間';
+                        if (value != null) {
+                            value = moment(value).format('YYYY/MM/DD HH:mm');
+                        }
+                        break;
+                    case 'BLOOD_NAME':
+                        thName = '血品名稱';
+                        break;
+                    case 'BLOOD_NUMBER':
+                        thName = '血袋號碼';
+                        break;
+                    case 'BLOOD_TYPE':
+                        thName = '血型、Rh(D)';
+                        break;
+                    case 'BLOOD_UNIT':
+                        thName = '血品單位';
+                        break;
+                    case 'BLOOD_EXP':
+                        thName = '血品效期';
+                        if (value != null) {
+                            value = moment(value).format('YYYY/MM/DD');
+                        }
+                        break;
+                }
+                let row = document.createElement('tr');
+                let th = document.createElement('th');
+                th.textContent = thName;
+                row.appendChild(th);
+                let td = document.createElement('td');
+                td.textContent = value;
+                row.appendChild(td);
+                table.appendChild(row);
+            })
+
+            card.appendChild(table);
+            document.getElementById('bloodCardList').appendChild(card);
+        }
+    }
+
+    //開啟血品資訊modal
+    function showmodal() {
+        var div_view = $('#drainage_modal');
+        $.blockUI({
+            message: div_view,
+            onOverlayClick: $.unblockUI(),
+            overlayCSS: {
+                border: 'none',
+                cursor: 'default'
+            },
+            css: {
+                top: ($(window).height() - div_view.height()) / 2 + 'px',
+                left: ($(window).width() - div_view.width()) / 2 + 'px',
+                width: 'min-content',
+                border: 'none',
+                cursor: 'default'
+            },
+            onBlock: function () {
+
+            }
+        });
+    }
+</script>
+<div class="dataArea">
+    @if (BloodTransfusionList != null && BloodTransfusionList.Rows.Count > 0)
+    {
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:16px">
+            @foreach (DataRow r in BloodTransfusionList.Rows)
+            {
+                string Serial = r["SERIAL"].ToString();
+                <tr>
+                    <td rowspan="2" style="width: 10%; text-align: center !important">
+                        <div style="overflow: hidden; width: 100%; text-align: center;">
+                            <input type="button" class="fun_btn" value="修改" pid="@r["SERIAL"]" onclick="window.location.href = 'Insert?BloodTransfusionSerial=' + '@Serial'" style="width: 50px !important; font-size: 16px !important; background-color: #e58b2e; margin: 0.1rem " />
+                            <input type="button" class="fun_btn" value="刪除" onclick="if(confirm('輸血紀錄單為多人共同記錄，是否要進行刪除?')) { TransfusionDelete('@Serial') }" style="width: 50px !important; font-size: 16px !important; background-color: #ed6f6f; margin: 0.1rem " />
+                        </div>
+                    </td>
+                    <td id="Verification_StartTime_@Serial" rowspan="2" style="width:10.5%;text-align: center;"></td>
+                    <td id="Verification_BloodImformation_@Serial" rowspan="2" style="width: 8%; text-align: center;"></td>
+                    <td id="Verification_DualVerification_@Serial" rowspan="2" style="width: 14%; text-align: center;"></td>
+                    <td id="VitalSign_15minBefore_@Serial" style="width: 16.5%"></td>
+                    @*<td id="VitalSign_Start_@Serial" style="width: 12.5%"></td>*@
+                    <td id="VitalSign_15minAfter_@Serial" style="width: 16.5%"></td>
+                    <td id="VitalSign_End_@Serial" style="width: 16.5%"></td>
+                    <td id="TransReaction_@Serial" style="width: 8%; text-align: center;"></td>
+                </tr>
+                <tr></tr>
+            }
+        </table>
+    }
+</div>

@@ -1,0 +1,708 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if (complement_List.Status) { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (@pf != null)
+        {
+            if (pf.InDate > mindate)
+            { mindate = pf.InDate; }
+        }
+    }
+}
+
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+    .bottom_td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+    .bottom_th {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        font-weight:normal;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+        setGridColor();
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea th').css('background', '#ABC8E2');
+        $('.dataArea td').css('background', '#E1E6FA');
+    }
+
+    function able(id) {
+        document.getElementById(id).disabled = false;
+    }
+    function enable(id) {
+        document.getElementById(id).disabled = true;
+        $('#' + id).val('');
+    }
+    function ckable(obj, txtid) {
+        var ck = obj;
+        if (ck.checked)
+        { able(txtid); }
+        else
+        { enable(txtid); }
+    }
+
+    function ck_none(obj, row) {
+        if (obj.checked) {
+            var ck = document.getElementsByName('ck_list1' + row);
+            for (var i = 1; i < ck.length; i++) {
+                ck[i].checked = false;
+            }
+            enable('txt_ck_list1_replace' + row);
+            enable('txt_ck_list2_replace' + row);
+        }
+    }
+
+    function ck_obstacle(row) {
+        var success = true;
+        var ck = document.getElementsByName('ck_list1' + row);
+        ck[0].checked = false;
+        for (var i = 1; i < ck.length; i++) {
+            if(ck[i].checked) 
+                success = false;
+        }
+        //document.getElementById('txt_ck_list1_replace' + row).disabled = success;
+        //document.getElementById('txt_ck_list2_replace' + row).disabled = success;
+    }
+
+    function check() {
+        var row = document.getElementsByName('item_id');
+        for (var i = 0; i < row.length; i++) {
+            if (!record_for_other('rb_list_1', 'object', 'othername', i, '指導對象' , '其他'))
+                return false;
+            if (!record_text(i))
+                return false;
+            if (!record_ck('ck_list2', 'description', 'txt_ck_list2_other', i, '指導方式'))
+                return false;
+            if (!record_ck('item_category', 'item', 'txt_ck_list3_other', i, '指導細項'))      
+                return false;
+            //if (!record_for_other('rb_list_2', 'nationality', 'txt_other_country', i, '國籍' , '外籍'))
+            //    return false;
+            //if (!record_radio('rb_list_3', 'education', i, '教育程度'))
+            //    return false;
+            //if (!record_radio('rb_list_4', 'motive', i, '學習動機'))
+            //    return false;
+            //if (!record_ck('language_list_', 'language', 'other_language_name', i, '使用語言'))
+            //    return false;
+            //if (!record_ck('ck_list1', 'obstacle', 'txt_ck_list1_other', i, '學習障礙'))
+            //    return false;
+            
+            //if (!record_radio('rb_list_5', 'understand', i, '說明對象自我評值')
+            //    return false;
+        }
+        for (var i = 0; i < row.length; i++) {
+            //able('txt_ck_list1_replace' + i);
+          // able('txt_ck_list2_replace' + i);
+            var num = $('#txt_instruct' + i).val().replace(/,/g, "、");
+            $('#txt_instruct' + i).val(num);
+        }
+        return true;
+    }
+
+    function record_radio(rb_name, hide_id, row, key) {
+        if ($('input[name=' + rb_name + row + ']:checked').val() == undefined) {
+            alert('請選擇第'+ (row + 1) + '筆 ' + key);
+            return false;
+        }
+        else {
+            $('#' + hide_id + row).val($('input[name=' + rb_name + row + ']:checked').val());
+            return true;
+        }
+    }
+
+    function record_ck(ck_name, hide_id, otherid, row, key) {
+        var ck = document.getElementsByName(ck_name + row);
+        var content = '';
+        $('#' + hide_id + row).val(content);
+        for (var i = 0; i < ck.length; i++) {
+            if (ck[i].checked) {
+                if (ck[i].value == '99') {
+                    if ($.trim($('#' + otherid + row).val()) == '') {
+                        alert('請輸入第'+ (row + 1) + '筆 ' + key + '：其他欄位');
+                        return false;
+                    }
+                    content = content + $('#' + otherid + row).val() + '|';
+                }
+                else
+                    content = content + ck[i].value + '|';
+            }
+        }
+        if (content == '') {
+            alert('請選擇第'+ (row + 1) + '筆 ' + key);
+            return false;
+        }
+        else {
+            content = content.substring(0, content.length - 1);
+            $('#' + hide_id + row).val(content);
+            return true;
+        }
+    }
+
+    function record_text(row) {
+        if ($.trim($('#name_object' + row).val()) == '') {
+            alert('請輸入第'+ (row + 1) + '筆 說明對象姓名');
+            return false;
+        }
+        return true;
+    }
+
+    function record_for_other(rb_name, hide_id, otherid, row, key, othername) {
+        var rb_value = $('input[name=' + rb_name + row + ']:checked').val();
+        if (rb_value == undefined) {
+            alert('請選擇第'+ (row + 1) + '筆 ' + key);
+            return false;
+        }
+        else {
+            if(rb_value == '99'){
+                if($.trim($('#' + otherid + row).val()) != '')
+                    rb_value = rb_value + '|' + $.trim($('#' + otherid + row).val());
+                else{
+                    alert('請輸入第'+ (row + 1) + '筆 ' + key + '：'+ othername + '欄位');
+                    return false;
+                }
+            }
+            $('#' + hide_id + row).val(rb_value);
+            return true;
+        }
+    }
+
+    function del_item(url){
+        $.ajax({
+            url: "Del_Item",
+            type: "post",
+            data: $('#form1').serialize(),
+            success : function(){
+                window.location.href = url;
+            }
+        });
+    }
+
+    function set_other(obj, class_name){
+        var input_list = $('.'+ class_name);
+        for(var i = 0; i < input_list.length; i++)
+        {
+            if (input_list[i].type == 'text' || input_list[i].type == 'textarea')
+                $(input_list[i]).val(obj.value);
+            else if (input_list[i].type == 'radio' || input_list[i].type == 'checkbox'){
+                if(input_list[i].value == obj.value)
+                    $(input_list[i]).click();
+            }
+        }
+    }
+
+    ///計數儲存
+    function setCount(obj)
+    {
+        $.ajax({
+            type: 'post',
+            url: '@Url.Content("../Education/SetCount")',
+            data:{ edu_name : $(obj).attr('data-eduname')},
+            success: function (result) {
+                if (result == '1') {
+                }
+            }
+        });
+    }
+ </script>
+
+@using System.Data;
+@{
+    DataTable dt_item = ViewBag.dt_item;
+    DataTable dt_edu = ViewBag.dt_edu;  
+    string action = "";
+    if (dt_item != null && dt_item.Rows.Count > 0)
+    {
+        action = "Insert_Comply";
+    }
+    else if (dt_edu != null && dt_edu.Rows.Count > 0)
+    {
+        if (ViewBag.temp != null && ViewBag.temp == "new")
+        {
+            action = "Insert_Comply";
+        }else
+        { action = "Upd_Comply"; }
+       
+    }
+}
+<div class="funcArea">
+<form id="form1" action="@action" method="post">
+<table border="0" cellpadding="0" cellspacing="0" style=" width:100%">
+    <tr>
+        <td style="width:100%;">
+            <div id="module_define">執行衛教</div>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding: 10px 0px 5px 0px;text-align:center;">
+            <input id="comply" type="button" class="btn"  value="執行衛教存檔"  onclick="if (check()) { loop_windows('open_cover'); submit(); }" />
+            <input id="cancle" type="button" class="btn" value="取消執行衛教" onclick="if(confirm('確認取消?')){ del_item('List'); }" />
+            <input id="reselect" type="button" class="btn"  value="重新選擇衛教項目" onclick="del_item('Sel_Item');" />
+            <input id="subtype" name="subtype" value="@(ViewBag.temp)" type="hidden"/>
+        </td>
+    </tr>
+    <tr><td  style="padding: 5px 0px 5px 0px;">
+        <div class="dataArea" style="height:360px;">
+        @if (dt_item != null && dt_item.Rows.Count > 0)
+        {
+            int i = 0;
+            foreach (DataRow r in dt_item.Rows)
+            {
+                if(r["OTHER"].ToString() == "1")
+                {
+                    <input type="hidden" name="del_ID" value="@r["ITEM_ID"]" />
+                }
+            <table border="0" cellpadding="4" cellspacing="1" width="100%" style="width:100%;font-size:14px;padding-bottom:10px;">
+                <tr>
+                    <th class="bottom_th" style="width:8%;">指導名稱</th>
+                    <td class="bottom_td" colspan="5">
+                        @r["NAME"]
+                        <input type="hidden" name="item_name" value="@r["NAME"]" />
+                        <input type="hidden" name="item_id" value="@r["ITEM_ID"]" />
+                        @if (r["ITEM_REFERENCE_URL"].ToString() != "")
+                        {
+                        <input id="btn" type="button" value="衛教單張/影片" data-eduname="@r["NAME"]" onclick="setCount(this);@Java_funcion.pup_window(r["ITEM_REFERENCE_URL"].ToString(), 900, 600, "0")" />
+                        }
+                    </td>
+                </tr>
+                <tr>
+                    <th class="bottom_th">指導日期</th>
+                    <td class="bottom_td" style="width:18%;">
+                        @Html.TextBox("txt_day", DateTime.Now.ToString("yyyy/MM/dd"), new { id = "txt_day" + i, style = "width:80px", @readonly = "readonly" })
+                        @Html.TextBox("txt_time", DateTime.Now.ToString("HH:mm"), new { id = "txt_time" + i, style = "width:50px", @readonly = "readonly" })
+                        @*@WebTool.setDateTime("txt_day" + i, "txt_time" + i,"","0","",mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day" + i, "txt_time" + i, true)
+                    </td>
+                    <th class="bottom_th" style="width:8%;">指導對象<input type="hidden" name="object" id="object@(i)" /></th>
+                    <td class="bottom_td" style="width:34%;">
+                        <table border="0" cellpadding="0" cellspacing="0">
+                            @if (i == 0)
+                            {
+                            <tr>
+                                <td>
+                                    @Html.RadioButton("rb_list_1" + i, "本人", false, new { id = "personal" + i, onclick = "$('#name_object" + i + "').val('" + pf.PatientName + "');enable('othername" + i + "');set_other(this,'rb_list_1');" })
+                                    @Html.Label("personal" + i, "本人")
+                                    @Html.RadioButton("rb_list_1" + i, "配偶", false, new { id = "spouse" + i, onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "');set_other(this,'rb_list_1');" })
+                                    @Html.Label("spouse" + i, "配偶")
+                                    @Html.RadioButton("rb_list_1" + i, "父母", false, new { id = "parents" + i, onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "');set_other(this,'rb_list_1');" })
+                                    @Html.Label("parents" + i, "父母")
+                                    @Html.RadioButton("rb_list_1" + i, "子女", false, new { id = "children" + i, onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "');set_other(this,'rb_list_1');" })
+                                    @Html.Label("children" + i, "子女")      
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    @Html.RadioButton("rb_list_1" + i, "兄弟姊妹", false, new { id = "brothers" + i, onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "');set_other(this,'rb_list_1');" })
+                                    @Html.Label("brothers" + i, "兄弟姊妹")
+                                    @Html.RadioButton("rb_list_1" + i, "外傭/看護", false, new { id = "care" + i, onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "');set_other(this,'rb_list_1');" })
+                                    @Html.Label("care" + i, "外傭/看護")
+                                    @Html.RadioButton("rb_list_1" + i, "99", false, new { id = "other" + i, onclick = "$('#name_object" + i + "').val('');able('othername" + i + "');set_other(this,'rb_list_1');" })
+                                    @Html.Label("other" + i, "其他")
+                                    @Html.TextBox("othername" + i, "", new { style = " width:50px", disabled = "disabled", onchange = "set_other(this,'othername');" })        
+                                </td>
+                            </tr>
+                            }
+                            else
+                            {
+                            <tr>
+                                <td>
+                                    @Html.RadioButton("rb_list_1" + i, "本人", false, new { id = "personal" + i, @class = "rb_list_1", onclick = "$('#name_object" + i + "').val('');$('#name_object" + i + "').val('" + pf.PatientName + "');enable('othername" + i + "');" })
+                                    @Html.Label("personal" + i, "本人")
+                                    @Html.RadioButton("rb_list_1" + i, "配偶", false, new { id = "spouse" + i, @class = "rb_list_1", onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "');" })
+                                    @Html.Label("spouse" + i, "配偶")
+                                    @Html.RadioButton("rb_list_1" + i, "父母", false, new { id = "parents" + i, @class = "rb_list_1", onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "');" })
+                                    @Html.Label("parents" + i, "父母")
+                                    @Html.RadioButton("rb_list_1" + i, "子女", false, new { id = "children" + i, @class = "rb_list_1", onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "');" })
+                                    @Html.Label("children" + i, "子女")      
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    @Html.RadioButton("rb_list_1" + i, "兄弟姊妹", false, new { id = "brothers" + i, @class = "rb_list_1", onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "');" })
+                                    @Html.Label("brothers" + i, "兄弟姊妹")
+                                    @Html.RadioButton("rb_list_1" + i, "外傭/看護", false, new { id = "care" + i, @class = "rb_list_1", onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "');" })
+                                    @Html.Label("care" + i, "外傭/看護")
+                                    @Html.RadioButton("rb_list_1" + i, "99", false, new { id = "other" + i, @class = "rb_list_1", onclick = "$('#name_object" + i + "').val('');able('othername" + i + "');" })
+                                    @Html.Label("other" + i, "其他")
+                                    @Html.TextBox("othername" + i, "", new { style = " width:50px", @class = "othername", disabled = "disabled" })        
+                                </td>
+                            </tr>
+                            }
+                        </table>
+                    </td>
+                    <th class="bottom_th" style="width:11%;">指導對象姓名<br />指導對象說明</th>
+                    <td class="bottom_td" style="width:21%;">
+                        <table border="0" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="padding-bottom:5px;">
+                                    @if (i == 0)
+                                    {
+                                    @Html.TextBox("name_object", "", new { id = "name_object" + i, style = "width:120px", onchange = "set_other(this,'name_object');" })
+                                    }
+                                    else
+                                    {
+                                    @Html.TextBox("name_object", "", new { id = "name_object" + i, style = "width:120px", @class = "name_object" })
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    @Html.TextBox("name_accompany", "", new { style = "width:120px" })
+                                </td>
+                            </tr>
+                         </table>
+                    </td>
+                </tr>
+          
+                <tr>
+                    @if (i == 0)
+                    {
+                    <th class="bottom_th">指導方式<input type="hidden" name="description" id="description@(i)" /></th>
+                  <td class="bottom_td" colspan="5">
+                        <table border="0" cellpadding="0" cellspacing="0"  >
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_1@(i)" value="說明與討論" />
+                                    @Html.Label("ck_list2_1" + i, "說明與討論")        
+                              
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_2@(i)" value="提供衛教單張" />
+                                    @Html.Label("ck_list2_2" + i, "提供衛教單張")         
+                               
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_3@(i)" value="影片/衛教看板" />
+                                    @Html.Label("ck_list2_3" + i, "影片/衛教看板")
+                              
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_4@(i)" value="示範" />
+                                    @Html.Label("ck_list2_4" + i, "示範")
+                             
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_other@(i)" value="99" onclick="ckable(this,'txt_ck_list2_other@(i)')" />
+                                    @Html.Label("ck_list2_other" + i, "其他")
+                                    @Html.TextBox("txt_ck_list2_other" + i, "", new { style = " width:50px", disabled = "disabled" })
+                               
+                                @*<td colspan="2" style="padding:4px 0 2px 0;">
+                                    @Html.Label("txt_ck_list1_replace" + i, "若有障礙的替代方案說明方法")
+                                    @Html.TextBox("txt_ck_list2_replace", "", new { id = "txt_ck_list2_replace" + i, style = " width:120px", disabled = "disabled" })
+                                </td>*@
+                            </tr>
+                        </table>
+                    </td>
+                    }
+                    else
+                    {
+                    <th class="bottom_th">指導方式<input type="hidden" name="description" id="description@(i)" /></th>
+            <td class="bottom_td" colspan="5">
+                        <table border="0" cellpadding="0" cellspacing="0"  >
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_1@(i)" value="說明與討論" />
+                                    @Html.Label("ck_list2_1" + i, "說明與討論")        
+                              
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_2@(i)" value="提供衛教單張" />
+                                    @Html.Label("ck_list2_2" + i, "提供衛教單張")         
+                               
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_3@(i)" value="影片/衛教看板" />
+                                    @Html.Label("ck_list2_3" + i, "影片/衛教看板")
+                               
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_4@(i)" value="示範" />
+                                    @Html.Label("ck_list2_4" + i, "示範")
+                               
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_other@(i)" value="99" onclick="ckable(this,'txt_ck_list2_other@(i)')" />
+                                    @Html.Label("ck_list2_other" + i, "其他")
+                                    @Html.TextBox("txt_ck_list2_other" + i, "", new { style = " width:50px", disabled = "disabled" })
+                               
+                                @*<td colspan="2" style="padding:4px 0 2px 0;">
+                                    @Html.Label("txt_ck_list1_replace" + i, "若有障礙的替代方案說明方法")
+                                    @Html.TextBox("txt_ck_list2_replace", "", new { id = "txt_ck_list2_replace" + i, style = " width:120px", disabled = "disabled" })
+                                </td>*@
+                            </tr>
+                        </table>
+                    </td>
+                    }                 
+                    
+                </tr>
+                <tr>
+                    <th class="bottom_th">指導細項<input type="hidden" name="item" id="item@(i)" /></th>
+                    <td class="bottom_td" colspan="5">
+                     
+                     @if (r["ITEM_CATEGORY"] != null && r["ITEM_CATEGORY"].ToString() != "")
+                      {
+                              for (int n = 0; n < @r["ITEM_CATEGORY"].ToString().Split('|').Length; n++)
+                              { 
+                               <label >                                  
+                                       <span style="display:inline-block;width:300px">
+                                           <input type="checkbox" name="item_category@(i)" id="item_category_@(n)@(i)" value="@(@r["ITEM_CATEGORY"].ToString().Split('|').GetValue(n))" />
+                                           @(@r["ITEM_CATEGORY"].ToString().Split('|').GetValue(n))
+
+                                       </span>
+</label>
+                              }<!--for-->
+                     @Html.TextBox("txt_ck_list3_other" + i, "", new { style = "display:none" })
+                    }<!--end if-->
+                    </td>
+                </tr>        
+                <tr>
+                    <th class="bottom_th">
+                        備註<br />
+                        @*<input style="width:40px;margin-top:5px;" type="button" value="片語" onclick="@Java_funcion.pup_window("../CareRecord/Phrase?type=user&txtid=txt_instruct" + i, 900, 600, "0")" />*@
+                    </th>
+                    <td class="bottom_td" colspan="5">
+                        @Html.TextArea("txt_instruct", new { id = "txt_instruct" + i, style = "width:80%;height:50px;" })
+                    </td>
+                </tr>
+            </table>
+                    i++;
+            }
+        }
+        else if (dt_edu != null && dt_edu.Rows.Count > 0)
+        {
+            <script type="text/javascript">
+                window.onload = function () {
+                    set_default_val();
+                    setGridColor();
+                    document.getElementById('reselect').disabled = true;
+                    $('#reselect').css("background-color", "gray");
+                    $('#reselect').css("color", "white");
+                }
+
+                function set_default_val() {
+                    var row = document.getElementsByName('item_id');
+                    for (var i = 0 ; i < row.length; i++) {
+                        set_for_rb_other('rb_list_1', 'object', 'othername', i);
+                        //set_for_rb_other('rb_list_2', 'nationality', 'txt_other_country', i);
+                        //set_for_rb('rb_list_3', 'education', i);
+                        //set_for_rb('rb_list_4', 'motive', i);
+                        //set_for_rb('rb_list_5', 'understand', i);
+                        //set_for_ck('language_list_', 'language', 'other_language_name', i);
+                        //set_for_ck('ck_list1', 'obstacle', 'txt_ck_list1_other', i);
+                        set_for_ck('ck_list2', 'description', 'txt_ck_list2_other', i);                   
+                        set_for_ck('item_category', 'item', 'txt_ck_list3_other', i);
+                    }
+                }
+
+                function set_for_ck(ck_name, hide_id, txtid, row) {               
+                    if ($('#' + hide_id + row).val() != '') {
+                        var default_val = $('#' + hide_id + row).val().split("|");
+                        var ck = document.getElementsByName(ck_name + row);
+                        for (var i = 0; i < default_val.length; i++) {
+                            var check = true;
+                            for (var j = 0; j < ck.length; j++) {
+                                if (default_val[i] == ck[j].value) {
+                                    ck[j].checked = true;
+                                    check = false;
+                                    j = ck.length;
+                                }
+                            }
+                            if (check) {
+                                $('#' + txtid + row).val(default_val[i]);
+                                document.getElementById(txtid + row).disabled = false;
+                                ck[ck.length - 1].checked = true;
+                            }
+                        }
+                    }
+                }
+
+                function set_for_rb(rb_name, hide_id, row) {
+                    var default_val = $('#' + hide_id + row).val();
+                    var rb = document.getElementsByName(rb_name + row);
+                    for (var i = 0; i < rb.length; i++) {
+                        if (rb[i].value == default_val)
+                            rb[i].checked = true;
+                    }
+                }
+
+                function set_for_rb_other(rb_name, hide_id, txtid, row) {
+                    var default_val = $('#' + hide_id + row).val().split("|");
+                    var rb = document.getElementsByName(rb_name + row);
+                    for (var i = 0; i < rb.length; i++) {
+                        if (rb[i].value == default_val[0])
+                            rb[i].checked = true;
+                    }
+                    if(default_val.length > 1){
+                        $('#' + txtid + row).val(default_val[1]);
+                        document.getElementById(txtid + row).disabled = false;
+                    }
+                }
+            </script>
+            int i = 0;
+            foreach (DataRow r in dt_edu.Rows)
+            {
+            <table border="0" cellpadding="4" cellspacing="1" width="100%" style="width:100%;font-size:14px;padding-bottom:10px;">
+                <tr>
+                    <th class="bottom_th" style="width:8%;">指導名稱</th>
+                    <td class="bottom_td" colspan="5">
+                        @r["NAME"]
+                        <input type="hidden" name="item_name" value="@r["NAME"]" />
+                        <input type="hidden" name="item_id" value="@r["ITEMID"]" />
+                        <input type="hidden" name="edu_id" value="@r["EDU_ID"]" />
+                        @if (r["ITEM_REFERENCE_URL"].ToString() != "")
+                        {
+                        <input id="btn" type="button" value="衛教單張/影片" data-eduname="@r["NAME"]" onclick="setCount(this);@Java_funcion.pup_window(r["ITEM_REFERENCE_URL"].ToString(), 900, 600, "0")" />
+                        }
+                    </td>
+                </tr>
+                <tr>
+                    <th class="bottom_th">指導日期</th>
+                    <td class="bottom_td" style="width:18%;">
+                        @Html.TextBox("txt_day", Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd"), new { id = "txt_day" + i, style = "width:80px", @readonly = "readonly" })
+                        @Html.TextBox("txt_time", Convert.ToDateTime(r["RECORDTIME"]).ToString("HH:mm"), new { id = "txt_time" + i, style = "width:50px", @readonly = "readonly" })
+                        @*@WebTool.setDateTime("txt_day" + i, "txt_time" + i,"","0","",mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day" + i, "txt_time" + i, true)
+                    </td>
+                    <th class="bottom_th" style="width:8%;">指導對象<input type="hidden" name="object" id="object@(i)" value="@r["OBJECT"]" /></th>
+                    <td class="bottom_td" style="width:34%;">
+                        <table border="0" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td>
+                                    @Html.RadioButton("rb_list_1" + i, "本人", false, new { id = "personal" + i, onclick = "$('#name_object" + i + "').val('" + pf.PatientName + "');enable('othername" + i + "')" })
+                                    @Html.Label("personal" + i, "本人")
+                                    @Html.RadioButton("rb_list_1" + i, "配偶", false, new { id = "spouse" + i, onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "')" })
+                                    @Html.Label("spouse" + i, "配偶")
+                                    @Html.RadioButton("rb_list_1" + i, "父母", false, new { id = "parents" + i, onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "')" })
+                                    @Html.Label("parents" + i, "父母")
+                                    @Html.RadioButton("rb_list_1" + i, "子女", false, new { id = "children" + i, onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "')" })
+                                    @Html.Label("children" + i, "子女")      
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    @Html.RadioButton("rb_list_1" + i, "兄弟姊妹", false, new { id = "brothers" + i, onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "')" })
+                                    @Html.Label("brothers" + i, "兄弟姊妹")
+                                    @Html.RadioButton("rb_list_1" + i, "外傭/看護", false, new { id = "care" + i, onclick = "$('#name_object" + i + "').val('');enable('othername" + i + "')" })
+                                    @Html.Label("care" + i, "外傭/看護")
+                                    @Html.RadioButton("rb_list_1" + i, "99", false, new { id = "other" + i, onclick = "$('#name_object" + i + "').val('');able('othername" + i + "')" })
+                                    @Html.Label("other" + i, "其他")
+                                    @Html.TextBox("othername" + i, "", new { style = " width:50px", disabled = "disabled" })        
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+
+                    <th class="bottom_th" style="width:11%;">指導對象姓名<br />指導對象說明</th>
+                    <td class="bottom_td" style="width:21%;">
+                        <table border="0" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="padding-bottom:5px;">
+                                    @Html.TextBox("name_object", r["OBJECT_NAME"], new { id = "name_object" + i, style = "width:120px" })
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    @Html.TextBox("name_accompany", r["ACCOMPANY_NAME"], new { style = "width:120px" })
+                                </td>
+                            </tr>
+                         </table>
+                    </td>
+                </tr>
+               
+                <tr>                   
+                    <th class="bottom_th">指導方式<input type="hidden" name="description" id="description@(i)" value="@r["DESCRIPTION"]" /></th>
+                    <td class="bottom_td" colspan="5">
+                        <table border="0" cellpadding="0" cellspacing="0" >
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_1@(i)" value="說明與討論" />
+                                    @Html.Label("ck_list2_1" + i, "說明與討論")        
+                          
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_2@(i)" value="提供衛教單張" />
+                                    @Html.Label("ck_list2_2" + i, "提供衛教單張")         
+                           
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_3@(i)" value="影片/衛教看板" />
+                                    @Html.Label("ck_list2_3" + i, "影片/衛教看板")
+                         
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_4@(i)" value="示範" />
+                                    @Html.Label("ck_list2_4" + i, "示範")
+                            
+                                    <input type="checkbox" name="ck_list2@(i)" id="ck_list2_other@(i)" value="99" onclick="ckable(this,'txt_ck_list2_other@(i)')" />
+                                    @Html.Label("ck_list2_other" + i, "其他")
+                                    @Html.TextBox("txt_ck_list2_other" + i, "", new { style = " width:50px", disabled = "disabled" })
+                            
+                                @*<td colspan="2" style="padding:4px 0 2px 0;">
+                                    @Html.Label("txt_ck_list1_replace" + i, "若有障礙的替代方案說明方法")
+                                    @if (r["DESCRIPTION_REPLACE"].ToString() != "")
+                                    {@Html.TextBox("txt_ck_list2_replace", r["DESCRIPTION_REPLACE"], new { id = "txt_ck_list2_replace" + i, style = " width:120px" })}
+                                    else
+                                    {@Html.TextBox("txt_ck_list2_replace", "", new { id = "txt_ck_list2_replace" + i, style = " width:120px", disabled = "disabled" })}
+                                </td>*@
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <th class="bottom_th">指導細項<input type="hidden"  name="item" id="item@(i)" value="@r["INSTRUCT"]" /></th>
+                    <td class="bottom_td" colspan="5">                  
+                        @if (r["ITEM_CATEGORY"] != null && r["ITEM_CATEGORY"].ToString() != "")
+                        {
+                            for (int n = 0; n < @r["ITEM_CATEGORY"].ToString().Split('|').Length; n++)
+                            {
+                                <label>
+                                    <span style="display:inline-block;width:300px" >
+                                        <input type="checkbox" name="item_category@(i)" id="item_category_@(n)@(i)" value="@(@r["ITEM_CATEGORY"].ToString().Split('|').GetValue(n))" />
+                                        @(@r["ITEM_CATEGORY"].ToString().Split('|').GetValue(n))
+                                      
+                                    </span>
+                                </label>
+                            }<!--for-->
+                          @Html.TextBox("txt_ck_list3_other" + i, "", new { style = "display:none" })
+                        }<!--end if-->
+                    </td>
+                </tr>  
+                <tr>
+                    <th class="bottom_th">
+                        備註<br />
+                        @*<input style="width:40px;margin-top:5px;" type="button" value="片語" onclick="@Java_funcion.pup_window("../CareRecord/Phrase?type=user&txtid=txt_instruct" + i, 900, 600, "0")" />*@
+                    </th>
+                    <td class="bottom_td" colspan="5">
+                        @Html.TextArea("txt_instruct", r["UNDERSTAND"].ToString(), new { id = "txt_instruct" + i, style = "width:80%;height:50px;" })
+                    </td>
+                </tr>
+            </table>
+                                    i++;
+            }
+        }
+        </div>
+    </td></tr>
+</table>
+</form>
+</div>

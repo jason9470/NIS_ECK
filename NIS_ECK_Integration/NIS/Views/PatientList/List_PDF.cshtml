@@ -1,0 +1,202 @@
+﻿@using NIS.Data;
+@{
+    List<PatientListPage> tdList = (List<PatientListPage>)ViewData["tdList"];
+    ViewBag.Title = "List_PDF";
+    System.Data.DataTable dt = ViewBag.dt;
+
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+<style type="text/css">
+
+    #module_define
+    {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+    #plDtl, #plData
+    {
+        cursor: pointer;
+    }
+    </style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+    });
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    function hreflink(feeno, obj) {
+        loop_windows("open_cover");
+        var type = $(obj).attr('type');
+        $.ajax({
+            url: "../Main/SetPatient", timeout: 5000, type: "post",
+            data: "fee_no=" + feeno,
+            cache: false,
+            async: false,
+            success: function () {
+                window.parent.GetPtInfoArea('1');//傳1進去，可跳過左方病人清單彈出的情況.
+                window.parent.readMqList();
+                window.parent.hasPat = "Y";
+            },
+            complete: function () {
+                if (type != "dtl") {
+                    window.parent.ReloadModule();
+                } else {
+                    var charno = $(obj).attr('charno');
+                    window.parent.ReloadModule('dtl', feeno, charno);
+                }
+                loop_windows("close_cover");
+            }
+        });
+    }
+    </script>
+ <div class="funcArea">
+     <table border="0" cellpadding="0" cellspacing="0" style="width: 100%">
+         <tr>
+         <tr>
+             <td style="padding: 5px 0 5px 0;">
+                 <div class="dataHeader" style="margin-right:0px;">
+                     <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px;">
+                         <tr>
+                             <td style="width: 8%;">床號</td>
+                             <td style="width: 9%;">姓名</td>
+                             <td style="width: 5%;">性別</td>
+                             <td style="width: 5%;">年齡</td>
+                             <td style="width: 8%;">主治醫生</td>
+                             <td style="width: 6%;">專師</td>
+                             <td style="width: 14%;">診斷</td>
+                             <td style="width: 8%;">入院日期</td>
+                             <td style="width: 4%;">檢查</td>
+                             <td style="width: 4%;">手術</td>
+                             <td style="width: 4%;">會診</td>
+                             <td style="width: 4%;">給藥</td>
+                             <td style="width: 20%;">註記</td>
+                         </tr>
+                     </table>
+                 </div>
+                     <div class="dataArea_PDF">
+                         <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px;">
+                             @if (ViewData["tdList"] != null)
+                             {
+                                 for (int i = 0; i <= tdList.Count - 1; i++)
+                                 {
+                                     <tr>
+                                         <td style="width: 8%;" id="plDtl" type="dtl" feeno="@(tdList[i].ptinfo.FeeNo.Trim())" charno="@(tdList[i].ptinfo.ChartNo.Trim())" onclick="hreflink('@tdList[i].ptinfo.FeeNo.Trim()',this)">
+                                             @tdList[i].ptinfo.BedNo.Trim()
+                                         </td>
+                                         <td style="width: 9%;" id="plData" type="vs" feeno="@(tdList[i].ptinfo.FeeNo.Trim())" onclick="hreflink('@tdList[i].ptinfo.FeeNo.Trim()',this)">
+                                             @(tdList[i].ptinfo.PatientName.Trim())<input id="hid_chartno_@(i)" type="hidden" value="@(tdList[i].ptinfo.ChartNo.Trim())" />
+                                         </td>
+                                         <td style="width: 5%;">
+                                             @tdList[i].ptinfo.PatientGender.Trim()
+                                         </td>
+                                         <td style="width: 5%;">
+                                             @tdList[i].ptinfo.Age
+                                         </td>
+                                         <td style="width: 8%;">
+                                             @tdList[i].ptinfo.DocName.Trim()
+                                         </td>
+                                         <td style="width: 6%;"></td>
+                                         <td style="width: 14%;">
+                                             @tdList[i].ptinfo.ICD9_code1.Trim()
+                                         </td>
+                                         <td style="width: 8%;">
+                                             @(tdList[i].ptinfo.InDate.ToString("yyyy/MM/dd HH:mm"))
+                                         </td>
+
+                                         <td style="width: 4%;text-align:center;">
+                                             @if (dt.Rows[i]["Exam"].ToString() == "Y")
+                                             {
+                                                 @Html.Raw("<input type='button' value='詳' onclick='pup_window(\"PartialData?feeno=" + tdList[i].ptinfo.FeeNo + "&type=exam\");'/>")
+                                             }
+                                         </td>
+                                         <td style="width: 4%;text-align:center;">
+                                             @if (dt.Rows[i]["op"].ToString() == "Y")
+                                             {
+
+                                                 @Html.Raw("<input type='button' value='詳' onclick='pup_window(\"PartialData?feeno=" + tdList[i].ptinfo.FeeNo + "&type=op\");'/>")
+                                             }
+                                         </td>
+                                         <td style="width: 4%;text-align:center;">
+                                             @if (dt.Rows[i]["call"].ToString() == "Y")
+                                             {
+
+                                                 @Html.Raw("<input type='button' value='詳' onclick='pup_window(\"PartialData?feeno=" + tdList[i].ptinfo.FeeNo + "&type=call\");'/>")
+                                             }
+                                         </td>
+                                         <td style="width: 4%;">
+                                             @*//給藥*@
+                                             @if (tdList[i].spnote[0].Drug != "" && tdList[i].spnote[0].Drug != null)
+                                             {
+                                                 @Html.Raw("<img src='../Images/med.png' />")
+                                                 @Html.Raw("&nbsp;")
+
+                                             }
+                                         </td>
+                                         <td style="width: 20%;"><!--統計數字-->
+                                @if(tdList[i].spnote[0].DNR != "" && tdList[i].spnote[0].DNR != null)
+                                {
+                                    @(tdList[i].spnote[0].DNR)@Html.Raw("&nbsp;")
+                                }
+                                 @if(tdList[i].spnote[0].Hospice != "" && tdList[i].spnote[0].Hospice != null)
+                                 {
+                                    @(tdList[i].spnote[0].Hospice)@Html.Raw("&nbsp;")
+                                 }
+                                 @if(tdList[i].spnote[0].OrganDonation != "" && tdList[i].spnote[0].OrganDonation != null)
+                                 {
+                                    @(tdList[i].spnote[0].OrganDonation)@Html.Raw("&nbsp;")
+                                 }
+                                 @if(tdList[i].spnote[0].Allergy != "" && tdList[i].spnote[0].Allergy != null)
+                                 {
+                                    @(tdList[i].spnote[0].Allergy)@Html.Raw("&nbsp;")
+                                 }
+                                 @if(tdList[i].spnote[0].Security != "" && tdList[i].spnote[0].Security != null)
+                                 {
+                                    @(tdList[i].spnote[0].Security)@Html.Raw("&nbsp;")
+                                 }
+                                 @if(tdList[i].spnote[0].IcnDiseaseStr != "" && tdList[i].spnote[0].IcnDiseaseStr != null)
+                                 {
+                                    @(tdList[i].spnote[0].IcnDiseaseStr)@Html.Raw("&nbsp;")
+                                 }
+                                 @if(tdList[i].spnote[0].fall_assess != "" && tdList[i].spnote[0].fall_assess != null)
+                                 {
+                                    @(tdList[i].spnote[0].fall_assess)@Html.Raw("&nbsp;")
+                                 }
+                                @if(tdList[i].spnote[0].pressure != "" && tdList[i].spnote[0].pressure != null)
+                                {
+                                    @(tdList[i].spnote[0].pressure)@Html.Raw("&nbsp;")
+                                }
+                                @if(tdList[i].spnote[0].pain != "" && tdList[i].spnote[0].pain != null)
+                                {
+                                    @(tdList[i].spnote[0].pain)@Html.Raw("&nbsp;")
+                                }
+                                @if(tdList[i].spnote[0].discharge != "" && tdList[i].spnote[0].discharge != null)
+                                {
+                                    @(tdList[i].spnote[0].discharge)@Html.Raw("&nbsp;")
+                                }
+                                @if(tdList[i].spnote[0].Suicide != "" && tdList[i].spnote[0].Suicide != null)
+                                {
+                                    @(tdList[i].spnote[0].Suicide)@Html.Raw("&nbsp;")
+                                }
+                                 @if(tdList[i].spnote[0].Constraint != "" && tdList[i].spnote[0].Constraint != null)
+                                {
+                                    @Html.Raw("<label>"+@tdList[i].spnote[0].Constraint+"</label>&nbsp;")
+                                }
+                            </td>
+                                     </tr>
+                                 }
+                             }
+                         </table>
+                     </div>
+             </td>
+         </tr>
+     </table>
+</div>

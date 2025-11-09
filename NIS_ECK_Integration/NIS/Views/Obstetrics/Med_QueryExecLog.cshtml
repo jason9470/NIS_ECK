@@ -1,0 +1,580 @@
+﻿@{
+    ViewBag.Title = "護理資訊系統-查詢給藥紀錄";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+@using System.Data;
+@{
+    Random rd = new Random();
+    DataTable dt_all = ViewBag.dt_all;
+    var i = 0;
+    var seq = 0;
+    String[] ckco = { "" };
+    string checker = "", TypeFlag = ViewBag.TypeFlag;
+    bool? medtype = ViewBag.medtype;
+    string start_date, start_time, end_date, end_time;
+    if (ViewBag.start_date == null)
+    {
+        start_date = DateTime.Now.AddHours(-8).ToString("d");
+        start_time = DateTime.Now.AddHours(-8).ToString("HH:mm");
+    }
+    else
+    {
+        start_date = ViewBag.start_date;
+        start_time = ViewBag.start_time;
+    }
+    if (ViewBag.end_date == null)
+    {
+        end_date = DateTime.Now.AddHours(1).ToString("d");
+        end_time = DateTime.Now.AddHours(1).ToString("HH:mm");
+    }
+    else
+    {
+        end_date = ViewBag.end_date;
+        end_time = ViewBag.end_time;
+    }
+}
+<script type="text/javascript">
+     $(document).ready(function () {
+         $(window).resize(function () {
+             if ($(this).outerHeight() <= 50) {
+                 $(".dataArea").outerHeight(400);
+             }
+             else {
+                 $(".dataArea").outerHeight($(this).outerHeight() - 100);
+             }
+         }).trigger("resize");
+         $("#search_txt").keypress(function (e) {
+             var code = (e.keyCode ? e.keyCode : e.which);
+             if (code == 13) { //Enter keycode
+                 find_medcode();
+             }
+         });
+         $("#search_txt").click(function () {
+             $(this).select();
+         });
+     });
+     function hidePopup(id) {
+         var popup = document.getElementById(id);
+         popup.style.display = 'none';
+     }
+     function showPopup(id) {
+         var popup = document.getElementById(id);
+         popup.style.display = 'block';
+
+     }
+     function doit(id) {
+         $("#ExecFlag").val(id);
+         $("#medtype").val('@ViewBag.medtype');
+         return true;
+     }
+     function MedicinalInfo(strMedCode) {
+         //線上藥典
+         var str_tr, str_th;
+         $.ajax({
+             type: 'POST',
+             url: "WebS_MedicinalInfo",
+             data: "Str_MedCode=" + Trim(strMedCode),
+             success: function (data) {
+                 if (data == "Error") {
+                     alert("錯誤！無法找到線上處方集資料。");
+                     return;
+                 }
+                 var obj = $.parseJSON(data);
+                 window.open(obj[0].DrugHref);
+             },
+             error: function (data) {
+                 alert("錯誤！無法找到線上處方集資料。");
+             }
+         });
+     }
+     function find_medcode() {
+         var str = Trim($("#search_txt").val());
+         var search_range = $("input[name='search_range']:checked").val();
+         var search_type = $("input[name='search_type']:checked").val();
+         if ((search_type != undefined) && (str == "")) {
+             alert("請輸入篩選條件。");
+             return false;
+         }
+
+         var range_key = "";
+         $(".gridview tr").hide();
+         $("tr[name='head']").show();
+
+         //全部/己DC/未DC
+         if (search_range == "select_del_order")
+         {
+             range_key = "dc_flag='Y'";
+             if ((search_type != undefined) && (str != "" && str.halfToFull() != "＊"))//半型轉全型
+             {
+                 search_data(search_type, range_key); //如果篩選藥名或途徑
+             } else
+             {
+                 $("tr[dc_flag='" + "Y" + "']").show();
+             }
+         }
+         else if (search_range == "select_act_order")
+         {
+             range_key = "dc_flag='N'";
+             if ((search_type != undefined) && (str != "" && str.halfToFull() != "＊"))//半型轉全型
+             {
+                 search_data(search_type, range_key);//如果篩選藥名或途徑
+             } else
+             {
+                 $("tr[dc_flag='" + "N" + "']").show();
+             }
+         }
+         else
+         {
+             range_key = "dc_flag!=''";
+             if ((search_type != undefined) && (str != "" && str.halfToFull() != "＊"))//半型轉全型
+             {
+                 search_data(search_type, range_key);//如果篩選藥名或途徑
+             } else
+             {
+                 $("tr[dc_flag='Y'], tr[dc_flag='N']").show();
+             }
+         }
+     }
+
+     function search_data(search_type,range_key)
+     {
+         var str = Trim($("#search_txt").val());
+         str = str.Full2Half(); //全型轉半型
+         if (search_type == "medcode")
+             $("tr[" + range_key + "][medcode*='" + str.toUpperCase() + "']").show();
+         else if (search_type == "meddesc")
+             $("tr[" + range_key + "][meddesc*='" + str.toUpperCase() + "']").show();
+         else if (search_type == "medpath")
+             $("tr[" + range_key + "][medpath*='" + str.toUpperCase() + "']").show();
+     }
+
+
+    // 半形空白轉全形：　用法: str.halfToFull() != "＊"
+     String.prototype.halfToFull = function () {
+         var temp = "";
+         for (var i = 0; i < this.toString().length; i++) {
+             var charCode = this.toString().charCodeAt(i);
+             if (charCode <= 126 && charCode >= 33) {
+                 charCode += 65248;
+             } else if (charCode == 32) { // 半形空白轉全形
+                 charCode = 12288;
+             }
+             temp = temp + String.fromCharCode(charCode);
+         }
+         return temp;
+     };
+
+    // 全形轉半形空白：　用法: str.halfToFull() != "*"
+     String.prototype.Full2Half = function () {
+         var temp = "";
+         for (var i = 0; i < this.toString().length; i++) {
+             var charCode = this.toString().charCodeAt(i);
+             if (charCode >= 65281 && charCode <= 65373) {
+                 temp += String.fromCharCode(this.toString().charCodeAt(i) - 65248);
+             } else if (charCode == 12288) {//空格
+                 temp += String.fromCharCode(this.toString().charCodeAt(i) - 12288 + 32);
+             } else {//原字符返回
+                 temp += this.toString().charAt(i);
+             }
+         }
+         return temp;
+
+     };
+
+     function show_medcode() {
+         $(".gridview tr").show();
+     }
+     function Med_SearchList() {
+         window.parent.ResetIframme('@Url.Content("~/CommonMedication/Med_SearchList")');
+     }
+
+    function Med_HisView_List()
+    {
+        window.location.href = "../HISView/Med_SearchList?feeno=@(ViewBag.feeno)";
+    }
+
+    function sendValue() {
+        var ck = $('input[name=ID]:checked');
+        if (ck.length == 0)
+            alert('請選擇給藥紀錄!');
+        else if (ck.length > 1)
+            alert("只能選擇一筆!");
+        else {
+            var row = '';
+            for (var i = 0; i < ck.length; i++) {
+                if (ck[i].checked) {
+                    row = row + ck[i].value;
+                    break;
+                }
+            }
+            if (row != '') {
+                if ('@medtype' == 'True') {
+                    window.opener.document.getElementById("TXT_TM_MED_B").value = $("#MED_DESC" + row).val().replace(/\s/g, '');
+                    window.opener.document.getElementById("TXT_TM_MED_B_AMT").value = $("#UD_DOSE" + row).val() + $("#UD_UNIT" + row).val();
+                } else {
+                    window.opener.document.getElementById("TXT_TM_MED_A").value = $("#MED_DESC" + row).val().replace(/\s/g, '');
+                    window.opener.document.getElementById("TXT_TM_MED_A_AMT").value = $("#UD_DOSE" + row).val() + $("#UD_UNIT" + row).val();
+                }
+
+                var use = window.opener.document.getElementById("TXT_TM_MED_USE").value;
+                var dose = $("#UD_DOSE" + row).val();
+                var doses;
+                var a, b, c;
+                if (dose.indexOf('/') >= 0) {
+                    doses = dose.split('/');
+                    a = Number(doses[0]);
+                    b = Number(doses[1]);
+                    c = a / b;
+                } else {
+                    c = dose;
+                }
+
+                if (use == "" || use == "0" || use == "NaN")
+                    window.opener.document.getElementById("TXT_TM_MED_USE").value = Number(c).toFixed(2).toString();
+                else
+                    window.opener.document.getElementById("TXT_TM_MED_USE").value = (Number(use) + Number(c)).toFixed(2).toString();
+
+                window.close();
+            }
+        }
+    }
+</script>
+
+<style type="text/css">
+    th {
+        background: #99CCFF;
+        text-align: center;
+    }
+
+    td {
+        vertical-align: top;
+        color: #333311;
+    }
+
+    tr.even {
+        background: #F5F5F5;
+    }
+
+    tr.odd {
+        background: #EEE9BF;
+    }
+
+    tr.over td {
+        background: #CDE6FF;
+        color: #000000;
+    }
+
+    .mname {
+        color: blue;
+        font-weight: bold;
+    }
+
+    .sname {
+        color: #600c0c;
+        font-style: italic;
+    }
+
+    .popup {
+        width: auto;
+        height: auto;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -250px 0 0 -300px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    form {
+        font-size: 14px;
+    }
+
+    .udcmd {
+        background: #EEE9BF;
+        text-align: left;
+        font-size: 12px;
+        color: red;
+    }
+
+    #sys_Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1000;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #sys_Loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 1001;
+        display: none;
+    }
+</style>
+
+<form method="POST" action="Med_QueryExecLog">
+    <div class="funcArea">
+        <table style="width: 100%;" border="0">
+            <tr>
+                <td style="background:pink;width:70px;vertical-align:middle">
+                    查詢日期：
+                </td>
+                <td>
+                    @Html.TextBox("start_date", @start_date, new { style = "width:80px;", @readonly = "readonly" })
+                    @Html.TextBox("start_time", @start_time, new { style = "width:50px;", @readonly = "readonly" })
+                    @*@WebTool.setDateTime("start_date", "start_time", "", "0")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.AddDays(-1).ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "start_time", false)
+                    @Html.Label("lab", " ~ ")
+                    @Html.TextBox("end_date", @end_date, new { style = "width:80px;", @readonly = "readonly" })
+                    @Html.TextBox("end_time", @end_time, new { style = "width:50px;", @readonly = "readonly" })
+                    @*@WebTool.setDateTime("end_date", "end_time", "", "1")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.AddDays(-1).ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "end_time", false, "1")
+                    <input id="search" type="button" value="查詢" style="width:50px" onclick="if (doit('quiryInterval')) submit();$('#sys_Block, #sys_Loading').show();" />
+                    <input id="search_all" type="button" value="查詢全部藥囑" onclick="if (doit('quiryAll')) submit();" />
+
+                    <input id="TypeFlag" type="hidden" value="@TypeFlag" name="TypeFlag" />
+                    <input id="ExecFlag" type="hidden" value="" name="ExecFlag" />
+                    <input id="medtype" type="hidden" value="@medtype" name="medtype" />
+                </td>
+            </tr>
+            <tr>
+                <td style="background:pink;width:70px;vertical-align:middle">
+                    篩選條件：
+                </td>
+                <td>
+                    @*<input type="radio" name="search_type" value="medcode" id="search2" checked/>藥品代碼*@
+                    <input type="radio" name="search_type" value="meddesc" id="search3" />藥品名稱
+                    <input type="radio" name="search_type" value="medpath" id="search4" />藥品途徑
+                    <input type="text" name="search_but" value="" id="search_txt" style="width:100px" />
+                    <input type="radio" id="select_all_order" name="search_range" value="select_all_order" checked />全部
+                    <input type="radio" id="select_del_order" name="search_range" value="select_del_order" />已DC
+                    <input type="radio" id="select_act_order" name="search_range" value="select_act_order" />未DC
+                    <input type="button" name="search_but" value="篩選" id="search_but" style="width:50px" onclick="find_medcode()" />
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="funcArea" style="text-align:center">
+        <input type="button" value="帶入" style="width:60px;" onclick="sendValue();" />
+        <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) window.close();" />
+    </div>
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; height: 100%; text-align: left">
+        <tr>
+            <td>
+                <div class="dataArea" style="width:100%; height:350px">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tr>
+                            <td colspan="2" style="padding: 10px 0px 0px 0px">
+                                <div class="gridview">
+                                    @if (dt_all != null && dt_all.Rows.Count > 0)
+                                    {
+                                        <table border="0" cellpadding="5" cellspacing="1" width="100%">
+                                            <tr name="head">
+                                                <th>@Html.Label("lab", "藥品名稱[商品名]")</th>
+                                                <th>@Html.Label("lab", "使用劑量")</th>
+                                                <th>@Html.Label("lab", "頻次")</th>
+                                                <th>@Html.Label("lab", "途徑")</th>
+                                                <th>@Html.Label("lab", "生效時間")</th>
+                                                <th>@Html.Label("lab", "結束時間")</th>
+                                                @*<th>@Html.Label("lab", "狀態")</th>*@
+                                            </tr>
+                                            @foreach (DataRow r in dt_all.Rows)
+                                            {
+                                                if (medtype == true && r["UD_TYPE"].ToString().Trim().ToUpper() != "IV")
+                                                {
+                                                    continue;
+                                                }
+                                                seq = seq + 1;
+                                                string begin = string.Format("{0}/{1}/{2} {3}:{4}", r["BEGIN_DATE"].ToString().Trim().Substring(0, 3), r["BEGIN_DATE"].ToString().Trim().Substring(3, 2), r["BEGIN_DATE"].ToString().Trim().Substring(5, 2), r["BEGIN_TIME"].ToString().Trim().Substring(0, 2), r["BEGIN_TIME"].ToString().Trim().Substring(2, 2));
+                                                string end = string.Format("{0}/{1}/{2} {3}:{4}", r["END_DATE"].ToString().Trim().Substring(0, 3), r["END_DATE"].ToString().Trim().Substring(3, 2), r["END_DATE"].ToString().Trim().Substring(5, 2), r["END_TIME"].ToString().Trim().Substring(0, 2), r["END_TIME"].ToString().Trim().Substring(2, 2));
+                                                System.Globalization.CultureInfo ToTWDay = new System.Globalization.CultureInfo("zh-TW");  //使用 1911 轉換民國及西元，會有閏年閏月問題  by wawa
+                                                ToTWDay.DateTimeFormat.Calendar = new System.Globalization.TaiwanCalendar();
+                                                string BEGIN_DAY = DateTime.Parse(begin, ToTWDay).ToString();
+                                                string END_DAY = end != "000/00/00 00:00" ? DateTime.Parse(end, ToTWDay).ToString() : " ";
+
+                                                if (@r["use_s"].ToString().Trim() != "")
+                                                {
+                                                    string clo = "#EEE9BF", DC_flag = "";
+                                                    if (r["DC_DATE"].ToString().Trim() != null && r["DC_DATE"].ToString().Trim() != "")
+                                                    {
+                                                        //用 -1911 會有閏年的問題 edit by wawa
+                                                        //System.Globalization.CultureInfo TWTimeFormat = new System.Globalization.CultureInfo("zh-TW");
+                                                        //TWTimeFormat.DateTimeFormat.Calendar = new System.Globalization.TaiwanCalendar();
+                                                        //DateTime NowDateTmp = Convert.ToDateTime(DateTime.Now.ToString(TWTimeFormat));
+                                                        var taiwanCalender = new System.Globalization.TaiwanCalendar();
+                                                        var NowDateTmp = Convert.ToInt64(string.Format("{0}{1}",
+                                                                                        taiwanCalender.GetYear(DateTime.Now),
+                                                                                        DateTime.Now.ToString("MMddHHmm")
+                                                                                        ));
+                                                        DC_flag = "N";
+                                                        if (r["END_DATE"].ToString().Trim() != "0000000" && Convert.ToInt64(r["END_DATE"].ToString().Substring(0, 3) + r["END_DATE"].ToString().Substring(3, 2) + r["END_DATE"].ToString().Substring(5, 2) + r["END_TIME"].ToString().Substring(0, 2) + r["END_TIME"].ToString().Substring(2, 2)) < NowDateTmp)
+                                                        {
+                                                            clo = "#c6eea6";
+                                                            DC_flag = "Y";
+                                                        }
+                                                    }
+                                                    <tr style="background:@clo" medcode="@r["MED_CODE"].ToString().Trim()" meddesc="@r["MED_DESC"].ToString().Trim().ToUpper()" medpath="@r["UD_PATH"].ToString().Trim()" dc_flag="@DC_flag">
+                                                        <td style="height: 30px;">
+                                                            @*<img src="~/Images/med_dictionary.png" class="medbook" border="0" onclick="MedicinalInfo('@r["MED_CODE"]');"/>*@
+                                                            <label class="mname"><input type="radio" name="ID" value="@seq" />@r["MED_DESC"]</label>
+                                                            @*<label style="color:#000000">[@r["MED_CODE"].ToString().Trim()]</label>*@
+                                                            <input type="hidden" id="MED_DESC@(seq)" value="@r["MED_DESC"].ToString().Trim()" />
+                                                            <input type="hidden" id="ALISE_DESC@(seq)" value="@r["ALISE_DESC"].ToString().Trim()" />
+                                                            <input type="hidden" id="UD_DOSE@(seq)" value="@r["UD_DOSE"].ToString().Trim()" />
+                                                            <input type="hidden" id="UD_UNIT@(seq)" value="@r["UD_UNIT"].ToString().Trim()" />
+                                                            <span style="font-style:italic;color:brown;">@(r["ALISE_DESC"].ToString().Trim())</span>
+                                                        </td>
+                                                        <td style="text-align: center; vertical-align: middle;">
+                                                            @r["UD_DOSE"] &nbsp; @r["UD_UNIT"]
+                                                        </td>
+                                                        <td style="text-align: center; vertical-align: middle;">
+                                                            @r["UD_CIR"]
+                                                        </td>
+                                                        <td style="text-align: center; vertical-align: middle;">
+                                                            @r["UD_PATH"]
+                                                        </td>
+                                                        <td style="text-align: center; vertical-align: middle;">
+                                                            @BEGIN_DAY
+                                                        </td>
+                                                        <td style="text-align: center; vertical-align: middle;">
+                                                            @END_DAY
+                                                        </td>
+                                                        @*<td style="text-align: center; vertical-align: middle;">
+                                                                @r["UD_STATUS"]
+                                                            </td>*@
+                                                    </tr>
+                                                    if (r["UD_CMD"].ToString().Trim() != "" || @r["FLOW_SPEED"].ToString().Trim() != "")
+                                                    {
+                                                        @: <tr style="background: @clo" dc_flag="@DC_flag">
+                                                            @:<td colspan="7" cellpadding="0" cellspacing="0" class="udcmd" style="font-size:14px;background:@clo;">&emsp;醫囑備註：@(r["UD_CMD"].ToString().Trim())&emsp; @r["FLOW_SPEED"]</td></tr>
+                                                    }
+                                                    <tr style="background:#F5F5F5" medcode="@r["MED_CODE"].ToString().Trim()" meddesc="@r["MED_DESC"].ToString().Trim().ToUpper()" medpath="@r["UD_PATH"].ToString().Trim()" dc_flag="@DC_flag">
+                                                        <td colspan="7" style="text-align: left; height: 30px;">
+                                                            @{
+                                                                String[] use_time = r["use_t"].ToString().Split(',');
+                                                                string[] use_s = r["use_s"].ToString().Split(',');
+                                                                string[] use_d = r["use_d"].ToString().Split(',');
+                                                                string[] use_execname = r["use_execname"].ToString().Split(',');
+                                                                string[] use_execdate = r["use_execdate"].ToString().Split(',');
+                                                                string[] use_exectime = r["use_exectime"].ToString().Split(',');
+                                                                string[] use_reason = r["use_reason"].ToString().Split(',');
+                                                                //=======
+                                                                string[] check_execname = r["check_execname"].ToString().Split(',');
+                                                                string[] check_execdate = r["check_execdate"].ToString().Split(',');
+                                                                string[] check_exectime = r["check_exectime"].ToString().Split(',');
+                                                                //=====
+                                                                string[] insulin = r["insulin"].ToString().Split(',');
+                                                                int k = 0;
+                                                                foreach (string content in use_s)
+                                                                {
+                                                                    if (@content != "")
+                                                                    {
+                                                                        if ((k == 0) || (use_d[k - 1] != use_d[k]))
+                                                                        {
+                                                                            if (k >= 1)
+                                                                            {<br>}
+                                                                            <label style='margin-left: 40pt'>@use_d[k]&nbsp;</label>
+                                                                        }
+                                                                        if (use_execname[k].Trim() != "")
+                                                                        {
+                                                                            <label for="ck_@i" style="color:black; padding:0px 20px 0px 20px" title="@use_execdate[k]">
+                                                                                @use_time[k] &nbsp;[@use_execname[k] @use_exectime[k] @use_reason[k]]
+                                                                            </label>
+                                                                            //======胰島素注射部位
+                                                                            if (insulin[k].Trim() != "" && insulin[k].Trim() != "選擇部位")
+                                                                            {
+                                                                                <label for="ck_@i">
+                                                                                    注射部位: @insulin[k]
+                                                                                </label>
+                                                                            }
+                                                                            //=======
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <label for="ck_@i" style="color:red;padding:0px 20px 0px 20px" title="@use_execdate[k]">
+                                                                                @use_time[k] &nbsp;
+                                                                            </label>
+                                                                        }
+
+                                                                        //======
+                                                                        if (check_execname[k].Trim() != "")
+                                                                        {
+                                                                            <label for="ck_@i" style="color:blue;" title="@check_execdate[k]">
+                                                                                [@check_execname[k] @check_exectime[k]]
+                                                                            </label>
+                                                                        }
+                                                                        //=======
+
+                                                                    }
+                                                                    k++;
+                                                                    i++;
+                                                                }
+                                                                k = 0;
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                        </table><hr />
+                                    }
+                                    else
+                                    {
+                                        @:此病人沒有給藥紀錄
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+
+                    </table>
+
+                </div>
+            </td>
+        </tr>
+    </table>
+</form>
+<div id="div_Med" class="popup" style="width:650px; height:400px; display:none;">
+    <span class="p_close">
+        <img src="~/Images/Close.png" alt="關閉" onclick="$('#div_Med').fadeOut(500);" />
+    </span>
+    <div id="piccontent" style="padding: 10px 0px 10px 10px; height:350px; overflow:auto;"></div>
+</div>
+<!--遮罩-->
+<div id="inp" class="dialog"></div>
+<div id="cover" class="dialog"></div>
+<div id="sys_Block"></div>
+<div id="sys_Loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/System/loading.gif" alt="" />
+</div>
+
+<script>
+    $(document).ready(function () {
+        find_medcode();
+    });
+</script>

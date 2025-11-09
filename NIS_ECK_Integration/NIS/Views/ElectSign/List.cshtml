@@ -1,0 +1,233 @@
+﻿@{
+    ViewBag.Title = "護理資訊系統-電子簽單";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        @if (ViewBag.NewEMR != "Y")
+        {
+            @:$('#pincode').hide();
+            @:$('#pincodetext').hide();
+        }
+        $('#rb_list1_0').click();
+    });
+
+    function Search() {
+        if ($('input[name=rb_list2]:checked').val() == 'N') {
+            $('.sended').fadeIn(100);
+            div_hidden('send');
+        }
+        else {
+            div_hidden('sended');
+            $('.send').fadeIn(100);
+        }
+
+        $("#block,#loading").show();
+        $('#div_content').fadeOut(0);
+        var url = $('input[name=rb_list1]:checked').val();
+        var start_day = $('#start_date').val();
+        var end_day = $('#end_date').val();
+        var type = $('input[name=rb_list2]:checked').val();
+        $.ajax({
+            type: 'post',
+            url: url,
+            data: { start: start_day, end: end_day, type: type },
+            success: function (data) {
+                $('#div_content').html(data);
+                $("#block,#loading").hide();
+                $('#div_content').fadeIn(500);
+                $(window).resize(function () {
+                    var height = $(this).outerHeight();
+                    if (height <= 300)
+                        height = 400;
+                    $(".dataArea").outerHeight(height - 120);
+                }).trigger("resize");
+            }
+        });
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0 ; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    function send_list() {
+        if ($('input[name=id_list]:checked').length > 0) {
+            @if (ViewBag.NewEMR == "Y")
+            {
+                <text>
+            if ($.trim($('#pincode').val()) != '') {
+                $("#block,#loading").show();
+                $('#pin_code').val($.trim($('#pincode').val()));
+                $('#form_content').submit();
+            }
+            else
+                alert('請輸入PIN CODE');
+                </text>
+            }
+            else
+            {
+                @:$("#block,#loading").show();
+                @:$('#form_content').submit();
+            }
+        }
+        else
+            alert('請選擇上傳項目');
+    }
+
+    function all_sign() {
+            @if (ViewBag.NewEMR == "Y")
+            {
+                <text>
+        if ($.trim($('#pincode').val()) != '') {
+            $("#block,#loading").show();
+            $('#form1').attr('action', 'All_Sign');
+            $('#form1').submit();
+        }
+        else
+            alert('請輸入PIN CODE');
+                </text>
+            }
+            else
+            {
+            @:$('#form1').attr('action', 'All_Sign');
+            @:$("#block,#loading").show();
+            @:$('#form1').submit();
+            }
+    }
+
+    function call_sign() {
+            @if (ViewBag.NewEMR == "Y")
+            {
+                <text>
+        if ($.trim($('#pincode').val()) != '') {
+            $('#pin_code').val($.trim($('#pincode').val()));
+            $('#form1').attr('action', 'Call_Sign');
+            $('#form1').submit();
+        }
+        else
+            alert('請輸入PIN CODE');
+                </text>
+            }
+            else
+            {
+            @:$('#form1').attr('action', 'Call_Sign');
+            @:$('#form1').submit();
+            }
+    }
+
+</script>
+
+<form id="form1" action="Elect_Sign" method="post">
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td style="padding: 0px 0px 0px 10px; width:80%">
+                @Html.TextBox("start_date", DateTime.Now.AddDays(-7).ToString("yyyy/MM/dd"), new { style = "width:80px" })
+                @Html.Label("lab", " ~ ")
+                @Html.TextBox("end_date", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px" })
+                @*@WebTool.setDateTime("start_date")
+                @WebTool.setDateTime("end_date")*@
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "", false)
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "", false)
+                @Html.RadioButton("rb_list1", "All", false, new { id = "rb_list1_0", onclick = "$('.all').fadeIn(100);$('.sended').fadeIn(100);div_hidden('other,send');$('#div_content').empty();" })
+                @Html.Label("rb_list1_0", "全部")
+                @Html.RadioButton("rb_list1", "CareRecord_List", false, new { id = "rb_list1_1", onclick = "$('.other').fadeIn(100);div_hidden('all');" })
+                @Html.Label("rb_list1_1", "護理紀錄")
+                @Html.RadioButton("rb_list1", "Assessment_List", false, new { id = "rb_list1_2", onclick = "$('.other').fadeIn(100);div_hidden('all');" })
+                @Html.Label("rb_list1_2", "入院評估")
+                @Html.RadioButton("rb_list1", "Med_List", false, new { id = "rb_list1_3", onclick = "$('.other').fadeIn(100);div_hidden('all');" })
+                @Html.Label("rb_list1_3", "給藥記錄")
+                <span class="other" style="display:none;">
+                    &nbsp;/&nbsp;
+                    <label><input type="radio" name="rb_list2" value="N" checked="checked" />未送出</label>
+                    <label><input type="radio" name="rb_list2" value="Y" />已送出</label>
+                    <input id="btn_search" type="button" value="查詢" onclick="if ($('input[name=rb_list2]:checked').val() != undefined) { Search(); } else { alert('請選擇送出狀態'); }" />
+                </span>
+                <span class="all" style="display:none;">
+                    <input type="button" value="批次簽章" onclick="all_sign();" />
+                </span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 0px 0px 0px 10px; width:80%">
+                <label id="pincodetext">PIN CODE</label> 
+                <input type="text" id="pincode" name="pincode" value="" style="width:120px;" />
+                <span class="other">
+                    <span class="sended">
+                        <input id="btn_Sign" type="button" value="批次簽章" onclick="send_list();" />
+                    </span>
+                    <span class="send" style="display:none;">
+                    <input type="button" value="重簽" onclick="call_sign();" />
+                    </span>
+                </span>
+            </td>
+        </tr>
+        <tr>
+            <td>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:5px 0 5px 0;">
+                <div id="div_content">
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+</form>
+
+<style type="text/css">
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

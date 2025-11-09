@@ -1,0 +1,180 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string StartDate=ViewBag.StartDate;
+    string EndDate = ViewBag.EndDate;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function SetSelfSolve(obj) {
+        if ($(obj).val() == '1')
+            $("." + $(obj).attr('name')).fadeIn(0);
+        else
+            $("." + $(obj).attr('name')).fadeOut(0);
+        setGridColor();
+    }
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        var success = true;
+        if (obj.value.indexOf('.') > -1)
+            var re = /^[0-9]+\.[0-9]*$/;
+        else
+            var re = /^[0-9]+$/;
+
+        if (!re.test(obj.value) && obj.value != "") {
+            alert("只能輸入數字");
+            $(obj).val('');
+            success = false;
+        }
+        return success;
+    }
+
+    function Back() {
+        window.location.href = '@Url.Content("~/BladderTraining/List")'
+            + '?StartDate=' + $('#StartDate').val()
+            + '&EndDate=' + $('#EndDate').val();
+    }
+    function loading_change() {
+        $("#form1").submit();
+        loop_windows("open_cover");
+    }
+</script>
+@{
+    string action = "Insert";
+    string id = "", catheter = "", training_status = "", urine_feel = "", intake_quantity = "", urine_last = "", self_solve = "", remark="";
+    DataTable dt = ViewBag.dt;
+    DateTime now = DateTime.Now;
+    if(dt != null && dt.Rows.Count > 0)
+    {
+        action = "Edit";
+        string io_flag = ViewBag.chkbtn_io;//取到如果有帶入IO的資料就為"Y"，不然就為"N"
+        now = Convert.ToDateTime(dt.Rows[0]["RECORD_TIME"]);
+        id = dt.Rows[0]["RECORD_ID"].ToString();
+        catheter = dt.Rows[0]["CATHETER_SORT"].ToString();
+        training_status = dt.Rows[0]["TRAINING_STATUS"].ToString();
+        urine_feel = dt.Rows[0]["URINE_FEEL"].ToString();
+        intake_quantity = dt.Rows[0]["INTAKE_WATER"].ToString();
+        urine_last = dt.Rows[0]["RESIDUAL_UNINE"].ToString();
+        self_solve = dt.Rows[0]["SELF_SITUATION"].ToString();
+        remark = dt.Rows[0]["REMARK"].ToString();
+        <script type="text/javascript">
+            $(function () {
+                SetSelfSolve($('input[type=radio][name=rb_catheter]:checked'));
+
+                if ('@(io_flag)' == "Y") {//IO如果有資料，在修改頁面時就會將帶IO的checkbox打勾並disable，提供顯示給他看這筆是有跟IO連動的
+                    $("#cb_into_io").attr("checked", true);
+                } else {
+                    $("#cb_into_io").attr("checked", false);
+                }
+                $("#cb_into_io").attr("disabled", true);
+                //$("#cb_into_io").closest('tr').hide();
+            });
+        </script>
+    }
+}
+<form id="form1" action="@(action)" method="post">
+    <input type="hidden" id="id" name="id" value="@(id)"/>
+    <input type="hidden" id="StartDate" name="StartDate" value="@(StartDate)" />
+    <input type="hidden" id="EndDate" name="EndDate" value="@(EndDate)" />
+    <div class="funcArea">
+        <div style="text-align:center;margin:5px 0 5px 0;">
+            <input type="button" value="存檔" style="width:60px;" onclick="loading_change();" />
+            <input type="button" value="取消" style="width:60px;" onclick="Back();"/>
+        </div>
+        <div class="dataArea" style="height:420px;">
+            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                <tr>
+                    <td style="width:15%;">日期時間：</td>
+                    <td>
+                        @Html.TextBox("txt_day", now.ToString("yyyy/MM/dd"))
+                        @Html.TextBox("txt_time", now.ToString("HH:mm"))
+                        @*@WebTool.setDateTime("txt_day", "txt_time")*@
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                    </td>
+                </tr>
+                <tr>
+                    <td>尿管類別：</td>
+                    <td>
+                        <label><input type="radio" name="rb_catheter" onclick="SetSelfSolve(this);" value="0" @((catheter != "1") ? "checked" : "") />尿管</label>
+                        <label><input type="radio" name="rb_catheter" onclick="SetSelfSolve(this);" value="1" @((catheter == "1") ? "checked" : "") />膀胱造廔</label>
+                    </td>
+                </tr>
+                <tr>
+                    <td>訓練狀態：</td>
+                    <td>
+                        <label><input type="radio" name="rb_training_status" value="0" @((training_status != "1") ? "checked" : "") />關</label>
+                        <label><input type="radio" name="rb_training_status" value="1" @((training_status == "1") ? "checked" : "") />開</label>
+                    </td>
+                </tr>
+                <tr>
+                    <td>尿液感：</td>
+                    <td >
+                        <label><input type="radio" name="rb_urine_feel" value="0" @((urine_feel != "1") ? "checked" : "") />無</label>
+                        <label><input type="radio" name="rb_urine_feel" value="1" @((urine_feel == "1") ? "checked" : "") />有</label>
+                    </td>
+                </tr>
+                <tr>
+                    <td>攝水量：</td>
+                    <td colspan="2">
+                        <input type="text" id="txt_assimilate_quantity" name="txt_assimilate_quantity" value="@(intake_quantity)" style="width:120px;" onblur="numcheck(this);" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>餘尿量：</td>
+                    <td>
+                        <input type="text" id="txt_urine_last" name="txt_urine_last" value="@(urine_last)" style="width:120px;" onblur="numcheck(this);" />
+                    </td>
+                </tr>
+                <tr class="rb_catheter" style="display:none;">
+                    <td>自解排尿量：</td>
+                    <td>
+                        <input type="text" id="txt_self_solve" name="txt_self_solve" value="@(self_solve)" onblur="numcheck(this);" style="width:120px;" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>備註：</td>
+                    <td>
+                        <input style="width:300px;" type="text" id="txt_remark_0" name="txt_remark_0" value="@(remark)" />
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="text-align:center;">
+                        <label><input type="checkbox" id="cb_into_io" name="cb_into_io" value="Y" />帶入I/O</label>
+                        <input type="hidden" id="hid_into_io" name="hid_into_io" value="0"/>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</form>

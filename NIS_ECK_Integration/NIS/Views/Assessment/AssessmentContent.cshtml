@@ -1,0 +1,391 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+
+    NursingAssessmentMain na_main_infor = (NursingAssessmentMain)ViewData["na_main_info"];
+    List<NursingAssessmentTag> na_tag_info = (List<NursingAssessmentTag>)ViewData["na_tag_info"];
+    List<NA_View_Obj> na_view_obj = (List<NA_View_Obj>)ViewData["na_dtl_info"];
+   
+}
+
+<!-- JS程式區段 -->
+<script type="text/javascript">
+
+    function setTabControl() {
+        var activePage = 0;
+        var tabCount = 0;
+        if ($(".tabs_area").length > 0) {
+            $(".tab_control").click(function () {
+                activePage = $(".tabs_area").tabs("option", "active");
+                tabCount = $(".tabs_area").find("li").length - 1;
+                switch ($(this).attr("control_code")) {
+                    case "page_up":
+                        window.scrollTo(0, 0);
+                        if (activePage > 0)
+                            $(".tabs_area").tabs("option", "active", activePage - 1);
+                        break;
+                    case "page_down":
+                        window.scrollTo(0, 0);
+                        if (activePage < tabCount)
+                            $(".tabs_area").tabs("option", "active", activePage + 1);
+                        break;
+                    case "save":
+                        var checkFlag = true;
+                        // 檢核必須寫在這裡
+                        var j = 0
+                        $('.ItemBlock').each(function () {
+                            var depend_id = $(this).attr('DependID');
+                            //取得主項目div(排除隱藏div及細項DIV)
+                            if ($(this).css('display') != 'none' && depend_id == undefined) {
+                                var input_list = this.getElementsByTagName('input');
+                                for (var i = 0; i < input_list.length; i++) {
+                                    if ((input_list[i].type == 'text' || input_list[i].type == 'radio' || input_list[i].type == 'checkbox') && $("#"+input_list[i].id).attr('must') == 'Y' ) {
+                                        //取得值
+                                        if (input_list[i].type == 'text')
+                                            var input_val = $.trim(input_list[i].value);
+                                        else if (input_list[i].type == 'radio' || input_list[i].type == 'checkbox')
+                                            var input_val = $('input[name=' + $(input_list[i]).attr('name') + ']:checked').val();
+
+                                        //判斷是否為空值或未取得
+                                        if (input_val == undefined || input_val == '') {
+                                            document.getElementById('unfilled').appendChild(this);
+                                            $('.ItemBlock[DependID=' + $(this).attr('BlockID') + ']').each(function () {
+                                                document.getElementById('unfilled').appendChild(this);
+                                            });
+                                            checkFlag = false;
+                                            i = input_list.length;
+                                        }
+                                        else {
+                                            $(this).css('display', 'none');
+                                            $('.ItemBlock[DependID=' + $(this).attr('BlockID') + ']').each(function () {
+                                                $(this).css('display', 'none');
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        if (checkFlag)
+                            $("form[name=na_form]").submit();
+                        else {
+                            $('#filled').fadeOut(0);
+                            $('#unfilled').fadeIn(500);
+                        }
+                        break;
+                    case "save_tmp":
+                        $("form[name=na_form]").submit();
+                        break;
+                }
+            }).prop("disabled", false);
+        }
+
+
+    }
+
+    $(document).ready(function () {
+        
+        //自動調整頁面高度
+        //分頁選項高度
+        $(window).resize(function () {
+            $(".tabs_area").outerHeight($(this).outerHeight() - 85);
+            $(".tag_page").outerHeight($(this).outerHeight() - 195);
+        }).trigger("resize");
+
+        setTabControl();
+
+        var ver = "@(na_main_infor.na_version)";
+        if (ver != "")
+            $(".ver").html("ver:" + ver);
+        else
+            $(".ver").html("");
+        //開始tabs
+
+        $(".tabs_area").tabs({
+            active: 0
+        });
+
+        $(".tooltip").tooltip({
+            content: function () {
+                return $(this).prop('title');
+            }
+        }).css({
+            "color": "#660000",
+            "font-weight": "bold",
+            "padding-left": "15px"
+        });
+
+        // 群組計分
+        $("[GroupID]").each(function () {
+            var CtObj = $(this);
+            var GroupList = $(this).attr("GroupID").split("|");
+            var divObj = $("div[BlockID=" + $(this).attr("name") + "]");
+            var iDependID = $(divObj).attr("DependID");
+            var iShowValue = $(divObj).attr("ShowValue");
+            $(CtObj).css({
+                "background-color": "#EEEEEE",
+                "width": 80
+            });
+
+            //幫目標Block加上DependID與ShowValue並修改樣式
+            for (var i = 0 ; i <= GroupList.length - 1 ; i++) {
+                $("div[BlockID=" + GroupList[i] + "]").attr("DependID", iDependID).attr("ShowValue", iShowValue);
+            }
+            var selectorStr = "div[BlockID=" + GroupList.join("], div[BlockID=") + "]";
+            $(selectorStr).click(function () {
+                var count = 0;
+                $(selectorStr).find("input[type=radio]:checked").each(function () {
+                    count += parseInt($(this).val().substring(1, 2));
+                });
+                $(CtObj).val(count.toString());
+            });
+            var count = 0;
+            $(selectorStr).find("input[type=radio]:checked").each(function () {
+                count += parseInt($(this).val().substring(1, 2));
+            });
+            $(CtObj).val(count.toString());
+
+        });
+
+        // 隱藏欄位function
+        $("[DependID]").each(function () {
+
+            var DependID = $(this).attr("DependID");
+            var ShowValue = $(this).attr("ShowValue");
+            var DependObj = $(this);
+            var TargetObj = $("[name=" + DependID + "]");
+            var BlockID = $("div[DependID=" + DependID + "]").attr("BlockID");
+            
+            if (typeof $(TargetObj).get(0) != "undefined") {
+                switch ($(TargetObj).get(0).tagName.toLowerCase()) {
+                    case "input":
+                        switch ($(TargetObj).attr("type").toLowerCase()) {
+                            case "text":
+                                $(TargetObj).keypress(function () {
+                                    if ($("input[name=" + DependID + "]").val() == ShowValue) {
+                                        $(DependObj).show();
+                                    } else {
+                                        $(DependObj).hide();
+                                    };
+                                });
+                                break;
+                            case "radio":
+                                $(TargetObj).click(function () {
+                                    if ($("input[name=" + DependID + "]:checked").val() == ShowValue) {
+                                        $(DependObj).show();
+                                    } else {
+                                        $(DependObj).hide();
+                                        $("div[DependID=" + BlockID + "]").hide();
+                                    };
+                                });
+                                if ($("input[name=" + DependID + "]:checked").val() == ShowValue) {
+                                    $(DependObj).show();
+                                } else {
+                                    $(DependObj).hide();
+                                };
+                                break;
+                            case "checkbox":
+                                $(TargetObj).click(function () {
+                                    var ShowFlag = false;
+                                    $("input[name=" + DependID + "]:checked").each(function () {
+                                        if ($(this).val() == ShowValue) {
+                                            ShowFlag = true;
+                                        }
+                                    });
+                                    if (ShowFlag) {
+                                        $(DependObj).fadeIn(500);
+                                    } else {
+                                        $(DependObj).fadeOut(500);
+                                    };
+                                });
+                                var ShowFlag = false;
+                                $("input[name=" + DependID + "]:checked").each(function () {
+                                    if ($(this).val() == ShowValue) {
+                                        ShowFlag = true;
+                                    }
+                                });
+                                if (ShowFlag) {
+                                    $(DependObj).fadeIn(500);
+                                } else {
+                                    $(DependObj).fadeOut(500);
+                                };
+                                break;
+                        }
+                        break;
+                    case "textarea":
+                        $(TargetObj).keypress(function () {
+                            if (Trim($("input[name=" + DependID + "]").html()) == ShowValue) {
+                                $(DependObj).fadeIn(500);
+                            } else {
+                                $(DependObj).fadeOut(500);
+                            };
+                        });
+                        break;
+                }
+            }
+        });
+        
+        @if (Request["message"] != null)
+        {
+            @Html.Raw("showHint(\"" + Request["message"].ToString() + "\");")
+        }
+
+    });
+
+
+    //計算 BMI
+    function get_height(id) {
+        $("#BMI_height").val($("#" + id).val());
+        $("#BMI_value").val($("#BMI_weight").val() / ($("#BMI_height").val() * $("#BMI_height").val() / 10000));
+    }
+    function get_weight(id) {
+        $("#BMI_weight").val( $("#" + id).val());
+        $("#BMI_value").val( $("#BMI_weight").val() / ($("#BMI_height").val() * $("#BMI_height").val() / 10000));
+    }
+
+    function send_bmi(id) {
+        if ($("#BMI_weight").val() != "" && $("#BMI_height").val() != "") {
+            $("#" + id).val(Math.round($("#BMI_value").val() * 100) / 100);
+            result=Math.round($("#BMI_value").val() * 100) / 100 
+            if (result < 18.5)
+                advice = "體重過輕"// BMI < 18.5";
+            else if (result < 24)
+                advice = "";//"正常範圍 18.5 <= BMI < 24";
+            else if (result < 27)
+                advice = "過重"// 24 <= BMI < 27";
+            else if (result < 30)
+                advice = "輕度肥胖"// 27 <= BMI < 30";
+            else if (result < 35)
+                advice = "中度肥胖"// 30 <= BMI < 35";
+            else
+                advice = "重度肥胖"//BMI >= 35"
+           // alert(document.getElementById('msg').innerHTML);
+            document.getElementById('msg').innerHTML = advice;
+            
+      
+        }
+    }
+</script>
+
+<!-- 樣式表 -->
+<style type="text/css">
+    .ItemBlock {
+        padding: 3px 5px 3px 5px;
+        border-bottom: 1px solid #666;
+        line-height: 32px;
+        display: table;
+        width: 100%;
+    }
+
+        .ItemBlock span, .ItemBlock div {
+            display: table-cell;
+            vertical-align: top;
+        }
+
+            .ItemBlock span label {
+                white-space: nowrap;
+            }
+
+        .ItemBlock:hover {
+            background-color: #D0E4F2;
+            background-image: url('../../Images/Form/NA_BG.png');
+            background-repeat: repeat-y;
+            background-position: left;
+        }
+
+    .ItemTitle {
+        display: inline-block;
+        text-align: center;
+        position: relative;
+        padding: 0px 5px 0px 5px;
+        top: 0px;
+        bottom: 0px;
+        left: 0px;
+        font-weight: bold;
+        width: 150px;
+        color: #0000AA;
+        background-image: url('../../Images/Form/NA_TITLE.png');
+        background-repeat: repeat;
+        overflow: hidden;
+        white-space: pre-line;
+    }
+
+    .ui-tabs .ui-tabs-nav li a{
+        font-size: 16px;
+        padding: 3px 5px 3px 5px;
+    }
+
+    .ui-tabs{
+        font-size: 16px;
+    }
+</style>
+
+@if (ViewData["na_info"] != null)
+{
+    @ViewData["na_info"].ToString()
+}
+else
+{
+    <div class="ver" style="position: absolute; right: 0px; top: 0px; width: 200px; text-align: right;"></div>
+    <!-- 表單開始 -->
+    <form name="na_form" method="post" action="AssessmentSave">
+        <!-- 功能清單 -->
+        <input type="button" class="tab_control" control_code="page_up" value="上一頁" />
+        <input type="button" class="tab_control" control_code="page_down" value="下一頁" />
+        <input type="button" class="tab_control" control_code="save" value="儲存"/>
+        <input type="button" class="tab_control" control_code="save_tmp" value="暫存"/>
+        @if(@ViewData["na_type"].ToString()=="D"){
+        <input type="button" class="tab_control"  value="歷史查詢" onclick="location.href = '../Assessment/AssessmentBodyInquiry';"/>
+        <input type="button" class="tab_control"  value="ICU每日評估" onclick="location.href = '../Assessment/AssessmentICU';"/>
+        }
+        <br />
+        <br />
+        <!-- 隱藏資訊區 -->
+        <span id="hidden_information">          
+            <input type="hidden" name="na_type" value="@(ViewData["na_type"].ToString())" />
+            <input type="hidden" name="na_version" value="@(na_main_infor.na_version)" />
+            <input type="hidden" name="na_help" value="@(na_main_infor.na_desc)" />
+            <input type="hidden" name="na_id" value="@(na_main_infor.na_id)" />
+        </span>
+        
+        <div id="filled">
+            <!-- 頁籤開始 -->
+            <div class="tabs_area">
+                <!-- 頁籤清單 -->
+                <ul>
+                    @for (int i = 0; i <= na_tag_info.Count - 1; i++)
+                    {
+                        <li><a href="#@(na_tag_info[i].tag_id)">@(na_tag_info[i].tag_name)</a></li>
+                    }
+                </ul>
+                <!-- 頁籤內容 -->
+                @for (int i = 0; i <= na_tag_info.Count - 1; i++)
+                {
+                    <div id="@(na_tag_info[i].tag_id)" class="tag_page" style="overflow-y:scroll;">
+                        @if (na_view_obj != null)
+                        {
+                            for (int d = 0; d <= na_view_obj.Count - 1; d++)
+                            {
+                                if (na_view_obj[d].tag_id != na_tag_info[i].tag_id)
+                                {
+                                    continue;
+                                }
+                                else
+                                {
+                                    @NA_Tool.setBlock(na_view_obj[d].del_list)
+                                }
+                            }
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div id="unfilled" style="display:none;width:100%;overflow-x:hidden">
+        </div>
+
+        <input type="button" class="tab_control" control_code="page_up" value="上一頁" />
+        <input type="button" class="tab_control" control_code="page_down" value="下一頁" />
+        <input type="button" class="tab_control" control_code="save" value="儲存" />
+    </form>
+
+}

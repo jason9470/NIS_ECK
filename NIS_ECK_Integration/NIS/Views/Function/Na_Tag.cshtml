@@ -1,0 +1,251 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";  
+}
+<link rel="Stylesheet" type="text/css" href="~/Content/StyleSheet/naStyle.css" />
+<script type="text/javascript">
+    // 格行換色
+    function setColor() {
+        $('.dataHeader th').css('background', '#85A5CC');
+        $('#temp_zone').css("background", "#FFCCFF");
+        $('#new_tag tr:odd, #old_na tr:odd, .dataArea tr:even').css('background', '#E1E6FA');
+        $('#new_tag tr:even, #old_na tr:even, .dataArea tr:odd').css('background', '#ABC8E2');
+    }
+
+    function setDataAreaSize() {
+        var height = $(document).height() - 190;
+        if (height <= 340)
+            height = 340;
+        $(".dataArea").height(height);
+    }
+
+    function resetDialog() {
+        $("#old_na, #new_tag").slideUp(500);
+        $("#copy_na").val("複製版本").css("background-color", "");
+        $("#add_tag").val("新增標籤").css("background-color", "");
+    }
+
+    @if(Request["message"] != null){
+        @Html.Raw("showHint(\"" + Request["message"].ToString().Trim() + "\")")
+    }
+
+    $(document).ready(function () {
+
+        setColor();
+
+        // 複製舊版視窗
+        $("#copy_na").click(function () {
+            resetDialog();
+            var top = $(this).position().top + $(this).height() + 10;
+            var left = $(this).position().left;
+            $("#old_na").css({
+                "top": top,
+                "left": left
+            });
+            if (!$("#old_na").is(":visible")) {
+
+                $('#old_na').slideDown(500);
+                $(this).val("關閉複製").css("background-color", "#FFFFCC");
+            } else {
+                $('#old_na').slideUp(500);
+                $(this).val("複製版本").css("background-color", "");
+            }
+        });
+
+        // 複製舊版按鈕
+        $("#but_use_old").click(function () {
+
+            if ($("input[name=copy_na_id]:checked").length == 0) {
+                showHint("請選擇需要複製的版本");
+            } else {
+                var dataStr = "copy_id=" + $("input[name=copy_na_id]:checked").val();
+                dataStr += "&na_id=" + encodeURIComponent($("input[name=na_id]").val());
+                $.ajax({
+                    url: '../Function/Na_Copy',
+                    type: 'post',
+                    data: dataStr,
+                    success: function (data) {
+                        if (data == "Y") {
+                            location.href("Na_Tag?na_id=" + $("input[name=na_id]").val() + "&message=" + encodeURIComponent("複製成功"));
+                        } else {
+                            showHint(data);
+                        }
+                    }
+                });
+            }
+        });
+
+        // 新增標籤視窗
+        $("#add_tag").click(function () {
+            resetDialog();
+            var top = $(this).position().top + $(this).height() + 10;
+            var left = $(this).position().left;
+            $("#new_tag").css({
+                "top": top,
+                "left": left
+            });
+
+            if (!$("#new_tag").is(":visible")) {
+                $('#new_tag').slideDown(500);
+                $(this).val("關閉新增").css("background-color", "#FFFFCC");
+            } else {
+                $('#new_tag').slideUp(500);
+                $(this).val("新增標籤").css("background-color", "");
+            }
+        });
+
+        // 新增標籤按鈕
+        $("#but_inc_tag").click(function () {
+            var dataStr = "tag_name=" + encodeURIComponent($("input[name=inc_tag_name]").val());
+            dataStr += "&tag_sort=" + $("input[name=inc_tag_sort]").val();
+            dataStr += "&tag_help=" + encodeURIComponent($("textarea[name=inc_tag_help]").val());
+            dataStr += "&na_id=" + encodeURIComponent($("input[name=na_id]").val());
+
+            $.ajax({
+                url: '../Function/Na_Inc_Tag',
+                type: 'post',
+                data: dataStr,
+                success: function (data) {
+                    if (data == "Y") {
+                        location.href("Na_Tag?na_id=" + $("input[name=na_id]").val() + "&message=" + encodeURIComponent("新增成功"));
+                    } else {
+                        showHint("新增失敗");
+                    }
+                }
+            });
+        });
+
+        // 刪除標籤
+        $(".but_tag_del").click(function () {
+            if (confirm("此動作會刪除標籤以及以下的細項，確定要執行刪除？")) {
+                $.ajax({
+                    url: "../Function/Na_Tag_Del",
+                    type: "post",
+                    data: "na_id=" + $("input[name=na_id]").val() + "&tag_id=" + $(this).attr("tagid"),
+                    success: function (data) {
+                        if (data == "Y")
+                            location.href("Na_Tag?na_id=" + $("input[name=na_id]").val() + "&message=" + encodeURIComponent("刪除成功"));
+                    }
+                });
+            }
+        });
+
+        $(".but_open_dtl").click(function () {
+            location.href = "../Function/Na_Dtl?na_id=" + $("input[name=na_id]").val() + "&tag_id=" + $(this).attr("tagid");
+        });
+
+        // tooltip
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+
+        $(window).resize(function () { setDataAreaSize(); }).trigger('resize');
+    });
+</script>
+
+@{
+    NursingAssessmentMain namain_info = (NursingAssessmentMain)ViewData["namain_info"];
+    List<NursingAssessmentTag> natag_info = (List<NursingAssessmentTag>)ViewData["tag_info"];
+}
+<form action="Na_Tag_Save" method="post" name="tag_form">
+    <div id="na_information">
+        <span id="na_name" title="@(namain_info.na_desc)">@(namain_info.na_name)</span>
+        <span id="na_version"> ver @(namain_info.na_version)</span>
+        <input type="hidden" name="na_id" value="@(ViewData["na_id"].ToString().Trim())" />
+        <input type="hidden" name="na_type" value="@(ViewData["na_type"].ToString().Trim())" />
+    </div>
+    <p>
+        @Html.Raw("<input type=\"button\" value=\"返回\" onclick=\"location.href='../Function/Na_Index?na_type=" + ViewData["na_type"].ToString().Trim() + "' \"/>")
+        <input type="button" id="add_tag" value="新增標籤" title="新增標籤" />
+        <input type="button" id="copy_na" value="複製版本" title="複製先前版本以及細項" />
+        <input type="button" value="儲存" title="儲存目前編輯標籤" onclick="$('form[name=tag_form]').submit();" />
+    </p>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" width="100%">
+            <tr>
+                <th width="150">編輯</th>
+                <th width="200">標籤名稱</th>
+                <th width="150">排序</th>
+                <th>說明</th>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea">
+        <table border="0" cellpadding="4" cellspacing="1" width="100%">
+            @{
+                for (int i = 0; i <= natag_info.Count - 1; i++)
+                {
+                    string tag_id = natag_info[i].tag_id;
+                <tr>
+                    <td width="150">
+                        <input type="button" class="but_open_dtl" tagid="@(natag_info[i].tag_id)" value="細項" title="@(tag_id)"/>
+                        <input type="button" class="but_tag_del" tagid="@(natag_info[i].tag_id)" value="刪除" title="此功能會刪除此標籤下所有細項" />
+                        <input type="hidden" name="tag_id" value="@(tag_id)" />
+                    </td>
+                    <td width="200">
+                        <input type="text" name="@(tag_id)_tag_name" value="@(natag_info[i].tag_name)" />
+                    </td>
+                    <td width="150">
+                        <input type="text" name="@(tag_id)_tag_sort" value="@(natag_info[i].tag_sort)" maxlength="5"/>
+                    </td>
+                    <td>
+                        <input type="text" name="@(tag_id)_tag_help" value="@(natag_info[i].tag_help)" />
+                    </td>
+                </tr>
+                }
+            }
+        </table>
+    </div>
+</form>
+<div id="new_tag">
+    <p>
+        <input type="button" name="but_inc_tag" id="but_inc_tag" value="新增" />
+        <a class="tooltip" href="javascript:void(0);" title="新增評估單內的標籤頁">說明</a>
+    </p>
+    <table border="0" cellpadding="4" cellspacing="1">
+        <tr>
+            <td width="100">標籤名稱</td>
+            <td align="left">
+                <input type="text" name="inc_tag_name" /></td>
+        </tr>
+        <tr>
+            <td>排序</td>
+            <td align="left">
+                <input type="text" name="inc_tag_sort" /></td>
+        </tr>
+        <tr>
+            <td>說明</td>
+            <td align="left">
+                <textarea name="inc_tag_help" cols="40" rows="5"></textarea>
+            </td>
+        </tr>
+    </table>
+</div>
+<div id="old_na">
+    <p>
+        <input type="button" name="but_use_old" id="but_use_old" value="套用舊版" />
+        <a class="tooltip" href="javascript:void(0);" title="此功能為套用舊版本的資料到新版評估<br/><font color=red>※特別注意：此功能會覆蓋原先編輯資料</font>">說明</a>
+    </p>
+    @{
+        if (ViewData["oldna_info"] != null)
+        {
+            List<NursingAssessmentMain> oldlist = (List<NursingAssessmentMain>)ViewData["oldna_info"];
+        <table border="0" cellpadding="4" cellspacing="1">
+            @for (int i = 0; i <= oldlist.Count - 1; i++)
+            {
+                <tr>
+                    <td width="30">
+                        <input type="radio" name="copy_na_id" id="@(oldlist[i].na_id)" value="@(oldlist[i].na_id)" />
+                    </td>
+                    <td width="150" align="left">
+                        <span id="na_name">
+                            <label for="@(oldlist[i].na_id)">@(oldlist[i].na_name)</label></span><span id="na_version"> ver @(oldlist[i].na_version)</span><br />
+                        <span id="na_desc">@(oldlist[i].na_desc)</span>
+                    </td>
+                </tr>   
+                
+            }
+        </table>
+        }
+    }
+</div>

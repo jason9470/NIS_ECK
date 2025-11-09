@@ -1,0 +1,1456 @@
+﻿@using System.Text.RegularExpressions;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DateTime start = Convert.ToDateTime(ViewBag.start);
+    DateTime end = Convert.ToDateTime(ViewBag.end);
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+
+}
+<style type="text/css">
+    .main {
+        border: 1px solid;
+        width: 1000px;
+        font-size: 14px;
+        text-align: center;
+        table-layout: fixed;
+        border-collapse: collapse;
+    }
+
+        .main td {
+            font-size: 14px;
+            text-align: center;
+        }
+
+    .tpr_item {
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        border: 0px;
+    }
+
+        .tpr_item td {
+            border: 0px;
+        }
+
+    .tooltip {
+        color: black;
+    }
+
+    .table_dtl {
+        width: 100%;
+        text-align: center;
+        border: 0px;
+    }
+
+        .table_dtl .td_w40 {
+            width: 40%;
+            text-align: right;
+            border: 0px;
+        }
+
+        .table_dtl .td_w60 {
+            width: 60%;
+            text-align: left;
+            padding-left: 5px;
+            border: 0px;
+        }
+
+        .table_dtl .td_w61 {
+            width: 60%;
+            text-align: left;
+            padding-left: 5px;
+            border: 0px;
+            cursor: pointer;
+        }
+
+    .date_list .hh {
+        margin-left: 3px;
+    }
+    #sys_Block {
+    position: fixed;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    z-index: 1;
+    background-color: #666;
+    /* other browsers */
+    opacity: 0.65;
+    /* this works in IE6, IE7, and IE8 */
+    filter: alpha(opacity=65);
+    /* this works in IE8 only */
+    display: none;
+    }
+    #sys_Loading {
+    position: fixed;
+    text-align: center;
+    left: 50%;
+    top: 50%;
+    height: 50px;
+    width: 200px;
+    margin-top: -25px;
+    margin-left: -100px;
+    _position: absolute;
+    color: #040FD9;
+    font-weight: bold;
+    z-index: 98;
+    display: none;
+    }
+</style>
+<script type="text/javascript" src="~/Scripts/IOManage/IOManage_inquire_tube.js"></script>
+<script>
+    var print_set = '@ViewBag.print_set';
+    $(document).ready(function () {
+        reload_tpr_data();
+
+        //用以下程式碼蓋過引流管輸出的原始資料
+        var qry_date_str = '@(start)'.split(" ")[0]; //["2018/8/29", "上午", "12:00:00"] 查詢日期
+        var end_date_str = '@(end)'.split(" ")[0];   //結束日期
+
+        var end_date_dateTime = new Date(end_date_str);
+        end_date_dateTime = addDays(end_date_dateTime, 1);  //結束日期要往後一天，不然while迴圈會少跑最後一天
+        end_date_str = end_date_dateTime.getFullYear() + "/" + (end_date_dateTime.getMonth() + 1) + "/" + end_date_dateTime.getDate();
+
+        var qry_date_dateTime = new Date(qry_date_str);
+
+        var i = 1;  //搜尋範圍內的第幾天，搜尋2018/8/29~2018/9/1，則2018/8/29為第一天
+        while (qry_date_str != end_date_str) {
+
+            io_data_new(qry_date_str, i); //查詢引流管資料
+
+            qry_date_dateTime = addDays(qry_date_dateTime, 1);  // 日期往後一天(dateTime)
+            qry_date_str = qry_date_dateTime.getFullYear() + "/" + (qry_date_dateTime.getMonth() + 1) + "/" + qry_date_dateTime.getDate();  //將dateTime轉為string，因io_data_new(...)只吃string
+            i++;
+        }
+    });
+    //蓋過引流管輸出的原始資料
+    function io_data_new(qry_date, i) {
+
+        //***************初始值***************//
+        var shiftClassD = ["07", "08", "09", "10", "11", "12", "13", "14"];//白 7
+        var shiftClassE = ["15", "16", "17", "18", "19", "20", "21", "22"];//小夜	15
+        var shiftClassN = ["23", "00", "01", "02", "03", "04", "05", "06"];//大夜班時間(往後一天的凌晨，不是當天的)23
+        var unitStr = ["ml", "g", "mg"];  //液體單位
+
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/VitalSign/Inquire_tube_new")',
+            data: {
+                date: qry_date,
+                qry_date: qry_date
+            },
+            success: function (data) {
+                var jsonResult = data.tubeData.attachment;  //取出來的結果為字串
+                var inquire_tubes_record = JSON.parse(jsonResult); //引流管json，用JSON.parse()將string轉json
+
+                var io_data_arr = getDENTotalTxt(shiftClassD, shiftClassE, shiftClassN, inquire_tubes_record, qry_date, unitStr[0]);
+                var output_arr = io_data_arr[3].split("； ");  //第三個為整天的引流管總計字串
+                var output_result = output_arr.join("<br>");
+                //console.log(output_result);
+                var div_index = 0; //第幾個表格(起始0)
+                var td_index = 0;  //表格中的第幾個column(起始0)
+
+                  if (parseInt(i / 5) == 0) { //i是查詢日期，再查詢區間是第幾個
+                    td_index = i - 1; //表格(起始0)，i起始為1
+                } else if ((i % 5) == 0) {
+                    div_index = parseInt(i / 5) - 1;
+                    td_index = 4;
+                } else {
+                    div_index = parseInt(i / 5);
+                    td_index = (i % 5) - 1;
+                }
+
+                try{
+                    //console.log(qry_date + " div_" + div_index + ", " + "column id: " + td_index);
+                    var div = document.getElementById("div_" + div_index);
+                    //console.log(div);
+                    var Output_tr = div.getElementsByClassName("Output");
+
+                    //console.log(Output_tr);
+                    var td_arr = Output_tr[3].getElementsByClassName("tooltip");  //第三個Output為引流管
+                    td_arr[td_index].setAttribute("title", output_result);     //修改當日(td)引流管的title資料
+                    //console.log("title: " + output_result);
+                } catch (e) {
+
+                }
+
+            }
+        });
+    }
+    function reload_tpr_data() {
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/VitalSign/Partial_Tpr_Data")',
+            data: {
+                "feeno": '@(ViewBag.feeno)',
+                "start": '@(start)',
+                "end": '@(end)',
+                "draw_day": '@(ViewBag.draw_day)'
+            },
+            async: true,
+            success: function (data) {
+                switch (data.status) {
+                    case 0:
+                        //更新Data
+                        var trp_template = $("#trp_div_empty").clone();
+                        //建立Time項目
+                        var AddDateNum = 0;
+                        var AddDatelist = [];
+                        var num = 0;
+                        var add_datelist = "";
+                        $.each(data.attachment.tpr_data, function (i, items) {
+                            add_datelist = $.grep(items.data_list, function (item) {
+                                return item.class_tag == "date_list";
+                            });
+                            num = Math.floor(add_datelist.length / 6);
+
+                            $.each(add_datelist, function (i, class_tag_data) {
+                                if (class_tag_data.item_value != null) {
+                                    var item_time = class_tag_data.item_value.split(':');
+                                    if (item_time[0] != "" && item_time[1] != "") {
+                                        temp_time = {
+                                            hh: item_time[0],
+                                            mm: item_time[1]
+                                        };
+                                    }
+                                }
+                            });
+                            temp_date = {
+                                date: items.data_date,
+                                num: num
+                            };
+                            AddDatelist.push(temp_date);
+                            AddDateNum += num;
+                        });
+
+                        //建立ComaScale項目
+                        var comascale = [
+                            { name: "Eye opening", val: "E" },
+                            { name: "Best verbal response", val: "V" },
+                            { name: "Best motor response", val: "M" }
+                        ];
+                        //建立ComaScale項目
+                        trp_template.find("tr[class=ComaScale] td:first").prop("rowspan", comascale.length);
+                        var comascale_template = trp_template.find("tr[class=ComaScale]").clone();
+                        comascale_template.find("td:first").remove();
+                        for (var i = 0; i < comascale.length; i++) {
+                            if (i == 0) {
+                                trp_template.find("tr[class=ComaScale] >td:nth-child(2) span").html(comascale[i].name);
+                                trp_template.find("tr[class=ComaScale]").attr("data-group", comascale[i].val);
+                            } else {
+                                comascale_template.find("td:first span").html(comascale[i].name);
+                                trp_template.find("tr[class=ComaScale]:last").after('<tr class="ComaScale" data-group="' + comascale[i].val + '">' + comascale_template.html() + '</tr>');
+                            }
+                        }
+                        //建立Input項目
+                        trp_template.find("tr[class=Input] td:first").prop("rowspan", data.attachment.i_item_list.length);
+                        var input_template = trp_template.find("tr[class=Input]").clone();
+                        input_template.find("td:first").remove();
+                        for (var i = 0; i < data.attachment.i_item_list.length; i++) {
+                            if (i == 0) {
+                                trp_template.find("tr[class=Input] td:nth-child(2) span").html(data.attachment.i_item_list[i].P_NAME);
+                                trp_template.find("tr[class=Input] td[class=tooltip]").attr("data-item_val", data.attachment.i_item_list[i].P_VALUE);
+                                trp_template.find("tr[class=Input]").attr("data-group", data.attachment.i_item_list[i].P_VALUE);
+                            } else {
+                                input_template.find("td:first span").html(data.attachment.i_item_list[i].P_NAME);
+                                input_template.find("td[class=tooltip]").attr("data-item_val", data.attachment.i_item_list[i].P_VALUE);
+                                trp_template.find("tr[class=Input]:last").after('<tr class="Input" data-group="' + data.attachment.i_item_list[i].P_VALUE + '">' + input_template.html() + '</tr>');
+                            }
+                        }
+                        //建立Output項目
+                        trp_template.find("tr[class=Output] td:first").prop("rowspan", data.attachment.o_item_list.length);
+                        var output_template = trp_template.find("tr[class=Output]").clone();
+                        output_template.find("td:first").remove();
+                        for (var i = 0; i < data.attachment.o_item_list.length; i++) {
+                            if (i == 0) {
+                                trp_template.find("tr[class=Output] td:nth-child(2) span").html(data.attachment.o_item_list[i].P_NAME);
+                                trp_template.find("tr[class=Output] td[class=tooltip]").attr("data-item_val", data.attachment.o_item_list[i].P_VALUE);
+                                trp_template.find("tr[class=Output]").attr("data-group", data.attachment.o_item_list[i].P_VALUE);
+                            } else {
+                                output_template.find("td:first span").html(data.attachment.o_item_list[i].P_NAME);
+                                output_template.find("td[class=tooltip]").attr("data-item_val", data.attachment.o_item_list[i].P_VALUE);
+                                trp_template.find("tr[class=Output]:last").after('<tr class="Output" data-group="' + data.attachment.o_item_list[i].P_VALUE + '">' + output_template.html() + '</tr>');
+                            }
+                        }
+                        //建立樣板繪製天數
+                        trp_template.find(".main > tbody > tr").each(function () {
+                            var class_tag = $(this).prop("class");
+                            var append_dom = $(this).clone();
+                            append_dom.find("td:eq(0)").remove();//移除樣板中的第一個td，因為再來只要取第二個html結構
+                            if ((class_tag == 'Input' || class_tag == 'Output') && $(this).find('td').length > 2) {
+                                //Input、Output為雙層結構，需再移除一次td
+                                append_dom.find(":first-child").remove();
+                            }
+                            if (class_tag == "ComaScale" && $(this).find('>td[class=td_header]').length > 1) {
+                                append_dom.find(">td:first").remove();
+                            }
+                            for (var i = 1; i < data.attachment.draw_day; i++) {
+                                //排除tr_tpr_chart
+                                if (class_tag != "tr_tpr_chart" ) {
+                                    $(this).find(">td").last().after($.trim(append_dom.html()));
+                                }
+                            }
+                        });
+
+                        //建立資料
+                        var start_date = moment(data.attachment.start_date);
+                        var end_date = moment(data.attachment.end_date);
+                        var in_date = moment(data.attachment.in_date);
+                        var td_date_arr = new Array(total_page);
+                        var loop_date = start_date.clone();
+                        var draw_day = data.attachment.draw_day;
+                        var data_num = 0;
+                        var total_days = Math.ceil((end_date.diff(start_date) / 86400000) + AddDateNum);
+                        var total_page = Math.ceil(total_days / draw_day);
+
+                        var tmp_day = "";
+                        var num_total = 0;
+                        for (var i = 0; i < total_page; i++) { //二維日期
+                            td_date_arr[i] = new Array(draw_day);
+                            for (var j = 0; j < draw_day; j++) {
+                                td_date_arr[i][j] = { date_str: loop_date.format("YYYY-MM-DD"), date_num_index: "0" };
+                                if (tmp_day != td_date_arr[i][j].date_str) {
+                                    tmp_day = td_date_arr[i][j].date_str;
+                                    var temp_num = $.grep(AddDatelist, function (element, i) {
+                                        return element.date == loop_date.format("YYYY/MM/DD");
+                                    });
+                                    if (temp_num.length > 0) {
+                                        num_total = temp_num[0].num;
+                                        data_num = num_total;
+                                    }
+                                }
+                                //紀錄日期重複次數
+                                td_date_arr[i][j].date_num_index = num_total - data_num;
+                                if (data_num > 0) {
+                                    data_num--;
+                                } else {
+                                    loop_date = loop_date.add(1, 'days');//日期加一天
+                                }
+                            }
+                        }
+                        //console.log(data);
+
+                        //第幾次同日期索引
+                        for (var i = 0; i < total_page; i++) {
+                            var trp_template_tmp = trp_template.clone();
+                            var trp_div = trp_template_tmp.find("div").first();
+                            trp_div.prop("id", "div_" + i);
+                            var trp_main = trp_div.find(".main");
+                            var def_pre_day = moment("1900-01-01");//預設上一筆日期
+                            var pre_day = def_pre_day.clone();
+                            //渲染每格內容
+                            trp_main.find('tr td:not([class=td_header])').each(function (index, element) {
+                                var Loss = false;
+                                var this_dom = $(this);
+                                var class_tag = this_dom.closest("tr").prop("class");
+                                var class_group = this_dom.closest("tr").attr("data-group");
+                                //this_dom.index是全部td的索引
+                                var td_all_index = this_dom.index();
+                                //每欄的索引
+                                var td_index = 1;
+                                //目前td中的第幾小格
+                                //var td_num_index = 1;
+                                //日期重複次數
+                                var td_repeat_num = 0;
+                                //取得表格td該欄格數
+                                var td_num = Math.ceil((this_dom.closest("tr").find(">td:not([class=td_header])").length - 1) / draw_day);
+                                if (class_tag == 'ComaScale') {
+                                    td_num = Math.ceil(this_dom.closest("tr").find("td:not([class=td_header])").length -1);
+                                }
+                                //Input、Output雙層結構，index須另外處理
+                                if ((class_tag == "Input" || class_tag == "Output") && this_dom.closest("tr").find("td").length - 1 > draw_day * td_num) {
+                                    td_all_index--;
+                                }
+                                if ((class_tag == 'ComaScale') && this_dom.closest("tr").find("td[class=td_header]").length - 1 > draw_day * td_num) {
+                                    td_all_index--;
+                                }
+                                td_index = td_all_index;
+                                //每欄的索引轉換，5天就會是1~5的範圍
+                                //td_index = Math.ceil(td_all_index / td_num) == "Infinity" ? 0 : Math.ceil(td_all_index / td_num);
+                                //td_num_index = (td_all_index + td_num - 1) % td_num;
+                                //目前所在欄的日期
+                                var td_date = moment(td_date_arr[i][0].date_str);
+                                if (td_index > 0) {
+                                    td_date = moment(td_date_arr[i][td_index - 1].date_str);
+                                }
+                                if (i > 0 && td_index == 1) {
+                                    //上一頁的最後一天
+                                    pre_day = moment(td_date_arr[i - 1][draw_day - 1].date_str);
+                                } else if (td_index != 1 && td_index > 1) {
+                                    pre_day = moment(td_date_arr[i][td_index - 2].date_str);
+                                } else {
+                                    pre_day = def_pre_day.clone();
+                                }
+
+                                //日期與前一日相同就跳過，但date_list、FourTimes、SPO2、ComaScale不跳過
+                                if (td_date.format("YYYY-MM-DD") == pre_day.format("YYYY-MM-DD") && class_tag != "date_list" && class_tag != "FourTimes" && class_tag != "SPO2" && class_tag != "ComaScale") {
+                                    return;
+                                }
+                                //取得日期重複次數
+                                if (td_index > 0) {
+                                    td_repeat_num = td_date_arr[i][td_index - 1].date_num_index;
+                                }
+
+                                //取得日期相對應的資料
+                                var sel_tpr_date = $.grep(data.attachment.tpr_data, function (element, index) {
+                                    var td_date_temp = td_date.clone();
+                                    if (class_tag == "Input" || class_tag == "Output" || class_tag == "InputOutputSum") {
+                                        return element.data_date == td_date.format("YYYY/MM/DD") || element.data_date == td_date_temp.add(1, 'days').format("YYYY/MM/DD");
+                                    } else {
+                                        return element.data_date == td_date.format("YYYY/MM/DD");
+                                    }
+                                });
+                                var item_value_arr = get_class_tag_str(sel_tpr_date, class_tag, class_group);
+                                switch (class_tag) {
+                                    case "tr_date"://日期
+                                        $(this).text(td_date.format("YYYY / M / D"));
+                                        break;
+                                    case "InHospitalDays"://住院天數
+                                        var diff_day = start_date.diff(in_date) / 86400000;
+                                        var td_date = td_date.add(diff_day + 1, 'days');//住院當天就算第一天，所以要加一
+                                        $(this).text(Math.ceil(td_date.diff(start_date) / 86400000));
+                                        break;
+                                    case "date_list":
+
+                                        if (!!item_value_arr) {
+                                            //取得hhmm td格數量
+                                            var hhmm_td_length = this_dom.find("td").length;
+                                            for (var ii = 0; ii < hhmm_td_length ; ii++) {
+                                                var arr_ind = ii + (td_repeat_num * hhmm_td_length);
+                                                var hhmm_data = item_value_arr[arr_ind] == undefined ? ":" : item_value_arr[arr_ind];
+                                                var hhmm_data_arr = hhmm_data.split(":");
+                                                this_dom.find("td:eq(" + ii + ")>.hh").html(hhmm_data_arr[0]);
+                                                this_dom.find("td:eq(" + ii + ")>.mm").html(hhmm_data_arr[1]);
+                                            }
+                                        }
+                                        break;
+                                    case "Input":
+                                        var title_arr = [];
+                                        var temp_io = 0;
+                                        var content = "";
+                                        for (var ii = 0; ii < item_value_arr.length; ii++) {
+                                            title_arr.push(item_value_arr[ii].title);
+                                            if (item_value_arr[ii].val != "Loss") {
+                                                temp_io += parseFloat(item_value_arr[ii].val);
+                                            } else {
+                                                Loss = true;
+                                            }
+                                        }
+                                        var title_val = title_arr.join("</br>")
+                                        if ($(this).prop("class") == "tooltip") {
+                                            $(this).prop("title", title_val);
+                                            if (temp_io > 0) {
+                                                content = temp_io;
+                                            }
+                                            if (Loss) {
+                                                content += "+Loss"
+                                            }
+                                            $(this).html(content);
+                                        }
+                                        break;
+                                    case "Output":
+                                        var title_arr = [];
+                                        var temp_io = 0;
+                                        var content = "";
+                                        for (var ii = 0; ii < item_value_arr.length; ii++) {
+                                            title_arr.push(item_value_arr[ii].title);
+                                            if (item_value_arr[ii].val != "Loss") {
+                                                temp_io += parseFloat(item_value_arr[ii].val);
+                                            } else {
+                                                Loss = true;
+                                            }
+                                        }
+                                        var title_val = title_arr.join("</br>")
+                                            if ($(this).prop("class") == "tooltip") {
+                                                $(this).prop("title", title_val);
+                                                if (temp_io > 0) {
+                                                    content = temp_io;
+                                                }
+                                                if (Loss) {
+                                                    content += "+Loss"
+                                                }
+                                                $(this).html(content);
+                                            }
+                                            break;
+                                    case "InputOutputSum":
+                                        var temp_itotal = 0;
+                                        var temp_ototal = 0;
+                                        var i_Loss = false;
+                                        var o_Loss = false;
+                                        var i_content = "0";
+                                        var o_content = "0";
+                                        var total_content = 0;
+                                        //console.log(item_value_arr);
+                                        $.each(item_value_arr, function (i, temp) {
+                                            if (temp.group == "Input") {
+                                                if (temp.val =="Loss") {
+                                                    i_Loss = true;
+                                                } else {
+                                                    temp_itotal += parseFloat(temp.val);
+                                                }
+                                            } else if (temp.group == "Output") {
+                                                if (temp.val == "Loss") {
+                                                    o_Loss = true;
+                                                } else {
+                                                    temp_ototal += parseFloat(temp.val);
+                                                }
+                                            }
+                                        })
+                                        if (temp_itotal > 0) {
+                                            i_content = temp_itotal;
+                                            total_content += temp_itotal;
+                                        }
+                                        if (i_Loss) {
+                                            i_content += "+Loss"
+                                        }
+                                        if (temp_ototal > 0) {
+                                            o_content = temp_ototal;
+                                            total_content -= temp_ototal;
+                                        }
+                                        if (o_Loss) {
+                                            o_content += "+Loss"
+                                        }
+                                        $(this).html(i_content + "/" + o_content + " (" + total_content + ")");
+                                        break;
+                                    case "ODDays":
+                                        if (!!item_value_arr) {
+                                            this_dom.find("td").closest("tr").find("td .ODays").html(item_value_arr[0]);
+                                            this_dom.find("td").closest("tr").find("td .DDays").html(item_value_arr[1]);
+                                        }
+                                        break;
+                                    case "SPO2":
+                                        if (td_repeat_num == 0) {
+                                            var hh_tag = [9, 13, 18, 21];
+                                            for (var ii = 0; ii < hh_tag.length; ii++) {
+                                                var s_date_time = moment(td_date.format("YYYY-MM-DD")).add(hh_tag[ii] - 1, 'hours');
+                                                var e_date_time = moment(td_date.format("YYYY-MM-DD")).add(hh_tag[ii] + 1, 'hours');
+                                                var sel_class_tag = item_value_arr.filter(function (item, index, array) {
+                                                    var data_time = moment(td_date.format("YYYY-MM-DD") + " " + item.time);
+                                                    return data_time >= s_date_time && data_time <= e_date_time;
+                                                });
+                                                sel_class_tag = sel_class_tag.sort(function (a, b) {
+                                                    return a.time < b.time ? -1 : 1;
+                                                });
+                                                if (sel_class_tag.length > 0) {
+                                                    this_dom.find("td").closest("tr").find("td .time_" + hh_tag[ii]).html(sel_class_tag[0].val);
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    case "ComaScale":
+                                        if (td_repeat_num == 0) {
+                                            if (!!item_value_arr) {
+                                                var hh_tag = [9, 13, 18, 21];
+                                                for (var ii = 0; ii < hh_tag.length; ii++) {
+                                                    var s_date_time = moment(td_date.format("YYYY-MM-DD")).add(hh_tag[ii] - 1, 'hours');
+                                                    var e_date_time = moment(td_date.format("YYYY-MM-DD")).add(hh_tag[ii] + 1, 'hours');
+                                                    //取出區間資料
+                                                    //item_value_arr = [{time:"13:14",val:"3",group:"E"},{time:"13:16",val:"2",group:"E"}];
+
+                                                    var sel_class_tag = item_value_arr.filter(function (item, index, array) {
+                                                        var data_time = moment(td_date.format("YYYY-MM-DD") + " " + item.time);
+                                                        return data_time >= s_date_time && data_time <= e_date_time;
+                                                    });
+                                                    sel_class_tag = sel_class_tag.sort(function (a, b) {
+                                                        return a.time < b.time ? 1 : -1;
+                                                    });
+
+                                                    if (sel_class_tag.length > 0) {
+                                                        this_dom.find("td").closest("tr").find("td .EVMtime_" + hh_tag[ii]).html(sel_class_tag[0].val);
+                                                    }
+                                                }
+                                            }
+
+                                        }
+                                        break;
+                                    case "Eat":
+                                        if (!!item_value_arr) {
+                                            sel_class_tag = item_value_arr.sort(function (a, b) {
+                                                return a.time < b.time ? 1 : -1;
+                                            });
+
+                                            if (sel_class_tag.length > 0) {
+                                                $(this).html(sel_class_tag[0].val);
+                                            }
+                                        }
+                                        break;
+                                    case "Excrement":
+                                        if (!!item_value_arr) {
+                                            sel_class_tag = item_value_arr.sort(function (a, b) {
+                                                return a.time < b.time ? -1 : 1;
+                                            });
+
+                                            if (sel_class_tag.length > 0) {
+                                                $(this).html(sel_class_tag[0].val);
+                                            }
+                                        }
+                                        break;
+                                    case "HeightWeight":
+                                        if (!!item_value_arr) {
+                                            var content = "";
+                                            var sel_bh = item_value_arr.filter(function (item, index, array) {
+                                                return item.group == "bh";
+                                            });
+                                            var sel_bw = item_value_arr.filter(function (item, index, array) {
+                                                return item.group == "bw";
+                                            });
+
+                                            sel_bh = sel_bh.sort(function (a, b) {
+                                                return a.time < b.time ? 1 : -1;
+                                            });
+                                            sel_bw = sel_bw.sort(function (a, b) {
+                                                return a.time < b.time ? 1 : -1;
+                                            });
+
+                                            if (sel_bh.length > 0) {
+                                                content += sel_bh[0].val + " cm";
+                                            }
+                                            if (sel_bw.length > 0) {
+                                                content +=  " / " + sel_bw[0].val.replace("|"," ");
+                                                $(this).html(content);
+                                            }
+                                        }
+                                        break;
+                                    case "CVP2":
+                                    case "ICP2":
+                                        if (!!item_value_arr) {
+                                            var temp="";
+                                            sel_class_tag = item_value_arr.sort(function (a, b) {
+                                                return a.time < b.time ? -1 : 1;
+                                            });
+
+                                            if (sel_class_tag.length > 0) {
+                                                for (var ii = 0; ii < sel_class_tag.length; ii++) {
+                                                    temp += sel_class_tag[ii].time + " " + sel_class_tag[ii].val + "</br>";
+                                                }
+                                                $(this).html(temp);
+
+                                            }
+                                        }
+                                        break;
+                                    case "CPP":
+                                    case "PA":
+                                    case "ABP2":
+                                    case "PCWP":
+                                    case "PICCO":
+                                    case "ETCO2":
+                                    case "BoxTemperature":
+                                    case "Umbilical":
+                                    case "Urine":
+                                    case "SkinColor":
+                                    case "BreathePattern":
+                                    case "BreatheQuality":
+                                    case "Sputum":
+                                    case "Tumble":
+                                    case "Girth":
+                                    case "Pupils":
+                                    case "Antibiotic":
+                                    case "Excrement":
+                                    case "BloodPressureArea":
+                                    case "BloodSugarArea":
+                                    case "FourTimes":
+                                    case "MsPower":
+                                    case "TBilHCT":
+                                    case "TBilHCT1":
+                                    case "CVVH":
+                                    case "special_events":
+                                    case "Procedure":
+                                    case "SpecialProcedure":
+                                    default:
+                                        item_value_arr = item_value_arr.join("</br>")
+                                        if (item_value_arr != "") {
+                                            $(this).html(item_value_arr);
+                                        }
+                                        break;
+                                }
+                                //$(this).html(td_all_index);
+                                //$(this).html(td_num_index);
+                                //$(this).html(class_group);
+                                //$(this).html(td_repeat_num);
+                                //$(this).html(td_index);
+                                //$(this).find("td:first").html(td_all_index);
+                                //$(this).html(td_num_index);
+                                //$(this).html(this_dom.closest("tr").find("td").length);
+                                var show_val = td_all_index;
+                                if (class_tag == 'ComaScale') {
+                                    //$(this).find("td:first").html(show_val);
+                                } else {
+                                    //$(this).html(show_val);
+                                }
+
+                                if (td_index > 0) {
+                                    if (moment(td_date_arr[i][td_index - 1].date_str) > end_date && class_tag != "SPO2" && class_tag != "ComaScale") {
+                                        //超過日期區間的不顯示
+                                        $(this).html("");
+                                    }
+                                }
+                            });
+                            var chart_start = moment(td_date_arr[i][0].date_str).format("YYYY/MM/DD_HH:mm:ss");
+                            var chart_end = moment(td_date_arr[i][draw_day - 1].date_str).add(1, 'days').format("YYYY/MM/DD_HH:mm:ss");
+                            var tpr_chart_td = trp_template_tmp.find(".tr_tpr_chart td:last");
+                            tpr_chart_td.prop("colspan", draw_day * 4).css("background-image", "url(../Chart/Tpr_Chart?starttime=" + chart_start + "&endtime=" + chart_end + "&feeno=" + data.attachment.feeno + "&indate=" + in_date.format("YYYY/MM/DD_HH:mm") + "&DrawDay=" + data.attachment.draw_day + "&cont=" + i + ")");
+                            var page_break_after_tag = "<P style='page-break-after:always'>&nbsp;</P>";//列印用換頁標籤
+                            $("#partial_tpr_div").append(trp_template_tmp.html() + page_break_after_tag);
+                        }
+                        //隱藏項目
+                        var print_set_arr = print_set.split(",");
+                        $.each(print_set_arr, function (key, value) {
+                            if (value != "") {
+                                $("." + value).hide();
+                            }
+                        });
+
+                        //加入tooltip
+                        $(".tooltip").tooltip({
+                            content: function () { return $(this).attr('title'); },
+                            position: { my: "top", at: "right+30" },
+                            close: function (event, ui) {
+                                ui.tooltip.hover(
+                                    function () {
+                                        $(this).stop(true).fadeTo(100, 1);
+                                    },
+                                    function () {
+                                        $(this).fadeOut("100", function () { $(this).remove(); })
+                                    }
+                                );
+                            }
+                        });
+                        break;
+                    default:
+                        $("#partial_tpr_div").append(data.message);
+                        break;
+                }
+            },
+            error: function (jqXHR) {
+                $("#partial_tpr_div").append("error(" + jqXHR.status + ")，Please contact the information officer!");
+            },
+
+            beforeSend: function () {
+                $("#sys_Block, #sys_Loading").show();
+            },
+            complete: function () {
+                $("#sys_Block, #sys_Loading").hide();
+            }
+        });
+    }
+
+    //取得class_tag value 轉字串
+    function get_class_tag_str(sel_tpr_date, class_tag, class_group) {
+        var return_str = "";
+        var value_str_arr = [];
+        if (sel_tpr_date.length > 0) {
+            sel_tpr_date = sel_tpr_date.sort(function (a, b) { //因應Input Output會丟兩組陣列 有可能造成排序問題做排序動作
+                return a.data_date < b.data_date ? -1 : 1;
+            });
+            var sel_class_tag = $.grep(sel_tpr_date[0].data_list, function (element, index) {
+                if (class_tag == "Input" || class_tag == "Output") { //輸入輸出一天資料從當日0701~隔日0700
+                    return element.class_tag == class_tag && element.item_time > "07:00";
+                } else if (class_tag == "InputOutputSum") {
+                    return (element.class_tag == "Input" || element.class_tag == "Output") && element.item_time > "07:00";
+                }else {
+                    return element.class_tag == class_tag;
+                }
+            });
+            if (sel_tpr_date.length > 1 && (class_tag == "Input" || class_tag == "Output" || class_tag == "InputOutputSum")) {
+                var sel_class_tag_temp = $.grep(sel_tpr_date[1].data_list, function (element, index) {
+                    if (class_tag == "Input" || class_tag == "Output") {
+                        return element.class_tag == class_tag && element.item_time < "07:01";
+                    } else if (class_tag == "InputOutputSum") {
+                        return (element.class_tag == "Input" || element.class_tag == "Output") && element.item_time < "07:01";
+                    }
+                });
+                $.each(sel_class_tag_temp, function (i, temp) { //將隔日0700以前資料PUSH進原陣列中
+                    sel_class_tag.push(temp);
+                })
+            }
+            $.each(sel_class_tag, function (i, class_tag_data) {
+                if (class_tag_data.item_value != null) {
+                    var item_value_arr = class_tag_data.item_value.split("|");
+                    switch (class_tag) {
+                        case "HeightWeight":
+                            value_str_arr.push({ time: class_tag_data.item_time, val: class_tag_data.item_value, group: class_tag_data.item_name });
+                            break;
+                        case "date_list":
+                            if (item_value_arr[0] != "") {
+                                value_str_arr.push(class_tag_data.item_time);
+                            }
+                            break;
+                        case "ODDays":
+                            var push_val = "";
+                            if (item_value_arr.length > 0) {
+                                if (class_tag_data.group_name == "ODays") {
+                                    value_str_arr[0] = item_value_arr;
+                                } else if (class_tag_data.group_name == "DDays") {
+                                    value_str_arr[1] = item_value_arr;
+                                }
+                            }
+                            break;
+                        case "SPO2":
+                        case "CVP2":
+                        case "ICP2":
+                            if (item_value_arr[0] != "") {
+                                value_str_arr.push({ time: class_tag_data.item_time, val: class_tag_data.item_value });
+                            }
+                            break;
+                        case "ComaScale":
+                            if (item_value_arr[0] != "" && class_group == class_tag_data.group_name) {
+                                value_str_arr.push({ time: class_tag_data.item_time, val: class_tag_data.item_value, group: class_tag_data.group_name });
+                            }
+                            break;
+                        case "Pupils":
+                            if (!!item_value_arr) {
+                                if (item_value_arr.length < 6) {
+                                    var temp_record = class_tag_data.item_value + "||||";
+                                    item_value_arr = temp_record.split("|");
+                                }
+                                var pupils_L = (item_value_arr[0] == "其他" ? item_value_arr[4] : item_value_arr[0]);
+                                var pupils_L_size = item_value_arr[1];
+                                var pupils_R = (item_value_arr[2] == "其他" ? item_value_arr[5] : item_value_arr[2]);
+                                var pupils_R_size = item_value_arr[3];
+                                var content = pupils_L_size + pupils_L + " / " + pupils_R_size + pupils_R;
+
+                                value_str_arr.push(class_tag_data.item_time + " " + content);
+                            }
+                            break;
+                        case "MsPower":
+                            if (!!item_value_arr) {
+                                if (item_value_arr.length <= 4) {
+                                    var temp_record = class_tag_data.item_value + "||||";
+                                    item_value_arr = temp_record.split("|");
+                                }
+                                var Mpower_T_R = (item_value_arr[0] == "其他" ? item_value_arr[4] : item_value_arr[0]);
+                                var Mpower_D_R = (item_value_arr[1] == "其他" ? item_value_arr[5] : item_value_arr[1]);
+                                var Mpower_T_L = (item_value_arr[2] == "其他" ? item_value_arr[6] : item_value_arr[2]);
+                                var Mpower_D_L = (item_value_arr[3] == "其他" ? item_value_arr[7] : item_value_arr[3]);
+
+                                var content = "";
+                                if (Mpower_T_R != "" || Mpower_D_R != "")
+                                {
+                                    content += "  上肢：" + Mpower_T_R + "，" + Mpower_D_R;
+                                }
+                                else
+                                {
+                                    content += "無";
+                                }
+                                if (Mpower_T_L != "" || Mpower_D_L != "")
+                                {
+                                    content += "  / 下肢：" + Mpower_T_L + "，" + Mpower_D_L;
+                                }
+                                else
+                                {
+                                    content += "/ 無";
+                                }
+                                value_str_arr.push(class_tag_data.item_time + " " + content);
+                            }
+                            break;
+                        case "special_events":
+                        case "Procedure":
+                        case "SpecialProcedure":
+                        case "Antibiotic":
+                            if (item_value_arr[0] != "") {
+                                value_str_arr.push(item_value_arr.join(" / "));
+                            }
+                            break;
+                        case "Eat":
+                            if (!!item_value_arr) {
+                                var content = (item_value_arr[0] != "") ? item_value_arr[0] : item_value_arr[1];
+                                value_str_arr.push({ time: class_tag_data.item_time, val: content});
+                            }
+                            break;
+                        case "TBilHCT":
+                            if (!!item_value_arr) {
+                                value_str_arr.push(class_tag_data.item_time + " " + item_value_arr[0] + "mg/dl");
+                            }
+                            break;
+                        case "HCT":
+                        case "CVVH":
+                        case "Girth":
+                            if (!!item_value_arr) {
+                                value_str_arr.push(item_value_arr[0]);
+                            }
+                            break;
+                        case "Excrement":
+                            if (!!item_value_arr) {
+                                value_str_arr.push({ time: class_tag_data.item_time, val: item_value_arr.join("|") });
+                            }
+                            break;
+                        case "BloodSugarArea":
+                            if (item_value_arr[0] != "") {
+                                var status = "";
+                                switch (item_value_arr[0]) {
+                                    case "A":
+                                        status = "飯後";
+                                        break;
+                                    case "B":
+                                        status = "飯前";
+                                        break;
+                                    default:
+                                        status = "飯後";
+                                        break;
+                                }
+                                var color = "";
+                                var BSvalue = "";
+                                switch (class_tag_data.value_status) {
+                                    case "0":
+                                        color = "black";
+                                        BSvalue = item_value_arr[1];
+                                        break;
+                                    case "1":
+                                        color = "blue";
+                                        BSvalue = item_value_arr[1];
+                                        break;
+                                    case "2":
+                                        color = "blue";
+                                        BSvalue = "LOW";
+                                        break;
+                                    case "3":
+                                        color = "red";
+                                        BSvalue = item_value_arr[1];
+                                        break;
+                                    case "4":
+                                        color = "red";
+                                        BSvalue = "HIGH";
+                                        break;
+                                }
+                                value_str_arr.push(class_tag_data.item_time + " " + status + " <font color='" + color + "'>" + BSvalue + "</font>");
+                            }
+                            break;
+                        case "Urine":
+                            if (item_value_arr.length == 2) {
+                                var Urine_temp = item_value_arr[0] + "次 /" + item_value_arr[1];
+                                value_str_arr.push(class_tag_data.item_time + " " + Urine_temp);
+                            }
+                            break;
+                        case "BreathePattern":
+                            if (!!item_value_arr) {
+                                var BP_temp = item_value_arr[0];
+                                if (item_value_arr.length > 1) {
+                                    BP_temp = item_value_arr[1]
+                                }
+                                value_str_arr.push(class_tag_data.item_time + " " + BP_temp);
+                            }
+                            break;
+                        case "Input":
+                        case "Output":
+                            if (item_value_arr[0] != "" && class_group == class_tag_data.group_name) {
+                                value_str_arr.push({ val: class_tag_data.item_value, group: class_tag_data.group_name, title: class_tag_data.item_name });
+                            }
+                            break;
+                        case "InputOutputSum":
+                            if (!!item_value_arr) {
+                                value_str_arr.push({ val: class_tag_data.item_value, group: class_tag_data.class_tag, title: class_tag_data.item_name });
+                            }
+                            break;
+                        default:
+                            if (item_value_arr[0] != "") {
+                                value_str_arr.push(class_tag_data.item_time + " " + item_value_arr.join(" / "));
+                            }
+                            break;
+                    }
+                }
+            });
+            //if (value_str_arr.length > 0) {
+            //    if (class_tag == "date_list" || class_tag == "ODDays" ) {
+            //        return_str = value_str_arr.join("|");
+
+            //    } else if (class_tag == "ComaScale") {
+            //        return value_str_arr;
+            //    } else {
+            //        return_str = value_str_arr.join("</br>");
+            //    }
+            //}
+        }
+
+        return value_str_arr;
+    }
+</script>
+<div>
+</div>
+<div id="partial_tpr_div"></div>
+<div id="trp_template" style="display:none;">
+    <div id="trp_div_empty">
+        <div style="" id="">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:1000px;padding:5px 0 5px 0;">
+                <tr>
+                    <td style="text-align:center;padding:5px 0 5px 0;">
+                        <span style="font-size:36px;color:blue;">TPR SHEET</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:5px 0 5px 0;">
+                        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;">
+                            <tr>
+                                <td style="width:15%;">
+                                    <span style="color:blue;">病歷號：</span>@ptinof.ChartNo
+                                </td>
+                                <td style="width:30%;">
+                                    <span style="color:blue;">姓名：</span>@ptinof.PatientName
+                                </td>
+                                @*<td>
+                                        <span style="color:blue;">床號：</span>@ptinof.BedNo
+                                    </td>*@
+                                <td>
+                                    <span style="color:blue;">年齡：</span>@((ptinof.Birthday.Year - 1911).ToString() + ptinof.Birthday.ToString("/MM/dd")) (@ptinof.Age 歲)
+                                </td>
+                                <td>
+                                    <span style="color:blue;">性別：</span>@ptinof.PatientGender
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+            <table class="main" cellpadding="0" cellspacing="0" rules="all">
+                <tr class="tr_date">
+                    <td class="td_header" colspan="3" style="width:15%;height:25px;">
+                        <span style="color:blue;">日期</span>
+                    </td>
+                    <td colspan="4" style="width:17%;"></td>
+                </tr>
+                <tr class="InHospitalDays">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">住院日數</span>
+                    </td>
+                    <td colspan="4"></td>
+                </tr>
+                <tr class="ODDays" style="height:25px">
+                    <td class="td_header" colspan="3">
+                        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;text-align:center;">
+                            <tr>
+                                <td class="td_header" style="height:25px;border-right:0.1px solid black;">
+                                    <span style="color:blue;">手術日數</span>
+                                </td>
+                                <td class="td_header">
+                                    <span style="color:blue;">生產日數</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td colspan="4">
+                        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;table-layout:fixed;">
+                            <tr>
+                                <td class="td_header" style="color:red;height:25px;border-right:0.1px solid black;">
+                                    <span class="ODays"></span>
+                                </td>
+                                <td class="td_header" style="color:red;">
+                                    <span class="DDays"></span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr class="special_events">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">特殊註記事項</span>
+                    </td>
+                    <td colspan="4" style="color:red;border-bottom:0.1px solid black;border-right:0.1px solid black;text-align:left;"></td>
+                </tr>
+                <tr class="date_list">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">測量時間</span>
+                    </td>
+                    <td colspan="4" style="position:relative;">
+                        <table style="width:100%;table-layout:fixed;">
+                            <tr>
+                                <td class="td_header" style="color:red;">
+                                    <span class="hh"></span>
+                                    <br />
+                                    <span class="mm"></span>
+                                </td>
+                                <td class="td_header" style="color:red;">
+                                    <span class="hh"></span>
+                                    <br />
+                                    <span class="mm"></span>
+                                </td>
+                                <td class="td_header" style="color:red;">
+                                    <span class="hh"></span>
+                                    <br />
+                                    <span class="mm"></span>
+                                </td>
+                                <td class="td_header" style="color:red;">
+                                    <span class="hh"></span>
+                                    <br />
+                                    <span class="mm"></span>
+                                </td>
+                                <td class="td_header" style="color:red;">
+                                    <span class="hh"></span>
+                                    <br />
+                                    <span class="mm"></span>
+                                </td>
+                                <td class="td_header" style="color:red;">
+                                    <span class="hh"></span>
+                                    <br />
+                                    <span class="mm"></span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr class="tr_tpr_chart">
+                    <td class="td_header" style="width:5%;height:600px;">
+                        <table cellpadding="0" cellspacing="0" class="tpr_item">
+                            <tr>
+                                <td class="td_header" style="height:36px;">
+                                    <span style="font-size:12px;">呼吸<br />次/分</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;">80</td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;">70</td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;">60</td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;">50</td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;">40</td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;">30</td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;">20</td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;">10</td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:36px;">■</td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td class="td_header" style="width:5%;height:600px;">
+                        <table cellpadding="0" cellspacing="0" class="tpr_item">
+                            <tr>
+                                <td class="td_header" style="height:36px;"><span style="color:red;font-size:12px;">心跳<br />次/分</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:red;">180</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:red;">160</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:red;">140</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:red;">120</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:red;">100</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:red;">80</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:red;">60</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:red;">40</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:36px;"><span style="color:red;">▲</span></td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td class="td_header" style="width:5%;height:600px;border:0px">
+                        <table cellpadding="0" cellspacing="0" class="tpr_item">
+                            <tr>
+                                <td class="td_header" style="height:36px;"><span style="color:blue;font-size:12px;">體溫<br />℃</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:blue;">42</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:blue;">41</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:blue;">40</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:blue;">39</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:blue;">38</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:blue;">37</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:blue;">36</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:66px;"><span style="color:blue;">35</span></td>
+                            </tr>
+                            <tr>
+                                <td class="td_header" style="height:36px;"><span style="color:blue;">●</span></td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td colspan="4" style="height:600px;width:850%;"></td>
+                </tr>
+                <tr class="FourTimes">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">時間</span></td>
+                    <td colspan="4">
+                        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;table-layout:fixed;">
+                            <tr>
+                                <td class="td_header" style="height:25px;border-right:0.1px solid black;">
+                                    <span>9</span>
+                                </td>
+                                <td class="td_header" style="height:25px;border-right:0.1px solid black;">
+                                    <span>13</span>
+                                </td>
+                                <td class="td_header" style="height:25px;border-right:0.1px solid black;">
+                                    <span>18</span>
+                                </td>
+                                <td class="td_header">
+                                    <span>21</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr class="SPO2">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">Spo2</span></td>
+                    <td colspan="4">
+                        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;table-layout:fixed;">
+                            <tr>
+                                <td class="td_header" style="height:25px;border-right:0.1px solid black;">
+                                    <span class="time_9"></span>
+                                </td>
+                                <td class="td_header" style="height:25px;border-right:0.1px solid black;">
+                                    <span class="time_13"></span>
+                                </td>
+                                <td class="td_header" style="height:25px;border-right:0.1px solid black;">
+                                    <span class="time_18"></span>
+                                </td>
+                                <td class="td_header">
+                                    <span class="time_21"></span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr class="ComaScale">
+                    <td class="td_header" rowspan="1" style="width:5%"><span style="color:blue;">COMA<br />SCALE</span></td>
+                    <td class="td_header" colspan="2" style="height:25px;"><span style="color:blue;"></span></td>
+                    <td colspan="4">
+                        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;table-layout:fixed;">
+                            <tr>
+                                <td class="td_header" style="height:30px;border-right:0.1px solid black;">
+                                    <span class="EVMtime_9"></span>
+                                </td>
+                                <td class="td_header" style="height:30px;border-right:0.1px solid black;">
+                                    <span class="EVMtime_13"></span>
+                                </td>
+                                <td class="td_header" style="height:30px;border-right:0.1px solid black;">
+                                    <span class="EVMtime_18"></span>
+                                </td>
+                                <td class="td_header">
+                                    <span class="EVMtime_21"></span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr class="Pupils">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">瞳孔反應(左側/右側)</span></td>
+                    <td colspan="4" style="width:25%;text-align:left;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="MsPower">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">肌肉強度(左側/右側)</span></td>
+                    <td colspan="4" style="width:25%;text-align:left;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="BloodPressureArea">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">血壓(mmHg)</span></td>
+                    <td colspan="4">
+                        <table class="table_dtl" cellpadding="0" cellspacing="0"></table>
+                    </td>
+                </tr>
+                <tr class="BloodSugarArea">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">血糖</span></td>
+                    <td colspan="4">
+                        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;text-align:center;height:25px;"></table>
+                    </td>
+                </tr>
+                <tr class="Eat">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">飲食</span></td>
+                    <td colspan="4">
+                        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;text-align:center;height:25px;"></table>
+                    </td>
+                </tr>
+                <tr class="Antibiotic">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">抗生素</span></td>
+                    <td colspan="4" style="width:17%;"></td>
+                </tr>
+                <tr class="TBilHCT">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">總膽紅素(mg/dL)</span></td>
+                    <td colspan="4" style="width:17%;"></td>
+                </tr>
+                <tr class="HCT">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">血球容積比(%)</span></td>
+                    <td colspan="4" style="width:17%;"></td>
+                </tr>
+                <tr class="CVVH">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">CVVH</span></td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="Input">
+                    <td class="td_header" rowspan="1" style="width:5%"><span style="color:blue;">輸入<br />(mL)</span></td>
+                    <td class="td_header" colspan="2" style="height:25px;"><span style="color:blue;">IV(ml)</span></td>
+                    <td colspan="4" style="cursor: pointer;" class="tooltip" title=""></td>
+                </tr>
+                <tr class="Output">
+                    <td class="td_header" rowspan="1" style="height:25px;"><span style="color:blue;">輸出<br />(cc)</span></td>
+                    <td class="td_header" colspan="2" style="height:25px;"><span style="color:blue;">Urine(ml)</span></td>
+                    <td colspan="4" style="cursor: pointer;" class="tooltip" title=""></td>
+                </tr>
+                <tr class="InputOutputSum">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">輸入總量/輸出總量	</span></td>
+                    <td colspan="4" style="cursor: pointer;" class="tooltip" title=""></td>
+                </tr>
+                <tr class="Excrement">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">大便次數 | 性狀 | 顏色</span></td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="HeightWeight">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">身高(cm)/體重(kg)</span></td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="CVP2">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">CVP</span></td>
+                    <td colspan="4">
+                        <table class="table_dtl" cellpadding="0" cellspacing="0"></table>
+                    </td>
+                </tr>
+                <tr class="ICP2">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">ICP</span></td>
+                    <td colspan="4">
+                        <table class="table_dtl" cellpadding="0" cellspacing="0"></table>
+                    </td>
+                </tr>
+                <tr class="CPP">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">CPP</span></td>
+                    <td colspan="4">
+                        <table class="table_dtl" cellpadding="0" cellspacing="0"></table>
+                    </td>
+                </tr>
+                <tr class="ABP2">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">ABP</span></td>
+                    <td colspan="4">
+                        <table class="table_dtl" cellpadding="0" cellspacing="0"></table>
+                    </td>
+                </tr>
+                <tr class="PA">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">PA(mmHg)</span>
+                    </td>
+                    <td colspan="4">
+                        <table class="table_dtl" cellpadding="0" cellspacing="0"></table>
+                    </td>
+                </tr>
+                </tr>
+                <tr class="PCWP">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">PCWP</span>
+                    </td>
+                    <td colspan="4">
+                        <table class="table_dtl" cellpadding="0" cellspacing="0"></table>
+                    </td>
+                </tr>
+                @*<tr class="PICCO">
+                        <td class="td_header" colspan="3" style="height:25px;">
+                            <span style="color:blue;">血流動力</span>
+                        </td>
+                        <td colspan="4" style="text-align:left;font-size:12px;">
+                            <table class="table_dtl" cellpadding="0" cellspacing="0" ></table>
+                        </td>
+                    </tr>*@
+                <tr class="ETCO2">
+                    <td class="td_header" colspan="3" style="height:25px;"><span style="color:blue;">ETCO2</span></td>
+                    <td colspan="4">
+                        <table class="table_dtl" cellpadding="0" cellspacing="0"></table>
+                    </td>
+                </tr>
+                <tr class="BoxTemperature">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">保溫箱溫度</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="Umbilical">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">臍帶脫落</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="Urine">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">尿液</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="SkinColor">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">膚色</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="BreathePattern">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">呼吸型態</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="BreatheQuality">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">呼吸品質</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="Sputum">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">痰液</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="Tumble">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">翻身</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="Girth">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">圍長(cm)</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="Procedure">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">檢驗檢查異常值</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+                <tr class="SpecialProcedure">
+                    <td class="td_header" colspan="3" style="height:25px;">
+                        <span style="color:blue;">特殊處置<br>或治療</span>
+                    </td>
+                    <td colspan="4" style="width:25%;border-right:1px solid black;"></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+<!--遮罩-->
+<div id="inp" class="dialog"></div>
+<div id="cover" class="dialog"></div>
+<div id="sys_Block"></div>
+<div id="sys_Loading">
+    <img src="~/Images/System/loading.gif" alt="" />
+</div>

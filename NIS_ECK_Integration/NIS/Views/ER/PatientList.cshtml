@@ -1,0 +1,170 @@
+﻿@using System.Data;
+@using NIS.Data;
+@{
+    List<ERList> ERList = new List<ERList>();
+    if(ViewData["result"] != null)
+    {
+        ERList = (List<ERList>)ViewData["result"];
+    }
+
+}
+<style>
+    th {
+        background-color:#85A5CC;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+        $('input[name=ERDept]').click(function () {
+            if ($(this).val() == "all" && $(this).prop('checked'))
+                $('.er_content').show();
+            else
+            {
+                $('.er_content').hide();
+                $("input[name=ERDept]:checked").each(function () {
+                    $('.' + $(this).val()).show();
+                });
+            }
+            $("#ERPatList").gridColor();
+            $('.Y').css('background-color', '#ff6666');
+
+            //setGridColor(({ hideDraw: false }));
+        })
+        $('.Y').css('background-color', '#ff6666');
+        setDateTime('#reg_date_end');
+        setDateTime('#reg_date_start');
+        $('[name=status]').each(function () {
+            if ($(this).val() == "@(ViewBag.status)")
+                $(this).prop('checked', 'checked');
+        })
+    });
+    function query() {
+        $('#sys_Block, #sys_Loading').show();
+        var status = $('[name=status]:checked').val();
+        var chartno = Trim($("#chart_no").val().toString());
+        if (chartno != "")
+            chartno = padLeft(chartno, 10, "0");
+        else
+            chartno = "";
+        $.ajax({
+            type: "Post",
+            url: "PatientList",
+            cache: false,
+            data: {
+                chartno: chartno,
+                startdate: $('#reg_date_start').val(),
+                enddate: $('#reg_date_end').val(),
+                status: status
+            },
+            success: function (reslut) {
+                $("#mainContent").html(reslut);
+                $('#sys_Block, #sys_Loading').hide();
+            },
+            Complete: function () {
+
+            }
+        });
+    }
+
+</script>
+
+    <div id="search" style="text-align:left;padding-left:12px;padding-top:5px;">
+        <div>
+            <span>
+                檢傷日期：<input type="text" id="reg_date_start" name="reg_date_start" size="6" value="@(ViewBag.startdate)" />
+                ~
+                <input type="text" id="reg_date_end" name="reg_date_end" size="6" value="@(ViewBag.end)" />
+            </span>
+            <span style="padding-left:50px;">
+                <label>狀態：</label>
+                <label><input type="radio" name="status" id="status_all" value="A" />全部</label>
+                <label><input type="radio" name="status" id="status_y" value="Y" />就診中</label>
+                <label><input type="radio" name="status" id="status_n" value="N" />未結案</label>
+            </span>
+        </div>
+        <div style="padding-top:3px;">
+            <span>病歷號：<input type="text" size="20" value="" id="chart_no" name="chart_no" /></span>
+            <span style="padding-left:69px;"><input type="button" value="查詢" onclick="query();" /></span>
+        </div>
+        <div style="padding-top:3px;">
+            <span>
+                @{
+                    <label>科別：</label><label><input type="checkbox" value="all" name="ERDept" onclick="if (this.checked) {$('input[name=ERDept]').prop('checked',true) }" />全選</label>
+                    List<ERDeptList> ERDeptList = (List<ERDeptList>)ViewData["ERDeptList"];
+                    for (int i = 0; i < ERDeptList.Count; i++)
+                    {
+                        <label><input type="checkbox" name="ERDept" value="@(ERDeptList[i].DeptNo)">@(ERDeptList[i].DeptName)</label>
+                    }
+                }
+
+            </span>
+        </div>
+
+    </div>
+
+
+<div style="padding:10px;">
+    <table id="ERPatList" style="border:2px solid;text-align:center;width:auto;">
+        <tr>
+            <th style="width:100px;">檢傷時間</th>
+            <th style="width:80px;">病歷號</th>
+            <th style="width:60px;">姓名</th>
+            <th style="width:60px;">主治<br />醫師</th>
+            <th style="width:40px;">檢傷級數</th>
+            <th style="width:30px;">床號</th>
+            <th style="width:20px;">二返</th>
+            <th style="width:20px;">CT</th>
+            <th style="width:20px;">XRay</th>
+            <th style="width:20px;">生化</th>
+            <th style="width:20px;">鏡檢</th>
+            <th style="width:20px;">血液</th>
+            <th style="width:20px;">EKG</th>
+            <th style="width:40px;">特殊註記</th>
+            <th style="width:40px;">負責<br />人員</th>
+            <th>連結</th>
+        </tr>
+        @{
+            if (ERList.Count > 0)
+            {
+                for (int i = 0; i < ERList.Count; i++)
+                {
+
+                    <tr class="@ERList[i].DeptNo.ToString() er_content @ERList[i].Status.ToString()">
+                        <td class="conn" onclick="set_patient('@ERList[i].FeeNo.ToString()')">@ERList[i].RegTime.ToString("yyyy/MM/dd HH:mm")</td>
+                        <td class="conn" onclick="set_patient('@ERList[i].FeeNo.ToString()')">@ERList[i].ChartNo.ToString()</td>
+                        <td class="conn" onclick="set_patient('@ERList[i].FeeNo.ToString()')">@ERList[i].PatientName.ToString()</td>
+                        <td class="conn" onclick="set_patient('@ERList[i].FeeNo.ToString()')">@ERList[i].Doc.ToString()</td>
+                        <td class="conn" onclick="set_patient('@ERList[i].FeeNo.ToString()')">@ERList[i].Level.ToString()</td>
+                        <td class="conn" onclick="set_patient('@ERList[i].FeeNo.ToString()')">@ERList[i].BedNo.ToString()</td>
+                        <td class="conn" onclick="set_patient('@ERList[i].FeeNo.ToString()')">@ERList[i].DBack.ToString()</td>
+                        <td onmousemove="if ($(this).text() != '0') { $(this).css('cursor', 'pointer') }" onclick="if ($(this).text() != '0' ){ chang_function('@ERList[i].FeeNo.ToString()', '@Url.Content("~/MedicalAdvice/Sign")') ;}">@ERList[i].CT.ToString()</td>
+                        <td onmousemove="if ($(this).text() != '0') { $(this).css('cursor', 'pointer') }" onclick="if ($(this).text() != '0' ){ chang_function('@ERList[i].FeeNo.ToString()', '@Url.Content("~/MedicalAdvice/Sign")') ;}">@ERList[i].XRay.ToString()</td>
+                        <td onmousemove="if ($(this).text() != '0') { $(this).css('cursor', 'pointer') }" onclick="if ($(this).text() != '0' ){ chang_function('@ERList[i].FeeNo.ToString()', '@Url.Content("~/MedicalAdvice/Sign")') ;}">@ERList[i].Bio.ToString()</td>
+                        <td onmousemove="if ($(this).text() != '0') { $(this).css('cursor', 'pointer') }" onclick="if ($(this).text() != '0' ){ chang_function('@ERList[i].FeeNo.ToString()', '@Url.Content("~/MedicalAdvice/Sign")') ;}">@ERList[i].ME.ToString()</td>
+                        <td onmousemove="if ($(this).text() != '0') { $(this).css('cursor', 'pointer') }" onclick="if ($(this).text() != '0' ){ chang_function('@ERList[i].FeeNo.ToString()', '@Url.Content("~/MedicalAdvice/Sign")') ;}">@ERList[i].Blood.ToString()</td>
+                        <td onmousemove="if ($(this).text() != '0') { $(this).css('cursor', 'pointer') }" onclick="if ($(this).text() != '0' ){ chang_function('@ERList[i].FeeNo.ToString()', '@Url.Content("~/MedicalAdvice/Sign")') ;}">@ERList[i].EKG.ToString()</td>
+                        <td>@ERList[i].Note.ToString()</td>
+                        <td></td>
+                        <td style="text-align:left;">
+                            <input type="button" value="檢傷資訊" onclick="set_patient('@ERList[i].FeeNo.ToString()');show_content('@ERList[i].FeeNo.ToString()');" />
+                            <input type="button" value="護理紀錄" onclick="chang_function('@ERList[i].FeeNo.ToString()', '@Url.Content("~/CareRecord/List")')" />
+                            <input type="button" value="給藥作業" onclick="chang_function('@ERList[i].FeeNo.ToString()', '@Url.Content("~/CommonMedication/Index")')" />
+                            <input type="button" value="TPR" onclick="chang_function('@ERList[i].FeeNo.ToString()', '@Url.Content("~/VitalSign/VitalSignSingle")')" />
+                            <input type="button" value="轉出摘要" onclick="set_patient('@ERList[i].FeeNo.ToString()');load_page('TransferOut');" />
+                            <input type="button" value="檢驗" onclick="chang_function('@ERList[i].FeeNo.ToString()', 'Lab')" />
+                            <input type="button" value="檢查" onclick="chang_function('@ERList[i].FeeNo.ToString()', 'Exam')" />
+                            <input type="button" value="醫囑處理" onclick="chang_function('@ERList[i].FeeNo.ToString()', '@Url.Content("~/MedicalAdvice/Sign")')" />
+                            <input type="button" value="會診紀錄" onclick="set_patient('@ERList[i].FeeNo.ToString()');get_content('@ERList[i].FeeNo.ToString()','C');" />
+                            <input type="button" value="醫囑紀錄" onclick="set_patient('@ERList[i].FeeNo.ToString()');get_content('@ERList[i].FeeNo.ToString()','T');" />
+                        </td>
+                    </tr>
+
+                }
+            }
+        }
+
+    </table>
+
+</div>
+

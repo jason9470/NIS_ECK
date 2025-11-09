@@ -1,0 +1,227 @@
+﻿@using NIS.Data;
+@using System.Data;
+@{
+    ViewBag.Title = "護理資訊系統-血糖&胰島素_DOC";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable dt_bsi = ViewBag.dt_bsi;
+    string gs_feeno = ViewBag.feeno;
+    string check_time = "", check_time2 = "", check_bs = "", check_day = "", exec_style = "";
+    string start_date, start_time, end_date, end_time;
+    if (ViewBag.start_date == null && ViewBag.end_date == null)
+    {
+        start_date = DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd");
+        start_time = "00:00";
+        end_date = DateTime.Now.ToString("yyyy/MM/dd");
+        end_time = "23:59";
+    }
+    else
+    {
+        start_date = ViewBag.start_date;
+        start_time = ViewBag.start_time;
+        end_date = ViewBag.end_date;
+        end_time = ViewBag.end_time;
+    }
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<script type="text/javascript">
+    $(window).load(function () {
+        //factory.printing.header = "護理資訊系統 - 血糖監測紀錄暨胰島素注射治療單&b 第&p页/共&P页" //設定頁首的文字 
+        //factory.printing.footer = "&b 列印時間：&d &t" //設定頁尾的文字 
+        //factory.printing.portrait = true //設定trun為直印,false為橫印 
+        //factory.printing.leftMargin = 3.0 //設定左邊界 
+        //factory.printing.topMargin = 3.0  //設定上邊界 
+        //factory.printing.rightMargin = 3.0 //設定右邊界 
+        //factory.printing.bottomMargin = 3.0 //設定下邊界
+    })
+    $(document).ready(function () {
+        /*$(window).resize(function () {
+            $(".dataArea").outerHeight($(this).outerHeight() - 50);
+        }).trigger("resize");*/
+    });
+    function print_page() {
+        window.print();
+    }
+</script>
+<style type="text/css">
+    table {
+        border: 0px solid #000000;
+        border-collapse: collapse;
+    }
+    th {
+        border: 1px solid #000000;
+        background: #99CCFF;
+        text-align: center;
+        vertical-align: middle;
+    }
+    tr, td {
+        border: 1px solid #000000;
+        text-align:center;
+        vertical-align:middle;
+    }
+    .bs_style {
+        background:#f3b98d;
+    }
+    .in_style {
+        background:#dac5ed;
+    }
+    .odd_style {
+        background:#F5F5F5;
+    }
+    .even_style {
+        background:#EEF5FC;
+    }
+</style>
+<OBJECT classid="CLSID:8856F961-340A-11D0-A96B-00C04FD705A2" height=0 id=wb name=wb width=0></OBJECT>
+<OBJECT classid="clsid:1663ed61-23eb-11d2-b92f-008048fdd814" id=factory viewastext style="display:none" codebase="ScriptX.cab#Version=6,2,433,14"> </OBJECT> 
+<form method="post" action="BSugarInsulinList" style="font-size:10pt">
+    <input type="hidden" value="@gs_feeno" id="fee_no" name="feeno"/>
+    <div class="funcArea" style="display:none">
+        查詢區間：
+        @Html.TextBox("start_date", @start_date, new { style = "width:60px;", @readonly = "readonly" })
+        @Html.TextBox("start_time", @start_time, new { style = "width:40px;", @readonly = "readonly" })
+        @*@WebTool.setDateTime("start_date", "start_time", "", "0")*@
+        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "start_time", false)
+        @Html.Label("lab", " ~ ")
+        @Html.TextBox("end_date", @end_date, new { style = "width:60px;", @readonly = "readonly" })
+        @Html.TextBox("end_time", @end_time, new { style = "width:40px;", @readonly = "readonly" })
+        @*@WebTool.setDateTime("end_date", "end_time", "0", "1")*@
+        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "end_time", false)
+        <input id="search" type="button" value="查詢" width="100px" onclick="submit();" />
+    </div>
+    <div>
+    @if (ViewData["BSugarInsulin_List"] == null)
+    { <p style="font-size:larger">查無資料。</p>}
+    else
+    { 
+    <table border="1" width="100%">
+        <tr style="border: 0px">
+            <td colspan="7" style="text-align:left;border: 0px">
+                @if(ViewBag.ChartNo != null)
+                {
+                    <div style="font-size:12pt">
+                        病歷號：@ViewBag.ChartNo &nbsp;
+                        姓名：@(ViewBag.PatientName) &nbsp;
+                        床號：@(ViewBag.BedNo) &nbsp;
+                        年齡：@(ViewBag.Age) &nbsp;
+                        性別：@(ViewBag.PatientGender)&nbsp;
+                        批價序號：@ViewBag.FeeNo
+                    </div>
+                }
+            </td>
+            <td width="50px" style="text-align:right;border: 0px"><input type="button" value="列印" id="printbut" onclick="print_page();" /></td>
+        </tr>
+        <tr style="height:30px">
+            <th colspan="4" class="bs_style" style="font-size:16px">血糖</th>
+            <th colspan="5" class="in_style" style="font-size:16px">胰島素</th>
+        </tr>
+        <tr>
+            <th width="13%" class="bs_style">血糖監測時間</th>
+            <th width="8%" class="bs_style">狀態</th>
+            <th width="8%" class="bs_style">血糖值</th>
+            <th width="7%"  class="bs_style">監測者</th>
+            <th width="13%" class="in_style">注射時間</th>
+            <th width="15%" class="in_style">藥物</th>
+            <th width="6%"  class="in_style">劑量</th>
+            <th width="5%"  class="in_style">施打部位</th>
+            @*<th width="13%" class="in_style">Sliding Scale</th>
+            <th width="5%"  class="in_style">劑量</th>*@
+            <th width="7%"  class="in_style">注射者</th>
+        </tr>
+            @{
+                List<BloodSugarInsulin_List> BSugarInsulin_List = (List<BloodSugarInsulin_List>)ViewData["BSugarInsulin_List"];
+                for (int i = 0; i <= BSugarInsulin_List.Count - 1; i++)
+                {
+                    if (BSugarInsulin_List[i].B_INDATE.ToString() != "")
+                    {
+                        if (check_day != BSugarInsulin_List[i].B_INDATE.ToString().Substring(0, 10))
+                        {
+                            if (exec_style == "odd_style")
+                            { exec_style = "even_style"; }
+                            else
+                            { exec_style = "odd_style"; }
+                            check_day = BSugarInsulin_List[i].B_INDATE.ToString().Substring(0, 10);
+                        }
+                    }
+                    <tr class="@exec_style">
+                        @if (check_time == BSugarInsulin_List[i].B_INDATE.ToString() && check_bs == BSugarInsulin_List[i].BLOODSUGAR.ToString())
+                        {
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td> 
+                        }
+                        else
+                        {
+                            <td>@BSugarInsulin_List[i].B_INDATE</td>                           
+                              <td > 
+                            @if (!string.IsNullOrEmpty(BSugarInsulin_List[i].MEAL_STATUS))
+                            {
+                                if (BSugarInsulin_List[i].MEAL_STATUS.ToString() == "B")
+                                {
+                                    <label>飯前</label>
+                                }
+                                else if (BSugarInsulin_List[i].MEAL_STATUS.ToString() == "A")
+                                {
+                                    <label>飯後</label>
+                                }
+                                else
+                                {
+                                    <label>不清楚</label>
+                                }
+                            }
+                            </td>
+                           if (BSugarInsulin_List[i].BLOODSUGAR.ToString().Trim() == "")
+                            {<td></td>}
+                            else if (decimal.Parse(BSugarInsulin_List[i].BLOODSUGAR.ToString().Replace("#", "")) < 2)
+                            {<td style="color:blue;text-align:right">Low</td> }
+                            else if (decimal.Parse(BSugarInsulin_List[i].BLOODSUGAR.ToString().Replace("#", "")) < 70)
+                            {  <td style="color:blue;text-align:right">@BSugarInsulin_List[i].BLOODSUGAR mg/dl</td> }
+                              else if (decimal.Parse(BSugarInsulin_List[i].BLOODSUGAR.ToString().Replace("#", "")) >998)
+                            { <td style="color:red;text-align:right">High</td> }
+                            else if (decimal.Parse(BSugarInsulin_List[i].BLOODSUGAR.ToString().Replace("#", "")) >= 110)
+                            { <td style="color:red;text-align:right">@BSugarInsulin_List[i].BLOODSUGAR mg/dl</td> }                           
+                            else
+                            { <td style="text-align:right">@BSugarInsulin_List[i].BLOODSUGAR mg/dl</td> }
+                            <td>@BSugarInsulin_List[i].INSOPNAME</td>
+                            check_time = BSugarInsulin_List[i].B_INDATE.ToString();
+                            check_bs = BSugarInsulin_List[i].BLOODSUGAR.ToString();
+                        }
+                        
+                        <td>@BSugarInsulin_List[i].I_INDATE</td>
+                        @if (BSugarInsulin_List[i].IN_DOSE == "0")
+                        {
+                            <td> </td>
+                            <td> </td>
+                        }
+                        else
+                        { 
+                            <td><font style="font-size:smaller">@BSugarInsulin_List[i].IN_DRUGNAME</font></td>
+                            <td>@(BSugarInsulin_List[i].IN_DOSE) @(BSugarInsulin_List[i].IN_DOSEUNIT)</td>
+                        }    
+                        <td>@BSugarInsulin_List[i].POSITION</td>
+                        
+                        @*@if (BSugarInsulin_List[i].SS_DOSE == "")
+                        { 
+                            <td> </td>
+                            <td> </td>
+                        }
+                        else
+                        { 
+                            <td><font style="font-size:smaller">@BSugarInsulin_List[i].SS_DRUGNAME</font></td>
+                            <td>@(BSugarInsulin_List[i].SS_DOSE.ToString()) @(BSugarInsulin_List[i].IN_DOSEUNIT)</td>
+                        }*@  
+                        
+                        <td>@BSugarInsulin_List[i].INJECTION</td>
+                    </tr>
+                }
+             }
+        </table>
+        <div>
+            @ViewBag.b_count
+            @ViewBag.i_count
+        </div>
+    }
+</div>
+</form>

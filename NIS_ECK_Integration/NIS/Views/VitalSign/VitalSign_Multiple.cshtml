@@ -1,0 +1,791 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if (complement_List.Status)
+    { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1|| DateTime.Now.Month == 3|| DateTime.Now.Month == 5|| DateTime.Now.Month == 7|| DateTime.Now.Month == 8|| DateTime.Now.Month == 10|| DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if(DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (pf.InDate > mindate)
+        { mindate = pf.InDate; }
+    }
+}
+<link rel="stylesheet" type="text/css" href="~/Content/StyleSheet/VitalSignStyle.css" />
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        min-height: 25px;
+    }
+
+    .dataHeader_ td {
+        font-weight: bold;
+        margin: 1px 1px 1px 1px;
+        background-color: #85A5CC;
+        text-align: center;
+        height: 26px;
+    }
+
+    .dataArea_ {
+        overflow-y:hidden;
+        overflow-x:scroll;
+        border-top: 2px solid #666;
+        border-bottom: 2px solid #666;
+        font-size:16px;
+    }
+
+    #mask img {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+        $('input[type=radio][value=@ViewBag.shiftcategory]').click();
+        $('#feq_list').val('@ViewBag.feq');
+
+        @if (Request["message"] != null)
+        {
+            @Html.Raw("showHint(\"" + Request["message"].ToString() + "\");");
+        }
+        @if (ViewBag.strat_time != null)
+        {
+            DateTime set_date = Convert.ToDateTime(ViewBag.strat_time);
+        @:$('#@(ViewBag.shiftcategory)_stDate').val('@set_date.ToString("yyyy/MM/dd")');
+        @:$('#@(ViewBag.shiftcategory)_stTime').val('@set_date.ToString("HH:mm")');
+        }
+        @if (ViewBag.end_time != null)
+        {
+            DateTime set_date = Convert.ToDateTime(ViewBag.end_time);
+        @:$('#@(ViewBag.shiftcategory)_edDate').val('@set_date.ToString("yyyy/MM/dd")');
+        @:$('#@(ViewBag.shiftcategory)_edTime').val('@set_date.ToString("HH:mm")');
+        }
+
+        //自動調整高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 150);
+            $('.dataArea_').height($('.dataArea').height());
+        }).trigger("resize");
+        $('.dataArea').width($(window).width() - 150);
+        $('#dataHeader').width($('.dataArea').width() - 17);
+        
+        $(".func_setting button[class!=func_selected]").each(function () {
+            $("." + $(this).val()).fadeOut(0);
+            $("input[type=hidden][name=vs_item][value=" + $(this).val() + "]").prop("disabled", true);
+        });
+
+        set_height();
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+        $('.dataArea_ tr:odd').css('background', '#ABC8E2');
+        $('.dataArea_ tr:even').css('background', '#E1E6FA');
+    }
+
+    function set_shiftcategory(obj) {
+        reset_all();
+        $('.' + obj.value).fadeIn(0);
+        $('#set_feq').attr('stag', obj.value);
+        set_height();
+    }
+
+    function reset_all() {
+        $('.N').fadeOut(0);
+        $('.D').fadeOut(0);
+        $('.E').fadeOut(0);
+    }
+
+    function sned_feq(obj) {
+        var stag = $(obj).attr('stag');
+        var st = $('#' + stag + '_stDate').val() + ' ' + $('#' + stag + '_stTime').val();
+        var et = $('#' + stag + '_edDate').val() + ' ' + $('#' + stag + '_edTime').val();
+        var st_date = new Date(st);
+        var et_date = new Date(et);
+        if (et_date > st_date) {
+            $('#strat_time').val(st);
+            $('#end_time').val(et);
+            $('#date').val($('#Comple_Date').val());
+            return true;
+        }
+        else {
+            alert('時間區間設定錯誤!');
+            return false;
+        }
+    }
+
+    function btn_set(obj) {
+        var top = $(obj).position().top + $(obj).height() + 10;
+        var left = $(obj).position().left;
+        $(".func_setting").css({ "top": top, "left": left });
+        if (!$(".func_setting").is(":visible")) {
+            $('.func_setting').slideDown(350);
+            $(obj).css("background-color", "#FFFF99");
+        } else {
+            $('.func_setting').slideUp(350);
+            $(obj).css("background-color", "");
+            $(".mask").fadeIn(500);
+            var dtstr = new Array();
+            $(".func_setting button[class=func_selected]").each(function (i) { dtstr[i] = $(this).val(); });
+            $.ajax({
+                url: "../VitalSign/SaveVSOption",
+                type: "post",
+                timeout: 5000,
+                data: "func_list=" + dtstr.join("|"),
+                success: function () {
+                    setTimeout(function () { $(".mask").fadeOut(350); }, 800);
+                }
+            });
+        }
+    }
+   
+    function btn_set_content(obj) {
+        if ($(obj).attr("class") == "func_selected") {
+            $(obj).removeAttr("class").css("background-color", "");
+            $("." + $(obj).val()).fadeOut(0);
+            $("input[type=hidden][name=vs_item][value=" + $(obj).val() + "]").prop("disabled", true);
+        } else {
+            $(obj).attr("class", "func_selected").css("background-color", "#FFFF99");
+            $("." + $(obj).val()).fadeIn(0);
+            $("input[type=hidden][name=vs_item][value=" + $(obj).val() + "]").prop("disabled", false);
+        }
+        set_height();
+    }
+
+    function set_height() {
+        var tr_list = $('.dataArea tr');
+        var tr_list_ = $('.dataArea_ tr');
+        for (var i = 0; i < tr_list.length; i++) {
+            if ($(tr_list[i]).outerHeight() > $(tr_list_[i]).outerHeight())
+                $(tr_list_[i]).outerHeight($(tr_list[i]).outerHeight());
+            else
+                $(tr_list[i]).outerHeight($(tr_list_[i]).outerHeight());
+        }
+    }
+
+    //驗證欄位_數字
+    function check_num(obj) {
+        if (obj.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+            if (obj.value.indexOf('-') == 0)
+                re = /^[-]?[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+            if (obj.value.indexOf('-') == 0)
+                re = /^[-]?[0-9]*$/;
+        }
+        if (!re.test(obj.value) && obj.value != "") {
+            alert("只能輸入數字");
+            $(obj).val('');
+        }
+        else if (obj.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]?$/;
+            if (!re.test(obj.value) && obj.value != "")
+                $(obj).val(obj.value.substring(0, obj.value.indexOf('.') + 2));
+        }
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+    DateTime date = Convert.ToDateTime(ViewBag.date);
+    string[] func_list = (string[])ViewData["func_list"];
+}
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+            <td>
+                <fieldset>
+                    <legend>批次輸入設定</legend>
+                    <table border="0" cellpadding="0" cellspacing="0" style="font-size:16px;padding: 2px 0px 5px 0px;">
+                        <tr>
+                            <td>
+                                <form id="form_set" method="post" action="VitalSign_Multiple">
+                                    <input type="hidden" id="date" name="date" />
+                                    <input type="hidden" id="strat_time" name="strat_time" />
+                                    <input type="hidden" id="end_time" name="end_time" />
+                                    <span style="padding:0px 4px 0px 4px;">
+                                        @Html.TextBox("Comple_Date", date.ToString("yyyy/MM/dd"), new { style = "width:70px;" })
+                                        @*@WebTool.setDateTime("Comple_Date", "", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "Comple_Date", "", true)
+                                        <input type="button" value="補輸" onclick="$('#date').val($('#Comple_Date').val()); submit();" />
+                                    </span>
+                                    <label><input type="radio" name="shiftcategory" value="N" onclick="set_shiftcategory(this);" />大夜</label>
+                                    <label><input type="radio" name="shiftcategory" value="D" onclick="set_shiftcategory(this);" />白班</label>
+                                    <label><input type="radio" name="shiftcategory" value="E" onclick="set_shiftcategory(this);" />小夜</label>
+                                    <br />
+                                    <span class="N" style="display:none;padding:0px 4px 0px 4px;">
+                                        @Html.TextBox("N_stDate", date.ToString("yyyy/MM/dd"))
+                                        @Html.TextBox("N_stTime", "00:00")
+                                        ~
+                                        @Html.TextBox("N_edDate", date.ToString("yyyy/MM/dd"))
+                                        @Html.TextBox("N_edTime", "08:00")
+                                        @WebTool.setDateTime("N_stDate", "N_stTime", "", "0", "", date.ToString("MM/dd/yyyy 00:00:00"), date.ToString("MM/dd/yyyy 08:00:00"))
+                                        @WebTool.setDateTime("N_edDate", "N_edTime", "", "0", "", date.ToString("MM/dd/yyyy 00:00:00"), date.ToString("MM/dd/yyyy 08:00:00"))
+                                        @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "N_stDate", "N_stTime", true)
+                                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "N_edDate", "N_edTime", true)*@
+                                    </span>
+                                    <span class="D" style="display:none;padding:0px 4px 0px 4px;">
+                                        @Html.TextBox("D_stDate", date.ToString("yyyy/MM/dd"))
+                                        @Html.TextBox("D_stTime", "08:00")
+                                        ~
+                                        @Html.TextBox("D_edDate", date.ToString("yyyy/MM/dd"))
+                                        @Html.TextBox("D_edTime", "16:00")
+                                        @WebTool.setDateTime("D_stDate", "D_stTime", "", "0", "", date.ToString("MM/dd/yyyy 08:00:00"), date.ToString("MM/dd/yyyy 16:00:00"))
+                                        @WebTool.setDateTime("D_edDate", "D_edTime", "", "0", "", date.ToString("MM/dd/yyyy 08:00:00"), date.ToString("MM/dd/yyyy 16:00:00"))
+                                        @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "D_stDate", "D_stTime", true)
+                                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "D_edDate", "D_edTime", true)*@
+                                    </span>
+                                    <span class="E" style="display:none;padding:0px 4px 0px 4px;">
+                                        @Html.TextBox("E_stDate", date.ToString("yyyy/MM/dd"))
+                                        @Html.TextBox("E_stTime", "16:00")
+                                        ~
+                                        @Html.TextBox("E_edDate", date.AddDays(1).ToString("yyyy/MM/dd"))
+                                        @Html.TextBox("E_edTime", "00:00")
+                                        @WebTool.setDateTime("E_stDate", "E_stTime", "", "0", "", date.ToString("MM/dd/yyyy 16:00:00"), date.AddDays(1).ToString("MM/dd/yyyy 00:00:00"))
+                                        @WebTool.setDateTime("E_edDate", "E_edTime", "", "0", "", date.ToString("MM/dd/yyyy 16:00:00"), date.AddDays(1).ToString("MM/dd/yyyy 00:00:00"))
+                                        @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "E_stDate", "E_stTime", true)
+                                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "E_edDate", "E_edTime", true)*@
+                                    </span>
+                                      頻率：
+                                    <select id="feq_list" name="feq">
+                                        <option value="15">每15分鐘</option>
+                                        <option value="30">每30分鐘</option>
+                                        <option value="60">每1小時</option>
+                                        <option value="120">每2小時</option>
+                                        <option value="180">每3小時</option>
+                                    </select>
+                                    <input type="button" id="set_feq" stag="" value="頻率設定" onclick="if (sned_feq(this)) { submit(); }" />
+                                    <button type="button" id="set" onclick="btn_set(this);">項目設定</button>
+                                    <input type="button" value="儲存量測值" onclick="$('#mask,#info').show();$('#form1').submit();" />
+                                    <input type="button" value="列印" onclick="@Java_funcion.pup_window("Tpr_Index", 1000, 700, "0")" />
+                                    <input type="button" value="單次輸入" onclick="window.location.href = 'VitalSignSingle'" />
+                                </form>
+                            </td>
+                        </tr>
+                    </table>
+                </fieldset>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <form id="form1" action="VitalSign_Multiple_Save" method="post">
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+                    <tr>
+                        <td>
+                            <div class="dataHeader_">
+                                <table border="0" cellpadding="4" cellspacing="1" style="table-layout:fixed; white-space:nowrap;">
+                                    <tr>
+                                        <td style="width:130px;"><div style="width:130px; overflow:hidden;">日期時間</div></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="dataArea_" id="dataArea_">
+                                <table border="0" cellpadding="4" cellspacing="1" style="overflow-y:hidden;">
+                                    @foreach (DataRowView r in dt.DefaultView)
+                                    {
+                                        DateTime C_date = Convert.ToDateTime(r["CREATE_DATE"]);
+                                        if (C_date.Hour < 8)
+                                        {
+                                    @:<tr class="N" style="display:none;" >
+                                        }
+                                        else if (C_date.Hour < 16)
+                                        {
+                                    @:<tr class="D" style="display:none;" >
+                                        }
+                                        else
+                                        {
+                                    @:<tr class="E" style="display:none;" >
+                                        }
+                                        if (C_date > DateTime.Now || r["VS_ID"].ToString() != "NEW")
+                                        {
+                                        <td style="width:130px;text-align:center;">
+                                            @if (C_date > DateTime.Now)
+                                            {
+                                            <label style="color:gray;">@C_date.ToString("yyyy/MM/dd HH:mm")</label>
+                                            }
+                                            else
+                                            {
+                                                @C_date.ToString("yyyy/MM/dd HH:mm")
+                                            }
+                                        </td>
+                                        }
+                                        else
+                                        {
+                                        <td style="width:130px;text-align:center;">
+                                            <!-- 紀錄時間 -->
+                                            @C_date.ToString("yyyy/MM/dd HH:mm")
+                                            <input type="hidden" name="vs_date" value="@C_date.ToString("yyyy/MM/dd HH:mm")" />
+                                        </td>
+                                        }
+                                    @:</tr>
+                                    }
+                                </table>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="dataHeader" id="dataHeader">
+                                <table border="0" cellpadding="4" cellspacing="1" style="table-layout:fixed; white-space:nowrap;">
+                                    <tr>
+                                        <td style="width:150px;" class="bt"><div style="width:150px; overflow:hidden;">
+                                            體溫
+                                            <input type="hidden" name="vs_item" value="bt" />
+                                        </div></td>
+                                        <td style="width:150px;" class="mp"><div style="width:150px; overflow:hidden;">
+                                            心跳
+                                            <input type="hidden" name="vs_item" value="mp" />
+                                        </div></td>
+                                        <td style="width:150px;" class="bf"><div style="width:150px; overflow:hidden;">
+                                            呼吸
+                                            <input type="hidden" name="vs_item" value="bf" />
+                                        </div></td>
+                                        <td style="width:200px;" class="bp"><div style="width:200px; overflow:hidden;">
+                                            血壓(H/L)
+                                            <input type="hidden" name="vs_item" value="bp" />
+                                        </div></td>
+                                        <td style="width:150px;" class="sp"><div style="width:150px; overflow:hidden;">
+                                            血氧
+                                            <input type="hidden" name="vs_item" value="sp" />
+                                        </div></td>
+                                        <td style="width:150px;" class="cv1"><div style="width:150px; overflow:hidden;">
+                                            中心靜脈壓mmHg
+                                            <input type="hidden" name="vs_item" value="cv1" />
+                                        </div></td>
+                                        <td style="width:150px;" class="cv2"><div style="width:150px; overflow:hidden;">
+                                            中心靜脈壓cmH2O
+                                            <input type="hidden" name="vs_item" value="cv2" />
+                                        </div></td>
+                                        <td style="width:150px;" class="ic1"><div style="width:150px; overflow:hidden;">
+                                            顱內壓mmHg
+                                            <input type="hidden" name="vs_item" value="ic1" />
+                                        </div></td>
+                                        <td style="width:150px;" class="ic2"><div style="width:150px; overflow:hidden;">
+                                            顱內壓cmH2O
+                                            <input type="hidden" name="vs_item" value="ic2" />
+                                        </div></td>
+                                        @*<td style="width:150px;" class="ab"><div style="width:150px; overflow:hidden;">
+                                            動脈血壓
+                                            <input type="hidden" name="vs_item" value="ab" />
+                                        </div></td>
+                                        <td style="width:150px;" class="pa"><div style="width:150px; overflow:hidden;">
+                                            肺動脈壓
+                                            <input type="hidden" name="vs_item" value="pa" />
+                                        </div></td>
+                                        <td style="width:150px;" class="cp"><div style="width:150px; overflow:hidden;">
+                                            腦灌流壓
+                                            <input type="hidden" name="vs_item" value="cp" />
+                                        </div></td>
+                                        <td style="width:150px;" class="fb"><div style="width:150px; overflow:hidden;">
+                                            足背動脈
+                                            <input type="hidden" name="vs_item" value="fb" />
+                                        </div></td>
+                                        <td style="width:150px;" class="co"><div style="width:150px; overflow:hidden;">
+                                            心輸出量
+                                            <input type="hidden" name="vs_item" value="co" />
+                                        </div></td>
+                                        <td style="width:150px;" class="ci"><div style="width:150px; overflow:hidden;">
+                                            心輸出量指數
+                                            <input type="hidden" name="vs_item" value="ci" />
+                                        </div></td>
+                                        <td style="width:150px;" class="sv"><div style="width:150px; overflow:hidden;">
+                                            混合靜脈血氧飽合度
+                                            <input type="hidden" name="vs_item" value="sv" />
+                                        </div></td>
+                                        <td style="width:150px;" class="ral"><div style="width:150px; overflow:hidden;">
+                                            橈動脈(左)
+                                            <input type="hidden" name="vs_item" value="ral" />
+                                        </div></td>
+                                        <td style="width:150px;" class="rar"><div style="width:150px; overflow:hidden;">
+                                            橈動脈(右)
+                                            <input type="hidden" name="vs_item" value="rar" />
+                                        </div></td>
+                                        <td style="width:150px;" class="pwo"><div style="width:150px; overflow:hidden;">
+                                            穿刺傷口滲血
+                                            <input type="hidden" name="vs_item" value="pwo" />
+                                        </div></td>
+                                        <td style="width:150px;" class="pwh"><div style="width:150px; overflow:hidden;">
+                                            穿刺傷口血腫
+                                            <input type="hidden" name="vs_item" value="pwh" />
+                                        </div></td>*@
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="dataArea" onscroll="document.getElementById('dataArea_').scrollTop = this.scrollTop;document.getElementById('dataHeader').scrollLeft = this.scrollLeft;" style="height:380px;overflow-x:scroll;">
+                                <table border="0" cellpadding="4" cellspacing="1">
+                                    @foreach (DataRowView r in dt.DefaultView)
+                                    {
+                                        DateTime C_date = Convert.ToDateTime(r["CREATE_DATE"]);
+                                        if (C_date.Hour < 8)
+                                        {
+                                    @:<tr class="N" style="display:none;" >
+                                        }
+                                        else if (C_date.Hour < 16)
+                                        {
+                                    @:<tr class="D" style="display:none;" >
+                                        }
+                                        else
+                                        {
+                                    @:<tr class="E" style="display:none;" >
+                                        }
+                                        if (C_date > DateTime.Now || r["VS_ID"].ToString() != "NEW")
+                                        {
+                                        <td style="width:150px;text-align:center;"><div style="width:150px; overflow:hidden;">
+                                            @if (r["bt"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["bt"] + " ℃")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;"><div style="width:150px; overflow:hidden;">
+                                            @if (r["mp"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["mp"] + " 次/分")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;"><div style="width:150px; overflow:hidden;">
+                                            @if (r["bf"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["bf"] + " 次/分")
+                                            }
+                                        </div></td>
+                                        <td style="width:200px;text-align:center;"><div style="width:200px; overflow:hidden;">
+                                            @if (r["bp"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["bp"].ToString().Replace("|", " / ") + " mmHg")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;"><div style="width:150px; overflow:hidden;">
+                                            @if (r["sp"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["sp"] + " %")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="cv1"><div style="width:150px; overflow:hidden;">
+                                            @if (r["cv1"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["cv1"] + " mmHg")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="cv2"><div style="width:150px; overflow:hidden;">
+                                            @if (r["cv2"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["cv2"] + " cmH2O")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="ic1"><div style="width:150px; overflow:hidden;">
+                                            @if (r["ic1"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["ic1"] + " mmHg")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="ic2"><div style="width:150px; overflow:hidden;">
+                                            @if (r["ic2"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["ic2"] + " cmH2O")
+                                            }
+                                        </div></td>
+                                        @*<td style="width:150px;text-align:center;" class="ab"><div style="width:150px; overflow:hidden;">
+                                            @if (r["ab"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["ab"].ToString().Replace("|", " / ") + " mmHg")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="pa"><div style="width:150px; overflow:hidden;">
+                                            @if (r["pa"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["pa"].ToString().Replace("|", " / ") + " mmHg")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="cp"><div style="width:150px; overflow:hidden;">
+                                            @if (r["cp"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["cp"] + " mmHg")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="fb"><div style="width:150px; overflow:hidden;">
+                                            @if (r["fb"].ToString() != "")
+                                            {
+                                            @Html.Raw("左 "+ r["fb"].ToString().Replace("|"," 右 "))
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="co"><div style="width:150px; overflow:hidden;">
+                                            @if (r["co"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["co"] + " L/min")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="ci"><div style="width:150px; overflow:hidden;">
+                                            @if (r["ci"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["ci"] + " L/min/m2")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="sv"><div style="width:150px; overflow:hidden;">
+                                            @if (r["sv"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["sv"] + " %")
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="ral"><div style="width:150px; overflow:hidden;">
+                                            @if (r["ral"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["ral"])
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="rar"><div style="width:150px; overflow:hidden;">
+                                            @if (r["rar"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["rar"])
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="pwo"><div style="width:150px; overflow:hidden;">
+                                            @if (r["pwo"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["pwo"])
+                                            }
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="pwh"><div style="width:150px; overflow:hidden;">
+                                            @if (r["pwh"].ToString() != "")
+                                            {
+                                            @Html.Raw(r["pwh"].ToString().Replace("|", "，") + " cm")
+                                            }
+                                        </div></td>*@
+                                        }
+                                        else
+                                        {
+                                        <td style="width:150px;text-align:center;"><div style="width:150px; overflow:hidden;">
+                                            <!-- 體溫 -->
+                                            @Html.TextBox("bt_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) ℃
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;"><div style="width:150px; overflow:hidden;">
+                                            <!-- 心跳 -->
+                                            @Html.TextBox("mp_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) 次/分
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;"><div style="width:150px; overflow:hidden;">
+                                            <!-- 呼吸 -->
+                                            @Html.TextBox("bf_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) 次/分
+                                        </div></td>
+                                        <td style="width:200px;text-align:center;"><div style="width:200px; overflow:hidden;">
+                                            <!-- 血壓 -->
+                                            @(Html.TextBox("bph_view", "", new { style = "width:25%;", onchange = "check_num(this); " })) /
+                                            @(Html.TextBox("bpl_view", "", new { style = "width:25%;", onchange = "check_num(this); " })) mmHg
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;"><div style="width:150px; overflow:hidden;">
+                                            <!-- SPO2 -->
+                                            @Html.TextBox("sp_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) %
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="cv1"><div style="width:150px; overflow:hidden;">
+                                            <!-- 中心靜脈壓mmHg -->
+                                            @Html.TextBox("cv1_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) mmHg
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="cv2"><div style="width:150px; overflow:hidden;">
+                                            <!-- 中心靜脈壓cmH2O -->
+                                            @Html.TextBox("cv2_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) cmH2O 
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="ic1"><div style="width:150px; overflow:hidden;">
+                                            <!-- 顱內壓mmHg -->
+                                            @Html.TextBox("ic1_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) mmHg
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="ic2"><div style="width:150px; overflow:hidden;">
+                                            <!-- 顱內壓cmH2O -->
+                                            @Html.TextBox("ic2_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) cmH2O 
+                                        </div></td>
+                                        @*<td style="width:150px;text-align:center;" class="ab"><div style="width:150px; overflow:hidden;">
+                                            <!-- 動脈血壓 -->
+                                            @(Html.TextBox("abh_view", "", new { style = "width:25%;", onchange = "check_num(this); " })) /
+                                            @(Html.TextBox("abl_view", "", new { style = "width:25%;", onchange = "check_num(this); " })) mmHg
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="pa"><div style="width:150px; overflow:hidden;">
+                                            <!-- 肺動脈壓 -->
+                                            @(Html.TextBox("pah_view", "", new { style = "width:25%;", onchange = "check_num(this); " })) /
+                                            @(Html.TextBox("pal_view", "", new { style = "width:25%;", onchange = "check_num(this); " })) mmHg
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="cp"><div style="width:150px; overflow:hidden;">
+                                            <!-- 腦灌流壓 -->
+                                            @Html.TextBox("cp_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) mmHg
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="fb"><div style="width:150px; overflow:hidden;">
+                                            <!-- 足背動脈 -->
+                                            左
+                                            <select name="fbh_view">
+                                                <option value="">請選擇</option>
+                                                <option value="-">-</option>
+                                                <option value="+">+</option>
+                                                <option value="++">++</option>
+                                                <option value="+++">+++</option>
+                                                <option value="++++">++++</option>
+                                            </select><br />
+                                            右
+                                            <select name="fbl_view">
+                                                <option value="">請選擇</option>
+                                                <option value="-">-</option>
+                                                <option value="+">+</option>
+                                                <option value="++">++</option>
+                                                <option value="+++">+++</option>
+                                                <option value="++++">++++</option>
+                                            </select>
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="co"><div style="width:150px; overflow:hidden;">
+                                            <!-- 心輸出量 -->
+                                            @Html.TextBox("co_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) L/min
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="ci"><div style="width:150px; overflow:hidden;">
+                                            <!-- 心輸出量指數 -->
+                                            @Html.TextBox("ci_view", "", new { style = "width:40%;", onchange = "check_num(this); " }) L/min/m2
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="sv"><div style="width:150px; overflow:hidden;">
+                                            <!-- 混合靜脈血氧飽合度 -->
+                                            @Html.TextBox("sv_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) %
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="ral"><div style="width:150px; overflow:hidden;">
+                                            <!-- 橈動脈(左) -->
+                                            <select name="ral_view">
+                                                <option value="">請選擇</option>
+                                                <option value="-">-</option>
+                                                <option value="+">+</option>
+                                                <option value="++">++</option>
+                                                <option value="+++">+++</option>
+                                                <option value="++++">++++</option>
+                                            </select><br />
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="rar"><div style="width:150px; overflow:hidden;">
+                                            <!-- 橈動脈(右) -->
+                                            <select name="rar_view">
+                                                <option value="">請選擇</option>
+                                                <option value="-">-</option>
+                                                <option value="+">+</option>
+                                                <option value="++">++</option>
+                                                <option value="+++">+++</option>
+                                                <option value="++++">++++</option>
+                                            </select><br />
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="pwo"><div style="width:150px; overflow:hidden;">
+                                            <!-- 穿刺傷口滲血 -->
+                                            <select name="pwo_view">
+                                                <option value="">請選擇</option>
+                                                <option value="無">無</option>
+                                                <option value="有">有</option>
+                                            </select><br />
+                                        </div></td>
+                                        <td style="width:150px;text-align:center;" class="pwh"><div style="width:150px; overflow:hidden;">
+                                            <!-- 穿刺傷口血腫 -->
+                                            <select name="pwhh_view">
+                                                <option value="">請選擇</option>
+                                                <option value="無">無</option>
+                                                <option value="有">有</option>
+                                            </select><br />
+                                            @Html.TextBox("pwhl_view", "", new { style = "width:60%;", onchange = "check_num(this); " }) cm
+                                        </div></td>*@
+                                        }
+                                    @:</tr>
+                                    }
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                </form>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- 設定列表 -->
+<div class="func_setting" style="width:350px;">
+    <div style="display:none;">
+        <label>一般生理量測</label>
+        <hr />
+        <button type="button" value="gc" class="@VitalSign_Helper.vs_setting_class("gc", func_list)">昏迷<br />指數</button>
+        <button type="button" value="ms" class="@VitalSign_Helper.vs_setting_class("ms", func_list)">肌力<br />測量</button>
+        <button type="button" value="bh"  class="@VitalSign_Helper.vs_setting_class("bh", func_list)">身高</button>
+        <button type="button" value="bw"  class="@VitalSign_Helper.vs_setting_class("bw", func_list)">體重</button>
+    </div>
+    <div style="display:none;">
+        <label>圍長</label>
+        <hr />
+        <button type="button" value="gtwl" class="@VitalSign_Helper.vs_setting_class("gtwl", func_list)">腰圍</button>
+        <button type="button" value="gthr" class="@VitalSign_Helper.vs_setting_class("gthr", func_list)">頭圍</button>
+        <button type="button" value="gtbu" class="@VitalSign_Helper.vs_setting_class("gtbu", func_list)">胸圍</button>
+        <button type="button" value="gtbl" class="@VitalSign_Helper.vs_setting_class("gtbl", func_list)">腹圍</button>
+        <button type="button" value="gthl" class="@VitalSign_Helper.vs_setting_class("gthl", func_list)">臀圍</button>
+        <button type="button" value="gtlf" class="@VitalSign_Helper.vs_setting_class("gtlf", func_list)">左<br />前臂</button>
+        <button type="button" value="gtrf" class="@VitalSign_Helper.vs_setting_class("gtrf", func_list)">右<br />前臂</button>
+        <button type="button" value="gtlua" class="@VitalSign_Helper.vs_setting_class("gtlua", func_list)">左<br />上臂</button>
+        <button type="button" value="gtrua" class="@VitalSign_Helper.vs_setting_class("gtrua", func_list)">右<br />上臂</button>
+        <button type="button" value="gtlt" class="@VitalSign_Helper.vs_setting_class("gtlt", func_list)">左<br />大腿</button>
+        <button type="button" value="gtrt" class="@VitalSign_Helper.vs_setting_class("gtrt", func_list)">右<br />大腿</button>
+        <button type="button" value="gtll" class="@VitalSign_Helper.vs_setting_class("gtll", func_list)">左<br />小腿</button>
+        <button type="button" value="gtrl" class="@VitalSign_Helper.vs_setting_class("gtrl", func_list)">右<br />小腿</button>
+        <button type="button" value="gtla" class="@VitalSign_Helper.vs_setting_class("gtla", func_list)">左<br />足踝</button>
+        <button type="button" value="gtra" class="@VitalSign_Helper.vs_setting_class("gtra", func_list)">右<br />足踝</button>
+    </div>
+    <div>
+        <label>血液動力學</label>
+        <input type="button" style="height:50px;width:50px;" value="儲 存" onclick="$('#set').click();"  />
+        <hr />
+        <button type="button" onclick="btn_set_content(this);" value="cv1" class="@VitalSign_Helper.vs_setting_class("cv1", func_list)" style="width:60px;">中心靜<br />脈壓<br />mmHg</button>
+        <button type="button" onclick="btn_set_content(this);" value="cv2" class="@VitalSign_Helper.vs_setting_class("cv2", func_list)" style="width:60px;">中心靜<br />脈壓<br />cmH2O</button>
+        <button type="button" onclick="btn_set_content(this);" value="ic1" class="@VitalSign_Helper.vs_setting_class("ic1", func_list)" style="width:60px;">顱內壓<br />mmHg</button>
+        <button type="button" onclick="btn_set_content(this);" value="ic2" class="@VitalSign_Helper.vs_setting_class("ic2", func_list)" style="width:60px;">顱內壓<br />cmH2O</button>
+        @*<button type="button" onclick="btn_set_content(this);" value="ab" class="@VitalSign_Helper.vs_setting_class("ab", func_list)" style="width:60px;">動脈<br />血壓</button>
+        <button type="button" onclick="btn_set_content(this);" value="pa" class="@VitalSign_Helper.vs_setting_class("pa", func_list)" style="width:60px;">肺動<br />脈壓</button>
+        <button type="button" onclick="btn_set_content(this);" value="cp" class="@VitalSign_Helper.vs_setting_class("cp", func_list)" style="width:60px;">腦灌<br />流壓</button>
+        <button type="button" onclick="btn_set_content(this);" value="fb" class="@VitalSign_Helper.vs_setting_class("fb", func_list)" style="width:60px;">足背<br />動脈</button>
+        <button type="button" onclick="btn_set_content(this);" value="co" class="@VitalSign_Helper.vs_setting_class("co", func_list)" style="width:60px;">心輸出量</button>
+        <button type="button" onclick="btn_set_content(this);" value="ci" class="@VitalSign_Helper.vs_setting_class("ci", func_list)" style="width:60px;">心輸出量指數</button>
+        <button type="button" onclick="btn_set_content(this);" value="sv" class="@VitalSign_Helper.vs_setting_class("sv", func_list)" style="width:60px;">混合靜脈血氧飽合度</button>
+        <button type="button" onclick="btn_set_content(this);" value="ral" class="@VitalSign_Helper.vs_setting_class("ral", func_list)" style="width:60px;">橈動脈(左)</button>
+        <button type="button" onclick="btn_set_content(this);" value="rar" class="@VitalSign_Helper.vs_setting_class("rar", func_list)" style="width:60px;">橈動脈(右)</button>
+        <button type="button" onclick="btn_set_content(this);" value="pwo" class="@VitalSign_Helper.vs_setting_class("pwo", func_list)" style="width:60px;">穿刺傷口滲血</button>
+        <button type="button" onclick="btn_set_content(this);" value="pwh" class="@VitalSign_Helper.vs_setting_class("pwh", func_list)" style="width:60px;">穿刺傷口血腫</button>*@
+    </div>
+</div>
+
+<!-- 遮罩 -->
+<div id="mask" class="mask" style="text-align:center;">
+    <img src="~/Images/System/saving.gif" alt="儲存中" />
+</div>

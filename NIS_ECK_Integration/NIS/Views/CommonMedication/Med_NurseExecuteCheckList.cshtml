@@ -1,0 +1,188 @@
+﻿@using NIS.Data;
+@{
+    //ViewBag.Title = "Med_NurseExecuteCheckList";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    PatientInfo ptInfo = (PatientInfo)Session["PatInfo"];
+    List<DRUG_EXECUTE> DRUG_EXEC = (List<DRUG_EXECUTE>)ViewData["drug_exec"];
+}
+<script type="text/javascript">
+    $(document).ready(function () {
+        this.focus();
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.parent.check_session();
+        });
+        //格行換色
+        $('.dataArea1 tr:odd').css('background', '#ABC8E2');
+        $('.dataArea1 tr:even').css('background', '#E1E6FA');
+        @{
+            if (Request["message"] != null)
+            {
+                //@Html.Raw("showHint(\"" + Request["message"].ToString() + "\");")
+                Response.Write("<script language='javascript'>alert('" + Request["message"].ToString() + "');window.opener.location.href=window.opener.location.href;window.close();</" + "script>");
+            }
+        }
+    });
+    function ok(cnt) {
+        var ck_cnt = 0
+        $(".dataArea1").find("input[type=checkbox]:checked").each(function (i) {
+            $("#status_"+$(this).val()).val("1");
+            ck_cnt ++
+        });
+        if (ck_cnt == cnt)
+        { window.close();}
+        else
+        { $("form").submit();}
+    };
+    function cancel() {
+        window.close();
+    };
+</script>
+<style type="text/css">
+    form {
+        font-size:10pt;
+        font-family: 微軟正黑體;
+    }
+    .dataArea1 [type=button]
+    {
+	    background-color: #9CB7CF;
+	    border: 2px solid #FFFFFF;
+        border-radius: 5px;
+	    color: #000000;
+	    font-family: "微軟正黑體";
+	    font-size: 14px;
+	    padding: 2px 3px 2px 3px;
+        box-shadow: 2px 2px 3px rgba(20%,20%,40%,0.5);
+        cursor: pointer;
+    }
+    th {
+        background: #99CCFF;
+        text-align: center;
+        vertical-align: middle;
+        font-size:11pt;
+        border-color:#135e96;
+        border-style:solid;
+    }
+    td {
+        border-color:#135e96;
+        border-style:solid;
+    }
+</style>
+
+<h3 style="color:red">請再次確認以下醫囑執行紀錄的內容，若無誤則點選確定完成給藥作業，<br />如有疑慮藥品請勾選後點選完成則不會給藥。</h3>
+<form method="post" action="Med_NurseExecuteCheckList_New">
+    <input type="hidden" name="feeno" value="@ptInfo.FeeNo">
+ <div class="dataArea1">
+    <input id="execflag" type="hidden" value="save" name="execflag" />
+    <table border="1" cellpadding="2" cellspacing="0">
+        <tr>
+            <th width="30" style="text-align:center">疑慮</th>
+            <th width="300">醫&emsp;囑</th>
+            <th width="40">使用劑量</th>
+            <th width="50">途&emsp;徑</th>
+            <th width="50">頻&emsp;次</th>
+            <th width="140">執行時間[給藥時間]</th>
+            <th width="130">原因註記</th>
+            <th width="130">不良反應</th>
+        </tr>
+        @for (int i = 0; i <= DRUG_EXEC.Count - 1; i++)
+        {
+            <tr>
+                <td style="text-align:center"><input type="checkbox" id="chk_@i" value="@i" /></td>
+                <td>@(DRUG_EXEC[i].MED_DESC)
+                    @if (DRUG_EXEC[i].SS_DOSE != null && DRUG_EXEC[i].SS_DOSE != "" && DRUG_EXEC[i].SS_DOSE != "0" && DRUG_EXEC[i].SS_DRUGNAME != "請選擇")
+                    { 
+                        <br />
+                        <label style="color:red">(Sliding Scale)@DRUG_EXEC[i].SS_DRUGNAME</label>
+                    }
+                </td>
+                <td style="text-align:center">
+                    @(Math.Round(Convert.ToDecimal(DRUG_EXEC[i].USE_DOSE.ToString().Trim()), 1).ToString("0.#"))
+                    @if (DRUG_EXEC[i].SS_DOSE != null && DRUG_EXEC[i].SS_DOSE != "" && DRUG_EXEC[i].SS_DOSE != "0" && DRUG_EXEC[i].SS_DRUGNAME != "請選擇")
+                    { 
+                        <br />
+                        <label style="color:red">@DRUG_EXEC[i].SS_DOSE</label>
+                    }
+                </td>
+                <td style="text-align:center">@(DRUG_EXEC[i].UD_PATH)</td>
+                <td style="text-align:center">@(DRUG_EXEC[i].UD_CIR)</td>
+                <td> 
+                    @if (DRUG_EXEC[i].EXEC_DATE == null && (DRUG_EXEC[i].UPD_TYPE == "I" || DRUG_EXEC[i].UD_CIR.ToString().Trim() != "STAT"))
+                    { 
+                        @(DRUG_EXEC[i].DRUG_DATE)
+                    }
+                    else
+                    { 
+                        @DateTime.Now.ToString("yyyy/MM/dd HH:mm")
+                        @:<label style="color:red;font-style:italic"> [@(DRUG_EXEC[i].DRUG_DATE)] </label>
+                    }                              
+                </td>
+                <td>
+                    @{if (DRUG_EXEC[i].REASONTYPE == "1")
+                      {  
+                          @:未執行：
+                      }
+                      else if (DRUG_EXEC[i].REASONTYPE == "2")
+                      {  
+                          @:提早執行：
+                      }
+                      else if (DRUG_EXEC[i].REASONTYPE == "3")
+                      {  
+                          @:延遲執行：
+                      }
+                      else if (DRUG_EXEC[i].REASONTYPE == "4")
+                      {
+                         @:過時給藥：
+                      }
+                    }
+                    @(DRUG_EXEC[i].REASON)
+                </td>
+                <td>
+                     @(DRUG_EXEC[i].BADREACTION)
+                    <div>
+
+                        <input type="hidden" name="data[@i].UD_SEQPK" value="@DRUG_EXEC[i].UD_SEQPK" />
+                        <input type="hidden" name="data[@i].UD_SEQ" value="@DRUG_EXEC[i].UD_SEQ" />
+                        <input type="hidden" name="data[@i].USE_DOSE" value="@DRUG_EXEC[i].USE_DOSE" />
+                        <input type="hidden" name="data[@i].DRUG_DATE" value="@DRUG_EXEC[i].DRUG_DATE" />
+                        <input type="hidden" name="data[@i].EXEC_DATE" value="@DRUG_EXEC[i].EXEC_DATE" />
+                        <input type="hidden" name="data[@i].EXEC_ID" value="@DRUG_EXEC[i].EXEC_ID" />
+                        <input type="hidden" name="data[@i].EXEC_NAME" value="@DRUG_EXEC[i].EXEC_NAME" />
+                        <input type="hidden" name="data[@i].REASONTYPE" value="@DRUG_EXEC[i].REASONTYPE" />
+                        <input type="hidden" name="data[@i].REASON" value="@DRUG_EXEC[i].REASON" />
+                        <input type="hidden" name="data[@i].STATION" value="@DRUG_EXEC[i].STATION" />
+                        <input type="hidden" name="data[@i].CHECKER_DATE" value="@DRUG_EXEC[i].CHECKER_DATE" />
+                        <input type="hidden" name="data[@i].CHECKER_ID" value="@DRUG_EXEC[i].CHECKER_ID" />
+                        <input type="hidden" name="data[@i].CHECKER" value="@DRUG_EXEC[i].CHECKER" />
+                        <input type="hidden" name="data[@i].CREAT_DATE" value="@DRUG_EXEC[i].CREAT_DATE" />
+
+                        <input type="hidden" name="data[@i].INVALID_DATE" value="@DRUG_EXEC[i].INVALID_DATE" />
+                        <input type="hidden" name="data[@i].SIGNMODE" value="@DRUG_EXEC[i].SIGNMODE" />
+                        <input type="hidden" name="data[@i].RECORD_DATE" value="@DRUG_EXEC[i].RECORD_DATE" />
+                        <input type="hidden" name="data[@i].RECORD_ID" value="@DRUG_EXEC[i].RECORD_ID" />
+                        <input type="hidden" name="data[@i].BADREACTION" value="@DRUG_EXEC[i].BADREACTION" />
+                        <input type="hidden" name="data[@i].MED_CODE" value="@DRUG_EXEC[i].MED_CODE" />
+                        <input type="hidden" name="data[@i].FEE_NO" value="@DRUG_EXEC[i].FEE_NO" />
+                        <input type="hidden" name="data[@i].ORDSTATUS" value="@DRUG_EXEC[i].ORDSTATUS" id="status_@i"/>
+                        <input type="hidden" name="data[@i].DAY_CNT" value="@DRUG_EXEC[i].DAY_CNT" />
+                        <input type="hidden" name="data[@i].DRUG_TYPE" value="@DRUG_EXEC[i].DRUG_TYPE" />
+                        <input type="hidden" name="data[@i].UPD_TYPE" value="@DRUG_EXEC[i].UPD_TYPE" />
+                        <input type="hidden" name="data[@i].UD_CIR" value="@DRUG_EXEC[i].UD_CIR" />
+                        <input type="hidden" name="data[@i].UD_PATH" value="@DRUG_EXEC[i].UD_PATH" />
+                        <input type="hidden" name="data[@i].UD_UNIT" value="@DRUG_EXEC[i].UD_UNIT" />
+                        <input type="hidden" name="data[@i].MED_DESC" value="@DRUG_EXEC[i].MED_DESC" />
+                        <input type="hidden" name="data[@i].ALISE_DESC" value="@DRUG_EXEC[i].ALISE_DESC" />
+                        <input type="hidden" name="data[@i].POSITION" value="@DRUG_EXEC[i].POSITION" />
+                        <input type="hidden" name="data[@i].SS_DRUGNAME" value="@DRUG_EXEC[i].SS_DRUGNAME" />
+                        <input type="hidden" name="data[@i].SS_DOSE" value="@DRUG_EXEC[i].SS_DOSE" />
+                    </div>
+                </td> 
+            </tr>
+        }
+    </table>
+    <p style="text-align:center">
+        <input type="button" value="確定" onclick="ok(@(DRUG_EXEC.Count))"/>&emsp;
+        <input type="button" value="取消" onclick="cancel()" />
+    </p>
+</div>
+</form>

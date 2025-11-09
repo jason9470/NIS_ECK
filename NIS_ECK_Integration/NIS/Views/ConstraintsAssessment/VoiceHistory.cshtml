@@ -1,0 +1,143 @@
+﻿@using NIS.Models;
+@using NIS.Data;
+@{
+    ViewBag.Title = "語音歷程";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string voiceJsonStr = ViewBag.voiceJsonStr;
+    string source = ViewBag.source;
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+            <td style="padding-bottom:5px; text-align:center;">
+                <span style="color:blue; font-size:26px;">語音歷程資料</span>
+                @(Html.TextBox("startDate", DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                ~
+                @(Html.TextBox("endDate", DateTime.Now.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd"), "startDate", "", false)
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "endDate", "", false)
+                <input type="button" id="voiceHistoryDate" value="查詢" />
+            </td>
+        </tr>
+    </table>
+    <div class="dataArea" id="historyList" style="height:100%; width:100%; overflow:auto; text-wrap:initial">
+    </div>
+</div>
+
+<script>
+    var url_source = '@source';
+
+    $(function () {
+
+        var voiceHistoryList = @Html.Raw(voiceJsonStr);
+        $("#historyList").append(getVoiceHistoryView(voiceHistoryList));
+        setGridColor();
+
+        $("#voiceHistoryDate").on("click", function() {
+            SearchVoiceHistoryByDate(
+                $('#startDate').val(),
+                $('#endDate').val(),
+                url_source
+            );
+        });
+
+        $(".voiceHistoryButton").on("click", function() {
+            var voiceKey = $(this).attr("voiceHistoryValue");
+            var voiceBtnId = $("#voiceBtnId", opener.document).val();
+            var totalListNum = $("#TListCount", opener.document).val();
+            var startNum = (voiceBtnId != 0) ? voiceBtnId : 0;
+            var range = (voiceBtnId != 0) ? voiceBtnId : totalListNum;
+
+            if (typeof voiceBtnId == "undefined") {
+                alert("找不到相關的語音歷程");
+            }
+
+            $.each($.parseJSON(voiceHistoryList[voiceKey].Parameter_CMD), function (index, parameterValue) {
+                var voiceRadioKey = index.toLowerCase().trim();
+                for (var i = startNum; i <= range; i++) {
+                    var voiceRadioButton = $('input[name="rb_' + voiceRadioKey + i +'"]', opener.document);
+                    var voiceCheckBox = $('input[name="ck_' + voiceRadioKey + i +'"]', opener.document);
+                    var voiceRemark = $('#txt10'+ i, opener.document);
+
+                    if (voiceRadioKey == "remark") {
+                        voiceRemark.attr("value",　parameterValue);
+                    }
+
+                    if (voiceRadioKey === "integrity") {
+                        var integrityValue = parameterValue.split(",");
+                        $.each(integrityValue, function(index, value) {
+                            voiceCheckBox.filter('[value="' + value.trim() + '"]').prop("checked", true);
+                        });
+                    } else {
+                        voiceRadioButton.filter('[value="' + parameterValue + '"]').prop("checked", true);
+                    }
+                }
+            });
+            window.close();
+        });
+    });
+
+    var getVoiceHistoryView = function(list) {
+        var viewList = '<table border="1" cellpadding="0" cellspacing="0" style="width:100%;" id="voiceHistoryView">';
+        if (list.length > 0) {
+            viewList += '<th>日期</th>';
+            viewList += '<th>內容</th>';
+            if (url_source == "AssessNew") {
+                viewList += '<th>執行項目</th>';
+            }
+
+            $.each(list, function(index, value) {
+                viewList += '<tr>';
+                viewList += '<td>' +moment(value.CREATE_TIME).format("YYYY/MM/DD HH:mm") + '</td>';
+                viewList += '<td>' + $.parseJSON(value.Parameter).Content + '</td>';
+                if (url_source == "AssessNew") {
+                    viewList += '<td align="center" valign="middle">'
+                    viewList += '<input type="button" class="voiceHistoryButton" value="輸入" voiceHistoryValue="'+ index +'" />'
+                    viewList += '</td>'
+                }
+                viewList += '</tr>';
+            });
+
+        } else {
+            viewList ="<tr><td><h3>工作清單無內容</h3></td></tr>";
+        }
+
+        viewList += '</table>';
+
+        return viewList;
+    }
+
+    function SearchVoiceHistoryByDate(startDate, endDate,url_source)
+    {
+        window.location.href = 'VoiceHistory?startDate=' + startDate + '&endDate=' +  endDate+ '&source=' +  url_source;
+    }
+
+    // 格行換色
+    function setGridColor()
+    {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+    //json字串遇到html符號問題
+    function escapeSpecialChars(jsonString) {
+
+        return jsonString.replace(/\n/g, "\\n")
+            .replace(/\r/g, "\\r")
+            .replace(/\t/g, "\\t")
+            .replace(/\f/g, "\\f");
+
+    }
+</script>

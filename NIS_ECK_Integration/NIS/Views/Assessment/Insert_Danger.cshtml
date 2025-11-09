@@ -1,0 +1,506 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if (complement_List.Status) { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (@pf != null)
+        {
+            if (pf.InDate > mindate)
+            { mindate = pf.InDate; }
+        }
+    }
+}
+
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        height:25px;
+    }
+    th {
+        text-align:left;
+        font-weight:inherit;
+        background-color:#ABC8E2;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function check() {
+        var score = 0;
+        score = count_score('disability', score);
+        score = count_score('awareness', score);
+        score = count_score('active', score);
+        score = count_score('piss', score);
+        score = count_score('stool', score);
+        score = count_score('care_characteristics', score);
+        score = count_score('care_resource', score);
+        score = count_score_for_otehr(score);
+        $('#total').val(score);
+        document.getElementById('score').innerText = score;
+        mark();
+    }
+
+    function count_score(id, score) {
+        var obj = $('input[name=rb_' + id + ']:checked');
+        if (obj.val() != undefined) {
+            $('#' + id).val(obj.attr('text'));
+            score = score + parseInt(obj.val());
+        }
+        return score
+    }
+
+    function count_score_for_otehr(score) {
+        var obj = $('input[name=rb_care_special]:checked');
+        if (obj.length > 0) {
+            if (obj.length > 1)
+                score = score + 5;
+            else
+                score = score + 3;
+        }
+        return score
+    }
+
+    function mark() {
+        var content = '';
+        var obj = $('input[name=rb_care_special]:checked');
+        if (obj.length > 0) {
+            for (var i = 0 ; i < obj.length; i++) {
+                content = content + $(obj[i]).attr('text') + ',';
+            }
+            $('#care_special').val(content.substring(0, content.length - 1));
+        }
+    }
+    function save() {
+        if ($('input[name=rb_disability]:checked').val() == undefined) {
+            alert('請選擇 殘障手冊');
+            return false;
+        }
+        if ($('input[name=rb_awareness]:checked').val() == undefined) {
+            alert('請選擇 意識');
+            return false;
+        }
+        if ($('input[name=rb_active]:checked').val() == undefined) {
+            alert('請選擇 活動');
+            return false;
+        }
+        if ($('input[name=rb_piss]:checked').val() == undefined) {
+            alert('請選擇 解尿');
+            return false;
+        }
+        if ($('input[name=rb_stool]:checked').val() == undefined) {
+            alert('請選擇 大便');
+            return false;
+        }     
+        if ($('input[name=rb_care_characteristics]:checked').val() == undefined) {
+            alert('請選擇 照顧特質');
+            return false;
+        }
+        if ($('input[name=rb_care_resource]:checked').val() == undefined) {
+            alert('請選擇 照顧資源');
+            return false;
+        }
+        return true;
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+    string action = "Insert_Danger", title = "新增 高危再評估";
+    string id = "", disability = "", awareness = "", active = "", piss = "", stool = "", care_characteristics = "", care_resource = "", care_special = "", total = "";
+    string day = DateTime.Now.ToString("yyyy/MM/dd");
+    string time = DateTime.Now.ToString("HH:mm");
+    if (dt != null && dt.Rows.Count > 0)
+    {
+        action = "Upd_Danger";
+        title = "更新 高危再評估";
+        id = dt.Rows[0]["DANGER_ID"].ToString();
+        day = Convert.ToDateTime(dt.Rows[0]["RECORDTIME"]).ToString("yyyy/MM/dd");
+        time = Convert.ToDateTime(dt.Rows[0]["RECORDTIME"]).ToString("HH:mm");
+        disability = dt.Rows[0]["DISABILITY"].ToString();
+        awareness = dt.Rows[0]["AWARENESS"].ToString();
+        active = dt.Rows[0]["ACTIVE"].ToString();
+        piss = dt.Rows[0]["PISS"].ToString();
+        stool = dt.Rows[0]["STOOL"].ToString();
+        care_characteristics = dt.Rows[0]["CARE_CHARACTERISTICS"].ToString();
+        care_resource = dt.Rows[0]["CARE_RESOURCE"].ToString();
+        care_special = dt.Rows[0]["CARE_SPECIAL"].ToString();
+        total = dt.Rows[0]["TOTAL"].ToString();
+        <script type="text/javascript">
+            $(function () {
+                set_for_rb('disability');
+                set_for_rb('awareness');
+                set_for_rb('active');
+                set_for_rb('piss');
+                set_for_rb('stool');
+                set_for_rb('care_characteristics');
+                set_for_rb('care_resource');
+                set_for_ck();
+                check();
+            });
+
+            function set_for_rb(id) {
+                var default_val = $('#' + id).val();
+                var rb = document.getElementsByName('rb_' + id);
+                for (var i = 0; i < rb.length; i++) {
+                    if ($(rb[i]).attr('text') == default_val)
+                        rb[i].checked = true;
+                }
+            }
+
+            function set_for_ck() {
+                if ($('#care_special').val() != '') {
+                    var default_val = $('#care_special').val().split(",");
+                    var ck = document.getElementsByName('rb_care_special');
+                    for (var i = 0; i < default_val.length; i++) {
+                        for (var j = 0; j < ck.length; j++) {
+                            if (default_val[i] == $(ck[j]).attr('text')) {
+                                ck[j].checked = true;
+                                j = ck.length;
+                            }
+                        }
+                    }
+                }
+            }
+        </script>
+    }
+}
+<form action="@action" method="post">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+            <td style="width:100%;text-align:center;">
+                <div id="module_define">@title</div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:5px 0 5px 0;text-align:center;">
+                <div class="funcArea">
+                    <input type="hidden" name="id" value="@id" />
+                    <input type="button" value="存檔" style="width:50px;" onclick="check();if (save()){submit();}" />
+                    <input type="button" value="放棄" style="width:50px;" onclick="if (confirm('確定放棄?')) window.location.href = 'AssessmentDanger'" />
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td colspan="5">
+                                評估日期：
+                                @Html.TextBox("txt_day", day, new { style = "width:80px;", @readonly = "readonly" })
+                                @Html.TextBox("txt_time", time, new { style = "width:50px;", @readonly = "readonly" })
+                                @*@WebTool.setDateTime("txt_day", "txt_time","", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width:11%;"></td>
+                            <td style="width:22%;">0分</td>
+                            <td style="width:22%;">1分</td>
+                            <td style="width:23%;">2分</td>
+                            <td style="width:22%;">3分</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:260px;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td style="width:11%;">
+                                殘障手冊
+                                <input type="hidden" id="disability" name="disability" value="@disability" />
+                            </td>
+                            <td style="width:22%;">
+                                @Html.RadioButton("rb_disability", "0", false, new { id = "rb_disability_1", text = "無(0)", onclick = "check();" })
+                                @Html.Label("rb_disability_1", "無")
+                            </td>
+                            <td style="width:22%;">
+                            </td>
+                            <td style="width:23%;">
+                            </td>
+                            <td style="width:22%;">
+                                @Html.RadioButton("rb_disability", "3", false, new { id = "rb_disability_2", text = "有(3)", onclick = "check();" })
+                                @Html.Label("rb_disability_2", "有")
+                                @Html.RadioButton("rb_disability", "3", false, new { id = "rb_disability_3", text = "申請中(3)", onclick = "check();" })
+                                @Html.Label("rb_disability_3", "申請中")
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                意識
+                                <input type="hidden" id="awareness" name="awareness" value="@awareness" />
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_awareness", "0", false, new { id = "rb_awareness_1", text = "清醒(0)", onclick = "check();" })
+                                @Html.Label("rb_awareness_1", "清醒")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_awareness", "1", false, new { id = "rb_awareness_2", text = "混亂(1)", onclick = "check();" })
+                                @Html.Label("rb_awareness_2", "混亂")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_awareness", "2", false, new { id = "rb_awareness_3", text = "嗜睡(2)", onclick = "check();" })
+                                @Html.Label("rb_awareness_3", "嗜睡")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_awareness", "3", false, new { id = "rb_awareness_4", text = "昏迷(3)", onclick = "check();" })
+                                @Html.Label("rb_awareness_4", "昏迷")
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                活動
+                                <input type="hidden" id="active" name="active" value="@active" />
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_active", "0", false, new { id = "rb_active_1", text = "自行活動(0)", onclick = "check();" })
+                                @Html.Label("rb_active_1", "自行活動")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_active", "1", false, new { id = "rb_active_2", text = "需人協助下床(1)", onclick = "check();" })
+                                @Html.Label("rb_active_2", "需人協助下床")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_active", "2", false, new { id = "rb_active_3", text = "需人協助於床上活動(2)", onclick = "check();" })
+                                @Html.Label("rb_active_3", "需人協助於床上活動")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_active", "3", false, new { id = "rb_active_4", text = "完全依賴(3)", onclick = "check();" })
+                                @Html.Label("rb_active_4", "完全依賴")
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                解尿
+                                <input type="hidden" id="piss" name="piss" value="@piss" />
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_piss", "0", false, new { id = "rb_piss_1", text = "正常(0)", onclick = "check();" })
+                                @Html.Label("rb_piss_1", "正常")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_piss", "1", false, new { id = "rb_piss_2", text = "尿瀦留(1)", onclick = "check();" })
+                                @Html.Label("rb_piss_2", "尿瀦留")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_piss", "2", false, new { id = "rb_piss_3", text = "失禁(2)", onclick = "check();" })
+                                @Html.Label("rb_piss_3", "失禁")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_piss", "3", false, new { id = "rb_piss_4", text = "存留導尿管(3)", onclick = "check();" })
+                                @Html.Label("rb_piss_4", "存留導尿管")<br />
+                                @Html.RadioButton("rb_piss", "3", false, new { id = "rb_piss_5", text = "間歇導尿(3)", onclick = "check();" })
+                                @Html.Label("rb_piss_5", "間歇導尿、自我導尿")<br />
+                                @Html.RadioButton("rb_piss", "3", false, new { id = "rb_piss_6", text = "膀胱造廔(3)", onclick = "check();" })
+                                @Html.Label("rb_piss_6", "膀胱造廔")
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                大便
+                                <input type="hidden" id="stool" name="stool" value="@stool" />
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_stool", "0", false, new { id = "rb_stool_1", text = "正常(0)", onclick = "check();" })
+                                @Html.Label("rb_stool_1", "正常")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_stool", "1", false, new { id = "rb_stool_2", text = "腹瀉(1)", onclick = "check();" })
+                                @Html.Label("rb_stool_2", "腹瀉")
+                                @Html.RadioButton("rb_stool", "1", false, new { id = "rb_stool_3", text = "便秘(1)", onclick = "check();" })
+                                @Html.Label("rb_stool_3", "便秘")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_stool", "2", false, new { id = "rb_stool_4", text = "失禁(2)", onclick = "check();" })
+                                @Html.Label("rb_stool_4", "失禁")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_stool", "3", false, new { id = "rb_stool_5", text = "腸造廔(3)", onclick = "check();" })
+                                @Html.Label("rb_stool_5", "腸造廔")
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                照顧特質
+                                <input type="hidden" id="care_characteristics" name="care_characteristics" value="@care_characteristics" />
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_care_characteristics", "0", false, new { id = "rb_care_characteristics_1", text = "病人有自我照顧的知識技能(0)", onclick = "check();" })
+                                @Html.Label("rb_care_characteristics_1", "病人有自我照顧的知識技能")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_care_characteristics", "1", false, new { id = "rb_care_characteristics_2", text = "病人無自我照顧的知識技能，但家屬有(1)", onclick = "check();" })
+                                @Html.Label("rb_care_characteristics_2", "病人無自我照顧的知識技能，但家屬有")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_care_characteristics", "2", false, new { id = "rb_care_characteristics_3", text = "缺乏照護知識與技能，但能尋求資源(2)", onclick = "check();" })
+                                @Html.Label("rb_care_characteristics_3", "缺乏照護知識與技能，但能尋求資源")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_care_characteristics", "3", false, new { id = "rb_care_characteristics_4", text = "缺乏照護知識與技能，且主動尋求資源困難(3)", onclick = "check();" })
+                                @Html.Label("rb_care_characteristics_4", "缺乏照護知識與技能，且主動尋求資源困難")
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                照顧資源
+                                <input type="hidden" id="care_resource" name="care_resource" value="@care_resource" />
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_care_resource", "0", false, new { id = "rb_care_resource_1", text = "家人同住(0)", onclick = "check();" })
+                                @Html.Label("rb_care_resource_1", "家人同住")<br />
+                                @Html.RadioButton("rb_care_resource", "0", false, new { id = "rb_care_resource_2", text = "獨居但不需照顧協助(0)", onclick = "check();" })
+                                @Html.Label("rb_care_resource_2", "獨居但不需照顧協助")<br />
+                                @Html.RadioButton("rb_care_resource", "0", false, new { id = "rb_care_resource_3", text = "父母同住(兒童)(0)", onclick = "check();" })
+                                @Html.Label("rb_care_resource_3", "父母同住(兒童)")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_care_resource", "1", false, new { id = "rb_care_resource_4", text = "子女輪住(1)", onclick = "check();" })
+                                @Html.Label("rb_care_resource_4", "子女輪住")
+                                @Html.RadioButton("rb_care_resource", "1", false, new { id = "rb_care_resource_5", text = "祖孫同住(1)", onclick = "check();" })
+                                @Html.Label("rb_care_resource_5", "祖孫同住")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_care_resource", "2", false, new { id = "rb_care_resource_6", text = "兩老同住(2)", onclick = "check();" })
+                                @Html.Label("rb_care_resource_6", "兩老同住")<br />
+                                @Html.RadioButton("rb_care_resource", "2", false, new { id = "rb_care_resource_7", text = "僅外傭同住無其他家人(2)", onclick = "check();" })
+                                @Html.Label("rb_care_resource_7", "僅外傭同住無其他家人")<br />
+                                @Html.RadioButton("rb_care_resource", "2", false, new { id = "rb_care_resource_8", text = "單親(2)", onclick = "check();" })
+                                @Html.Label("rb_care_resource_8", "單親")
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_care_resource", "3", false, new { id = "rb_care_resource_9", text = "養護機構(3)", onclick = "check();" })
+                                @Html.Label("rb_care_resource_9", "養護機構")
+                                @Html.RadioButton("rb_care_resource", "3", false, new { id = "rb_care_resource_10", text = "獨居且日常生活需協助(3)", onclick = "check();" })
+                                @Html.Label("rb_care_resource_10", "獨居且日常生活需協助")
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                特殊照護
+                                <input type="hidden" id="care_special" name="care_special" value="@care_special" />
+                            </td>
+                            <td colspan="3">
+                                「出院時若管路可移除者，可不需點選 3 分特殊照護項目」。
+                            </td>
+                            <td>
+                                <table border="0" cellpadding="0" cellspacing="0" style=""width:100%;">
+                                    <tr>
+                                        <th>
+                                            @Html.CheckBox("rb_care_special", false, new { id = "rb_care_special_2", text = "長期用氧", onclick = "check();" })
+                                            @Html.Label("rb_care_special_2", "長期用氧")
+                                        </th>
+                                        <th>
+                                            @Html.CheckBox("rb_care_special", false, new { id = "rb_care_special_3", text = "鼻胃管", onclick = "check();" })
+                                            @Html.Label("rb_care_special_3", "鼻胃管")
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th>
+                                            @Html.CheckBox("rb_care_special", false, new { id = "rb_care_special_4", text = "呼吸器", onclick = "check();" })
+                                            @Html.Label("rb_care_special_4", "呼吸器")
+                                        </th>
+                                        <th>
+                                            @Html.CheckBox("rb_care_special", false, new { id = "rb_care_special_5", text = "氣切", onclick = "check();" })
+                                            @Html.Label("rb_care_special_5", "氣切")
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th>
+                                            @Html.CheckBox("rb_care_special", false, new { id = "rb_care_special_6", text = "腸造廔", onclick = "check();" })
+                                            @Html.Label("rb_care_special_6", "腸造廔")
+                                        </th>
+                                        <th>
+                                            @Html.CheckBox("rb_care_special", false, new { id = "rb_care_special_7", text = "胃造廔", onclick = "check();" })
+                                            @Html.Label("rb_care_special_7", "胃造廔")
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th>
+                                            @Html.CheckBox("rb_care_special", false, new { id = "rb_care_special_8", text = "BiPAP", onclick = "check();" })
+                                            @Html.Label("rb_care_special_8", "正壓呼吸器(BIPAP)")
+                                        </th>
+                                        <th>
+                                            @Html.CheckBox("rb_care_special", false, new { id = "rb_care_special_9", text = "PCN", onclick = "check();" })
+                                            @Html.Label("rb_care_special_9", "經皮腎造廔管(PCN tube)")
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="2">
+                                            @Html.CheckBox("rb_care_special", false, new { id = "rb_care_special_10", text = "壓傷", onclick = "check();" })
+                                            @Html.Label("rb_care_special_10", "壓傷")
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="2">
+                                            @Html.CheckBox("rb_care_special", false, new { id = "rb_care_special_11", text = "其他特殊需求", onclick = "check();" })
+                                            @Html.Label("rb_care_special_11", "其他特殊需求")
+                                        </th>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td style="width:11%;">總分<input type="hidden" name="total" id="total" value="@total" /></td>
+                            <td style="padding:4px 7px 2px 4px;width:89%;">
+                                <label id="score">0</label>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</form>

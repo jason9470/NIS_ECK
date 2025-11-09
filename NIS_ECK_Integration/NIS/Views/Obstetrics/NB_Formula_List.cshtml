@@ -1,0 +1,409 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: left;
+        background-color: #d5d5f7 !important;
+        width: 100%;
+        border-radius: 10px !important;
+        font-size: 24px;
+        font-weight: 800;
+        border: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        font-family: Arial, EUDC !important;
+    }
+
+    .funcArea {
+        margin: 0.5rem !important;
+        font-size: 14px !important;
+    }
+
+    .loading {
+        z-index: 999 !important
+    }
+
+    .fun_btn {
+        font-size: 14px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 4px 4px 3px 3px !important;
+        background-color: gray
+    }
+
+    .dataHeader td {
+        font-weight: bold;
+        background-color: #cfe1eb;
+        text-align: center;
+        vertical-align: middle;
+        height: 20px;
+    }
+
+    .dataHeaderFun td {
+        font-weight: bold;
+        background-color: #dbcfeb;
+        text-align: center;
+        vertical-align: middle;
+        height: 20px;
+    }
+
+    .dataHeaderFun {
+        border-radius: 10px !important;
+    }
+
+    .dataHeader {
+        border-radius: 10px !important;
+    }
+
+    .funcArea table {
+        font-family: Arial, EUDC;
+    }
+
+    .dataArea {
+        border: 0 !important;
+    }
+
+        .dataArea td {
+            border-bottom: 0 !important;
+        }
+</style>
+
+<script type="text/javascript">
+
+    var listIndex = 0;
+    var deleteList = [];
+
+    $(document).ready(function () {
+        listIndex = $('#milkList tr').length -1;
+    });
+    $(function () {
+        close_pup_window();
+        setGridColor();
+        //設定高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 100);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#e8ebeb');
+        $('.dataArea tr:even').css('background', '#e8ebeb');
+
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function set_row(url) {
+        var ck = $('input[type=checkbox]:checked');
+        if (ck.length == 0)
+            alert('請選擇配方奶紀錄!');
+        else if (ck.length > 1)
+            alert("只能選擇一筆!");
+        else {
+            var row = '';
+            for (var i = 0; i < ck.length; i++) {
+                if (ck[i].checked)
+                    row = row + ck[i].value + ',';
+            }
+            if (row != '') {
+                row = row.substring(0, row.length - 1);
+                new_window.push(window.open(url + '?IID=' + row, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=700,height=500'));
+            }
+        }
+    }
+    function updatePriceData(index) {
+        var keyword = $("#exampleDataList_"+ index).val();
+        var type = "衛材"
+             $.ajax({
+                type: 'POST',
+                cache: false,
+                dataType: 'json',
+                contentType: "application/json",
+                url: '@Url.Content("~/Billing/GetBasicData")',
+                data: JSON.stringify({
+                    type: type,
+                    search: keyword
+                }),
+                success: function (data) {
+                    buildSearchList(data.attachment.list, index)
+                }
+            });
+    }
+
+    function buildSearchList(data, index) {
+        var str = "";
+        var item = {};
+        if (data.length > 0) {
+            for (i = 0; i < data.length; i++) {
+                str += "<option value='" + data[i].ITEM_NAME + "'>" + data[i].HO_ID;
+                item[data[i].ITEM_NAME] = data[i].HO_ID
+
+            }
+            $("#datalistOptions_" + index).html("");
+            $("#datalistOptions_" + index).append(str);
+
+            var selectItem = $("#exampleDataList_" + index).val();
+            var code = item[selectItem];
+            $("#HO_ID_" + index).text(code);
+
+        }
+    }
+    function delItem(index) {
+
+        var id = $("#iid_" + index).val();
+        if (id != "" && id != undefined) {
+            deleteList.push(id);
+        }
+        $("#list_" + index).remove();
+
+
+    }
+    function addMilk() {
+        var str = "";
+        index = listIndex + 1;
+        var length = $('#milkList tr').length;
+        var seqList = [];
+        for (i = 0; i < length; i++) {
+            var seq = 0;
+            var seqTemp = $('#milkList').find('tr').eq(i).children("td:eq(2)").find("input").val();
+            if (seqTemp != "") {
+                seq = parseInt(seqTemp);
+                seqList.push(seq);
+            }
+        }
+
+        let max = seqList[0];
+
+        for (let i = 1; i < seqList.length; i++) {
+            if (seqList[i] > max) {
+                max = seqList[i];
+            }
+        }
+
+        var newSeq = max + 1;
+
+        str += "<tr id='list_" + index + "' style='background-color: #e8ebeb;'>"
+        str += "<td style='display:none'></td>";
+        str += "<td style='width:5%;text-align:center;'><input type='button' class='fun_btn' value='-' style='width: 30px; background-color: #ed6f6f; margin: 0.5rem !important;' onclick='delItem(" + index + ");' /></td>";
+        str += "<td style='width:10%;text-align:center;'><input id='seq_" + index + "' name='seq_" + index + "' style='width:20px;text-align:center;border-radius :10px !important;height: 20px;' type='text' value='" + newSeq +"'></td>";
+        str += "<td style='width:15%;text-align:center;'><input id='brand_" + index +"' name='brand_" + index +"' style='width:120px;text-align:center;border-radius :10px !important;height: 20px;' type='text' value=''></td>";
+        str += "<td style='width:25%%;text-align:center;'><input class='form-control' style='width:280px;text-align:center;border-radius :10px !important;height: 20px;' list='datalistOptions_" + index + "' id='exampleDataList_" + index + "' placeholder='請輸入搜尋關鍵字' onchange='updatePriceData(" + index + ");'>";
+        str += "<datalist id='datalistOptions_" + index + "''></datalist></td>";
+        str += "<td style='width:10%;text-align:center;'>  <label id='HO_ID_" + index + "'>-</label></td>";
+        str += "<td style='width:10%;text-align:center;'>";
+        str += "<select id='unit_" + index + "'  style = 'width: 55px; text-align: center; border-radius :10px!important; height: 20px;' onchange='unitChange(" + index +")'>"
+        str += "<option value='請選擇'> 請選擇</option>";
+        str += "<option value='瓶'>瓶</option>";
+        str += "<option value='天'>天</option>";
+        str += "</select>"
+        str += "</td > ";
+        str += "<td style='width:15%;text-align:center;'><input id='capacity_" + index + "' name='capacity_" + index +"' style='width:120px;text-align:center;border-radius :10px !important;height: 20px;display:none' type='text' value=''></td>";
+
+        str += "</tr>"
+
+        $("#milkList").append(str);
+        listIndex = listIndex + 1;
+    }
+
+    function save() {
+        let isValid = true;
+        $('input:visible').each(function () {
+            if ($(this).val().trim() === '') {
+                isValid = false;
+            }
+        });
+
+        if (isValid == false) {
+            alert("有項目未填寫!")
+            return;
+        }
+        var length = $('#milkList tr').length;
+        var save_obj = [];
+
+        if (length > 0) {
+            for (i = 0; i < length; i++) {
+                var id = $('#milkList').find('tr').eq(i).children("td:eq(0)").find("input").val();
+                var seq = $('#milkList').find('tr').eq(i).children("td:eq(2)").find("input").val();
+                var name = $('#milkList').find('tr').eq(i).children("td:eq(3)").find("input").val()
+                var HO_NAME = $('#milkList').find('tr').eq(i).children("td:eq(4)").find("input").val();
+                var HO_ID = $('#milkList').find('tr').eq(i).children("td:eq(5)").find("label").text();
+                var unit = $('#milkList').find('tr').eq(i).children("td:eq(6)").find("select").val();
+                var capatity = $('#milkList').find('tr').eq(i).children("td:eq(7)").find("input").val()
+
+                var obj = {
+                    ID: id,
+                    SEQ: seq,
+                    HO_ID: HO_ID,
+                    HO_NAME: HO_NAME,
+                    NAME: name,
+                    UNIT: unit,
+                    CAPATITY: capatity,
+                };
+                save_obj.push(obj);
+            }
+            console.log(deleteList);
+            $.ajax({
+                type: 'POST',
+                cache: false,
+                dataType: 'json',
+                contentType: "application/json; charset=utf-8",
+                url: '@Url.Content("~/Obstetrics/Save_NB_Formula")',
+                data: JSON.stringify({
+                    data: save_obj,
+                    delete: deleteList
+                }),
+                success: function (data) {
+                    if (data == 1) {
+                        alert("儲存成功");
+                        window.location.href = 'NB_Formula_List';
+                    }
+                }
+             });
+
+        }
+    }
+
+    function unitChange(index) {
+        debugger
+        var unit = $('#unit_' + index + ' option:selected').text();
+        if (unit == "瓶") {
+            $("#capacity_" + index).show();
+        }
+        else {
+            $("#capacity_" + index).hide();
+            $("#capacity_" + index).val("");
+
+        }
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+<div class="funcArea" style="text-align:center">
+    @*<input type="button" class="fun_btn" value="新增" style="width:50px;" onclick="@Java_funcion.pup_window("Insert_NB_Formula", 700,500, "0")" />
+        <input type="button" class="fun_btn" value="修改" style="width:50px;" onclick="set_row('Insert_NB_Formula');" />*@
+    <div id="module_define" style="display: flex;">
+        <label style="margin-left:0.8rem">配方奶維護</label>
+    </div>
+    <input type="button" class="fun_btn" value="儲存" style="width: 50px;margin-top:1rem; background-color: rgb(123, 192, 67)" onclick="save();" />
+    <input type="button" class="fun_btn" value="新增" style="width: 50px; margin-top: 1rem; background-color: rgb(67 140 192)" onclick="addMilk();" />
+
+    @*<input type="button" class="fun_btn" value="修改" style="width:50px;" onclick="set_row('Insert_NB_Formula');" />*@
+</div>
+<div class="funcArea">
+    <table id="listTable" border="0" cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed">
+        <tr>
+            <td>
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width:5%;"></td>
+                            <td style="width:10%;">序號</td>
+                            <td style="width:15%;">配方奶名稱</td>
+                            <td style="width:25%;">院內品項名稱</td>
+                            <td style="width:10%;">院內碼</td>
+                            <td style="width:10%;">瓶/天</td>
+                            <td style="width:15%;">一天多少ml需要額外計算</td>
+
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:190px;">
+                    @if (dt != null)
+                    {
+                        int i = 0;
+                        <table id="milkList" border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                            @foreach (DataRow r in dt.Rows)
+                            {
+                                <tr id="list_@i">
+                                    <td style="display:none">
+                                        <label>
+                                            <input id="iid_@i" type='text' value='@r["IID"].ToString().Trim()'>
+                                        </label>
+                                    </td>
+                                    <td style="width: 5%; text-align: center;">
+                                        <input type="button" class="fun_btn" id="" value="-" style="width: 30px; background-color: #ed6f6f; margin: 0.5rem !important; " onclick="delItem(@i);" />
+                                    </td>
+                                    <td style="width: 10%; text-align: center;">
+                                        <input id='seq_@i' name='seq_@i' style='width:20px;text-align:center;border-radius :10px !important;height: 20px;' type='text' value=' @r["SEQ"].ToString()'>
+                                    </td>
+                                    <td style="width:15%; text-align:center;">
+                                        <input id='brand_@i' name='brand_@i' style='width:120px;text-align:center;border-radius :10px !important;height: 20px;' type='text' value='@r["BRAND"]'>
+                                    </td>
+                                    <td style="width: 25%; text-align: center;">
+                                        <input class="form-control" style='width:280px;text-align:center;border-radius :10px !important;height: 20px;' value="@r["HO_NAME"]" list="datalistOptions_@i" id="exampleDataList_@i" placeholder="請輸入搜尋關鍵字" onchange="updatePriceData('@i');">
+                                        <datalist id="datalistOptions_@i"></datalist>
+                                    </td>
+                                    <td style="width: 10%; text-align: center;">
+                                        @if (r["HO_ID"].ToString() == "")
+                                        {
+                                            <label id="HO_ID_@i">-</label>
+
+                                        }
+                                        else
+                                        {
+                                            <label id="HO_ID_@i">@r["HO_ID"]</label>
+                                        }
+
+                                    </td>
+                                    <td style="width: 10%; text-align: center;">
+                                        <select id="unit_@i" name="unit_@i" style="width: 55px; text-align: center; border-radius: 10px !important; height: 20px;" onchange="unitChange(@i)">
+                                            @{
+                                                string[] unitList = { "請選擇", "瓶", "天" };
+                                                if (unitList.Count() > 0)
+                                                {
+                                                    foreach (var item in unitList)
+                                                    {
+                                                        if (item == r["UNIT"].ToString())
+                                                        {
+                                                            <option value="@item" selected>@item</option>
+                                                        }
+                                                        else
+                                                        {
+                                                            <option value="@item">@item</option>
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        </select>
+                                    </td>
+                                    <td style="width: 15%; text-align: center;">
+                                        @if (@r["CAPACITY"].ToString() == "")
+                                        {
+                                            <input id='capacity_@i' name='capacity_@i' style='width:120px;text-align:center;border-radius :10px !important;height: 20px; display:none' type='text' value=''>
+
+                                        }
+                                        else
+                                        {
+                                            <input id='capacity_@i' name='capacity_@i' style='width:120px;text-align:center;border-radius :10px !important;height: 20px;' type='text' value='@r["CAPACITY"]'>
+
+                                        }
+                                    </td>
+                                    @*<td style="width:30%;">@Convert.ToDateTime(r["START_D"]).ToString("yyyy/MM/dd")</td>
+                                    @if (r["END_D"].ToString() != "")
+                                    {
+                                        <td style="width:30%;">@Convert.ToDateTime(r["END_D"]).ToString("yyyy/MM/dd")</td>
+                                    }
+                                    else
+                                    {
+                                        <td style="width:30%;"></td>
+                                    }*@
+                                </tr>
+                                i++;
+                            }
+                        </table>
+                    }
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>

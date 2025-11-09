@@ -1,0 +1,1165 @@
+﻿@using System.Data;
+@using NIS.Models;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+    DataTable DT = ViewBag.DT;
+    string DBAMType = ViewBag.DBAMType;
+    string LoginEmpNo = ViewBag.userno;
+    string RootDocument = ViewBag.RootDocument;
+    string feeno = ViewBag.FeeNo;
+    List<DailyBodyData> Bdlist = (List<DailyBodyData>)ViewData["BodyData"];
+}
+
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+        setGridColor();
+    });
+
+    function setGridColor() {
+        //格行換色
+        var tr = $('.dataArea_PDF tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+        $('.due').css('background', '#FF6666');
+    }
+
+    function set_tr(obj) {
+        var click = $(obj).attr('click');
+        var tr = $('tr[name=scored]');
+        if (click == 'true') {
+            $(tr).fadeIn(0);
+            $(obj).attr('click', 'false');
+        }
+        else {
+            $(tr).fadeOut(0);
+            $(obj).attr('click', 'true');
+        }
+    }
+
+</script>
+
+
+<form id="edu_form" action="Score" method="post">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style=" width:100%; font-size:14px;">
+            <tr>
+                <td>
+                    <table border="0" style="width:100%;font-family: EUDC !important;">
+                        <tr>
+                            <td>病人姓名：@ptinof.PatientName</td>
+                            @if (ptinof.Birthday != null)
+                            {
+                                <td>生日：@Convert.ToDateTime(ptinof.Birthday).ToString("yyyy/MM/dd")</td>
+                            }
+                            else
+                            {
+                                <td>生日：</td>
+                            }
+                            <td>年齡：@(ptinof.Age)  &nbsp; 性別：@(ptinof.PatientGender)</td>
+
+                            <td colspan="2">病歷號：@ptinof.ChartNo</td>
+                        </tr>
+                        <tr>
+                            <td>科別：@ptinof.DeptName</td>
+                            <td>主治醫師：@ptinof.DocName</td>
+                            @if (ptinof.InDate != null)
+                            {
+                                <td>住院日期：@Convert.ToDateTime(ptinof.InDate).ToString("yyyy/MM/dd HH:mm") (@ptinof.InDay)</td>
+                            }
+                            else
+                            {
+                                <td>住院日期：</td>
+                            }
+
+                            <td colspan="2">診斷：@ptinof.ICD9_code1</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="dataArea_PDF">
+                        @if(Bdlist.Count > 0)
+        {
+                            <table>
+                <tr>
+                    <td style="width:80px;">評估日期</td>
+                   @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        <td style="width:190px; text-align:center;">
+                            @Convert.ToDateTime(Bdlist[x].DBAM_DTM.ToString().Trim()).ToString("yyyy/MM/dd HH:mm")<br />
+                        </td>
+                    }
+                </tr>
+                 <tr>
+                    <td>
+                        一般外觀：
+                    </td>
+                    @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;//r["ListItemCont"].ToString().Replace("※,", "※").Split('※');
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+                                case "RbnGeneralExterior":  //一般外觀
+                                    ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "TxtRbnGeneralExterior5Other":
+                                    ShowContent2 = DTsplit[i].Split('|').GetValue(1).ToString();//.Replace(';', ' ')
+                                    break;
+                            }
+                        }
+                        <td>
+                            @(ShowContent1)@if(!string.IsNullOrEmpty(ShowContent2)){@("：" + ShowContent2)}
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td>
+                        意識狀況：
+                    </td>
+                    @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "", ShowContent4 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+                                case "RbnAwarenessStatus":  //意識狀況
+                                    ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnAwarenessComa_E":  //E
+                                    ShowContent2 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnAwarenessComa_V":  //V
+                                    ShowContent3 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnAwarenessComa_M":  //M
+                                    ShowContent4 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                            }
+                        }
+                        <td>
+                            @ShowContent1
+                            <div> @if(!string.IsNullOrEmpty(ShowContent2) || !string.IsNullOrEmpty(ShowContent3) || !string.IsNullOrEmpty(ShowContent4))
+                             {
+                                <b>Coma Scale</b><br />
+                            }
+                                 @if(!string.IsNullOrEmpty(ShowContent2))
+                            {@("E："+ShowContent2)
+                                 <br />
+                                 }
+                                
+                                @if(!string.IsNullOrEmpty(ShowContent3))
+                            {@("V："+ShowContent3)
+                                <br />
+                                }
+                                @if(!string.IsNullOrEmpty(ShowContent4))
+                            {@("M："+ShowContent4)}
+                            </div>
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td>
+                        情緒狀態：
+                    </td>
+                    @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+                                case "RbnEmotional":  //情緒狀態
+                                    ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkEmotionalAbn":  //情緒狀態 異常
+                                    ShowContent2 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "TxtEmotionalAbn99Other":  //情緒狀態 異常 其他 //by. jarvis edit 20160831
+                                    ShowContent3 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                            }
+                        }
+                        <td>@if(ShowContent1!="異常")
+                            {
+                            <div>@(ShowContent1)</div>
+                        }
+                            <div>@(ShowContent2)@if(!string.IsNullOrEmpty(ShowContent3)){@("："+ShowContent3)}</div>
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td>
+                        神經系統：
+                    </td>
+                    @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "", ShowContent4 = "", ShowContent5 = "", ShowContent6 = "", ShowContent7 = "", ShowContent8 = "";
+                        string ShowContent9 = "", ShowContent10 = "", ShowContent11 = "", ShowContent12 = "";
+                        string ShowContent13 = "", ShowContent14 = "", ShowContent15 = "", ShowContent16 = "";
+                        string ShowContent17 = "", ShowContent18 = "", ShowContent19 = "", ShowContent20 = "", ShowContent21 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+                                case "RbnNervousSys":  //神經系統
+                                    ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkNervousAbnormal":  //神經系統 異常
+                                    ShowContent2 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "RbnFeelingSys":  //神經系統 感覺
+                                    ShowContent3 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkFeelingAbn":  //神經系統 感覺 異常
+                                    string ItemTmpVal = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    string[] ItemSplitVal = ItemTmpVal.Split(',');
+                                    for(int j = 0; j <= ItemSplitVal.Length - 1; j++)
+                                    {
+                                        switch(ItemSplitVal[j].ToString())
+                                        {
+                                            case "酸":
+                                                ShowContent17 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "痛":
+                                                ShowContent4 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "麻":
+                                                ShowContent5 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "無知覺":
+                                                ShowContent6 = ItemSplitVal[j].ToString() ;
+                                                break;
+                                            //case "抽蓄":
+                                            //    ShowContent7 = ItemSplitVal[j].ToString() + "，部位：";
+                                            //    break; //by. jarvis edit 20160825
+                                            case "抽搐":
+                                                ShowContent7 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "無法測":
+                                                ShowContent20 = ItemSplitVal[j].ToString() ;
+                                                break;
+                                            case "其他":
+                                                ShowContent8 = ItemSplitVal[j].ToString();
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case "ChkFeelingAbn5Position":  //酸部位
+                                    ShowContent18 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkFeelingAbn1Position":  //痛部位
+                                    ShowContent9= DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkFeelingAbn2Position":  //麻部位
+                                    ShowContent10= DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkFeelingAbn3Position":  //無知覺部位
+                                    ShowContent11= DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkFeelingAbn4Position":  //抽蓄部位
+                                    ShowContent12= DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "TxtFeelingAbn99Other":  //神經系統 異常 其他
+                                    ShowContent21 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                 //by. jarvis add 20160825  以下
+                                case "Txt_Feeling5Position_Other":  ////酸部位 其他
+                                    ShowContent19= DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_Feeling1Position_Other":  ////痛部位 其他
+                                    ShowContent13 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_Feeling2Position_Other":  ////麻部位 其他
+                                    ShowContent14 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_Feeling3Position_Other":  ////無知覺部位 其他
+                                    ShowContent15 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_Feeling4Position_Other":  ////抽蓄部位 其他
+                                    ShowContent16 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                            }
+                        }
+                        <td>
+                            <div>@if(ShowContent1 != "異常") {@(ShowContent1) }</div>
+                            <div>@(ShowContent2)</div>
+                            <div><b>
+                            @if(!string.IsNullOrEmpty(ShowContent3)){
+                                @("感覺：")
+                                }
+
+                                 </b>@if(ShowContent3 != "異常") {@(ShowContent3) }</div>
+                            @if(ShowContent3 == "異常") { 
+                            <div><b>@(ShowContent17)</b>@if(!string.IsNullOrEmpty(ShowContent18)){@("，部位："+ShowContent18) }@if(!string.IsNullOrEmpty(ShowContent19)){@("："+(ShowContent19)) }</div>
+                            <div><b>@(ShowContent4)</b>@if(!string.IsNullOrEmpty(ShowContent9)){@("，部位："+ShowContent9) }@if(!string.IsNullOrEmpty(ShowContent13)){@("："+(ShowContent13)) }</div>
+                            <div><b>@(ShowContent5)</b>@if(!string.IsNullOrEmpty(ShowContent10)){@("，部位："+ShowContent10) }@if(!string.IsNullOrEmpty(ShowContent14)){@("："+(ShowContent14)) }</div>
+                            <div><b>@(ShowContent6)</b>@if(!string.IsNullOrEmpty(ShowContent11)){@("，部位："+ShowContent11) }@if(!string.IsNullOrEmpty(ShowContent15)){@("："+(ShowContent15)) }</div>
+                            <div><b>@(ShowContent7)</b>@if(!string.IsNullOrEmpty(ShowContent12)){@("，部位："+ShowContent12) }@if(!string.IsNullOrEmpty(ShowContent16)){@("："+(ShowContent16)) }</div>
+                            <div><b>@(ShowContent20)</b></div>
+                            <div><b>@(ShowContent8)</b>@if(!string.IsNullOrEmpty(ShowContent21)){@("："+ShowContent21) }</div>
+                            }
+                            
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td>
+                        感官系統：
+                    </td>
+                   @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "", ShowContent4 = "", ShowContent5 = "", ShowContent6 = "", ShowContent7 = "", ShowContent8 = "", ShowContent9 = "", ShowContent10 = "";
+                        string ShowContent11 = "", ShowContent12 = "", ShowContent13 = "", ShowContent14 = "", ShowContent15 = "", ShowContent16 = "";
+                        string ShowContent17 = "", ShowContent18 = "", ShowContent19 = "", ShowContent20 = "", ShowContent21 = "", ShowContent22 = "", ShowContent23 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        <td>
+                            @for(int i = 0; i <= DTsplit.Length - 1; i++)
+                            {
+                                switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                                {
+                                    case "RbnVision":  //感官知覺 眼
+                                        ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                        break;
+                                    case "ChkVisionAbnormal":  //感官知覺 眼 異常
+                                        string ItemTmpVal = DTsplit[i].Split('|').GetValue(1).ToString();
+                                        string[] ItemSplitVal = ItemTmpVal.Split(',');
+                                        for(int j = 0; j <= ItemSplitVal.Length - 1; j++)
+                                        {
+                                            switch(ItemSplitVal[j].ToString())
+                                            {
+                                                case "近視":
+                                                    ShowContent2 = ItemSplitVal[j].ToString();
+                                                    break;
+                                                case "弱視":
+                                                    ShowContent3 = ItemSplitVal[j].ToString();
+                                                    break;
+                                                case "斜視":
+                                                    ShowContent4 = ItemSplitVal[j].ToString();
+                                                    break;
+                                                case "分泌物":
+                                                    ShowContent5 = ItemSplitVal[j].ToString();
+                                                    break;
+                                                case "其他":
+                                                    ShowContent6 = ItemSplitVal[j].ToString();
+                                                    break;
+                                            }
+                                        }
+                                        break;
+                                    case "ChkAmblyopia":  //感官知覺 眼 異常 弱視
+                                        ShowContent17 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                        break;
+                                    case "ChkStrabismus":  //感官知覺 眼 異常 斜視
+                                        ShowContent18 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                        break;
+                                    case "ChkHemianopia":  //感官知覺 眼 異常 分泌物
+                                        ShowContent16 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                        break;
+                                    case "TxtVisionAbnormal99Other":  //感官知覺 眼 異常 其他
+                                        ShowContent15 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                        break;
+                                    case "RbnHearing":  //感官知覺 耳
+                                        ShowContent7 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                        break;
+                                    case "ChkHearingAbnormal":  //感官知覺 耳 異常
+                                        string ItemTmpVal2 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                        string[] ItemSplitVal2 = ItemTmpVal2.Split(',');
+                                        for(int j = 0; j <= ItemSplitVal2.Length - 1; j++)
+                                        {
+                                            switch(ItemSplitVal2[j].ToString())
+                                            {
+                                                case "聽力障礙":
+                                                    ShowContent8 = ItemSplitVal2[j].ToString();
+                                                    break;
+                                                case "耳鳴":    
+                                                    ShowContent9 = ItemSplitVal2[j].ToString();
+                                                    break;
+                                                case "其他":
+                                                    ShowContent10 = ItemSplitVal2[j].ToString();
+                                                    break;
+                                            }
+                                        }
+                                        break;
+                                    case "ChkHardHearing":  //感官知覺 耳 異常 聽力障礙
+                                        //ShowContent8 += DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                        ShowContent19 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                        break;
+                                    case "ChkTinnitus":  //感官知覺 耳 異常 耳鳴
+                                        //ShowContent9 += DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                        ShowContent20 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                        break;
+                                    case "TxtHearingAbnormal99Other":  //感官知覺 耳 異常 其他
+                                        //ShowContent10 += "：" + DTsplit[i].Split('|').GetValue(1).ToString();
+                                        ShowContent21 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                        break;
+                                    case "RbnNose":  //感官知覺 鼻
+                                        ShowContent11 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                        break;
+                                    case "ChkNoseAbnormal":  //感官知覺 鼻 異常
+                                        ShowContent12 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                        break;
+                                    case "TxtNoseAbnormal99Other":  //感官知覺 鼻 異常 其他
+                                        //ShowContent12 += "：" + DTsplit[i].Split('|').GetValue(1).ToString();
+                                        ShowContent22 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                        break;
+                                    case "RbnMouth":  //感官知覺 口腔
+                                        ShowContent13 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                        break;
+                                    case "ChkMouthAbnormal":  //感官知覺 口腔 異常
+                                        ShowContent14 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                        break;
+                                    case "TxtMouthAbnormal99Other":  //感官知覺 口腔 異常 其他
+                                        //ShowContent14 += "：" + DTsplit[i].Split('|').GetValue(1).ToString();
+                                        ShowContent23 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                        break;
+                                }
+                            }
+                            @if(!string.IsNullOrEmpty(ShowContent1)){
+                            <b>眼</b>
+                            }
+                            <div>@if(ShowContent1 != "異常") {@(ShowContent1) }</div>
+                            <div>@ShowContent2</div>
+                            <div>@(ShowContent3)@if(!string.IsNullOrEmpty(ShowContent17)){@("：" + ShowContent17)}</div>
+                            <div>@(ShowContent4)@if(!string.IsNullOrEmpty(ShowContent18)){@("：" + ShowContent18)}</div>
+                            <div>@(ShowContent5)@if(!string.IsNullOrEmpty(ShowContent16)){@("：" + ShowContent16)}</div>
+                            <div>@(ShowContent6)@if(!string.IsNullOrEmpty(ShowContent15)){@("：" + ShowContent15)}</div>
+                             @if(!string.IsNullOrEmpty(ShowContent7)){
+                            <b>耳</b>
+                             }
+                            <div>@if(ShowContent7 != "異常") {@(ShowContent7) }</div>
+                            <div>@(ShowContent8)@if(!string.IsNullOrEmpty(ShowContent19)){@("：" + ShowContent19)}</div>
+                            <div>@(ShowContent9)@if(!string.IsNullOrEmpty(ShowContent20)){@("：" + ShowContent20)}</div>
+                            <div>@(ShowContent10)@if(!string.IsNullOrEmpty(ShowContent21)){@("：" + ShowContent21)}</div>
+                            @if(!string.IsNullOrEmpty(ShowContent11)){
+                             <b>鼻</b>
+                            }
+                            <div>@if(ShowContent11 != "異常") {@(ShowContent11) }</div>
+                            <div>@(ShowContent12)@if(!string.IsNullOrEmpty(ShowContent22)){@("：" + ShowContent22)}</div>
+                             @if(!string.IsNullOrEmpty(ShowContent13)){
+                            <b>口腔</b>
+                             }
+                            <div>@if(ShowContent13 != "異常"){@(ShowContent13) }</div>
+                            <div>@(ShowContent14)@if(!string.IsNullOrEmpty(ShowContent23)){@("：" + ShowContent23)}</div>
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td>
+                        呼吸系統：
+                    </td>
+                    @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "", ShowContent4 = "", ShowContent5 = "", ShowContent6 = "", ShowContent7 = "", ShowContent8 = "", ShowContent9 = "", ShowContent10 = "";
+                        string ShowContent11 = "", ShowContent12 = "", ShowContent13 = "", ShowContent14 = "", ShowContent15 = "", ShowContent16 = "", ShowContent17 = "", ShowContent18 = "", ShowContent19 = "", ShowContent20 = "", ShowContent21 = "", ShowContent22 = "", ShowContent23 = "";
+                        string ShowContent24 = "", ShowContent25 = "", ShowContent26 = "", ShowContent27 = "", ShowContent28 = "", ShowContent29 = "", ShowContent30 = "", ShowContent31 = "", ShowContent32 = "", ShowContent33 = "", ShowContent34 = "";
+                        string ShowContent35 = "", ShowContent36 = "", ShowContent37="", ShowContent38 = "", ShowContent39 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+                                case "RbnBreathing":  //呼吸型態
+                                    ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkBreathingAbnormal":  //呼吸型態 異常
+                                    string ItemTmpVal = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    string[] ItemSplitVal = ItemTmpVal.Split(',');
+                                    for(int j = 0; j <= ItemSplitVal.Length - 1; j++)
+                                    {
+                                        switch(ItemSplitVal[j].ToString())
+                                        {
+                                            case "呼吸急促":
+                                                ShowContent2 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "鼻翼煽動":
+                                                ShowContent3 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "胸骨或肋緣凹陷":
+                                                ShowContent4 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "呻吟聲":
+                                                ShowContent5 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "端坐呼吸":
+                                                ShowContent6 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "咳嗽":
+                                                ShowContent7 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "其他":
+                                                ShowContent8 = ItemSplitVal[j].ToString();
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case "TxtBreathingAbn1Cont":  //呼吸型態 異常 呼吸急促
+                                    ShowContent35 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "TxtBreathingAbnormal99Other":  //呼吸型態 異常 其他
+                                    // ShowContent8 += "：" + DTsplit[i].Split('|').GetValue(1).ToString();//by .jarvis edit 20160825
+                                    ShowContent23 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnIsMedicalDevices":  //醫療輔助器
+                                    ShowContent9 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnMedicalDevices":  //醫療輔助器 有
+                                    string ItemTmpVal2 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    string[] ItemSplitVal2 = ItemTmpVal2.Split(',');
+                                    for(int j = 0; j <= ItemSplitVal2.Length - 1; j++)
+                                    {
+                                        switch(ItemSplitVal2[j].ToString())
+                                        {
+                                            case "氣管內管":
+                                                ShowContent11 = ItemSplitVal2[j].ToString();
+                                                break;
+                                            case "氣切":
+                                                ShowContent10 = ItemSplitVal2[j].ToString();
+                                                break;
+                                            case "氧氣治療":
+                                                ShowContent12 = ItemSplitVal2[j].ToString();
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case "RbnFaceMask":  //醫療輔助器 氧氣治療
+                                    //ShowContent12 += "：" + DTsplit[i].Split('|').GetValue(1).ToString();//by .jarvis edit 20160826
+                                    ShowContent24 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "TxtFaceMask5_1":  //醫療輔助器 氧氣治療 Ventilator
+                                    ShowContent13 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "TxtFaceMask5_2":  //醫療輔助器 氧氣治療 Ventilator
+                                    ShowContent14 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "TxtFaceMask5_3":  //醫療輔助器 氧氣治療 Ventilator
+                                    ShowContent15 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "TxtFaceMask5_4":  //醫療輔助器 氧氣治療 Ventilator
+                                    ShowContent16 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "TxtFaceMask5_5":  //醫療輔助器 氧氣治療 Ventilator
+                                    ShowContent17 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                //by .jarvis edit 20160826-------------------------------↓
+                                case "RbnBrthSndsR":  //呼吸系統 呼吸音 右
+                                    ShowContent27 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "RbnBrthSndsL":  //呼吸系統 呼吸音 左
+                                    ShowContent28 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkBrthSndsRAbnor":  //呼吸系統 呼吸音 右 細項
+                                    ShowContent18 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkBrthSndsLAbnor":  //呼吸系統 呼吸音 左 細項
+                                    ShowContent19 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "TxtBrthSndsRAbnorOther":  //呼吸系統 呼吸音 右 細項 其他
+                                    //ShowContent18 += "：" + DTsplit[i].Split('|').GetValue(1).ToString();//by .jarvis edit 20160826
+                                    ShowContent25 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "TxtBrthSndsLAbnorOther":  //呼吸系統 呼吸音 左 細項 其他
+                                    // ShowContent19 += "：" + DTsplit[i].Split('|').GetValue(1).ToString();//by .jarvis edit 20160826
+                                    ShowContent26 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnSputum":  //痰液 痰量//by .jarvis add 20160826
+                                    ShowContent34 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnSputumCount":  //痰液 痰量//by .jarvis edit 20160826
+                                    ShowContent29 = "痰量：" + DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnSputumColor":  //痰液 顏色//by .jarvis edit 20160826
+                                    ShowContent30 = "顏色：" + DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnSputumNature":  //痰液 性狀//by .jarvis edit 20160826
+                                    ShowContent31 = "性狀：" + DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                //case "TxtSputumColor99Other":  //痰液 顏色 其他//Txt_SputumColor_Other//by .jarvis edit 20160826
+                                case "Txt_SputumColor_Other":
+                                    //ShowContent21 += "：" + DTsplit[i].Split('|').GetValue(1).ToString();
+                                    ShowContent32 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                //case "TxtSputumNature99Other":  //痰液 性狀 其他//Txt_SputumNature_Other//by .jarvis edit 20160826
+                                case "Txt_SputumNature_Other":
+                                    //ShowContent22 += "：" + DTsplit[i].Split('|').GetValue(1).ToString();
+                                    ShowContent33 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                            }
+                        }
+                        <td>
+                            @if(!string.IsNullOrEmpty(ShowContent1)){
+                            <b>呼吸型態</b>
+                            }
+                            @if(ShowContent1 == "正常")
+                            {
+                                <div>@ShowContent1</div>
+                            }
+                            else
+                            {
+                                <div>@(ShowContent2)@if(!string.IsNullOrEmpty(ShowContent35)){@("：" +ShowContent35+" 次/分")}</div>
+                                <div>@ShowContent3</div>
+                                <div>@ShowContent4</div>
+                                <div>@ShowContent5</div>
+                                <div>@ShowContent6</div>
+                                <div>@ShowContent7</div>
+                                <div>@(ShowContent8)@if(!string.IsNullOrEmpty(ShowContent23)){@( "：" +ShowContent23) }</div>
+                            }
+                              @if(!string.IsNullOrEmpty(ShowContent9)){
+                            <b>醫療輔助器</b>
+                              }
+                              @if(ShowContent9 != "有")
+                            {                        
+                            <div>@(ShowContent9)</div>
+                            }
+                            else { 
+                            <div>@ShowContent10</div>
+                            <div>@ShowContent11</div>
+                            <div>@(ShowContent12)@if(!string.IsNullOrEmpty(ShowContent24)){@("：" +ShowContent24) }</div>
+                            <div>@if(!string.IsNullOrEmpty(ShowContent13)){@(ShowContent13 + " mode")}</div>
+                            <div>@if(!string.IsNullOrEmpty(ShowContent14)){@("TV " +ShowContent14)}</div>
+                            <div>@if(!string.IsNullOrEmpty(ShowContent15)){@("FiO2 " +ShowContent15)}</div>
+                            <div>@if(!string.IsNullOrEmpty(ShowContent16)){@("PEEP " +ShowContent16)}</div>
+                            <div>@if(!string.IsNullOrEmpty(ShowContent17)){@("Rate " +ShowContent17)}</div>
+                              }
+                              @if(!string.IsNullOrEmpty(ShowContent27)&&!string.IsNullOrEmpty(ShowContent28)){
+                            <b>呼吸音</b>
+                              }
+                            <div>
+                                @if(!string.IsNullOrEmpty(ShowContent27)) { 
+                                @("右：")
+                                }
+                                @if(ShowContent27!="異常")
+                                {
+                                @(ShowContent27)
+                                }
+                            </div>
+                            <div>@(ShowContent18)@if(!string.IsNullOrEmpty(ShowContent25)){@("：" +ShowContent25) }</div>
+                            <div>
+                                 @if(!string.IsNullOrEmpty(ShowContent28)) { 
+                                @("左：")
+                                 }
+                                @if(ShowContent28!="異常")
+                                {
+                                @(ShowContent28)
+                                }
+                            </div>
+                            <div>@(ShowContent19)@if(!string.IsNullOrEmpty(ShowContent26)){@("：" +ShowContent26) }</div>
+                            
+                            @if(!string.IsNullOrEmpty(ShowContent34)){
+                            <b>痰液</b>
+                            }
+                            @if(ShowContent34 != "有")
+                            {                        
+                            <div>@(ShowContent34)</div>
+                            }
+                            else {
+                            <div>@(ShowContent29)</div>
+                            <div>@(ShowContent30)@if(!string.IsNullOrEmpty(ShowContent32))
+                                                 {@("：" + ShowContent32) }</div>
+                            <div>@(ShowContent31)@if(!string.IsNullOrEmpty(ShowContent33))
+                                                 {@("：" + ShowContent33) }</div>
+                            }
+                        </td>
+                    }
+                </tr>
+              <tr>
+                    <td>
+                        心臟血管系統：
+                    </td>
+                    @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+                                case "RbnCardiovascular":  //心臟血管系統
+                                    ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkCardiovascularAbnormal":  //心臟血管系統 異常
+                                    ShowContent2 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "TxtCardiovascularAbnormal99Other":  //心臟血管系統 異常 其他
+                                    ShowContent3 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                            }
+                        }
+                        <td>
+                            <div>@if(ShowContent1 != "異常"){@(ShowContent1) }</div>
+                            <div>@if(!string.IsNullOrEmpty(ShowContent2)){@(ShowContent2)}@if(!string.IsNullOrEmpty(ShowContent3)){@("：" + ShowContent3) }</div>
+                        </td>
+                    }
+                </tr>
+              <tr>
+                    <td>
+                        腸胃系統：
+                    </td>
+                    @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "", ShowContent4 = "", ShowContent5 = "", ShowContent6 = "", ShowContent7 = "", ShowContent8 = "", ShowContent9 = "", ShowContent10 = "";
+                        string ShowContent11 = "", ShowContent12 = "", ShowContent13 = "", ShowContent14 = "", ShowContent15 = "", ShowContent16 = "", ShowContent17 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+                                case "RbnStomach":  //腸胃系統
+                                    ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkStomachAbnormal":  //腸胃系統 異常
+                                    string ItemTmpVal = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    string[] ItemSplitVal = ItemTmpVal.Split(',');
+                                    for(int j = 0; j <= ItemSplitVal.Length - 1; j++)
+                                    {
+                                        switch(ItemSplitVal[j].ToString())
+                                        {
+                                            case "食慾減少":
+                                                ShowContent2 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "噁心":
+                                                ShowContent3 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "嘔吐":
+                                                ShowContent4 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "腹脹":
+                                                ShowContent5 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "腹水":
+                                                ShowContent6 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "疝氣":
+                                                ShowContent7 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "體重改變":
+                                                ShowContent8 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "便秘":
+                                                ShowContent9 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "腹瀉":
+                                                ShowContent10 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "血便":
+                                                ShowContent11 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "其他":
+                                                ShowContent12 = ItemSplitVal[j].ToString();
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case "TxtStomachAbn6Position":  //腸胃系統 異常 疝氣
+                                    ShowContent15= DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "TxtStomachAbnl9Cont":  //腸胃系統 異常 腹瀉
+                                    ShowContent16 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnStoolNature":  //腸胃系統 異常 腹瀉
+                                    ShowContent17 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_StoolNature_Other":  //腸胃系統 異常 其他 textbox
+                                    ShowContent13 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "TxtStomachAbnormal99Other":  //腸胃系統 異常 其他
+                                    ShowContent14 =  DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                            }
+                        }
+                        <td>
+                            <div>@if(ShowContent1 != "異常"){@(ShowContent1) }</div>
+                            <div>@ShowContent2</div>
+                            <div>@ShowContent3</div>
+                            <div>@ShowContent4</div>
+                            <div>@ShowContent5</div>
+                            <div>@ShowContent6</div>
+                            <div>@(ShowContent7)@if(!string.IsNullOrEmpty(ShowContent15)){@("，部位："+ShowContent15) }</div>
+                            <div>@ShowContent8</div>
+                            <div>@ShowContent9</div>
+                            <div>@(ShowContent10)@if(!string.IsNullOrEmpty(ShowContent16)){@("：" + ShowContent16+ "次/天") }@if(!string.IsNullOrEmpty(ShowContent17)){@("  " + ShowContent17) }@if(!string.IsNullOrEmpty(ShowContent13)){@("：" + ShowContent13) }</div>
+                            <div>@ShowContent11</div>
+                            <div>@ShowContent12@if(!string.IsNullOrEmpty(ShowContent14)){@("：" + ShowContent14) }</div>
+                        </td>
+                    }
+                </tr>
+            <tr>
+                    <td>
+                        泌尿系統：
+                    </td>
+                   @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+                                case "RbnUrinarySys":  //泌尿系統
+                                    ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkUrinarySysAbnormal":  //泌尿系統 異常
+                                    ShowContent2 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "TxtUrinarySysAbnormal99Other":  //泌尿系統 異常 其他
+                                    ShowContent3 = DTsplit[i].Split('|').GetValue(1).ToString();//by. jarvis. edit 20160825 1147
+                                    break;
+                            }
+                        }
+                        <td>
+                            <div>@if(ShowContent1 != "異常"){@(ShowContent1)}</div>
+                            <div>@(ShowContent2)@if(!string.IsNullOrEmpty(ShowContent3)){@("：" + ShowContent3)}</div>
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td>
+                        皮膚狀況：
+                    </td>
+                    @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "", ShowContent4 = "", ShowContent5 = "", ShowContent6 = "", ShowContent7 = "", ShowContent8 = "", ShowContent9 = "";
+                        string ShowContent10 = "", ShowContent11 = "", ShowContent12 = "", ShowContent13 = "";
+                        string ShowContent14 = "", ShowContent15 = "", ShowContent16 = "";
+                        string ShowContent17 = "", ShowContent18 = "", ShowContent19 = "", ShowContent20 = "", ShowContent21 = "";
+                        string ShowContent22 = "", ShowContent23 = "", ShowContent24 = "", ShowContent25 = "", ShowContent26 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+                                case "RbnSkinAppearance":  //皮膚狀況
+                                    ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkSkinAppearanceAbn":  //皮膚狀況 異常
+                                    string ItemTmpVal = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    string[] ItemSplitVal = ItemTmpVal.Split(',');
+                                    for(int j = 0; j <= ItemSplitVal.Length - 1; j++)
+                                    {
+                                        switch(ItemSplitVal[j].ToString())
+                                        {
+                                            case "乾燥":
+                                                ShowContent2 = ItemSplitVal[j].ToString() ;
+                                                break;
+                                            case "水腫":
+                                                ShowContent3 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "黃疸":
+                                                ShowContent4 = ItemSplitVal[j].ToString();
+                                                break;
+                                            //case "發绀":發紺
+                                            case "發紺":
+                                                ShowContent5 = ItemSplitVal[j].ToString() ;
+                                                break;
+                                            case "腫塊":
+                                                ShowContent6 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "疹":
+                                                ShowContent7 = ItemSplitVal[j].ToString() ;
+                                                break;
+                                            case "癢":
+                                                ShowContent8 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "其他":
+                                                ShowContent9 = ItemSplitVal[j].ToString();
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case "ChkSkinAppearance1Position":  //皮膚狀況 異常 乾燥部位
+                                    ShowContent17 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkSkinAppearance2Position":  //皮膚狀況 異常 水腫部位
+                                    ShowContent18 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkSkinAppearance3Position":  //皮膚狀況 異常 黃疸部位
+                                    ShowContent19 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkSkinAppearance4Position":  //皮膚狀況 異常 發绀部位
+                                    ShowContent20 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkSkinAppearance5Position":  //皮膚狀況 異常 腫塊部位
+                                    ShowContent21 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkSkinAppearance6Position":  //皮膚狀況 異常 疹部位
+                                    ShowContent22 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkSkinAppearance7Position":  //皮膚狀況 異常 癢部位
+                                    ShowContent23 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "TxtSkinAppearanceAbn99Other":  //皮膚狀況 異常 其他
+                                    ShowContent24 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+
+                                case "Txt_SkinAppearance1Position_Other":  //皮膚狀況 異常 其他textbox1
+                                    ShowContent10 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_SkinAppearance2Position_Other":  //皮膚狀況 異常 其他textbox2
+                                    ShowContent11 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_SkinAppearance3Position_Other":  //皮膚狀況 異常 其他textbox3
+                                    ShowContent12 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_SkinAppearance4Position_Other":  //皮膚狀況 異常 其他textbox4
+                                    ShowContent13 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_SkinAppearance5Position_Other":  //皮膚狀況 異常 其他textbox5
+                                    ShowContent14 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_SkinAppearance6Position_Other":  //皮膚狀況 異常 其他textbox6
+                                    ShowContent15 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_SkinAppearance7Position_Other":  //皮膚狀況 異常 其他textbox7 
+                                    ShowContent16 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+
+                                case "ChkSkinAppearance8Position":  //皮膚狀況 異常 其他部位
+                                    ShowContent25 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "Txt_SkinAppearance8Position_Other":  //皮膚狀況 異常 其他部位的其他textbox
+                                    ShowContent26 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                            }
+                        }
+                        <td>
+                            @if(!string.IsNullOrEmpty(ShowContent1)){
+                            <b>一般外觀</b>
+                            }
+                            @if(ShowContent1 != "異常")
+                            {@(ShowContent1) }
+                            else { 
+                            <div><b>@(ShowContent2)</b>@if(!string.IsNullOrEmpty(ShowContent17)){@("，部位：" + ShowContent17) }@if(!string.IsNullOrEmpty(ShowContent10)){@("：" + ShowContent10) }</div>
+                            <div><b>@(ShowContent3)</b>@if(!string.IsNullOrEmpty(ShowContent18)){@("，部位：" + ShowContent18) }@if(!string.IsNullOrEmpty(ShowContent11)){@("：" + ShowContent11) }</div>
+                            <div><b>@(ShowContent4)</b>@if(!string.IsNullOrEmpty(ShowContent19)){@("，部位：" + ShowContent19) }@if(!string.IsNullOrEmpty(ShowContent12)){@("：" + ShowContent12) }</div>
+                            <div><b>@(ShowContent5)</b>@if(!string.IsNullOrEmpty(ShowContent20)){@("，部位：" + ShowContent20) }@if(!string.IsNullOrEmpty(ShowContent13)){@("：" + ShowContent13) }</div>
+                            <div><b>@(ShowContent6)</b>@if(!string.IsNullOrEmpty(ShowContent21)){@("，部位：" + ShowContent21) }@if(!string.IsNullOrEmpty(ShowContent14)){@("：" + ShowContent14) }</div>
+                            <div><b>@(ShowContent7)</b>@if(!string.IsNullOrEmpty(ShowContent22)){@("，部位：" + ShowContent22) }@if(!string.IsNullOrEmpty(ShowContent15)){@("：" + ShowContent15) }</div>
+                            <div><b>@(ShowContent8)</b>@if(!string.IsNullOrEmpty(ShowContent23)){@("，部位：" + ShowContent23) }@if(!string.IsNullOrEmpty(ShowContent16)){@("：" + ShowContent16) }</div>
+                            <div><b>@if(!string.IsNullOrEmpty(ShowContent24)){@(ShowContent24) }</b>@if(!string.IsNullOrEmpty(ShowContent25)){@("，部位："+ ShowContent25) }@if(!string.IsNullOrEmpty(ShowContent26)){@("：" + ShowContent26) }</div>
+                            }
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td>
+                        骨骼系統：
+                    </td>
+                    @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "", ShowContent4 = "", ShowContent5 = "", ShowContent6 = "", ShowContent7 = "", ShowContent8 = "", ShowContent9 = "", ShowContent10 = "";
+                        string ShowContent11 = "", ShowContent12 = "", ShowContent13 = "", ShowContent14 = "", ShowContent15 = "", ShowContent16 = "";
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+                                case "RbnSkeletalSystem":  //骨骼系統
+                                    ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkSkeletalSystemAbn":  //骨骼系統 異常
+                                    string ItemTmpVal = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    string[] ItemSplitVal = ItemTmpVal.Split(',');
+                                    for(int j = 0; j <= ItemSplitVal.Length - 1; j++)
+                                    {
+                                        switch(ItemSplitVal[j].ToString())
+                                        {
+                                            case "駝背":
+                                                ShowContent2 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "骨折":
+                                                ShowContent3 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "脫臼":
+                                                ShowContent4 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "關節腫":
+                                                ShowContent5 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "截肢":
+                                                ShowContent6 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "畸形":
+                                                ShowContent7 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "脊椎側彎":
+                                                ShowContent8 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "其他":
+                                                ShowContent9 = ItemSplitVal[j].ToString();
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case "ChkSkeletalSys2Position":  //骨折部位  //by. jarvis. edit 20160829
+                                    ShowContent11 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkSkeletalSys3Position":  //脫臼部位 //by. jarvis. edit 20160829
+                                    ShowContent12 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkSkeletalSys4Position":  //關節腫部位 //by. jarvis. edit 20160829
+                                    ShowContent13 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkSkeletalSys5Position":  //截肢部位 //by. jarvis. edit 20160829
+                                    ShowContent14 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "ChkSkeletalSys6Position":  //畸形部位 //by. jarvis. edit 20160829
+                                    ShowContent15 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "TxtSkeletalSystemAbn99Other":  //骨骼系統 異常 其他
+                                    ShowContent16 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                            }
+                        }
+                        <td>
+                            @if(ShowContent1 != "異常")
+                            {@(ShowContent1) 
+                            }
+                            else
+                            {
+                            <div><b>@(ShowContent2)</b></div>
+                            <div><b>@(ShowContent3)</b>@if(!string.IsNullOrEmpty(ShowContent11))
+                                                       {@("，部位：" + ShowContent11) }</div>
+                            <div><b>@(ShowContent4)</b>@if(!string.IsNullOrEmpty(ShowContent12))
+                                                       {@("，部位：" + ShowContent12) }</div>
+                            <div><b>@(ShowContent5)</b>@if(!string.IsNullOrEmpty(ShowContent13))
+                                                       {@("，部位：" + ShowContent13) }</div>
+                            <div><b>@(ShowContent6)</b>@if(!string.IsNullOrEmpty(ShowContent14))
+                                                       {@("，部位：" + ShowContent14) }</div>
+                            <div><b>@(ShowContent7)</b>@if(!string.IsNullOrEmpty(ShowContent15))
+                                                       {@("，部位：" + ShowContent15) }</div>
+                            <div><b>@(ShowContent8)</b></div>
+                            <div><b>@(ShowContent9)</b>@if(!string.IsNullOrEmpty(ShowContent16))
+                                                       {@("：" + ShowContent16) }</div>
+                            }
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td>
+                        生殖系統：
+                    </td>
+                    @for(int x = 0; x < Bdlist.Count; x++)
+                    {
+                        string ShowContent0 = ""; //by. jarvis. edit 20160829
+                        string ShowContent1 = "", ShowContent2 = "", ShowContent3 = "", ShowContent4 = "", ShowContent5 = "", ShowContent6 = "", ShowContent7 = "", ShowContent8 = "", ShowContent9 = "", ShowContent10 = "";
+
+                        string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                        for(int i = 0; i <= DTsplit.Length - 1; i++)
+                        {
+                            switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                            {
+
+                                case "RbnReproductiveSysSex":  //生殖系統    //RbnReproductiveSysSex 
+                                    ShowContent0 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "RbnReproductiveSysStatus":  //生殖系統
+                                    ShowContent6 += DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkRepSysMale":  //生殖系統 異常 男
+                                    string ItemTmpVal = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    string[] ItemSplitVal = ItemTmpVal.Split(',');
+                                    for(int j = 0; j <= ItemSplitVal.Length - 1; j++)
+                                    {
+                                        switch(ItemSplitVal[j].ToString())
+                                        {
+                                            case "睪丸未降": //睾丸未降
+                                                ShowContent1 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "尿道下裂":
+                                                ShowContent2 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "陰囊水腫":
+                                                ShowContent3 = ItemSplitVal[j].ToString();
+                                                break;
+                                            case "其他":
+                                                ShowContent4 = ItemSplitVal[j].ToString();
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case "ChkRepSysMale1Site":  //生殖系統 異常 男 睾丸未降 
+                                    ShowContent7 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "TxtRepSysMale99Other":  //生殖系統 異常 男 其他
+                                    ShowContent8 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                                case "ChkRepSysFemale":  //生殖系統 異常 女
+                                    ShowContent5 = DTsplit[i].Split('|').GetValue(1).ToString().Replace(',', '、');
+                                    break;
+                                case "TxtRepSysFemale99Other":  //生殖系統 異常 女 其他
+                                    ShowContent9 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                    break;
+                            }
+                        }
+                        <td>
+                            <div>@if(ShowContent6 != "正常")
+                                 {@(ShowContent0)}</div>
+                            <div>@if(ShowContent6 != "異常")
+                                 {@(ShowContent6) }</div>                    
+                                <div>@(ShowContent1)@if(!string.IsNullOrEmpty(ShowContent7))
+                                                    {@("：" + ShowContent7) }</div>
+                                <div>@(ShowContent2)</div>
+                                <div>@(ShowContent3)</div>
+                                <div>@(ShowContent4)@if(!string.IsNullOrEmpty(ShowContent8))
+                                                    {@("：" + ShowContent8) }</div>
+                                <div>@(ShowContent5)@if(!string.IsNullOrEmpty(ShowContent9))
+                                                    {@("：" + ShowContent9) }</div>
+                        </td>
+                    }
+                </tr>
+               <tr>
+                    <td >備註：</td>
+                  @for(int x = 0; x < Bdlist.Count; x++)
+                  {
+                      string ShowContent1 = "";
+                      string[] DTsplit = Bdlist[x].DBAD_ITEM;
+                      for(int i = 0; i <= DTsplit.Length - 1; i++)
+                      {
+                          switch(DTsplit[i].Split('|').GetValue(0).ToString())
+                          {
+                              case "TxtElseRemark":  //備註
+                                  ShowContent1 = DTsplit[i].Split('|').GetValue(1).ToString();
+                                  break;
+                          }
+                      }
+                       <td>
+                          <div style="word-break: break-all;">
+                              @(ShowContent1)
+                          </div>
+                      </td>
+                  }
+              </tr>
+                <tr>
+                    <td>紀錄者</td>
+                     @for(int x = 0; x < Bdlist.Count; x++)
+                     {
+                        <td>
+                            @(Bdlist[x].username.ToString().Trim())
+                        </td>
+                     }
+                </tr>
+            </table>
+                        }
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>

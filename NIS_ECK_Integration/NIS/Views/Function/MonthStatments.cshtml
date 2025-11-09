@@ -1,0 +1,376 @@
+﻿@using NIS.Data
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    List<CostCenterList> costlist = (List<CostCenterList>)ViewData["costlist"];
+    string month_last_date = DateTime.DaysInMonth(DateTime.Now.Year, DateTime.Now.Month).ToString();
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .SearchOption {
+        padding: 5px 0 5px 0;
+        display: none;
+    }
+
+    .SItem {
+        display: inline-block;
+        width: 24%;
+    }
+</style>
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        SetDatePicker($('#StartDate'));
+        SetDatePicker($('#EndDate'));
+        $('#CostCode').delegate('input[type=checkbox][name]', 'click', function () {
+            $div = $('#CostCode').find('input[type=checkbox]');
+            if ($div.filter('[name=' + this.name + ']:checked').length)
+                $div.filter('[data-code=' + this.name + ']').prop('checked', false);
+        });
+
+        $('input[type=radio][name=ReportType]').on('click', function () {
+            var SelType = $('#ReportSelect').val(),
+                ReportType = $(this).val();
+            if (SelType == '@Url.Content("~/Function/DeliriumAndCFS")') {
+                if (ReportType == 'Detail') {
+                    $('#DeliriumCFS_Detail').show();
+                    $('#DeliriumCFS_Statistics').hide();
+                    $('#DeliriumCFS_Statistics input[type=radio]').prop('checked', false);
+                }
+                else {
+                    $('#DeliriumCFS_Statistics').show();
+                    $('#DeliriumCFS_Detail').hide();
+                    $('#DeliriumCFS_Detail input[type=radio]').prop('checked', false);
+                }
+            }
+            else if (SelType == '@Url.Content("~/Function/BundleCare")') {
+                if (ReportType == 'Detail') {
+                    $('#BundleCareDetail').show();
+                    $('#BundleCareStatistics').hide();
+                    $('#BundleCare_NeedBundleDetail').hide();
+                    $('#BundleCareStatistics input[type=radio]').prop('checked', false);
+                    $('#BundleCare_NeedBundleDetail input[type=radio]').prop('checked', false);
+                }
+                else if (ReportType == 'Statistics') {
+                    $('#BundleCareStatistics').show();
+                    $('#BundleCareDetail').hide();
+                    $('#BundleCare_NeedBundleDetail').hide();
+                    $('#BundleCareDetail input[type=radio]').prop('checked', false);
+                    $('#BundleCare_NeedBundleDetail input[type=radio]').prop('checked', false);
+                }
+                else {
+                    $('#BundleCare_NeedBundleDetail').show();
+                    $('#BundleCareStatistics').hide();
+                    $('#BundleCareDetail').hide();
+                    $('#BundleCareStatistics input[type=radio]').prop('checked', false);
+                    $('#BundleCareDetail input[type=radio]').prop('checked', false);
+                }
+            }
+        })
+
+        $('#selMonth').on('change', function () {
+            var selmon = $(this).val(),
+                year = new Date().getFullYear(),
+                days = new Date(year, selmon, 0).getDate(),
+                strdate = year + '/' + selmon + '/01',
+                enddate = year + '/' + selmon + '/' + days;
+            if (selmon != '') {
+                $('#StartDate').val(strdate);
+                $('#EndDate').val(enddate);
+                $('#selSeason').val('');
+            }
+        })
+
+        $('#selSeason').on('change', function () {
+            var selSeason = $(this).val(),
+                year = new Date().getFullYear(),
+                days,strdate,enddate;
+            switch (selSeason) {
+                case 'Q1':
+                    days = new Date(year, 3, 0).getDate();
+                    strdate = year + '/01/01';
+                    enddate = year + '/03/' + days;
+                    break;
+                case 'Q2':
+                    days = new Date(year, 6, 0).getDate();
+                    strdate = year + '/04/01';
+                    enddate = year + '/06/' + days;
+                    break;
+                case 'Q3':
+                    days = new Date(year, 9, 0).getDate();
+                    strdate = year + '/07/01';
+                        enddate = year + '/09/' + days;
+                    break;
+                case 'Q4':
+                    days = new Date(year, 12, 0).getDate();
+                    strdate = year + '/10/01';
+                    enddate = year + '/12/' + days;
+                    break;
+            }
+            if (selSeason != '')
+            {
+                $('#StartDate').val(strdate);
+                $('#EndDate').val(enddate);
+                $('#selMonth').val('');
+            }
+        })
+
+
+    });
+
+    function SetDatePicker($DateObj) {
+        $DateObj.prop('readonly', true).css({ 'width': '80px', 'font-size': '12px' });
+        $DateObj.datepicker({
+            beforeShowDay: function (date) {
+                switch (date.getDay()) {
+                    case 6:
+                        return [true, 'satday'];
+                        break;
+                    case 0:
+                        return [true, 'sunday'];
+                        break;
+                    default:
+                        return [true, ''];
+                        break;
+                }
+            },
+            inline: true,
+            changeYear: true,
+            changeMonth: true,
+            showAnim: "slideDown",
+            controlType: myControl
+        });
+    }
+
+    function SetOption(obj) {
+        $('div.SearchOption').hide();
+        if ($(obj).find('option:selected').val() != '') {
+            $($(obj).find('option:selected').attr('data-option')).show();
+            if ($(obj).find('option:selected[data-CostCode]').length > 0) {
+                $('#ReportType').find('input[type=radio]').parent().hide();
+                $('#ReportType').find('input[type=radio][value=' + $(obj).find('option:selected').attr('data-CostCode') + ']').parent().show();
+            }
+            else {
+                $('#ReportType').find('input[type=radio]').parent().show();
+                $('#ReportType').find('input[type=radio][value="NeedBundle"]').parent().hide();
+            }
+
+        }
+        if ($(obj).find('option:selected').val() == '@Url.Content("~/Function/BundleCare")') {
+            $('#ReportType').find('input[type=radio][value="NeedBundle"]').parent().show();
+        }
+    }
+
+    function CkAll(obj) {
+        $('#CostCode').find('input[type=checkbox][name=' + $(obj).attr('data-code') + ']').prop('checked', $(obj).prop('checked'))
+    }
+
+    function PrintExl() {
+        if (Check()) {
+            loop_windows("open_cover");
+            var ckList = [], ckNameList = [];
+            var obj = new Object();
+            $.each($('input[type=checkbox][name=CostCode]:checked'), function (i, item) {
+                ckList.push($(item).val());
+                ckNameList.push($(item).attr('data-name'));
+            });
+            obj["CostCode"] = JSON.stringify(ckList);
+            obj["CostName"] = JSON.stringify(ckNameList);
+            obj["StartDate"] = $('#StartDate').val();
+            obj["EndDate"] = $('#EndDate').val();
+            if ($('.req:visible').length) {
+                $.each($('.req:visible'), function (i, item) {
+                    $item = $("input[name='" + item.name + "']:checked");
+                    obj[item.name] = $item.map(function () { return $(this).val(); }).get().join(',');
+                });
+
+            }
+            var form = createForm($('#ReportSelect option:selected').val() + $('input[type=radio][name=ReportType]:checked').val(), "post");
+            appendField(form, "hidden", "OptionList", JSON.stringify(obj));
+            document.body.appendChild(form);
+            form.submit();
+            $(form).remove();
+            setTimeout(function () { loop_windows("close_cover"); }, 20000);
+        }
+    }
+
+    function Check() {
+        var success = true;
+        if ($('.req:visible').length) {
+            $.each($('.req:visible'), function (i, item) {
+                if (!$("input[name='" + item.name + "']:checked").length) {
+                    alert('請選擇' + $(item).closest('div.SearchOption').attr('title') + '！');
+                    success = false;
+                    return false;
+                }
+            });
+        }
+        if (success) {
+            if ($('#ReportSelect option:selected').val() == '') {
+                alert('請選擇報表！');
+                return false;
+            }
+            if ($('#CostCode:visible').length > 0 && $('#CostCode input[type=checkbox]:visible:checked').length == 0) {
+                alert('請選擇單位！');
+                return false;
+            }
+            if ($('#ReportType:visible').length > 0 && $('#ReportType input[type=radio]:visible:checked').length == 0) {
+                alert('請選擇報表類別！');
+                return false;
+            }
+        }
+        return success;
+    }
+</script>
+
+<div class="funcArea">
+    <div style="padding-bottom:5px;">
+        <label>報表：</label>
+        <select id="ReportSelect" onchange="SetOption(this);">
+            <option value="">請選擇</option>
+            <option value="@Url.Content("~/Function/AssessAbstain")" data-option="#Date,#CostCode,#ReportType,#AssessAbstainSpecial">健康促進勸戒報表</option>
+            <option value="@Url.Content("~/Function/AssessLife")" data-option="#Date,#CostCode,#ReportType,#AssessLifeSpecial" data-CostCode="Detail">病人生活習慣報表</option>
+            <option value="@Url.Content("~/Function/CarePlan")" data-option="#Date,#CostCode,#ReportType">護理診斷報表</option>
+            <option value="@Url.Content("~/Function/CarePlan_")" data-option="#Date,#CostCode,#ReportType,#CarePlan_Special" data-CostCode="Detail">護理診斷對應相關報表</option>
+            <option value="@Url.Content("~/Function/EducationItem")" data-option="#Date,#CostCode,#ReportType">護理指導報表</option>
+            <option value="@Url.Content("~/Function/Education_Way")" data-option="#Date,#CostCode,#ReportType">護理指導指導方式報表</option>
+            <option value="@Url.Content("~/Function/Education")" data-option="#Date,#CostCode,#ReportType,#EducationSpecial" data-CostCode="Detail">護理指導指導內容報表</option>
+            <option value="@Url.Content("~/Function/PressureSore")" data-option="#Date,#CostCode,#ReportType">壓傷危險性報表</option>
+            <option value="@Url.Content("~/Function/FallAssess_Adult")" data-option="#Date,#CostCode,#ReportType">成人跌倒危險性報表</option>
+            <option value="@Url.Content("~/Function/FallAssessMeasure_Adult")" data-option="#Date,#CostCode,#ReportType">成人跌倒危險性措施使用報表</option>
+            <option value="@Url.Content("~/Function/FallAssess_Child")" data-option="#Date,#CostCode,#ReportType">兒童跌倒危險性報表</option>
+            <option value="@Url.Content("~/Function/FallAssessMeasure_Child")" data-option="#Date,#CostCode,#ReportType">兒童跌倒危險性措施使用報表</option>
+            <option value="@Url.Content("~/Function/NutritionalAssess")" data-option="#Date,#CostCode,#ReportType">營養評估報表</option>
+            @*<option value="@Url.Content("~/Function/InHospWoundPressure")" data-option="#Date,#CostCode,#ReportType" data-CostCode="Statistics">院內發生壓傷部位報表</option>*@
+            @*<option value="@Url.Content("~/Function/WoundPressure")" data-option="#Date,#CostCode,#ReportType">壓傷報表</option>*@
+            <option value="@Url.Content("~/Function/DischargedCare")" data-option="#Date,#CostCode,#ReportType" data-CostCode="Detail">完成出院準備服務篩選明細表</option>
+            <option value="@Url.Content("~/Function/Med")" data-option="#Date,#CostCode,#ReportType">給藥特殊註記報表</option>
+            <option value="@Url.Content("~/Function/DeliriumAndCFS")" data-option="#Date,#CostCode,#DeliriumAndCFS,#ReportType">譫妄及衰弱評估報表</option>
+            <option value="@Url.Content("~/Function/BundleCare")" data-option="#Date,#CostCode,#ReportType,#BundleCare,#CustomSearchOption">Bundle care評估報表</option>
+            @*<option value="@Url.Content("~/Function/BundleCare_NeedBundle")" data-option="#Date,#CostCode,#ReportType,#BundleCare_NeedBundle,#CustomSearchOption" data-CostCode="Detail">Bundle care應做管路報表</option>*@
+        </select>
+        <input type="button" value="產出報表" onclick="PrintExl();" />
+    </div>
+    <div class="SearchOption" id="Date">
+        <label>搜尋區間：</label>
+        <input type="text" id="StartDate" value="@DateTime.Now.ToString("yyyy/MM/01")" />
+        @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "StartDate", "", false)*@
+        <label>~</label>
+        <input type="text" id="EndDate" value="@(DateTime.Now.ToString("yyyy/MM/") + month_last_date)" />
+        @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "EndDate", "", false)*@
+    </div>
+    <div class="SearchOption" id="CustomSearchOption">
+        <label>月份：</label>
+        <select id="selMonth">
+            <option value="">請選擇</option>
+            <option value="01">1月</option>
+            <option value="02">2月</option>
+            <option value="03">3月</option>
+            <option value="04">4月</option>
+            <option value="05">5月</option>
+            <option value="06">6月</option>
+            <option value="07">7月</option>
+            <option value="08">8月</option>
+            <option value="09">9月</option>
+            <option value="10">10月</option>
+            <option value="11">11月</option>
+            <option value="12">12月</option>
+        </select>
+        <label style="margin-left: calc(100vw/90)">季度：</label>
+        <select id="selSeason">
+            <option value="">請選擇</option>
+            <option value="Q1">Q1</option>
+            <option value="Q2">Q2</option>
+            <option value="Q3">Q3</option>
+            <option value="Q4">Q4</option>
+        </select>
+    </div>
+    <div class="SearchOption" id="CostCode" title="單位">
+        <div>
+            <label>單位：</label>
+            <label><input type="checkbox" data-code="CostCode" onclick="CkAll(this);" />全選</label>
+        </div>
+        @foreach (CostCenterList item in costlist)
+        {
+            <div class="SItem"><label><input type="checkbox" name="CostCode" value="@item.CostCenterCode.Trim()" data-name="@item.CCCDescription.Trim()" />@item.CCCDescription.Trim()</label></div>
+        }
+    </div>
+    <div class="SearchOption" id="ReportType" title="報表類別">
+        <label>報表類別：</label>
+        <label><input type="radio" name="ReportType" value="Detail" />明細表</label>
+        <label><input type="radio" name="ReportType" value="Statistics" />統計表</label>
+        <label><input type="radio" name="ReportType" value="NeedBundle" />應執行Bundle Care明細表(分母)</label>
+    </div>
+    <div class="SearchOption" id="AssessAbstainSpecial" title="項目列表">
+        <label>項目列表：</label>
+        <label><input type="checkbox" name="AssessAbstainSpecial" value="抽菸" class="req" />抽菸</label>
+        <label><input type="checkbox" name="AssessAbstainSpecial" value="檳榔" />檳榔</label>
+    </div>
+    <div class="SearchOption" id="AssessLifeSpecial" title="項目列表">
+        <label>項目列表：</label>
+        <label><input type="checkbox" name="AssessLifeSpecial" value="抽菸" class="req" />抽菸</label>
+        <label><input type="checkbox" name="AssessLifeSpecial" value="喝酒" />喝酒</label>
+        <label><input type="checkbox" name="AssessLifeSpecial" value="檳榔" />檳榔</label>
+    </div>
+    <div class="SearchOption" id="CarePlan_Special" title="項目列表">
+        <label>項目列表：</label>
+        <label><input type="radio" name="CarePlan_Special" value="定義性特徵" class="req" />定義性特徵</label>
+        <label><input type="radio" name="CarePlan_Special" value="相關因素" />相關因素</label>
+        <label><input type="radio" name="CarePlan_Special" value="目標" />目標</label>
+        <label><input type="radio" name="CarePlan_Special" value="措施" />措施</label>
+    </div>
+    <div class="SearchOption" id="EducationSpecial" title="項目列表">
+        <label>項目列表：</label>
+        <label><input type="radio" name="EducationSpecial" value="指導對象" class="req" />對象</label>
+        <label><input type="radio" name="EducationSpecial" value="指導方式" />指導方式</label>
+        <label><input type="radio" name="EducationSpecial" value="指導細項" />指導細項</label>
+        <label><input type="radio" name="EducationSpecial" value="評值結果" />評值</label>
+    </div>
+    <div class="SearchOption" id="DeliriumAndCFS" title="項目列表">
+        <div>
+            <label>項目列表：</label>
+        </div>
+        <div style="display:none;margin-left:5rem" id="DeliriumCFS_Detail">
+            <label><input type="radio" name="DeliriumAndCFS" value="DeliriumDetail" class="hidden req">譫妄明細表</label>
+            <label><input type="radio" name="DeliriumAndCFS" value="CFSDetail" class="hidden req">衰弱明細表</label>
+        </div>
+        <div style="display:none;margin-left:5rem" id="DeliriumCFS_Statistics">
+            <label><input type="radio" name="DeliriumAndCFS" value="CfsStatisticsALL" class="req">衰弱評估統計表</label><br>
+            <label><input type="radio" name="DeliriumAndCFS" value="CfsStatistics65EarlyPeriodCFS" class="req">65歲(含)以上衰弱前期統計表</label><br>
+            <label><input type="radio" name="DeliriumAndCFS" value="CfsStatistics65MiniCog" class="req">65歲(含)以上mini-cog評估統計表</label><br>
+            <label><input type="radio" name="DeliriumAndCFS" value="CfsStatistics65EarlyPeriodDNR" class="req">65歲(含)以上衰弱前期DNR簽署統計表</label><br>
+            <label><input type="radio" name="DeliriumAndCFS" value="CfsStatistics65EarlyPeriodUTI" class="req">65歲(含)以上衰弱前期出院尿管存留統計表</label><br>
+            <label><input type="radio" name="DeliriumAndCFS" value="DeliriumStatisticsALL" class="req">譫妄評估統計表</label><br>
+            <label><input type="radio" name="DeliriumAndCFS" value="DeliriumStatistics65" class="req">65歲(含)以上長者譫妄統計表</label>
+        </div>
+    </div>
+    <div class="SearchOption" id="BundleCare" title="項目列表">
+        <label>項目列表：</label>
+        <div style="display:none;margin-left:5rem" id="BundleCareDetail">
+            <label><input type="radio" name="BundleCare" value="UTIBundleCareDetail" class="req" />UTI Bundle care每日照護明細表(分子) </label>
+            <br>
+            <label><input type="radio" name="BundleCare" value="VAPBundleCareDetail" class="req" />VAP Bundle care每日照護明細表(分子) </label>
+            <br>
+            <label><input type="radio" name="BundleCare" value="CVCBundleCareDetail" class="req" />BSI Bundle care每日照護明細表(分子) </label>
+            <br>
+        </div>
+        <div style="display:none;margin-left:5rem" id="BundleCareStatistics">
+            <label><input type="radio" name="BundleCare" value="UTIBundleCareStatistics" class="req" />UTI Bundle care每日照護統計表 </label>
+            <br>
+            <label><input type="radio" name="BundleCare" value="VAPBundleCareStatistics" class="req" />VAP Bundle care每日照護統計表 </label>
+            <br>
+            <label><input type="radio" name="BundleCare" value="CVCBundleCareStatistics" class="req" />BSI Bundle care每日照護統計表 </label>
+            <br>
+        </div>
+        <div style="display:none;margin-left:5rem" id="BundleCare_NeedBundleDetail">
+            <label><input type="radio" name="BundleCare_NeedBundle" value="UTIBundleCare_NeedBundleDetail" class="req" />UTI 應執行Bundle Care明細表(分母) </label>
+            <br>
+            <label><input type="radio" name="BundleCare_NeedBundle" value="VAPBundleCare_NeedBundleDetail" class="req" />VAP 應執行Bundle Care明細表(分母) </label>
+            <br>
+            <label><input type="radio" name="BundleCare_NeedBundle" value="CVCBundleCare_NeedBundleDetail" class="req" />BSI 應執行Bundle Care明細表(分母) </label>
+            <br>
+        </div>
+    </div>
+</div>

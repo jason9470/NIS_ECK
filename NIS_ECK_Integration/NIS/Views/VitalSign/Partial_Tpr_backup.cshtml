@@ -1,0 +1,1961 @@
+﻿@using System.Data;
+@{
+    DataTable dt_bs = ViewBag.dt_bs;
+    DataTable dt_io = ViewBag.dt_io;
+    DataTable dt_i_item = ViewBag.dt_i_item;
+    DataTable dt_o_item = ViewBag.dt_o_item;
+    DataTable dt_op_day = ViewBag.dt_op_day;
+    DataTable dt_d_day = ViewBag.dt_d_day;
+
+    DateTime start = Convert.ToDateTime(ViewBag.start);
+    DateTime end = Convert.ToDateTime(ViewBag.end);
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+    List<NIS.Data.Procedure> procedure_list = (List<NIS.Data.Procedure>)ViewData["procedure_list"];
+    DataTable procedure = ViewBag.procedure;
+    List<NIS.Controllers.VitalSignDataList> ChartDt = (List<NIS.Controllers.VitalSignDataList>)ViewData["ChartDt"];
+    List<NIS.Controllers.VitalSignData> temp = (List<NIS.Controllers.VitalSignData>)ViewData["VitalSign"];
+    NIS.Controllers.VitalSignData temp_data = null;
+    List<NIS.Controllers.VitalSignData> bp_temp_date = null;
+    List<int> CountList = (List<int>)ViewData["CountList"];
+    List<String> DateList = (List<String>)ViewData["DateList"];
+
+    List<NIS.Models.CVVH_Data.CVVH_TPR_Data> CVVHList = (List<NIS.Models.CVVH_Data.CVVH_TPR_Data>)ViewData["CVVH"];
+
+    List<Dictionary<string, string>> Aantibiotic = (List<Dictionary<string, string>>)ViewData["Aantibiotic"];
+    List<Dictionary<string, string>> TBilHCT = (List<Dictionary<string, string>>)ViewData["TBilHCT"];
+    DateTime TempDate = start;
+    int count = 1;
+
+
+    double S_bp_temp = 0;
+    double D_bp_temp = 0;
+    string S_bp_temp_get = "";
+    string D_bp_temp_get = "";
+    string vitalTempTotal = "";
+
+
+    for (int Date = 0; Date < DateList.Count; Date = Date + 5)
+    {
+<table border="0" cellpadding="0" cellspacing="0" style="width:1000px;padding:5px 0 5px 0;">
+    <tr>
+        <td style="text-align:center;padding:5px 0 5px 0;">
+            <span style="font-size:36px;color:blue;">TPR SHEET</span>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:5px 0 5px 0;">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;">
+                <tr>
+                    <td style="width:15%;">
+                        <span style="color:blue;">病歷號：</span>@ptinof.ChartNo
+                    </td>
+                    <td style="width:30%;">
+                        <span style="color:blue;">姓名：</span>@ptinof.PatientName
+                    </td>
+                    @*<td>
+                        <span style="color:blue;">床號：</span>@ptinof.BedNo
+                    </td>*@
+                    <td>
+                        <span style="color:blue;">年齡：</span>@((ptinof.Birthday.Year - 1911).ToString() + ptinof.Birthday.ToString("/MM/dd")) (@ptinof.Age 歲)
+                    </td>
+                    <td>
+                        <span style="color:blue;">性別：</span>@ptinof.PatientGender
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+<table border="1" cellpadding="0" cellspacing="0" rules="all" style="width:1000px;font-size:14px;text-align:center;table-layout:fixed;">
+    <tr>
+        <td colspan="3" style="width:15%;height:25px;"><span style="color:blue;">日期</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                <td colspan="2" style="width:17%;">@((TempDate.Year-1911).ToString()) 年 @TempDate.Month 月 @TempDate.Day 日</td>
+            }
+            else
+            {<td colspan="2" style="width:17%;"></td>}                                                                          
+        }
+    </tr>
+    <tr class="InHospitalDays">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">住院日數</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                int day = (TempDate - Convert.ToDateTime(ptinof.InDate.ToString("yyyy/MM/dd"))).Days + 1;
+                <td colspan="2">@day</td>
+            }
+            else
+            {
+                <td colspan="2"></td>
+            }  
+        }
+    </tr>
+    <tr class="ODDays">
+        <td colspan="3">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;text-align:center;">
+                <tr>
+                    <td style="height:25px;border-right:1px solid black;">
+                        <span style="color:blue;">手術日數</span>
+                    </td>
+                    <td>
+                        <span style="color:blue;">生產日數</span>
+                    </td>
+                </tr>
+            </table>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                foreach(DataRow r in dt_op_day.Rows)
+                {
+                    if (TempDate.ToString("d") == Convert.ToDateTime(r["TIME"]).ToString("d"))
+                    {
+                <td><label style="color:red;">@Html.Raw(r["CONTENT"])</label></td>
+                    }
+                }
+                foreach(DataRow r in dt_d_day.Rows)
+                {
+                    if (TempDate.ToString("d") == Convert.ToDateTime(r["TIME"]).ToString("d"))
+                    {
+                <td><label style="color:red;">@Html.Raw(r["CONTENT"])</label></td>
+                    }
+                }
+            }
+            else
+            {
+                <td></td>
+                <td></td>
+            }  
+        }
+    </tr>
+    <tr class="special_events">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">特殊註記事項</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            <td colspan="2" style="width:17%;"align="left">
+            @{
+                if(DateList.Count > i)
+                {
+                    if (DateList[i] == ViewBag.admission_date.ToString("yyyy/MM/dd"))
+                    {
+                        <label style="color:red;">Admitted at:@ViewBag.admission_date.ToString("HH:mm")</label><br />
+                    }
+                    if (procedure.Rows.Count > 0)
+                    {
+                        var exceptionList = new List<string> { "3", "4", "5", "11" }; 
+                        var tmp = from tmpdt in procedure.AsEnumerable()
+                                  where !exceptionList.Contains(tmpdt.Field<string>("TYPE_ID"))
+                                  select tmpdt;
+                        if (tmp.ToList().Count > 0)
+                        {
+                            DataTable result_dt = tmp.CopyToDataTable();
+                            for (int j = 0; j < result_dt.Rows.Count; j++)
+                            {
+
+                                if (DateList.Count - 1 >= i && Convert.ToDateTime(result_dt.Rows[j]["creattime"].ToString()).ToString("yyyy/MM/dd") == DateList[i])
+                                {
+                                    <span style="margin:0.4em"></span>
+                                    <label style="color:red;">@Html.Raw(result_dt.Rows[j]["content"].ToString())</label>@Html.Raw("<br />")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            </td>
+        }
+    </tr>
+    <tr>
+        <td colspan="3" style="width: 15%; height: 25px; color: blue;" >測量時間</td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count)
+            {
+                <td colspan="2" style="width:17%;">
+                    <table style="width:100%;table-layout:fixed;">
+                        <tr>
+                    @for (int ChartCount = 0; ChartCount < CountList[i]; ChartCount++)
+                    {
+                        if (ChartDt.Count > 0)
+                        {
+                        <td style="color:red;">@Convert.ToDateTime(ChartDt[0].recordtime).ToString("HH")<br />@Convert.ToDateTime(ChartDt[0].recordtime).ToString("mm")</td>
+                        ChartDt.RemoveAt(0);
+                        }
+                        else
+                        {
+                        <td></td>
+                        }
+                    }
+                    @if(CountList[i] < 6)
+                    {
+                        for (int ChartCount = CountList[i]; ChartCount < 6; ChartCount++)
+                        {
+                        <td></td>
+                        }
+                    }
+                        </tr>
+                    </table>
+                </td>
+            }
+            else
+            {<td colspan="2" style="width:17%;"></td>}                                                                          
+        }
+    </tr>
+    <tr>
+        <td style="width:5%;height:600px;">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;height:100%;text-align:center;">
+                <tr>
+                    <td style="height:36px;"><span style="font-size:12px;">呼吸<br />次/分</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;">80</td>
+                </tr>
+                <tr>
+                    <td style="height:66px;">70</td>
+                </tr>
+                <tr>
+                    <td style="height:66px;">60</td>
+                </tr>
+                <tr>
+                    <td style="height:66px;">50</td>
+                </tr>
+                <tr>
+                    <td style="height:66px;">40</td>
+                </tr>
+                <tr>
+                    <td style="height:66px;">30</td>
+                </tr>
+                <tr>
+                    <td style="height:66px;">20</td>
+                </tr>
+                <tr>
+                    <td style="height:66px;">10</td>
+                </tr>
+                <tr>
+                    <td style="height:36px;">■</td>
+                </tr>
+            </table>
+        </td>
+        <td style="width:5%;height:600px;">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;height:100%;text-align:center;">
+                <tr>
+                    <td style="height:36px;"><span style="color:red;font-size:12px;">心跳<br />次/分</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:red;">180</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:red;">160</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:red;">140</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:red;">120</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:red;">100</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:red;">80</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:red;">60</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:red;">40</span></td>
+                </tr>
+                <tr>
+                    <td style="height:36px;"><span style="color:red;">▲</span></td>
+                </tr>
+            </table>
+        </td>
+        <td style="width:5%;height:600px;">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;height:100%;text-align:center;">
+                <tr>
+                    <td style="height:36px;"><span style="color:blue;font-size:12px;">體溫<br />℃</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:blue;">42</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:blue;">41</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:blue;">40</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:blue;">39</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:blue;">38</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:blue;">37</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:blue;">36</span></td>
+                </tr>
+                <tr>
+                    <td style="height:66px;"><span style="color:blue;">35</span></td>
+                </tr>
+                <tr>
+                    <td style="height:36px;"><span style="color:blue;">●</span></td>
+                </tr>
+            </table>
+        </td>
+        <td colspan="10" style="height:600px;width:850%;background-image:url(../Chart/Tpr_Chart?starttime=@(start.ToString("yyyy/MM/dd") + DateTime.Now.ToString("_HH:mm:ss"))&endtime=@(end.AddDays(1).ToString("yyyy/MM/dd") + DateTime.Now.AddSeconds(1).ToString("_HH:mm:ss"))&feeno=@(ptinof.FeeNo)&indate=@(ptinof.InDate.ToString("yyyy/MM/dd"))&cont=@(Date))">
+        </td>
+    </tr>
+    <tr>
+        <td colspan="3" style="height:25px;"><span style="color:blue;">時間</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+        <td colspan="2">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;text-align:center;height:25px;">
+                <tr>
+                    <td style="width:25%;border-right:1px solid black;">9</td>
+                    <td style="width:25%;border-right:1px solid black;">13</td>
+                    <td style="width:25%;border-right:1px solid black;">18</td>
+                    <td style="width:25%;">21</td>
+                </tr>
+            </table>
+        </td>
+            }
+            else
+            {
+        <td colspan="2">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;text-align:center;height:25px;">
+                <tr>
+                    <td style="width:25%;border-right:1px solid black;"></td>
+                    <td style="width:25%;border-right:1px solid black;"></td>
+                    <td style="width:25%;border-right:1px solid black;"></td>
+                    <td style="width:25%;"></td>
+                </tr>
+            </table>
+        </td>
+            }
+        }
+    </tr>
+    <tr class="SPO2">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">Spo2</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+        <td colspan="2">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;text-align:center;height:25px;">
+                <tr>
+                    <td style="width:25%;border-right:1px solid black;min-height:35px;" >
+                    @{
+                temp_data = temp.Find(x => (x.vs_item == "sp" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 08:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 10:00:00"))));
+                if (temp_data != null)
+                {
+                    <label title="@temp_data.vs_part">
+                        @Html.Raw(temp_data.vs_record.Replace("#", "").Replace("|", "/") + temp_data.vs_reason.Replace("|", "/"))
+                    </label>
+                }
+}
+                    </td>
+                    <td style="width:25%;border-right:1px solid black;min-height:35px;">
+                    @{
+                temp_data = temp.Find(x => (x.vs_item == "sp" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 12:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 14:00:00"))));
+                        if(temp_data != null)
+                        {
+                          <label title="@temp_data.vs_part">
+                            @Html.Raw(temp_data.vs_record.Replace("#", "").Replace("|", "/") + temp_data.vs_reason.Replace("|", "/"))
+                            </label>
+                        }
+                    }
+                    </td>
+                    <td style="width:25%;border-right:1px solid black;min-height:35px;">
+                    @{
+                temp_data = temp.Find(x => (x.vs_item == "sp" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 17:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 19:00:00"))));
+                        if(temp_data != null)
+                        {
+                           <label title="@temp_data.vs_part">
+                            @Html.Raw(temp_data.vs_record.Replace("#", "").Replace("|", "/") + temp_data.vs_reason.Replace("|", "/"))
+                            </label>
+                        }
+                    }
+                    </td>
+                    <td style="width:25%;min-height:35px;">
+                    @{
+                temp_data = temp.Find(x => (x.vs_item == "sp" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 20:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 22:00:00"))));
+                        if(temp_data != null)
+                        {
+                          <label title="@temp_data.vs_part">
+                            @Html.Raw(temp_data.vs_record.Replace("#", "").Replace("|", "/") + temp_data.vs_reason.Replace("|", "/"))
+                            </label>
+                        }
+                    }
+                    </td>
+                </tr>
+            </table>
+        </td>
+            }
+            else
+            {
+        <td colspan="2">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;text-align:center;height:25px;">
+                <tr>
+                    <td style="width:25%;border-right:1px solid black;">&nbsp;</td>
+                    <td style="width:25%;border-right:1px solid black;">&nbsp;</td>
+                    <td style="width:25%;border-right:1px solid black;">&nbsp;</td>
+                    <td style="width:25%;">&nbsp;</td>
+                </tr>
+            </table>
+        </td>
+            }  
+        }
+    </tr>
+    <tr class="ComaScale">
+        <td colspan="3">
+            <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="void" style="width:100%;font-size:12px;" >
+                <tr>
+                    <td rowspan="3" style="width:5%;text-align:center;">
+                        <span style="color:blue;">COMA<br />SCALE</span>
+                    </td>
+                    <td style="width:10%;text-align:center;height:30px;">
+                        <span style="color:blue;">Eye opening</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:10%;text-align:center;height:30px;">
+                        <span style="color:blue;">Best verbal<br />response</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:10%;text-align:center;height:30px;">
+                        <span style="color:blue;">Best motor<br />response</span>
+                    </td>
+                </tr>
+            </table>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+        <td colspan="2">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;text-align:center;height:25px;">
+                <tr>
+                    <td style="width:25%;border-right:1px solid black;">
+                    @{
+                        string gse = "", gsl = "", gsm = "";
+                        temp_data = temp.Find(x => (x.vs_item == "gc" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 08:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 10:00:00"))));
+                        if(temp_data != null)
+                        {
+                            string[] record = temp_data.vs_record.Split('|');
+                            if (record.Length > 1)
+                            {
+                                if (record[0] != "")
+                                { gse = record[0].Substring(1, 1); }
+                                if (record[1] != "")
+                                { gsl = record[1].Substring(1, 1); }
+                                if (record[2] != "")
+                                { gsm = record[2].Substring(1, 1); }
+                            }
+                        }
+                        <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="void" style="width:100%;text-align:center;">
+                            <tr><td style="width:100%;height:30px;">
+                                @gse
+                            </td></tr>
+                            <tr><td style="height:30px;">
+                                @gsl
+                            </td></tr>
+                            <tr><td style="height:30px;">
+                                @gsm
+                            </td></tr>
+                        </table>
+                    }
+                    </td>
+                    <td style="width:25%;border-right:1px solid black;">
+                    @{
+                        gse = ""; gsl = ""; gsm = "";
+                        temp_data = temp.Find(x => (x.vs_item == "gc" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 12:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 14:00:00"))));
+                        if(temp_data != null)
+                        {
+                            string[] record = temp_data.vs_record.Split('|');
+                            if (record.Length > 1)
+                            {
+                                if (record[0] != "")
+                                { gse = record[0].Substring(1, 1); }
+                                if (record[1] != "")
+                                { gsl = record[1].Substring(1, 1); }
+                                if (record[2] != "")
+                                { gsm = record[2].Substring(1, 1); }
+                            }
+                        }
+                        <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="void" style="width:100%;text-align:center;">
+                            <tr><td style="width:100%;height:30px;">
+                                @gse
+                            </td></tr>
+                            <tr><td style="height:30px;">
+                                @gsl
+                            </td></tr>
+                            <tr><td style="height:30px;">
+                                @gsm
+                            </td></tr>
+                        </table>
+                    }
+                    </td>
+                    <td style="width:25%;border-right:1px solid black;">
+                    @{
+                        gse = ""; gsl = ""; gsm = "";
+                        temp_data = temp.Find(x => (x.vs_item == "gc" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 17:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 19:00:00"))));
+                        if(temp_data != null)
+                        {
+                            string[] record = temp_data.vs_record.Split('|');
+                            if (record.Length > 1)
+                            {
+                                if (record[0] != "")
+                                { gse = record[0].Substring(1, 1); }
+                                if (record[1] != "")
+                                { gsl = record[1].Substring(1, 1); }
+                                if (record[2] != "")
+                                { gsm = record[2].Substring(1, 1); }
+                            }
+                        }
+                        <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="void" style="width:100%;text-align:center;">
+                            <tr><td style="width:100%;height:30px;">
+                                @gse
+                            </td></tr>
+                            <tr><td style="height:30px;">
+                                @gsl
+                            </td></tr>
+                            <tr><td style="height:30px;">
+                                @gsm
+                            </td></tr>
+                        </table>
+                    }
+                    </td>
+                    <td style="width:25%;">
+                    @{
+                        gse = ""; gsl = ""; gsm = "";
+                        temp_data = temp.Find(x => (x.vs_item == "gc" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 20:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 22:00:00"))));
+                        if(temp_data != null)
+                        {
+                            string[] record = temp_data.vs_record.Split('|');
+                            if (record.Length > 1)
+                            {
+                                if (record[0] != "")
+                                { gse = record[0].Substring(1, 1); }
+                                if (record[1] != "")
+                                { gsl = record[1].Substring(1, 1); }
+                                if (record[2] != "")
+                                { gsm = record[2].Substring(1, 1); }
+                            }
+                        }
+                        <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="void" style="width:100%;text-align:center;">
+                            <tr><td style="width:100%;height:30px;">
+                                @gse
+                            </td></tr>
+                            <tr><td style="height:30px;">
+                                @gsl
+                            </td></tr>
+                            <tr><td style="height:30px;">
+                                @gsm
+                            </td></tr>
+                        </table>
+                    }
+                    </td>
+                </tr>
+            </table>
+        </td>
+            }
+            else
+            {
+        <td colspan="2">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;text-align:center;height:25px;">
+                <tr>
+                    <td style="width:25%;border-right:1px solid black;">
+                        <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="void" style="width:100%;text-align:center;">
+                            <tr><td style="width:100%;height:30px;">&nbsp;</td></tr>
+                            <tr><td style="height:30px;">&nbsp;</td></tr>
+                            <tr><td style="height:30px;">&nbsp;</td></tr>
+                        </table>
+                    </td>
+                    <td style="width:25%;border-right:1px solid black;">
+                        <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="void" style="width:100%;text-align:center;">
+                            <tr><td style="width:100%;height:30px;">&nbsp;</td></tr>
+                            <tr><td style="height:30px;">&nbsp;</td></tr>
+                            <tr><td style="height:30px;">&nbsp;</td></tr>
+                        </table>
+                    </td>
+                    <td style="width:25%;border-right:1px solid black;">
+                        <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="void" style="width:100%;text-align:center;">
+                            <tr><td style="width:100%;height:30px;">&nbsp;</td></tr>
+                            <tr><td style="height:30px;">&nbsp;</td></tr>
+                            <tr><td style="height:30px;">&nbsp;</td></tr>
+                        </table>
+                    </td>
+                    <td style="width:25%;">
+                        <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="void" style="width:100%;text-align:center;">
+                            <tr><td style="width:100%;height:30px;">&nbsp;</td></tr>
+                            <tr><td style="height:30px;">&nbsp;</td></tr>
+                            <tr><td style="height:30px;">&nbsp;</td></tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </td>
+            }  
+        }
+    </tr>
+    <tr class="Pupils">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">瞳孔反應(左側/右側)</span></td>
+            @for (int i = Date; i < Date + 5; i++)
+            {
+                <td colspan="2"align="left" >
+                    @{
+                        if (DateList.Count > i)
+                        {
+                            if (DateList[i] != "")
+                            {
+                                TempDate = Convert.ToDateTime(DateList[i]);
+                            }
+                        }
+                        bp_temp_date = temp.FindAll(x => (x.vs_item == "pupils" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 00:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 23:59:59")))).OrderBy(x => x.create_date).ToList();
+                        if (bp_temp_date != null && bp_temp_date.Count > 0)
+                        {
+                            bp_temp_date = bp_temp_date.OrderBy(x => Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd HH:mm:ss")).ToList();
+                            for (int j = 0; j < bp_temp_date.Count; j++)
+                            {
+                                if (DateList.Count > i)
+                                {
+                                    if (Convert.ToDateTime(bp_temp_date[j].create_date.ToString()).ToString("yyyy/MM/dd") == DateList[i])
+                                    {
+                                        string[] record = bp_temp_date[j].vs_record.Replace("#", "").Split('|');
+                                        if (record.Count() < 6)
+                                        {
+                                            Array.Resize(ref record, record.Length + 4); //相容舊資料
+                                        }
+                                        string pupils_L = (record[0] == "其他" ? record[4] : record[0]);
+                                        string pupils_L_size = record[1];
+
+                                        string pupils_R = (record[2] == "其他" ? record[5] : record[2]);
+                                        string pupils_R_size = record[3];
+
+                                        string content = pupils_L_size + pupils_L + " / " + pupils_R_size + pupils_R ;
+                                            @Html.Raw(Convert.ToDateTime(bp_temp_date[j].create_date.ToString()).ToString("HH:mm"))
+                                            @Html.Raw("  ")
+                                            @Html.Raw(content)<br />
+                                    } 
+                                }
+                            }
+                        }
+                    }
+                </td>
+            }
+    </tr>
+    <tr class="MusclePower">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">肌肉強度(左側/右側)</span></td>
+            @for (int i = Date; i < Date + 5; i++)
+            {
+                <td colspan="2"align="left"style="margin:0.1em">
+                    @{
+                        if (DateList.Count > i)
+                        {
+                            if(DateList[i] != "")
+                            {
+                                TempDate = Convert.ToDateTime(DateList[i]);
+                            }
+                        }
+                        bp_temp_date = temp.FindAll(x => (x.vs_item == "msPower" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 00:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 23:59:59")))).OrderBy(x => x.create_date).ToList();
+                        if (bp_temp_date != null && bp_temp_date.Count > 0)
+                        {
+                            bp_temp_date = bp_temp_date.OrderBy(x =>  Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd HH:mm:ss")).ToList();
+                            for (int j = 0; j < bp_temp_date.Count; j++)
+                            {
+                                if (DateList.Count > i)
+                                {
+                                    if (Convert.ToDateTime(bp_temp_date[j].create_date.ToString()).ToString("yyyy/MM/dd") == DateList[i])
+                                    {
+                                        string[] record = bp_temp_date[j].vs_record.Replace("#", "").Split('|');
+                                        if (record.Count() <= 4)
+                                        {
+                                            Array.Resize(ref record, record.Length + 4); //相容舊資料
+                                        }
+                                        string Mpower_T_R = (record[0] == "其他" ? record[4] : record[0]);
+                                        string Mpower_D_R = (record[1] == "其他" ? record[5] : record[1]);
+                                        string Mpower_T_L = (record[2] == "其他" ? record[6] : record[2]);
+                                        string Mpower_D_L = (record[3] == "其他" ? record[7] : record[3]);
+
+                                        string content = "";
+                                        if (Mpower_T_R != "" || Mpower_D_R != "")
+                                        {
+                                            content += "  上肢：" + Mpower_T_R + "，" + Mpower_D_R;
+                                        }
+                                        else
+                                        {
+                                            content += "無";
+                                        }
+                                        if (Mpower_T_L != "" || Mpower_D_L != "")
+                                        {
+
+                                            content += "  / 下肢：" + Mpower_T_L + "，" + Mpower_D_L;
+
+                                        }
+                                        else
+                                        {
+                                            content += "<br /> / 無";
+                                        }
+                                        <span style="margin:0.1em"></span><br/>
+                                        @Html.Raw(Convert.ToDateTime(bp_temp_date[j].create_date.ToString()).ToString("HH:mm"))
+                                        @Html.Raw("  ")
+                                        @Html.Raw(content)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                </td>
+            }
+    </tr>
+    <tr class="BloodPressureArea">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">血壓(mmHg)</span></td>
+            @for (int i = Date; i < Date + 5; i++)
+            {
+                <td colspan="2"align="left">
+                    @{
+                        if (DateList.Count > i) {
+                            if (DateList[i] != "") {
+                                TempDate = Convert.ToDateTime(DateList[i]);
+                            }
+                        }
+                        bp_temp_date = temp.FindAll(x => ((x.vs_item == "bp"  )&& Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 00:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 23:59:59")))).OrderBy(x => x.create_date).ToList();
+                        if (bp_temp_date != null && bp_temp_date.Count > 0) {
+                            bp_temp_date = bp_temp_date.OrderBy(x => Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd HH:mm:ss")).ToList();
+                            for (int j = 0; j < bp_temp_date.Count; j++) {
+                                if (DateList.Count > i) {
+                                    if (Convert.ToDateTime(bp_temp_date[j].create_date.ToString()).ToString("yyyy/MM/dd") == DateList[i]) {
+                                        bp_temp_date[j].vs_record = bp_temp_date[j].vs_record.IndexOf("|") == -1 ? bp_temp_date[j].vs_record + "|" : bp_temp_date[j].vs_record;
+                                        string[] a = bp_temp_date[j].vs_record.Replace("#", "").Replace("|", "/").Split('/');
+
+                                        S_bp_temp_get = a.GetValue(0).ToString();
+                                        if (string.IsNullOrEmpty(S_bp_temp_get) == false) {
+                                            int int_S_bp_temp = 0;
+                                            int.TryParse(S_bp_temp_get, out int_S_bp_temp);
+                                            S_bp_temp = int_S_bp_temp;
+                                        } else {
+                                            S_bp_temp_get = "0";
+                                        }
+
+                                        D_bp_temp_get = a.GetValue(1).ToString();
+                                        if (string.IsNullOrEmpty(D_bp_temp_get) == false) {
+                                            int int_D_bp_temp = 0;
+                                            int.TryParse(D_bp_temp_get, out int_D_bp_temp);
+                                            D_bp_temp = int_D_bp_temp;
+                                        } else {
+                                            D_bp_temp_get = "0";
+                                        }
+                                        if (!string.IsNullOrEmpty(S_bp_temp_get) && !string.IsNullOrEmpty(D_bp_temp_get)) {
+                                            if (a.Length > 2)
+                                            {
+                                                vitalTempTotal = ( string.IsNullOrEmpty(a.GetValue(2).ToString())? Math.Round(S_bp_temp / 3 + (D_bp_temp / 3 * 2)).ToString() : a.GetValue(2).ToString() );
+                                            }
+                                            else
+                                            {
+                                                vitalTempTotal = Math.Round(S_bp_temp / 3 + (D_bp_temp / 3 * 2)).ToString();
+                                            }
+                                        }
+
+                                        if (!((string.IsNullOrEmpty(S_bp_temp_get) || S_bp_temp_get == "0") && (string.IsNullOrEmpty(D_bp_temp_get) || D_bp_temp_get == "0"))) {
+                                            <span style="margin:1.5em"></span>
+                                            string[] bp_data = bp_temp_date[j].vs_record.Replace("#", "").Split('|');
+                                            if (bp_data.Length <= 2)                                            
+                                            {
+                                                System.Array.Resize(ref bp_data, bp_data.Length + 1);
+                                                bp_data[bp_data.Length - 1] = "";
+                                            }
+                                            @Html.Raw(Convert.ToDateTime(bp_temp_date[j].create_date.ToString()).ToString("HH:mm")
+                                            + "  "
+                                            + bp_data[0] + "/" + bp_data[1]
+                                            + bp_temp_date[j].vs_reason + "(" + vitalTempTotal + ")")<br />
+                                        }
+
+                                    }
+                                }
+                            }
+                        }
+                    }
+                </td>
+            }
+    </tr>
+    <tr class="bloodsugar">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">血糖</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+        <td colspan="2" style="width:17%;">
+            @{int bs=0;
+            if (dt_bs.Rows.Count > 0)
+            {
+                    foreach (DataRow r in dt_bs.Rows)
+                    {
+
+                        if (DateList.Count - 1 >= i && Convert.ToDateTime(r["indate"].ToString()).ToString("yyyy/MM/dd") == DateList[i])
+                        {
+                            @Html.Raw(Convert.ToDateTime(r["indate"].ToString()).ToString("HH:mm"));
+                            @Html.Raw(" " )
+                            if (@r["MEAL_STATUS"] != null && @r["MEAL_STATUS"].ToString() != "")
+                            {
+                                
+                                if (@r["MEAL_STATUS"].ToString().Trim() == "B")
+                                {
+                                     <label>飯前</label> 
+                                }else
+                                { 
+                                 <label>飯後</label> 
+                                }                                    
+                            }                
+                            
+                            if (@Html.Raw(r["BLOODSUGAR"]) != null && @Html.Raw(r["BLOODSUGAR"]).ToString() != "")
+                            {
+                                if (@r["BLOODSUGAR"] != null && @r["BLOODSUGAR"] != " ")
+                                {
+                                    bs = int.Parse(r["BLOODSUGAR"].ToString().Replace("#", ""));
+                                }
+                                if (@r["BLOODSUGAR"] == " ")
+                                {
+                                    <label></label>
+                                    bs = 0;
+                                }
+                                if (bs != 0 && bs < 70)
+                                {
+                                    //20140204 小於20顯示Low
+                                    if (bs < 2)
+                                    {
+                                        <label style="color:blue">Low</label>}
+                                    if (bs >= 2) //============
+                                    {
+                                        <label style="color:blue">@r["BLOODSUGAR"].ToString() mg/dl</label>}
+                                }
+                                else if (bs >= 70 && bs < 110)
+                                {
+                                    <label>@r["BLOODSUGAR"].ToString() mg/dl</label>
+                                }
+                                else if (bs >= 110)
+                                {
+                                    //20140204 大於600顯示high
+                                    if (bs > 998)
+                                    {
+                                        <label style="color:red">High</label>}
+                                    if (bs <= 998) //======
+                                    {
+                                        <label style="color:red">@r["BLOODSUGAR"].ToString() mg/dl</label>}
+                                }
+                            }
+                            @Html.Raw("<br />")
+                        }
+                    }
+            }
+            }
+            </td>  
+        }
+    </tr>
+    <tr class="Eat">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">飲食</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            <td colspan="2">
+                @{
+            if (DateList.Count > i)
+            {
+                if (DateList[i] != "")
+                {
+                    TempDate = Convert.ToDateTime(DateList[i]);
+            
+            bp_temp_date = temp.FindAll(x => (x.vs_item == "eat" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 00:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 23:59:59")))).OrderBy(x => x.create_date).ToList();
+            if (bp_temp_date != null && bp_temp_date.Count > 0)
+            {
+               bp_temp_date = bp_temp_date.OrderByDescending(x => Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd HH:mm:ss")).ToList();
+                  @Html.Raw( bp_temp_date[0].vs_record.Replace("|", ""))
+              
+            }
+                }
+            }
+                }
+            </td>
+        }
+    </tr>
+    <tr class="Antibiotic">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">抗生素</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                <td colspan="2" style="width:17%;font-size:12px;">
+                @foreach(var item in Aantibiotic.FindAll(x=> Convert.ToDateTime(x["UseDate"]).ToString("d") == TempDate.ToString("d")))
+                {
+                    <div>@item["content"]</div>
+                }
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:17%;font-size:8px;"></td>
+            }                                                                          
+        }
+    </tr>
+    <!--總膽紅素(mg/dL)-->
+    <tr class="TBilHCT">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">總膽紅素(mg/dL)</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+
+                        TempDate = Convert.ToDateTime(DateList[i]);
+
+                        DataTable dt_GI_J = ViewBag.dt_GI_J(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                        string gi_j = "";
+                        foreach (DataRow r in dt_GI_J.Rows)
+                        {
+                            gi_j = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " +  r["VS_RECORD"].ToString().Replace("|", "") + "mg/dl";
+                    <span style="margin:1.5em;"></span>
+   
+                    @Html.Raw(gi_j)@Html.Raw("<br />")
+                }
+}
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+            }
+        }
+    </tr>
+    @*<tr class="TBilHCT">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">總膽紅素(mg/dL)</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                <td colspan="2" style="width:17%;font-size:12px;">
+                    @if (TBilHCT != null)
+                    {
+                        foreach (var item in TBilHCT.FindAll(x => Convert.ToDateTime(x["UseDate"]).ToString("d") == TempDate.ToString("d")))
+                        {
+                            <div>@item["T_Bilirubin"]</div>
+                        }
+                    }
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:17%;font-size:8px;"></td>
+            }
+        }
+    </tr>*@
+    <tr class="TBilHCT1">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">血球容積比(%)</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                <td colspan="2" style="width:17%;font-size:12px;">
+                    @if (TBilHCT != null)
+                    {
+                        foreach (var item in TBilHCT.FindAll(x => Convert.ToDateTime(x["UseDate"]).ToString("d") == TempDate.ToString("d")))
+                        {
+                            <div>@item["HCT"]</div>
+                        }
+                    }
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:17%;font-size:8px;"></td>
+            }
+        }
+    </tr>
+
+
+
+    <tr class="CVVH">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">CVVH</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+              if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                 TempDate = Convert.ToDateTime(DateList[i]);
+                <td colspan="2" style="width:17%;font-size:12px;">
+                  @foreach (var item in CVVHList)
+                  {                      
+                      if (Convert.ToDateTime(item.DataDate).ToString("d") == TempDate.ToString("d"))
+                      { 
+                          @item.IO_Total
+                      }
+
+                  }             
+                           
+                </td> 
+               
+            }
+            else
+            {
+                <td colspan="2" style="width:17%;font-size:8px;"></td>
+            }
+        }
+    </tr>
+    @for (int i = 0; i < dt_i_item.Rows.Count; i++)
+    {
+    @:<tr class="Input">
+        if (i == 0)
+        {
+        <td rowspan="@(dt_i_item.Rows.Count)" style="width:5%"><span style="color:blue;">輸入(mL)</span></td>
+        }
+        <td colspan="2" style="height:25px;"><span style="color:blue;">@dt_i_item.Rows[i]["P_NAME"]</span></td>
+        for (int j = Date; j < Date + 5; j++)
+        {
+            if(j < DateList.Count && !string.IsNullOrWhiteSpace(DateList[j]))
+            {
+                TempDate = Convert.ToDateTime(DateList[j]);
+                foreach (DataRow r in dt_io.Rows)
+                {
+                    if (Convert.ToDateTime(r["DATE"]).ToString("d") == TempDate.ToString("d") && r["P_VALUE"].ToString() == dt_i_item.Rows[i]["P_VALUE"])
+                    {
+                        string title = ViewBag.io_list(TempDate.ToString("d"), r["P_VALUE"].ToString(), ViewBag.feeno);
+                        if (title != "")
+                        {
+        <td colspan="2" style="cursor: pointer;" title="@title">@Html.Raw(r["AMOUNT"].ToString() + r["REASON"].ToString())</td> 
+                        }
+                        else
+                        {
+        <td colspan="2"></td> 
+                        }
+                    }
+                }
+            }
+            else
+            {
+        <td colspan="2"></td>
+            }  
+        }
+    @:</tr>
+    }
+    @for (int i = 0; i < dt_o_item.Rows.Count; i++)
+    {
+    @:<tr class="Output">
+        if (i == 0)
+        {
+        <td rowspan="@(dt_o_item.Rows.Count)" style="height:25px;"><span style="color:blue;">輸出(cc)</span></td>
+        }
+        <td colspan="2" style="height:25px;"><span style="color:blue;">@dt_o_item.Rows[i]["P_NAME"]</span></td> 
+        for (int j = Date; j < Date + 5; j++)
+        {
+            if(j < DateList.Count && !string.IsNullOrWhiteSpace(DateList[j]))
+            {
+                TempDate = Convert.ToDateTime(DateList[j]);
+                foreach (DataRow r in dt_io.Rows)
+                {
+                    if (Convert.ToDateTime(r["DATE"]).ToString("d") == TempDate.ToString("d") && r["P_VALUE"].ToString() == dt_o_item.Rows[i]["P_VALUE"])
+                    {
+                        string title = ViewBag.io_list(TempDate.ToString("d"), r["P_VALUE"].ToString(), ViewBag.feeno);
+                        if (title != "")
+                        {
+        <td colspan="2" style="cursor: pointer;" title="@title">@Html.Raw(r["AMOUNT"].ToString() + r["REASON"].ToString())</td> 
+                        }
+                        else
+                        {
+        <td colspan="2"></td> 
+                        }
+                    }
+                }
+            }
+            else
+            {
+        <td colspan="2"></td>
+            }  
+        }
+    @:</tr>
+    }
+    <tr class="InputOutputSum">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">輸入總量/輸出總量</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            string loss = "";
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                double amount_i = 0, amount_o = 0;
+                string loss_i="",loss_o="";
+                foreach (DataRow r in dt_io.Rows)
+                {
+                    if (Convert.ToDateTime(r["DATE"]).ToString("d") == TempDate.ToString("d") && r["TYPE"].ToString() == "intaketype")
+                    {
+                        amount_i += double.Parse(r["AMOUNT"].ToString());
+                    }
+                    else if (Convert.ToDateTime(r["DATE"]).ToString("d") == TempDate.ToString("d") && r["TYPE"].ToString() == "outputtype")
+                    {
+                        amount_o += double.Parse(r["AMOUNT"].ToString());
+                    }
+                    if (Convert.ToDateTime(r["DATE"]).ToString("d") == TempDate.ToString("d") && r["REASON"].ToString().Trim() != "")
+                    {
+                        loss = "+Loss";
+                    }
+                    if(Convert.ToDateTime(r["DATE"]).ToString("d") == TempDate.ToString("d") && r["TYPE"].ToString() == "intaketype" && r["REASON"].ToString()=="+Loss")
+                    {
+                        loss_i = "+Loss";
+                    }
+                    else if(Convert.ToDateTime(r["DATE"]).ToString("d") == TempDate.ToString("d") && r["TYPE"].ToString() == "outputtype" && r["REASON"].ToString() == "+Loss")
+                    {
+                        loss_o = "+Loss";
+                    }
+                }
+                //if(amount_i > 0 || amount_o > 0 || loss_i != "" || loss_o!="")
+                //{
+        <td colspan="2">@(amount_i)@(loss_i)/@(amount_o)@(loss_o) (
+        @if (amount_i-amount_o > 0) {@Html.Raw("+")}
+        @(Math.Round((amount_i - amount_o), 3)))@*@loss*@</td>
+               @* }
+                else
+                {
+        <td colspan="2"></td>
+                }*@
+            }
+            else
+            {
+        <td colspan="2"></td>
+            }  
+        }
+    </tr>
+    <tr class="Excrement">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">大便次數 | 性狀 | 顏色</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                // 20140428 未大便顯示空白即可
+                temp_data = temp.Find(x => (x.vs_item == "st" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+        <td colspan="2" style="width:25%;border-right:1px solid black;">
+            @if (temp_data != null)
+            {
+                @*if (temp_data.vs_part == "灌腸")
+                {
+            @Html.Raw(temp_data.vs_record.Split('|').GetValue(0).ToString() + "/E" + temp_data.vs_record.Substring(temp_data.vs_record.IndexOf("|"), temp_data.vs_record.Length - temp_data.vs_record.IndexOf("|")))
+                }
+                else
+                {
+            @temp_data.vs_record
+                }*@//20160407 modㄑ
+                   if (temp_data.vs_part != "自解")
+                   {
+                       if (temp_data.vs_record.IndexOf('|')>=0)
+                       { 
+                      @Html.Raw(temp_data.vs_record.Split('|').GetValue(0).ToString().Replace("99","") + "(" + temp_data.vs_part + ")" + temp_data.vs_record.Substring(temp_data.vs_record.IndexOf("|"), temp_data.vs_record.Length - temp_data.vs_record.IndexOf("|")))
+                    }
+                    else
+                       { 
+                        @Html.Raw(temp_data.vs_record.ToString().Replace("99", "") + "(" + temp_data.vs_part + ")")
+                       }
+                }
+                else
+                {
+            @temp_data.vs_record
+                }
+            }
+        </td>
+            }
+            else
+            {
+        <td colspan="2"></td>
+            }  
+        }
+    </tr>
+    <tr class="HeightWeight">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">身高(cm)/體重(kg)</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                string ht = "", wt = "";
+        <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+            @{
+                temp_data = temp.Find(x => (x.vs_item == "bh" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")&& !string.IsNullOrEmpty(x.vs_record)));
+                if (temp_data != null)
+                {
+                    <span style="margin:1.5em"></span>
+                    @temp_data.vs_record
+                    @:cm
+                }
+                @: / 
+                temp_data = temp.Find(x => (x.vs_item == "bw" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd") && !string.IsNullOrEmpty(x.vs_record)));
+                                        if (temp_data != null)
+                                        {
+                                            @temp_data.vs_record.Replace("|", " ")
+                                        }
+                                    }
+        </td>
+            }
+            else
+            {
+        <td colspan="2"></td>
+            }
+                            }
+    </tr>
+    <tr class="CVP2">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">CVP</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+                TempDate = Convert.ToDateTime(DateList[i]);
+                DataTable dt_CVP = ViewBag.dt_CVP(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                        string cv = "";
+                foreach (DataRow r in dt_CVP.Rows)
+                {
+                    if (r["VS_ITEM"].ToString() == "cv1")
+                    { cv = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString() + " mmHg"; }
+                    else
+                    { cv = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString() + " cmH2O"; }
+                    <span style="margin:1.5em;"></span>
+                            @Html.Raw(cv)@Html.Raw("<br />")
+                        }
+                    }                    
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+            }             
+        }
+    </tr>
+    <tr class="ICP2">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">ICP</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+                TempDate = Convert.ToDateTime(DateList[i]);
+                DataTable dt_ICP = ViewBag.dt_ICP(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                string icp = "";
+                foreach (DataRow r in dt_ICP.Rows)
+                {
+                    if (r["VS_ITEM"].ToString() == "ic1")
+                    { icp = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString() + " mmHg"; }
+                    else
+                    { icp = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString() + " cmH2O"; }
+                    <span style="margin:1.5em;"></span>
+                            @Html.Raw(icp)@Html.Raw("<br />")
+                        }
+                    }
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+            }
+        }
+
+    </tr>
+    <!--CPP-->
+    <tr class="CPP">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">CPP</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+                TempDate = Convert.ToDateTime(DateList[i]);
+                DataTable dt_CPP = ViewBag.dt_CPP(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                string cc = "";
+                foreach (DataRow r in dt_CPP.Rows)
+                {
+
+                    cc = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString() + " mmHg";
+                    <span style="margin:1.5em;"></span>
+                    @Html.Raw(cc)@Html.Raw("<br />")
+                }
+                    }
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+            }
+        }
+    </tr>
+    <!--ABP-->
+    <tr class="ABP">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">ABP</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;" align="left">
+                    @{
+                        TempDate = Convert.ToDateTime(DateList[i]);
+                        DataTable dt_ABP = ViewBag.dt_ABP(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                        string tem_abp = "";
+                        foreach (DataRow r in dt_ABP.Rows)
+                        {
+                            string[] temp_abp = r.ItemArray[2].ToString().Split('|');
+                            string abp_str = string.Join("", temp_abp);
+                            double D_abp_temp = 0;
+                            double S_abp_temp = 0;
+                            if (!string.IsNullOrEmpty(temp_abp[0]) && !string.IsNullOrEmpty(temp_abp[1]) )
+                            {
+                                int int_D_abp_temp = 0;
+                                int int_S_abp_temp = 0;
+                                int.TryParse(temp_abp[0], out int_D_abp_temp);
+                                int.TryParse(temp_abp[1], out int_S_abp_temp);
+                                D_abp_temp = int_D_abp_temp;
+                                S_abp_temp = int_S_abp_temp;
+                                vitalTempTotal = Math.Round(D_abp_temp / 3 + (S_abp_temp / 3 * 2)).ToString();
+                            }
+
+                            if (!string.IsNullOrEmpty(abp_str))
+                            {
+                                tem_abp = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString().Replace("|", "/") + "(" + vitalTempTotal + ")";
+                                <span style="margin:1.5em;"></span>
+                                @Html.Raw(tem_abp)@Html.Raw("<br />")
+                            }
+                        }
+                    }
+                </td>
+                        }
+                        else
+                        {
+                            <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+                            }
+                        }
+    </tr>
+    <!--PA-->
+    <tr class="PA">
+        <td colspan="3" style="height:25px;"><span style="color:blue;">PA(mmHg)</span></td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            <td colspan="2"align="left">
+                @{
+                    if (DateList.Count > i)
+                    {
+                        if (DateList[i] != "")
+                        {
+                            TempDate = Convert.ToDateTime(DateList[i]);
+                        }
+                    }
+                    bp_temp_date = temp.FindAll(x => (x.vs_item == "pa" && Convert.ToDateTime(x.create_date) >= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 00:00:00")) && Convert.ToDateTime(x.create_date) <= Convert.ToDateTime(TempDate.ToString("yyyy/MM/dd 23:59:59")))).OrderBy(x => x.create_date).ToList();
+                    if (bp_temp_date != null && bp_temp_date.Count > 0)
+                    {
+                        bp_temp_date = bp_temp_date.OrderBy(x => Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd HH:mm:ss")).ToList();
+                        for (int j = 0; j < bp_temp_date.Count; j++)
+                        {
+                            if (DateList.Count > i)
+                            {
+                                if (Convert.ToDateTime(bp_temp_date[j].create_date.ToString()).ToString("yyyy/MM/dd") == DateList[i])
+                                {
+                                    bp_temp_date[j].vs_record = bp_temp_date[j].vs_record.IndexOf("|") == -1 ? bp_temp_date[j].vs_record + "|" : bp_temp_date[j].vs_record;
+                                    string[] a = bp_temp_date[j].vs_record.Replace("#", "").Replace("|", "/").Split('/');
+
+                S_bp_temp_get = a.GetValue(0).ToString();
+                                    if (string.IsNullOrEmpty(S_bp_temp_get) == false)
+                                    {
+                                        int int_S_bp_temp = 0;
+                int.TryParse(S_bp_temp_get, out int_S_bp_temp);
+                S_bp_temp = int_S_bp_temp;
+                                    }
+                                    else
+                                    {
+                                        S_bp_temp_get = "0";
+                                    }
+
+                                    D_bp_temp_get = a.GetValue(1).ToString();
+                                    if (string.IsNullOrEmpty(D_bp_temp_get) == false)
+                                    {
+                                        int int_D_bp_temp = 0;
+                int.TryParse(D_bp_temp_get, out int_D_bp_temp);
+                D_bp_temp = int_D_bp_temp;
+                                    }
+                                    else
+                                    {
+                                        D_bp_temp_get = "0";
+                                    }
+                                    if (!string.IsNullOrEmpty(S_bp_temp_get) && !string.IsNullOrEmpty(D_bp_temp_get))
+                                    {
+                                        vitalTempTotal = Math.Round(S_bp_temp / 3 + (D_bp_temp / 3 * 2)).ToString();
+                                    }
+
+                                    if (!((string.IsNullOrEmpty(S_bp_temp_get) || S_bp_temp_get == "0") && (string.IsNullOrEmpty(D_bp_temp_get) || D_bp_temp_get == "0"))) {
+                                        <span style="margin:1.5em;"></span>
+                                        @Html.Raw(Convert.ToDateTime(bp_temp_date[j].create_date.ToString()).ToString("HH:mm")
+                                        + Html.Raw(" ")+"  "
+                                        + bp_temp_date[j].vs_record.Replace("#", "").Replace("|", "/")
+                                        + bp_temp_date[j].vs_reason + "(" + vitalTempTotal + ")")<br />
+                                    }
+                        }
+                    }
+                }
+            }
+        }
+            </td>
+        }
+    </tr>
+    <!--PCWP-->
+    <tr class="PCWP">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">PCWP</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+
+                TempDate = Convert.ToDateTime(DateList[i]);
+
+                DataTable dt_PCWP = ViewBag.dt_PCWP(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                string pcwp = "";
+                foreach (DataRow r in dt_PCWP.Rows)
+                {
+                    pcwp = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString() + " mmHg";
+                    <span style="margin:1.5em;"></span>
+                    @Html.Raw(pcwp)@Html.Raw("<br />")
+                }
+                    }
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+            }
+        }
+    </tr>
+
+    <!--ETCO2-->
+    <tr class="ETCO2">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">ETCO2</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+
+                TempDate = Convert.ToDateTime(DateList[i]);
+
+                DataTable dt_ETCO2 = ViewBag.dt_ETCO2(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                string etco = "";
+                foreach (DataRow r in dt_ETCO2.Rows)
+                {
+                    etco = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString() + " mmHg";
+                    <span style="margin:1.5em;"></span>
+                    @Html.Raw(etco)@Html.Raw("<br />")
+                }
+}
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+            }
+        }
+    </tr>
+
+    <!--保溫箱溫度-->
+    <tr class="箱溫">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">保溫箱溫度</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+
+                TempDate = Convert.ToDateTime(DateList[i]);
+
+                DataTable dt_GI = ViewBag.dt_GI(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                string gi = "";
+                foreach (DataRow r in dt_GI.Rows)
+                {
+                    gi = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString() + " ℃";
+                    <span style="margin:1.5em;"></span>
+                    @Html.Raw(gi)@Html.Raw("<br />")
+                }
+}
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+            }
+        }
+    </tr>
+
+    <!--黃疸-->
+    
+<span style="margin:1.5em;"></span>
+
+<br />
+    <!--臍帶-->
+    <tr class="Umbilical">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">臍帶脫落</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+
+                TempDate = Convert.ToDateTime(DateList[i]);
+
+                DataTable dt_GI_C = ViewBag.dt_GI_C(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                string gi_c = "";
+                foreach (DataRow r in dt_GI_C.Rows)
+                {
+                    gi_c = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString().Replace("|", "/");
+                    <span style="margin:1.5em;"></span>
+                            
+                    @Html.Raw(gi_c)@Html.Raw("<br />")
+                }
+}
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+            }
+        }
+    </tr>
+    <!--尿液-->
+    <tr class="尿液">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">尿液</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;" align="left">
+                    
+                    @{
+
+                TempDate = Convert.ToDateTime(DateList[i]);
+
+                DataTable dt_GI_U = ViewBag.dt_GI_U(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                var gi_u = "";
+                foreach (DataRow r in dt_GI_U.Rows)
+                {
+                    gi_u = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString().Replace('|', '次');
+                    int x = (gi_u.IndexOf("次")) + 1;
+                    <span style="margin:1.5em;"></span>
+                    @Html.Raw(gi_u.Insert(x,"  /"))@Html.Raw("<br />")
+                }
+}
+                </td>
+            }
+            else
+            {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+            }
+        }
+    </tr>
+    
+    <!--膚色-->
+    <tr class="膚色">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">膚色</span>
+            @for (int i = Date; i < Date + 5; i++)
+            {
+                if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+                {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+
+                    TempDate = Convert.ToDateTime(DateList[i]);
+
+                    DataTable dt_SI_N = ViewBag.dt_SI_N(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                    string si_n = "";
+                    foreach (DataRow r in dt_SI_N.Rows)
+                    {
+                        si_n = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString().Replace("/","");
+                        <span style="margin:1.5em;"></span>
+                        @Html.Raw(si_n)@Html.Raw("<br />")
+                    }
+                    }
+                </td>
+                }
+                else
+                {
+                    <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+                }
+            }
+        </tr>
+
+    <!--呼吸型態-->
+    <tr class="呼吸型態">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">呼吸型態</span>
+            @for (int i = Date; i < Date + 5; i++)
+            {
+                if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+                {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+
+                    TempDate = Convert.ToDateTime(DateList[i]);
+
+                    DataTable dt_SI_B = ViewBag.dt_SI_B(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                    string si_b = "";
+                    foreach (DataRow r in dt_SI_B.Rows)
+                    {
+                        si_b = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString().Replace("|","");
+                        <span style="margin:1.5em;"></span>
+                        @Html.Raw(si_b)@Html.Raw("<br />")
+                    }
+                    }
+                </td>
+                }
+                else
+                {
+                    <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+                }
+            }
+        </tr>
+
+    <!--呼吸品質-->
+    <tr class="呼吸品質">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">呼吸品質</span>
+            @for (int i = Date; i < Date + 5; i++)
+            {
+                if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+                {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+
+                    TempDate = Convert.ToDateTime(DateList[i]);
+
+                    DataTable dt_SI_R = ViewBag.dt_SI_R(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                    string si_r = "";
+                    foreach (DataRow r in dt_SI_R.Rows)
+                    {
+                        si_r = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString();
+                        <span style="margin:1.5em;"></span>
+                        @Html.Raw(si_r)@Html.Raw("<br />")
+                    }
+                    }
+                </td>
+                }
+                else
+                {
+                    <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+                }
+            }
+        </tr>
+
+    <!--痰液-->
+    <tr class="痰液">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">痰液</span>
+            @for (int i = Date; i < Date + 5; i++)
+            {
+                if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+                {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+
+                    TempDate = Convert.ToDateTime(DateList[i]);
+
+                    DataTable dt_SI_S = ViewBag.dt_SI_S(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                    string si_s = "";
+                    foreach (DataRow r in dt_SI_S.Rows)
+                    {
+                        si_s = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString();
+                        <span style="margin:1.5em;"></span>
+                        @Html.Raw(si_s.Replace("|","/"))@Html.Raw("<br />")
+                    }
+                    }
+                </td>
+                }
+                else
+                {
+                    <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+                }
+            }
+        </tr>
+
+    <!--翻身-->
+    <tr class="翻身">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">翻身</span>
+            @for (int i = Date; i < Date + 5; i++)
+            {
+                if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+                {
+                <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                    @{
+
+                    TempDate = Convert.ToDateTime(DateList[i]);
+
+                    DataTable dt_SI_O = ViewBag.dt_SI_O(ViewBag.feeno, TempDate.ToString("yyyy/MM/dd"));
+                    string si_o = "";
+                    foreach (DataRow r in dt_SI_O.Rows)
+                    {
+                        si_o = Convert.ToDateTime(r["create_date"].ToString()).ToString("HH:mm") + "  " + r["VS_RECORD"].ToString();
+                        <span style="margin:1.5em;"></span>
+                        @Html.Raw(si_o)@Html.Raw("<br />")
+                    }
+                    }
+                </td>
+                }
+                else
+                {
+                    <td colspan="2" style="width:25%;border-right:1px solid black;"></td>
+                }
+            }
+        </tr>
+
+    <tr class="Girth">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">圍長(cm)</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if (i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                string value = "";
+                temp_data = temp.Find(x => (x.vs_item == "gtwl" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    
+                    value += "腰圍" + temp_data.vs_record.ToString() + "<br />"+ "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gthr" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "頭圍" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtbu" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "胸圍" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtbl" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "腹圍" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gthl" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "臀圍" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtlf" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "左前臂" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtrf" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "右前臂" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtlua" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "左上臂" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtrua" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "右上臂" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtlt" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "左大腿" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtrt" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "右大腿" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtll" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "左小腿" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtrl" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "右小腿" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtla" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "左足踝" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                temp_data = temp.Find(x => (x.vs_item == "gtra" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    value += "右足踝" + temp_data.vs_record.ToString() + "<br />" + "<span style='margin:1.5em'></span>";
+                }
+                
+            <td colspan="2" style="width:25%;border-right:1px solid black;"align="left">
+                <span style="margin:1.5em"></span>
+        @Html.Raw(value)
+            </td>
+
+            }
+            else
+            {
+           
+        <td colspan="2"></td>
+            }
+        }
+    </tr>
+    <tr class="Procedure">
+        <td colspan="3" style="height:25px;width:15%;">
+            <span style="color:blue;">檢驗檢查異常值</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                string procedure_result = "";
+                for (int j = 0; j < procedure_list.Count; j++)
+                {
+                    if (procedure_list[j].ProcedureDate.ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd"))
+                    {
+                        procedure_result += procedure_list[j].ProcedureCode.Replace("#br#", "<br />") + "<br />";
+                    }
+                }
+        <td colspan="2" style="width:25%;border-right:1px solid black;">
+            @Html.Raw(procedure_result)
+        </td>
+            }
+            else
+            {
+        <td colspan="2"></td>
+            }  
+        }
+    </tr>
+    <tr class="Procedure">
+        <td colspan="3" style="height:25px;width:15%;">
+            <span style="color:blue;">特殊處置<br />或治療</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            <td colspan="2" style="width:17%;"align="left">
+            @{
+            if (procedure.Rows.Count > 0)
+            {
+                var tmp = from tmpdt in procedure.AsEnumerable()
+                          where tmpdt.Field<string>("TYPE_ID") == "4"
+                          select tmpdt;
+                if(tmp.ToList().Count > 0)
+                {
+                    DataTable result_dt = tmp.CopyToDataTable();
+                    for (int j = 0; j < result_dt.Rows.Count; j++)
+                    {
+                        if (DateList.Count - 1 >= i && Convert.ToDateTime(result_dt.Rows[j]["creattime"].ToString()).ToString("yyyy/MM/dd") == DateList[i])
+                        {
+                            <span style="margin:1.5em;"></span>
+                            @Html.Raw(result_dt.Rows[j]["content"].ToString())@Html.Raw("<br />")
+                        }
+                    }
+                }        
+            }
+            }
+            </td>                                                                 
+        }
+    </tr>
+    <tr class="PainAssessment" style="display:none;">
+        <td colspan="3" style="height:25px;">
+            <span style="color:blue;">疼痛評估(含特殊評估)</span>
+        </td>
+        @for (int i = Date; i < Date + 5; i++)
+        {
+            if(i < DateList.Count && !string.IsNullOrWhiteSpace(DateList[i]))
+            {
+                TempDate = Convert.ToDateTime(DateList[i]);
+                temp_data = temp.Find(x => (x.vs_item == "ps" && Convert.ToDateTime(x.create_date).ToString("yyyy/MM/dd") == TempDate.ToString("yyyy/MM/dd")));
+                if (temp_data != null)
+                {
+                    string[] ps_val = temp_data.vs_record.Split('|');
+                    int ps_value = 0;
+                    for (int p_val = 0; p_val < ps_val.Length; p_val++)
+                    {
+                        if (ps_val[p_val] != "")
+                        {
+                            string ps_record = ps_val[p_val].Replace("#", "");
+                            if (ps_record.Length > 1)
+                            {
+                                ps_value += int.Parse(ps_record.Substring(1, ps_record.IndexOf(")") - 1));
+                            }
+
+                        }
+                    }
+        <td colspan="2" style="width:25%;border-right:1px solid black;">@Html.Raw(ps_value + "分 (" + temp_data.vs_part + " )")</td>
+                }
+                else
+                {
+        <td colspan="2" style="width:25%;border-right:1px solid black;">未評估</td>
+                }
+            }
+            else
+            {
+        <td colspan="2"></td>
+            }  
+        }
+    </tr>
+</table>
+<table border="0" cellpadding="0" cellspacing="0" style="width:1000px;padding:5px 0 5px 0;margin-bottom:100px;">
+    <tr>
+        <td style="text-align:center;">
+            第 @count 頁
+        </td>
+    </tr>
+</table>
+        count++;}
+}

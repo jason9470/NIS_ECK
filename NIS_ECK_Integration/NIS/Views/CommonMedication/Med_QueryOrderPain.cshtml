@@ -1,0 +1,164 @@
+﻿@using NIS.Data;
+@using System.Data;
+@{
+    // ViewBag.Title = "Med_QueryOrder";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable dt_all = ViewBag.dt_all;
+}
+<script type="text/javascript">
+    $(document).ready(function () { //div中table樣式
+        // 加入focus事件
+        //$(window).focus(function () {
+        //    window.opener.parent.check_session();
+        //});
+        //$("table").css('background', '#000000');
+        //$("table tr:odd").css('background', '#85A5CC');
+        //$("table tr:even").css('background', '#ABC8E2');
+
+        //篩選
+        find_medcode();
+
+        this.focus();
+        @{
+            if (Request["message"] != null)
+            {
+                @Html.Raw("showHint(\"Web Service Error ...\");")
+            }
+        }
+    });
+
+    function MedicinalInfo(strMedCode) {
+        //線上藥典
+        $.ajax({
+            type: 'POST',
+            url: "WebS_MedicinalInfo",
+            data: "Str_MedCode=" + Trim(strMedCode),
+            success: function (data) {
+                if (data == "Error") {
+                    alert("錯誤！無法找到線上處方集資料。");
+                    return;
+                }
+                var obj = $.parseJSON(data);
+                window.open(obj[0].DrugHref);
+            },
+            error: function (data) {
+                alert("錯誤！無法找到線上處方集資料。");
+            }
+        });
+    }
+
+    function find_medcode() {
+        var search_range =  $("input[name='search_range']:checked").val();
+
+        if (search_range == "") {
+            alert("請輸入篩選條件。");
+            return false;
+        }
+        $(".gridview tr").hide();
+        $("tr[name='head']").show();
+
+        //全部/己DC/未DC
+        if (search_range == "select_del_order")
+            $("tr[dc_flag='" + "Y" + "']").show();
+        if (search_range == "select_all_order")
+            $("tr[dc_flag='Y'], tr[dc_flag='N']").show();
+        if (search_range == "select_act_order")
+            $("tr[dc_flag='" + "N" + "']").show();
+    }
+
+
+</script>
+<style type="text/css">
+    table {
+        font-size: 13px;
+        border-collapse: collapse;
+    }
+
+    th {
+        background: #FFE599;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    td {
+        /*background: #faf0d3;*/
+        text-align: left;
+        vertical-align: middle;
+        padding: 1px;
+    }
+</style>
+<form method="post" action="Med_QueryOrder">
+    <table border="0" style="width:100%;font-size:12pt;">
+        <tr>
+            <td style="background-color:#fff">
+                @{
+                    PatientInfo piInfo = (PatientInfo)Session["PatInfo"];
+                    @:床號：@(piInfo.BedNo)&emsp;
+                    @:病歷號：@(piInfo.ChartNo)&emsp;
+                    @:姓名：@(piInfo.PatientName)
+                }
+                <div>
+                    <input type="radio" id="select_act_order" name="search_range" value="select_act_order" checked />未DC
+                    <input type="radio" id="select_del_order" name="search_range" value="select_del_order" />已DC
+                    <input type="radio" id="select_all_order" name="search_range" value="select_all_order" />全部
+                    <input type="button" name="search_but" value="篩選" id="search_but" style="width:50px" onclick="find_medcode()" />
+                </div>
+            </td>
+            <td style="text-align:right;background-color:#fff"><label>@DateTime.Now</label></td>
+        </tr>
+    </table>
+    <div class="gridview">
+        <table border="1" style="width:100%">
+            <tr cellpadding="1" cellspacing="0"  name="head">
+                @*<th></th>*@
+                <th>開始日期</th>
+                <th>結束日期</th>
+                @*<th width="30">狀態</th>*@
+                <th>藥品代碼</th>
+                <th>藥品名稱</th>
+                <th>劑量</th>
+                <th>單位</th>
+                <th>頻次</th>
+                <th>途徑</th>
+                <th>流速</th>
+                <th>備註</th>
+            </tr>
+            @foreach (DataRow r in dt_all.Rows)
+            {
+                string clo = "#faf0d3", DC_flag = "", tmpDCDate="", tmpNow="";
+                if (r["DC_DATE"].ToString().Trim() != null && r["DC_DATE"].ToString().Trim() != "")
+                {
+                    //用 -1911 會有閏年的問題 edit by wawa
+                    //System.Globalization.CultureInfo TWTimeFormat = new System.Globalization.CultureInfo("zh-TW");
+                    //TWTimeFormat.DateTimeFormat.Calendar = new System.Globalization.TaiwanCalendar();
+                    //DateTime NowDateTmp = Convert.ToDateTime(DateTime.Now.ToString(TWTimeFormat));
+                    var taiwanCalender = new System.Globalization.TaiwanCalendar();
+                    var NowDateTmp = Convert.ToInt64(string.Format("{0}{1}",
+                                                    taiwanCalender.GetYear(DateTime.Now),
+                                                    DateTime.Now.ToString("MMddHHmm")
+                                                    ));
+                    DC_flag = "N";
+                    if (r["DC_DATE"].ToString().Trim() != "000/00/00" && Convert.ToInt64(r["END_DATE"].ToString().Substring(0, 3) + r["END_DATE"].ToString().Substring(3, 2) + r["END_DATE"].ToString().Substring(5, 2) + r["END_TIME"].ToString().Substring(0, 2) + r["END_TIME"].ToString().Substring(2, 2)) < NowDateTmp)
+                    {
+                        clo = "#c6eea6";
+                        DC_flag = "Y";
+                    }
+                }
+                <tr style="background:@clo" dc_date="@r["DC_DATE"].ToString().Trim()" dc_time="@tmpDCDate" nowd="@tmpNow" medpath="@r["UD_PATH"].ToString().Trim()" dc_flag="@DC_flag">
+                    @*<td><input type="button" value="藥典" onclick="pup_window('med_pharmacopoeia?MedCode=@(r["MED_CODE"].ToString().Trim())');" /></td>*@
+                    <td>@r["BEGIN_DATE"]<br />@r["BEGIN_TIME"]</td>
+                    <td>@r["DC_DATE"]<br />@r["DC_TIME"]</td>
+                    @*<td>@r["UD_STATUS"]</td>*@
+                    <td>@r["MED_CODE"]</td>
+                    <td>@r["MED_DESC"]</td>
+                    <td>@r["UD_DOSE"]</td>
+                    <td>@r["UD_UNIT"]</td>
+                    <td>@r["UD_CIR"]</td>
+                    <td>@r["UD_PATH"]</td>
+                    <td>@r["FLOW_SPEED"]</td>
+                    <td>@r["UD_CMD"]</td>
+                </tr>
+            }
+        </table>
+    </div>
+</form>

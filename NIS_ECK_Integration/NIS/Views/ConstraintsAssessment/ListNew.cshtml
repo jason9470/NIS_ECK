@@ -1,0 +1,738 @@
+﻿@{
+    //Layout = "~/Views/Layout/Main.cshtml";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string RootDocument = ViewBag.RootDocument;
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if(complement_List.Status) { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (@pf != null)
+        {
+            if(pf.InDate > mindate)
+            { mindate = pf.InDate; }
+        }
+    }
+    string Category = ViewBag.Category;
+    string loginempno = ViewBag.login;
+    string feeno = ViewBag.feeno;
+    string feq = ViewBag.feq;
+    string bind_id = ViewBag.BINDTABLE_id;
+    DataTable dt_a = ViewBag.dt_a;
+    DataTable dt = ViewBag.dt;
+    DataTable dt_s = ViewBag.dt_s;
+
+    string list = ViewBag.list;
+    //var i = 0;
+    string lastStartDt = ViewBag.lastStartDt;
+    string feqdt = ViewBag.feqdt;
+    string sfeqdt = ViewBag.sfeqdt;
+    if(feqdt == null || feqdt == "")
+    { feqdt = DateTime.Now.ToString(); }
+    string val = "";
+    string color = "", display="";
+    string lastmodid = ViewBag.lastmodid;
+    string lastmodname = ViewBag.lastmodname;
+    //取得最大的約束次數
+    string bounttime = "1";
+    if(dt_a != null && dt_a.Rows.Count > 0)
+    {
+        for(int n = 0; n < dt_a.Rows.Count - 1; n++)
+        {
+            DataRow r = dt_a.Rows[n];
+            bounttime = r["BOUT"].ToString();
+        }
+    }
+}
+<style type="text/css">
+    .dataArea
+    {
+        /*overflow-x: auto;
+        overflow-y: auto;*/
+        border-top: 2px solid #666;
+        border-bottom: 2px solid #666;
+        border-left: 1px solid rgba(20%,20%,40%,0.5);
+    }
+
+        .dataArea td
+        {
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+            text-align: left;
+            white-space: pre-line;
+        }
+
+    .popup
+    {
+        width: auto;
+        height: auto;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -200px 0 0 -200px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    #Block
+    {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        $(".voiceHistory").on("click", function () {
+            $("#voiceBtnId").val($(this).attr("voiceHistoryId"));
+            var popData = {
+                url: $(this).attr("title"),
+                width: 700,
+                height: 700
+            };
+
+            popWindow(popData);
+
+        });
+
+        function popWindow(data) {
+            new_window.push(
+                window.open(
+                    data.url +'?source=ListNew',
+                    'top_dialog',
+                    'menubar=no,status=no,scrollbars=yes,top=0,left=200,resizable=yes,toolbar=no,width=' + data.width + ',height=' + data.height
+                )
+            );
+        }
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+        $('.due').css('background', '#FF6666');
+    }
+    var newindex = 0;
+
+    //檢查資料是否有空白
+    function checkitemdata() {
+        var msg = "";
+        $("#item_body").find("tr").each(function () {
+            var text = Trim($(this).find("input[name=p_name]").val());
+            var value = Trim($(this).find("input[name=p_value]").val());
+            if (text == "" || value == "") {
+                msg += "編號" + $(this).attr("editid");
+                if (text == "")
+                    msg += "【顯示文字】";
+                if (value == "")
+                    msg += "【值】";
+                msg += "不可為空白\n";
+            }
+        });
+        return msg;
+    }
+    function check(num) {
+        if (num == 0)
+            return true;
+        else {
+            alert("已有評估 不可刪除");
+            return false;
+        }
+        return true;
+    }    
+    function checkend() {
+        endtime= $("#end_day").val() +" "+ $("#end_time").val()+":00";      
+
+        //若結束時間與最後一筆評估有差異，則展開剩餘的約束
+        if (endtime > $("#lastStartDt").val()){
+            var etime = new Date(endtime);
+            var ltime = new Date($("#lastStartDt").val());
+            //計算差異的分鐘數
+            var diff = parseInt(etime.getTime() - ltime.getTime())/(1000 * 60);
+            var feq = '@feq';
+            var bout = '@bounttime'; 
+            var bind_id = '@bind_id';
+            var lastmodid = '@lastmodid';
+            var lastmodname = '@lastmodname';
+            var sfeqdt = $("#lastStartDt").val();
+            var feqdt = endtime;
+            //alert("etime:"+etime+";ltime:"+ltime);
+            //alert('diff='+diff+';feq='+feq);
+            if (feq != ''){
+                //if(diff > feq ){
+                //    alert(parseInt(diff)-parseInt(feq));
+                //    if (feq == 0 && parseInt(diff)-parseInt(feq)<30)
+                //    {
+                //        return true;
+                //    }
+                //}
+                if (feq == 0 && parseInt(diff)-parseInt(feq)<30)
+                {
+                    return true;
+                }
+                else{
+                    if (feq < diff)
+                    {
+                        feq = 30;
+                        //alert('@*@bounttime*@');
+                        alert('尚有未完成之約束評估');
+                        //alert('../ConstraintsAssessment/AssessNew?id=' + bind_id + '&lastmodid=' + lastmodid + '&lastmodname=' + lastmodname + '&start=' + sfeqdt + '&bout=' + bout + '&feqDT=' + feqdt + '&feq=' + feq + '&status=batch');
+                        window.location.href='../ConstraintsAssessment/AssessNew?id=' + bind_id + '&lastmodid=' + lastmodid + '&lastmodname=' + lastmodname + '&start=' + sfeqdt + '&bout=' + bout + '&feqDT=' + feqdt + '&feq=' + feq + '&status=batch';
+                        return false;
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+            }else
+                return true;
+
+        }else{
+            if (endtime == $("#lastStartDt").val())
+            {
+                return true;
+            }
+            else
+                alert("結束時間內已有評估 請選至"+  $("#lastStartDt").val()+"之後的時間");
+            return false;
+        }
+
+        if (endtime = $("#lastStartDt").val())
+            return true;
+    }
+    function doing(id,bindid,saveid) {
+        $("#but").val(id);
+        if(bindid != null && bindid != "")
+        {
+            $("#bindid").val(bindid);
+            $("#saveid").val(saveid);
+        }
+        //delend刪除結束註記
+        //del刪除
+        //delFeq刪除評估記錄
+        return true;
+    }
+    //彈出div
+    function showPopup(id) {
+        // $('#'+ id).css("display", "inline");
+        var popup = document.getElementById(id);
+        popup.style.display = 'block';
+        // alert(id);
+        $("#Block").show();
+    }
+
+    //隱藏div
+    function HidePopup()
+    {
+        $("#Block").hide();
+    }
+
+    function addn(obj) {
+        changeTextById('rowid',$(obj).attr('rowid'));
+        changeTextById('startdt',$(obj).attr('startdt'));
+        ////document.getElementById('status').innerText = $(obj).attr('wound_type'); 
+        ////document.getElementById('wound_id').innerText = $(obj).attr('wound_id');
+    }
+
+    function changeTextById(elementId,changeVal){
+        /*----------------------解決innerText在各瀏覽器有些不相容的情況--------------------------*/
+        var elem = document.getElementById(elementId);
+        if(elem.textContent != undefined){
+            elem.textContent = changeVal;
+        }else{
+            elem.innerText = changeVal;
+        }
+    }
+
+    function going() {
+        rowid=$("#rowid").val();
+        startdt=$("#startdt").val();
+        feq=$("#select_feq").val();
+        //  alert(feq);
+        var goUrl = 'AssessNew?id='+rowid+'&start='+startdt+'&feq='+feq;
+        //if (id != '')
+        //{
+        //    goUrl+='?id='+id
+        //}        
+        //window.location.href=goUrl;
+        $(".tabContent").load(goUrl).fadeIn(500);
+    }
+    //function turn_pdf(feeno) {
+    //    var url = '/Print_List_PDF?feeno='+feeno;
+    //    $.ajax({
+    //        type: "POST",
+    //        url: 'Html_To_Pdf',
+    //        data: { "url": window.location.href.replace('/ListNew', url) },
+    //        success: function (reslut) { document.write(reslut); }
+    //    });
+    //}
+
+    function SelectStartDateBOUT(id)
+    {
+        loop_windows("open_cover");
+        $.ajax({
+            type: 'GET',
+            url: '@Url.Content("~/ConstraintsAssessment/ConstraintsList")',
+            data:{id:id},
+            cache:false,
+            async:false,
+            success: function (data) {
+                if (data != '') {
+                    $('#ConstraintsList').html(data);
+                }
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    function PrintPDF() {
+        window.open("@(RootDocument)/Print/GetPDF?url=@(RootDocument)/ConstraintsAssessment/PrintList?feeno=@(feeno)&filename=test");
+    }
+</script>
+@using System.Data;
+@{  
+    DateTime start = Convert.ToDateTime(ViewBag.start);
+    DateTime end = Convert.ToDateTime(ViewBag.end);
+    if(start == DateTime.MinValue)
+    { start = DateTime.Now; }
+    if(end == DateTime.MinValue)
+    { end = DateTime.Now; }          
+     <script type="text/javascript">              
+         $(document).ready(
+        function () {
+            $('#start_date').datetimepicker({ showTimepicker: false, maxDateTime: 0});
+            $('#end_date').datetimepicker({ showTimepicker: false, maxDateTime: 0});
+            setGridColor();
+            $("#frequency").children().each(function () {                
+                if ($(this).text() == "@feq"+"分鐘") {                     
+                    //jQuery給法              
+                    $(this).attr("selected", "true"); //或是給"selected"也可
+                }
+            });}
+        );
+     </script>
+}
+<div class="funcArea">
+<form id="form1" method="post" action="ListNew"> 
+    
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+      
+    <tr>     
+        <td style="width:100%;text-align:center;padding:0 0 5px 0;">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+                <tr>
+              @*  <td style="width:40%;">
+                     <fieldset>
+                                    <legend>查詢區間</legend>
+                                    @(Html.TextBox("stDate", start.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                                    @(Html.TextBox("stTime", start.ToString("HH:mm"), new { @style = "width:35px" }))
+                                    ~
+                                    @(Html.TextBox("edDate", end.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                                    @(Html.TextBox("edTime", end.ToString("HH:mm"), new { @style = "width:35px" }))
+
+                                    @WebTool.setDateTime("stDate", "stTime")
+                                    @WebTool.setDateTime("edDate", "edTime")
+                                    <input type="button" value="查詢" onclick="" />
+                          <br />
+                            @Html.CheckBox("ck_ass", new { text = "只顯示未評估清單", id = "ck_ass", onclick = "" })
+                            @Html.Label("ck_ass", "只顯示未評估清單")
+                             <input type="button" value="批次修改" onclick="" />
+                       </fieldset>
+                </td>*@
+                <td  style="width:100%;text-align:center;">
+              <input id="but" type="hidden"  value="" name="but"/> 
+                  <input id="saveid" type="hidden"  value="" name="saveid"/> 
+                <input id="bindid" type="hidden"  value="" name="bindid"/> 
+        
+                      <input type="hidden" name="startdt" id="startdt"  />
+                  <input type="hidden" name="rowid" id="rowid"  />
+                @if(dt_a != null && dt_a.Rows.Count > 0)
+                {
+                    //DataRow r = dt_a.Rows[dt_a.Rows.Count - 1];
+                    DataRow r = dt_a.Rows[0];
+                    if(r["ENDDT"].ToString().Trim() != null && r["ENDDT"].ToString().Trim() != "")
+                    {
+                         <input type="button" value="新增約束"  onclick="addn(this);showPopup('start_dt')"; />
+                    @*<input type="button" value="新增約束" onclick="@Java_funcion.pup_window("InsertDate?ver=start", 400, 400, "")" />*@}
+                    else
+                    {  
+                        <input type="button" value="結束約束"  onclick="addn(this);showPopup('end_dt')"; />@*                                                                                                              
+                   @* <input type="button" value="結束約束" onclick="@Java_funcion.pup_window("InsertDate?ver=end&start=" + r["STARTDT"] + "&id=" + r["ID"], 400, 400, "")" />
+               
+                        <input type="button" startdt="@r["STARTDT"]" rowid="@r["ID"]"  value="約束時間設定" onclick="addn(this);showPopup('dv_new')"; />*@
+                      <input type="button" value="新增評估記錄"  onclick="addn(this);showPopup('add_feq')"; />
+                    }
+
+                }
+                else
+                { 
+                    @*<input type="button" value="新增約束" onclick="@Java_funcion.pup_window("InsertDate?ver=start", 400, 400, "")" />*@ 
+                   <input type="button" value="新增約束"  onclick="addn(this);showPopup('start_dt')"; />
+                }           
+               @* <input type="button" value="列印約束評估紀錄表" onclick="window.location.href = 'Print'" />*@
+                    
+                 <input type="button" value="批次修改未完成評估" style="width:140px;" onclick="addn(this);showPopup('q_dt');" />
+                  <input type="button" value="列印" style="width:80px;" onclick="PrintPDF();" />@*turn_pdf('@(feeno)');*@
+                    <span class="voiceHistoryBtn">
+                        <input type="button"
+                               class="btn btn-primary voiceHistory voiceBtn"
+                               value="語音歷程"
+                               title="VoiceHistory">
+                        <input type="hidden" id="voiceBtnId" value="" />
+                    </span>
+
+                </td>
+                </tr>
+            </table>        
+        
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="padding:5px 0 5px 0;">            
+            <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tr>
+                <td>
+                    <div class="dataHeader">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+                            <tr>                           
+                                <td style="width: 10%;">次數</td>
+                                <td style="width: 20%;">約束方式</td>
+                                <td style="width: 30%;">開始日期</td>
+                                <td style="width: 30%;">結束日期</td>
+                                 @*@if(Category == "AD" )*@
+                                 <td style="width: 10%;">刪除</td> 
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="dataArea" style="height: 100px;">
+                        <table id="table_io" border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;vertical-align:middle;background-color: #FFFFFF;overflow:scroll;">
+                              @if(dt_a != null && dt_a.Rows.Count > 0)
+                              {
+                                //改成 要展出所有主表，為了顯示完成約束的資料
+                                  for(int n = 0; n < dt_a.Rows.Count; n++)
+                                  {
+                                      DataRow r = dt_a.Rows[n];
+                                  <tr class="@r["ASSESS"]" tempid="@(r["ID"])"  onclick="SelectStartDateBOUT('@(r["ID"])');">@*$('#ConstraintsList').load('ConstraintsList?id=@r["ID"]'); *@
+                                            <td style="width: 10%;">
+                                                @r["BOUT"]
+                                            </td>
+                                            <td style="width: 20%;">
+                                                @Html.Raw(r["REASON"])@if(!string.IsNullOrEmpty(r["REASON_OTHER"].ToString())){@Html.Raw(":" + r["REASON_OTHER"])}
+                                            </td>
+                                            <td style="width: 30%;">
+                                             @r["STARTDT"]
+                                            </td>
+                                            <td style="width: 30%;">
+                                                @r["ENDDT"]
+                                            </td>
+                                         @if (Category == "ND" || Category == "AD" || @r["countrow"].ToString().Trim() == "0")
+                                         {
+                                             <td style="width: 10%; text-align: center;">
+                                                <input type="button" value="刪除" onclick="if(confirm('確定刪除?')){doing('del','@r["ID"]','@r["ID"]');$('#form1').attr('action','DelListNew');submit();}" />
+                                            </td> 
+                                         }else
+                                         {
+                                         <td style="width: 10%; text-align: center;">
+                                              
+                                            </td> 
+                                         }
+                                        </tr>
+                                  }
+                              }                              
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:5px 0 5px 0;">
+            <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="box" style="width:100%;font-size:12px;">
+           <tr>
+                <td>
+                    <div class="dataHeader">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+                            <tr>
+                                <td style="width:6%;"></td>
+                                <td style="width:8%;">評估日期</td>
+                                <td style="width:13%;">約束方式</td>
+                                <td style="width:13%;">約束部位</td>
+                                <td style="width:7%;">脈搏</td>
+                                <td style="width:7%;">約束鬆緊程度</td>
+                                <td style="width:7%;">肢體末端溫度</td>
+                                <td style="width:5%;">顏色</td>
+                                <td style="width:5%;">皮膚完整性</td>
+                                <td style="width:6%;">感覺度</td>
+                                <td style="width:9%;">鬆除約束、翻身、肢體活動、清潔</td>
+                                <td style="width:7%;">備註</td>
+                                <td style="width:7%;">紀錄者</td>
+                          </tr>
+                        </table>
+                    </div>
+                    <div class="dataArea" id="ConstraintsList" style="height: 210px;">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;vertical-align:middle; background-color: #FFFFFF;">
+                            @if(dt != null && dt.Rows.Count > 0)
+                            {
+                                foreach(DataRow r in dt.Rows)
+                                {
+                                    if((r["ASSESS"].ToString().Trim() != null && r["ASSESS"].ToString().Trim() == "0") || r["MODNAME"].ToString().Trim() == "")
+                                    { color = "due";  }
+                                    else
+                                    { color = ""; }
+                                    if(r["FEQ"].ToString().Trim() != null && r["FEQ"].ToString().Trim() == "0")
+                                    {
+                                        display = "none";
+                                    }
+                                    else 
+                                    {
+                                        display = "";
+                                    }
+                                <tr style="text-align:center;display:@(display);"; class="@(color)" >                                                                   
+                                  <td style="width:6%;text-align:center;vertical-align:top;white-space:nowrap;">
+                                      @*@if(Category == "AD")*@
+                                      @if(loginempno.Trim() == r["MODID"].ToString().Trim() && r["MODNAME"].ToString().Trim() != "")
+                                      {
+                                          if(r["FEQ"].ToString() != "0")
+                                          { 
+                                            <input type="button" value="刪除" onclick="if(confirm('確定刪除?'))if(doing('delFeq','@(r["BINDID"])','@(r["ID"])')){$('#form1').attr('action','DelListNew')};submit();" />
+                                          }
+                                       }
+                                      @Html.Raw("<p></p>")
+                                        @if(loginempno.Trim() == r["MODID"].ToString().Trim() || (r["MODNAME"].ToString().Trim() == ""))
+                                        {
+                                            if(r["FEQ"].ToString() != "0")
+                                            { 
+                                        <input type="button" value="更改" onclick="window.location.href = 'AssessNew?feq=@r["FEQ"]&bindid=@r["BINDID"]'" />
+                                            }
+                                        @* 
+                                        <input type="button" value="刪除" onclick="if(confirm('確定刪除?'))if(doing('delFeq','@r["BINDID"]','@r["ID"]')){$('#form1').attr('action','DelListNew')};submit();" />*@
+                                        }
+                                       @* <input type="button" value="更改" onclick="window.location.href = 'AssessNew?feq=@r["FEQ"]&bindid=@r["BINDID"]'" /> 
+                                        <input type="button" value="刪除" onclick="if(confirm('確定刪除?'))if(doing('delFeq','@r["BINDID"]','@r["ID"]'))submit();" />*@
+                                    </td>
+                                    <td style="width:8%;" title="@r["INSID"].ToString().Trim()">@r["ASSESSDT"]</td>
+                                    @{
+                                        string Temp_REASON_OTHER = string.Empty;
+                                        if(r["REASON_OTHER"].ToString() != "")
+                                        {
+                                            Temp_REASON_OTHER = ":" + r["REASON_OTHER"].ToString();
+                                        }
+                                    <td style="width:13%;">@r["REASON"]@(Temp_REASON_OTHER)            
+                                    </td>
+                                    }
+                                    @{
+                                        string Temp_CONSCIOUS_OTHER = string.Empty;
+                                        if(r["CONSCIOUS_OTHER"].ToString() != "")
+                                        {
+                                            Temp_CONSCIOUS_OTHER = ":" + r["CONSCIOUS_OTHER"].ToString();
+                                        }
+                                    <td style="width:13%;">@(r["CONSCIOUS"])@(Temp_CONSCIOUS_OTHER)
+                                    </td>
+                                    }
+                                    <td style="width:7%;">@r["PULSE"]
+                                    </td>
+                                    <td style="width:7%;">@r["TIGHTNESS"]
+                                    </td>
+                                    <td style="width:7%;">@r["TEMPERATURE"]
+                                    </td>
+                                    <td style="width:5%;">@r["COLOUR"]
+                                    </td>
+                                    <td style="width:5%;">@r["INTEGRITY"]
+                                    </td>
+                                    <td style="width:6%;">@r["FEELING"]
+                                    </td>
+                                    <td style="width:9%;">@r["REMOVE"]
+                                    </td>
+                                    <td style="width:7%;">@r["REMARK"]
+                                    </td>
+                                    <td style="width:7%;">
+                                        @if(@r["MODNAME"].ToString().Trim() != null && @r["MODNAME"].ToString().Trim() != "")
+                                        {
+                                            @r["MODNAME"]
+                                        }
+                                        else
+                                        {
+                                            @r["INSNAME"]
+                                        }
+                                    </td>
+                                </tr>
+                                }
+                            }
+                        </table>
+                    </div>
+                </td>
+            </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+ 
+   
+</form>
+    </div>
+<form  method="post" action="StartDate"> 
+    <div  id="start_dt" class="popup funcArea"  style="width:400px; height:100px; display:none;text-align:center;">
+            <span class="p_close"><img src="~/Images/Close.png" alt="關閉" onclick="$('#start_dt').fadeOut(500);HidePopup();"/></span>
+       <table style="width:100%;text-align:center;">
+           <tr>
+             <tr>                     
+                    <td style="height:30px;padding:4px 7px 2px 4px;text-align:center;">     
+                        開始日期時間:
+                        @Html.TextBox("start_day", @DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px" })
+                        @Html.TextBox("start_time", @DateTime.Now.ToString("HH:mm"), new { style = "width:50px" })
+                        @*@WebTool.setDateTime("start_day", "start_time", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@                     
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_day", "start_time", true)
+                    </td>
+                </tr>
+             </table>
+        <input type="button" value="確定" onclick="$('#start_dt').fadeOut(500);submit();" />
+        <!--簽署同意書 記得要換pdf網址-->
+                @*<input type="button" value="確定" onclick="$('#start_dt').fadeOut(500);@Java_funcion.pup_window("../Images/BMI/Young.pdf", 900, 600, "0");submit();" />*@
+                <input type="button" value="取消" onclick="    if (confirm('確定取消')){$('#start_dt').fadeOut(500);HidePopup();}" />      
+    </div>
+</form>
+<form  method="post" action="EndDate"> 
+    <div  id="end_dt" class="popup funcArea"  style="width:400px; height:100px; display:none;text-align:center;">
+            <span class="p_close"><img src="~/Images/Close.png" alt="關閉" onclick="$('#end_dt').fadeOut(500);HidePopup();"/></span>
+       <table style="width:100%;text-align:center;">
+           
+             <tr>                     
+                    <td style="height:30px;padding:4px 7px 2px 4px;text-align:center;">     
+                        結束約束時間:
+                        @Html.TextBox("end_day", @DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px" })
+                        @Html.TextBox("end_time", @DateTime.Now.ToString("HH:mm"), new { style = "width:50px" })
+                        @*@WebTool.setDateTime("end_day", "end_time", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@  
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_day", "end_time", true)                   
+                        <input type="hidden" name="bind_id" value="@bind_id"   />
+                          <input id="feq" type="hidden"  value="@feq" name="feq"/> 
+                      
+                   <input id="lastStart" type="hidden"  value="@lastStartDt" name="lastStart"/> 
+                       <input  type="hidden"  value="@feqdt" name="endfeqdt"/> 
+                    <input type="hidden"  value="@lastmodid" name="endlastmodid"/> 
+                    <input  type="hidden"  value="@lastmodname" name="endlastmodname"/> 
+                       
+                    </td>
+                </tr>        
+        </table>
+                <input type="button" value="確定" onclick="$('#end_dt').fadeOut(500);if(checkend())submit();" />
+                <input type="button" value="取消" onclick="if (confirm('確定取消')){$('#end_dt').fadeOut(500);HidePopup();}" />
+    </div>
+</form>
+<form  method="post" action="AddFeq"> 
+    <div id="add_feq" class="popup"  style="width:400px; height:200px; display:none;">
+    <span class="p_close"><img src="~/Images/Close.png" alt="關閉" onclick="$('#add_feq').fadeOut(500);HidePopup();"/></span>
+      <div class="funcArea" style="width:100%;text-align:center;">
+        <table style="width:100%;text-align:center;">        
+               <tr style="width:100%;text-align:center;">                  
+                    <td style="height:30px;padding:4px 7px 2px 4px;text-align:center;">     
+                        <br /><br /><br />
+                               <b>設定評估頻率:</b>      
+                        <select id="frequency" name="frequency">
+                            <option value="15">15分鐘</option>
+                            <option value="30">30分鐘</option>
+                            <option value="60">60分鐘</option>
+                        </select>                                         
+                    </td>
+                </tr>          
+            <tr>
+                <td>
+                     <b>設定約束區間</b>      
+                      @Html.TextBox("feq_day", (Convert.ToDateTime(feqdt).ToString("yyyy/MM/dd")), new { style = "width:80px" })
+                      @Html.TextBox("feq_time", (Convert.ToDateTime(feqdt).ToString("HH:mm")), new { style = "width:50px" })
+                      @*@WebTool.setDateTime("feq_day", "feq_time", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@  
+                      @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "feq_day", "feq_time", true) 
+                    @*<script type="text/javascript">
+                        setDateTime("feq_day", "feq_time");
+                    </script>*@
+                     <input type="hidden" name="bind_id" value="@bind_id"   />
+                     <input id="lastStartDt" type="hidden"  value="@lastStartDt" name="lastStartDt"/> 
+                        <input id="feqdt" type="hidden"  value="@feqdt" name="feqdt"/> 
+                    <input id="sfeqdt" type="hidden"  value="@sfeqdt" name="sfeqdt"/> 
+                    <input id="lastmodid" type="hidden"  value="@lastmodid" name="lastmodid"/> 
+                    <input id="lastmodname" type="hidden"  value="@lastmodname" name="lastmodname"/> 
+                     
+                
+                </td>
+            </tr>  
+        </table>   
+                         <br />             
+             <input type="button" value="確定" onclick="$('#add_feq').fadeOut(500);submit();" />
+         @* <input type="button" value="確定" style="width:80px;" onclick="$('#add_feq').fadeOut(500);going();" />*@
+        </div>
+    </div>
+</form>
+<form  method="post" action="QuiryDate"> 
+    <div  id="q_dt" class="popup funcArea"  style="width:400px; height:100px; display:none;text-align:center;">
+            <span class="p_close"><img src="~/Images/Close.png" alt="關閉" onclick="$('#q_dt').fadeOut(500);HidePopup();"/></span>
+       <table style="width:100%;text-align:center;">
+           <tr>
+             <tr>                     
+                    <td style="height:30px;padding:4px 7px 2px 4px;text-align:center;">     
+                        批次修改未評評估:
+                        <br />
+                        @(Html.TextBox("stDate", start.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                        @(Html.TextBox("stTime", start.ToString("HH:mm"), new { @style = "width:35px" }))
+                        ~
+                        @(Html.TextBox("edDate", end.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                        @(Html.TextBox("edTime", end.ToString("HH:mm"), new { @style = "width:35px" }))
+                        @*@WebTool.setDateTime("stDate", "stTime", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                        @*@WebTool.setDateTime("edDate", "edTime", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "stDate", "stTime", true)
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "edDate", "edTime", true)
+                    </td>
+                </tr>
+             </table>
+                <input type="button" value="確定" onclick="$('#q_dt').fadeOut(500);submit();" />
+                <input type="button" value="取消" onclick="if (confirm('確定取消')){$('#q_dt').fadeOut(500);HidePopup();}" />      
+    </div>
+</form>
+<div id="Block"></div>
+<div id="loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

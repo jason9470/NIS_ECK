@@ -1,0 +1,142 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    int x = 0;
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+}
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+    });
+    function setGridColor() {
+        //格行換色
+        $('.dataArea_PDF tr:odd').css('background', '#ABC8E2');
+        $('.dataArea_PDF tr:even').css('background', '#E1E6FA');
+    }
+</script>
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+<form id="edu_form" action="Score" method="post">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style=" width:100%; font-size:14px;">
+            <tr>
+                <td>
+                    <div style="text-align:center">
+                        <b><label style="font-size:20px;">譫妄評估總表</label></b>
+                    </div>
+                    <table border="0" style="width:100%;">
+                        <tr>
+                            <td>病人姓名：@ptinof.PatientName</td>
+                            @if (ptinof.Birthday != null)
+                            {
+                                <td>生日：@Convert.ToDateTime(ptinof.Birthday).ToString("yyyy/MM/dd")</td>
+                            }
+                            else
+                            {
+                                <td>生日：</td>
+                            }
+                            <td>年齡：@(ptinof.Age)  &nbsp; 性別：@(ptinof.PatientGender)</td>
+                            @*<td>病床號：@ptinof.BedNo</td>*@
+                            <td colspan="2">病歷號：@ptinof.ChartNo</td>
+                        </tr>
+                        <tr>
+                            <td>科別：@ptinof.DeptName</td>
+                            <td>主治醫師：@ptinof.DocName</td>
+                            @if (ptinof.InDate != null)
+                            {
+                                <td>住院日期：@Convert.ToDateTime(ptinof.InDate).ToString("yyyy/MM/dd HH:mm") (@ptinof.InDay)</td>
+                            }
+                            else
+                            {
+                                <td>住院日期：</td>
+                            }
+                            <td colspan="2">診斷：@ptinof.ICD9_code1</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+
+                <td style="padding: 5px 0px 5px 0px;text-align:center;">
+                    <div class="dataHeader" style="margin-right:0px;">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;cursor:pointer;font-size: 14px;" onclick="">
+                            <tr>
+                                <td style="width:12.6%;">日期時間</td>
+                                <td style="width:8.3%;">評核原因</td>
+                                <td style="width:8.3%;">1a.與平常相比較，是否有任何證據顯示病人精神狀態產生急性變化?</td>
+                                <td style="width:8.3%;">1b.這些不正常的行為是否在一天中呈現波動狀態? 意即症狀來來去去或嚴重程度起起落落。</td>
+                                <td style="width:8.3%;">2.注意力不集中：病人是否集中注意力有困難? 例如容易分心或無法接續剛剛說過的話。</td>
+                                <td style="width:8.3%;">3.思考缺乏組織：病人是否思考缺乏組織或不連貫? 如雜亂或答非所問的對話、不清楚或不合邏輯的想法或無預期的從一個主題跳到另一個主題。</td>
+                                <td style="width:8.3%;">4.意識狀態改變： 整體而言，您認為病人的意識狀態為過度警覺、嗜睡、木僵或昏迷。</td>
+                                <td style="width:8.3%;">執行者</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="dataArea_PDF">
+                        @if (dt != null && dt.Rows.Count > 0)
+                        {
+                            @Html.Raw("<table border='0' cellpadding='4' cellspacing='1' style='width:100%;font-size:14px;background-color: #FFFFFF;'>")
+
+                            foreach (DataRow r in dt.Rows)
+                            {
+                                string[] TempStrScore = { "是", "否", "無法評估" };
+                                string TensionStr = "";
+                                if (!string.IsNullOrEmpty(r["TOTAL_SCORE"].ToString()))
+                                {
+                                    int tension = int.Parse(r["TOTAL_SCORE"].ToString());
+                                    int tension1 = int.Parse(r["SCORE_1A"].ToString());
+                                    int tension2 = int.Parse(r["SCORE_1B"].ToString());
+                                    int tension3 = int.Parse(r["SCORE_2"].ToString());
+
+                                    if (tension1 == 0 && tension2 == 0 && tension3 == 0 && (tension == 0 || tension == 1))
+                                    { TensionStr = "「有譫妄，提供譫妄照護，並通知醫療科」"; }
+                                    else
+                                    { TensionStr = "「無譫妄」"; }
+
+                                }
+                                else
+                                {
+                                    TensionStr = "";
+                                }
+                                string TempStr = "";
+                                TempStr = (r["RESULT"].ToString() != "「無譫妄」") ?
+                                r["RESULT"].ToString() : r["RESULT"].ToString();
+
+
+                                @Html.Raw("<tr>")
+                                @Html.Raw("<td style='width:12.6%;text-align:center;' rowspan='2'>")
+                                @Html.Raw(Convert.ToDateTime(r["ASSESS_DT"]).ToString("yyyy/MM/dd HH:mm"))
+                                @Html.Raw("</td>")
+                                if (@r["ASSESSMENT_REASON"].ToString() != "其他")
+                                {
+                                    @Html.Raw("<td style='width:8.3%;text-align:center;'>" + @r["ASSESSMENT_REASON"].ToString() + "</td>")
+                                }
+                                else
+                                {
+                                    @Html.Raw("<td style='width:8.3%;text-align:center;'>" + @r["REASON_OTHER"].ToString() + "</td>")
+                                }
+                                @Html.Raw("<td style='width:8.3%;text-align:center;'>" + ((!string.IsNullOrEmpty(r["SCORE_1A"].ToString())) ? (TempStrScore[Convert.ToInt32(r["SCORE_1A"])]) : "") + "</td>")
+                                @Html.Raw("<td style='width:8.3%;text-align:center;'>" + ((!string.IsNullOrEmpty(r["SCORE_1B"].ToString())) ? (TempStrScore[Convert.ToInt32(r["SCORE_1B"])]) : "") + "</td>")
+                                @Html.Raw("<td style='width:8.3%;text-align:center;'>" + ((!string.IsNullOrEmpty(r["SCORE_2"].ToString())) ? (TempStrScore[Convert.ToInt32(r["SCORE_2"])]) : "") + "</td>")
+                                @Html.Raw("<td style='width:8.3%;text-align:center;'>" + ((!string.IsNullOrEmpty(r["SCORE_3"].ToString())) ? (TempStrScore[Convert.ToInt32(r["SCORE_3"])]) : "") + "</td>")
+                                @Html.Raw("<td style='width:8.3%;text-align:center;'>" + ((!string.IsNullOrEmpty(r["SCORE_4"].ToString())) ? (TempStrScore[Convert.ToInt32(r["SCORE_4"])]) : "") + "</td>")
+                                @Html.Raw("<td style='width:8.3%;text-align:center;' colspan='2'>" + r["MODIFY_USER_NAME"] + "</td>")
+                                @Html.Raw("</tr>")
+                                @Html.Raw("<tr>")
+                                @Html.Raw("<td colspan='9' style='text-align:left;'>")
+                                @Html.Raw("<label>【結果】:</label>" + TempStr + "。")
+                                @Html.Raw("</td>")
+                                @Html.Raw("</tr>")
+                                {
+                                    x += 1;
+                                }
+                            }
+                            @Html.Raw("</table>")
+                        }
+</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>

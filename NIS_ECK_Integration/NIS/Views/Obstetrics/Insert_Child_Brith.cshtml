@@ -1,0 +1,1716 @@
+﻿@using NIS.Data
+@{
+    ViewBag.Title = "Insert_Child_Brith";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    PatientInfo ptinfo = ViewBag.ptinfo;
+    string feeno = ptinfo.FeeNo;
+    string userno = ViewBag.userno;
+    string RootDocument = ViewBag.RootDocument;
+    bool IsHisView = ViewBag.IsHisView;
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        height: 26px;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+        //設定高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 80);
+        }).trigger("resize");
+    });
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        if (obj.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(obj.value) && obj.value != "") {
+            $(obj).val('');
+            alert("只能輸入數字");
+        }
+    }
+
+    function setGridColor() {
+        //格行換色
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    function unable(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0; i < list.length; i++) {
+            if ($('#' + list[i]).type = 'text') {
+                document.getElementById(list[i]).disabled = true;
+                $('#' + list[i]).val('');
+            }
+            else if ($('#' + list[i]).type = 'checkbox')
+                document.getElementById(list[i]).checked = false;
+        }
+    }
+
+    function able(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0; i < list.length; i++) {
+            document.getElementById(list[i]).disabled = false;
+        }
+    }
+
+    function ckable(obj, id_list) {
+        var ck = obj;
+        if (ck.checked) { unable(id_list); }
+        else { able(id_list); }
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue != '') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+            }
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = document.getElementsByName(ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+    function get_employee_name(obj, name) {
+        var userno = $(obj).attr('id');
+
+        ///該使用者是否可以執行送簽動作///
+        var login_userno = '@(userno)';
+        var txt_clnurse_1 = $('#TXT_CLNURSE_1').val();
+        var txt_clnurse_2 = $('#TXT_CLNURSE_2').val();
+        if (login_userno == txt_clnurse_1 || login_userno == txt_clnurse_2) {
+            $('#Production_Record_Emr').prop('disabled', false);
+            $('#prompt').hide();
+        } else {
+            $('#Production_Record_Emr').prop('disabled', true);
+            $('#prompt').show();
+        }
+
+        $.ajax({
+            url: "Get_Employee_Name",
+            type: "GET",
+            data: { userno: document.getElementById(userno).value },
+            success: function (data, textStatus, jqXHR) {
+                var userNameId = userno.replace("TXT_" + name, "LB_" + name);
+                if (data == "") {
+                    alert("查無此執行者員工編號!");
+                    $("#" + userNameId).html('請輸入員工編號');
+                }
+                else {
+                    $("#" + userNameId).html(data);
+                }
+            },
+            error: function (err) {
+            },
+            dataType: 'text'
+        });
+    }
+
+    function add_new_child() {
+        var num = $('input[name=RB_CHILD_QUANTITY]:checked').val();
+        if (num != undefined) {
+            if (num == '99')
+                num = $('#child_quantity_other').val();
+            if (num != '') {
+                $("#block,#loading").show();
+                $("#new_child").empty();
+                $("#new_child").load('Add_New_Child?count=' + num + '&IsHisView=' + '@IsHisView' , function () {
+                    $("#block,#loading").hide();
+                    setGridColor();
+                });
+            }
+            else
+                alert('請輸入嬰兒資料');
+        }
+    }
+
+    $(document).ready(function () {
+        //會陰情形 && 裂傷程度
+        $('input:radio[name=RB_PERINEUM]').change(function () {
+            var rb = document.getElementsByName("RB_PERI_LAC");
+            switch (this.value) {
+                case '0':
+                    $("input[name = RB_PERI_LAC]").prop("disabled", "disabled")
+                    $("input[name = RB_PERI_LAC]").prop("checked", false)
+                    $(rb[0]).prop("checked", true);
+                    break;
+                case '1':
+                case '2':
+                    $("input[name = RB_PERI_LAC]").prop("disabled", false)
+                    $("input[name = RB_PERI_LAC]").prop("checked", false)
+                    $("#RB_PERI_LAC_0").prop("disabled", true)
+                    $("#RB_PERI_LAC_0E").prop("disabled", true)
+                    break;
+                case '3':
+                    $("input[name = RB_PERI_LAC]").prop("checked", false)
+                    $("input[name = RB_PERI_LAC]").prop("disabled", "disabled")
+                    break;
+                default:
+                    break;
+            }
+        })
+
+        $('input:radio[name=RB_BIRTH_NA]').change(function () {
+            if (this.value == '1') {
+                var name = this.name.replace('RB', 'TXT').replace('NA', '');
+                NA_Click(true, name)
+            }
+            else {
+                var name = this.name.replace('RB', 'TXT').replace('NA', '');
+                NA_Click(false, name)
+            }
+        })
+
+        //陣痛開始時間
+        $('input:checkbox[name=CK_PAIN_ST_NA]').change(function () {
+            var name = this.name.replace('CK', 'TXT').replace('NA', '');
+            var checked = this.checked;
+            NA_Click(checked, name)
+        })
+
+        //宮口全開時間
+        $('input:checkbox[name=CK_CERFO_TIME_NA]').change(function () {
+            var name = this.name.replace('CK', 'TXT').replace('NA', '');
+            var checked = this.checked;
+            NA_Click(checked, name)
+        })
+
+        //胎膜破裂時間
+        $('input:checkbox[name=CK_RFM_TIME_NA]').change(function () {
+            var name = this.name.replace('CK', 'TXT').replace('NA', '');
+            var checked = this.checked;
+            NA_Click(checked, name)
+        })
+
+        //進分娩室時間
+        $('input:checkbox[name=CK_DR_ETTIME_NA]').change(function () {
+            var name = this.name.replace('CK', 'TXT').replace('NA', '');
+            var checked = this.checked;
+            NA_Click(checked, name)
+        })
+
+        //胎盤娩出時間
+        $('input:checkbox[name=CK_DOP_TIME_NA]').change(function () {
+            var name = this.name.replace('CK', 'TXT').replace('NA', '');
+            var checked = this.checked;
+            NA_Click(checked, name)
+        })
+
+        //離開分娩室時間
+        $('input:checkbox[name=CK_DR_LVTIME_NA]').change(function () {
+            var name = this.name.replace('CK', 'TXT').replace('NA', '');
+            var checked = this.checked;
+            NA_Click(checked, name)
+        })
+
+        //進恢復室時間
+        $('input:checkbox[name=CK_RR_ETTIME_NA]').change(function () {
+            var name = this.name.replace('CK', 'TXT').replace('NA', '');
+            var checked = this.checked;
+            NA_Click(checked, name)
+        })
+
+        //出恢復室時間
+        $('input:checkbox[name=CK_RR_LVTIME_NA]').change(function () {
+            var name = this.name.replace('CK', 'TXT').replace('NA', '');
+            var checked = this.checked;
+            NA_Click(checked, name)
+        })
+    });
+
+    function NA_Click(checked, name) {
+        if (checked) {
+            $("input[name = " + name + "DAY]").val('')
+            $("input[name = " + name + "TIME]").val('')
+            $("input[name = " + name + "DAY]").prop("disabled", "disabled")
+            $("input[name = " + name + "TIME]").prop("disabled", "disabled")
+        } else {
+            var TodayTime = getTodayTime(new Date()).split(' ');
+            $("input[name = " + name + "DAY]").val(TodayTime[0])
+            $("input[name = " + name + "TIME]").val(TodayTime[1])
+            $("input[name = " + name + "DAY]").prop("disabled", false)
+            $("input[name = " + name + "TIME]").prop("disabled", false)
+        }
+    }
+
+    function getTodayTime(date) {
+        var month = (parseInt(date.getMonth()) + 1) < 10 ? '0' + (parseInt(date.getMonth()) + 1) : (parseInt(date.getMonth()) + 1);
+        var hours = date.getHours();
+        var minutes = date.getMinutes();
+        hours = hours < 10 ? '0' + hours : hours;
+        minutes = minutes < 10 ? '0' + minutes : minutes;
+        var strTime = hours + ':' + minutes;
+        return date.getFullYear() + "/" + month + "/" + date.getDate() + " " + strTime;
+    }
+
+    function check(source) {
+        if (source != true)
+            return;
+
+        var ok = false;
+        var input_list = $('#tabs-2 :input');
+        for (var j = 0; j < input_list.length; j++) {
+            if (input_list[j].type != "button" && input_list[j].name.indexOf("TXT_PHYSICIAN_2") < 0 && input_list[j].name.indexOf("TXT_CLNURSE_2") < 0 && input_list[j].name.indexOf("TXT_SRNURSE_2") < 0 && input_list[j].name.indexOf("TXT_NNP_2") < 0) {
+                var name = $(input_list[j]).attr('name');
+                //console.log(name);
+                if (name.indexOf("RB_CHILD_QUANTITY") >= 0)
+                    break;
+                //陣痛開始時間
+                if (name.indexOf('CK_PAIN_ST_NA') >= 0) {
+                    if ($("input[name=" + name.replace('CK_PAIN_ST_NA', 'TXT_PAIN_ST_DAY') + "]").val())
+                        continue;
+                    if ($('input[name=' + name.replace('CK_PAIN_ST_NA', 'RB_PAIN_ST_YN') + ']:checked').val() == "0")
+                        continue;
+                }
+                //宮口全開時間
+                else if (name.indexOf('CK_CERFO_TIME_NA') >= 0) {
+                    if ($("input[name=" + name.replace('CK_CERFO_TIME_NA', 'TXT_CERFO_TIME_DAY') + "]").val())
+                        continue;
+                    if ($('input[name=' + name.replace('CK_CERFO_TIME_NA', 'RB_CERFO_TIME_YN') + ']:checked').val() == "0")
+                        continue;
+                }
+                //胎膜破裂時間
+                else if (name.indexOf('CK_RFM_TIME_NA') >= 0) {
+                    if ($("input[name=" + name.replace('CK_RFM_TIME_NA', 'TXT_RFM_TIME_DAY') + "]").val())
+                        continue;
+                }
+                //進分娩室時間
+                else if (name.indexOf('CK_DR_ETTIME_NA') >= 0) {
+                    if ($("input[name=" + name.replace('CK_DR_ETTIME_NA', 'TXT_DR_ETTIME_DAY') + "]").val())
+                        continue;
+                }
+                //生產日期時間
+                else if (name.indexOf('RB_BIRTH_NA') >= 0) {
+                    if ($("input[name=" + name.replace('RB_BIRTH_NA', 'TXT_BIRTH_DAY') + "]").val())
+                        continue;
+                }
+                //胎盤娩出時間
+                else if (name.indexOf('CK_DOP_TIME_NA') >= 0) {
+                    if ($("input[name=" + name.replace('CK_DOP_TIME_NA', 'TXT_DOP_TIME_DAY') + "]").val())
+                        continue;
+                }
+                //離開分娩室時間
+                else if (name.indexOf('CK_DR_LVTIME_NA') >= 0) {
+                    if ($("input[name=" + name.replace('CK_DR_LVTIME_NA', 'TXT_DR_LVTIME_DAY') + "]").val())
+                        continue;
+                }
+                //進恢復室時間
+                else if (name.indexOf('CK_RR_ETTIME_NA') >= 0) {
+                    if ($("input[name=" + name.replace('CK_RR_ETTIME_NA', 'TXT_RR_ETTIME_DAY') + "]").val())
+                        continue;
+                }
+                //出恢復室時間 不檢核
+                else if (name.indexOf('CK_RR_LVTIME_NA') >= 0) {
+                        continue;
+                }
+                else if (name.indexOf('TXT_RR_LVTIME_DAY') >= 0) {
+                    continue;
+                }
+                else if (name.indexOf('TXT_RR_LVTIME_TIME') >= 0) {
+                    continue;
+                }
+                //先生沒陪產-原因
+                else if (name.indexOf('CK_NP_RS') >= 0) {
+                    if ($('input[name=' + name.replace('CK_NP_RS', 'RB_PATERNITY') + ']:checked').val() == "1")
+                        continue;
+                }
+                //羊水性質-胎便染色
+                else if (name.indexOf('RB_MECONIUM_COLOR') >= 0) {
+                    if ($('input[name=' + name.replace('RB_MECONIUM_COLOR', 'RB_RUPTURETYPE') + ']:checked').val() != "2")
+                        continue;
+                }
+                //裂傷程度
+                else if (name.indexOf('RB_PERI_LAC') >= 0) {
+                    if ($('input[name=' + name.replace('RB_PERI_LAC', 'RB_PERINEUM') + ']:checked').val() == "3")
+                        continue;
+                }
+                //NSD-Vacuum
+                else if (name.indexOf('RB_VACUUM_NSD') >= 0) {
+                    if ($('input[name=' + name.replace('RB_VACUUM_NSD', 'RB_BIRTH_TYPE') + ']:checked').val() == "1")
+                        continue;
+                }
+                //CS-Vacuum //CS-Note
+                else if (name.indexOf('RB_VACUUM_CS') >= 0 || name.indexOf('RB_CS_NOTE') >= 0) {
+                    if ($('input[name=' + name.replace('RB_VACUUM_CS', 'RB_BIRTH_TYPE').replace('RB_CS_NOTE', 'RB_BIRTH_TYPE') + ']:checked').val() == "0")
+                        continue;
+                }
+                //TXT_CS_MR //TXT_CS_OR
+                else if (name.indexOf('TXT_CS_MR') >= 0 || name.indexOf('TXT_CS_OR') >= 0) {
+                    if ($('input[name=' + name.replace('TXT_CS_MR', 'RB_BIRTH_TYPE').replace('TXT_CS_OR', 'RB_BIRTH_TYPE') + ']:checked').val() == "0")
+                        continue;
+                }
+                //終止妊娠-原因
+                else if (name.indexOf('CK_TOP_RS') >= 0) {
+                    if ($('input[name=' + name.replace('CK_TOP_RS', 'RB_TOP') + ']:checked').val() == "0")
+                        continue;
+                }
+                if (input_list[j].type == 'text' || input_list[j].type == 'textarea') {
+                    var input_val = $.trim(input_list[j].value);
+                    if (input_val != '' && input_val != undefined) {
+                        ok = true;
+                    } else {
+                        //陣痛開始時間
+                        if ((name.indexOf('TXT_PAIN_ST_DAY') >= 0 || name.indexOf('TXT_PAIN_ST_TIME') >= 0) && $('input[name=' + name.replace('TXT_PAIN_ST_DAY', 'CK_PAIN_ST_NA').replace('TXT_PAIN_ST_TIME', 'CK_PAIN_ST_NA') + ']:checked').val()) {
+                            continue;
+                        }
+                        else if ((name.indexOf('TXT_PAIN_ST_DAY') >= 0 || name.indexOf('TXT_PAIN_ST_TIME') >= 0) && $('input[name=' + name.replace('TXT_PAIN_ST_DAY', 'RB_PAIN_ST_YN').replace('TXT_PAIN_ST_TIME', 'RB_PAIN_ST_YN') + ']:checked').val() == "0") {
+                            continue;
+                        }
+                        //宮口全開時間
+                        else if ((name.indexOf('TXT_CERFO_TIME_DAY') >= 0 || name.indexOf('TXT_CERFO_TIME_TIME') >= 0) && $('input[name=' + name.replace('TXT_CERFO_TIME_DAY', 'CK_CERFO_TIME_NA').replace('TXT_CERFO_TIME_TIME', 'CK_CERFO_TIME_NA') + ']:checked').val()) {
+                            continue;
+                        }
+                        else if ((name.indexOf('TXT_CERFO_TIME_DAY') >= 0 || name.indexOf('TXT_CERFO_TIME_TIME') >= 0) && $('input[name=' + name.replace('TXT_CERFO_TIME_DAY', 'RB_CERFO_TIME_YN').replace('TXT_CERFO_TIME_TIME', 'RB_CERFO_TIME_YN') + ']:checked').val() == "0") {
+                            continue;
+                        }
+                        //胎膜破裂時間
+                        else if ((name.indexOf('TXT_RFM_TIME_DAY') >= 0 || name.indexOf('TXT_RFM_TIME_TIME') >= 0) && $('input[name=' + name.replace('TXT_RFM_TIME_DAY', 'CK_RFM_TIME_NA').replace('TXT_RFM_TIME_TIME', 'CK_RFM_TIME_NA') + ']:checked').val()) {
+                            continue;
+                        }
+                        //進分娩室時間
+                        else if ((name.indexOf('TXT_DR_ETTIME_DAY') >= 0 || name.indexOf('TXT_DR_ETTIME_TIME') >= 0) && $('input[name=' + name.replace('TXT_DR_ETTIME_DAY', 'CK_DR_ETTIME_NA').replace('TXT_DR_ETTIME_TIME', 'CK_DR_ETTIME_NA') + ']:checked').val()) {
+                            continue;
+                        }
+                        //生產日期時間
+                        else if ((name.indexOf('TXT_BIRTH_DAY') >= 0 || name.indexOf('TXT_BIRTH_TIME') >= 0) && $('input[name=' + name.replace('TXT_BIRTH_DAY', 'RB_BIRTH_NA').replace('TXT_BIRTH_TIME', 'RB_BIRTH_NA') + ']:checked').val()) {
+                            continue;
+                        }
+                        else if (name.indexOf("TXT_CS_OR") >= 0) {
+                            continue;
+                        }
+                        //胎盤娩出時間
+                        else if ((name.indexOf('TXT_DOP_TIME_DAY') >= 0 || name.indexOf('TXT_DOP_TIME_TIME') >= 0) && $('input[name=' + name.replace('TXT_DOP_TIME_DAY', 'CK_DOP_TIME_NA').replace('TXT_DOP_TIME_TIME', 'CK_DOP_TIME_NA') + ']:checked').val()) {
+                            continue;
+                        }
+                        //離開分娩室時間
+                        else if ((name.indexOf('TXT_DR_LVTIME_DAY') >= 0 || name.indexOf('TXT_DR_LVTIME_TIME') >= 0) && $('input[name=' + name.replace('TXT_DR_LVTIME_DAY', 'CK_DR_LVTIME_NA').replace('TXT_DR_LVTIME_TIME', 'CK_DR_LVTIME_NA') + ']:checked').val()) {
+                            continue;
+                        }
+                        //進恢復室時間
+                        else if ((name.indexOf('TXT_RR_ETTIME_DAY') >= 0 || name.indexOf('TXT_RR_ETTIME_TIME') >= 0) && $('input[name=' + name.replace('TXT_RR_ETTIME_DAY', 'CK_RR_ETTIME_NA').replace('TXT_RR_ETTIME_TIME', 'CK_RR_ETTIME_NA') + ']:checked').val()) {
+                            continue;
+                        }
+                        //出恢復室時間
+                        else if ((name.indexOf('TXT_RR_LVTIME_DAY') >= 0 || name.indexOf('TXT_RR_LVTIME_TIME') >= 0) && $('input[name=' + name.replace('TXT_RR_LVTIME_DAY', 'CK_RR_LVTIME_NA').replace('TXT_RR_LVTIME_TIME', 'CK_RR_LVTIME_NA') + ']:checked').val()) {
+                            continue;
+                        }
+                        //會陰情形-其他
+                        else if (name.indexOf('TXT_PERINEUM_OTH') >= 0) {
+                            if ($('input[name=' + name.replace('TXT_PERINEUM_OTH', 'RB_PERINEUM') + ']:checked').val() == "3") {
+                                ok = false;
+                                alert('[會陰情形-其他]未填寫!');
+                                break;
+                            } else
+                                continue;
+                        }
+                        //先生未陪產-原因-其他
+                        else if (name.indexOf('TXT_NP_RS_OTH') >= 0) {
+                            var checked = $('input:checkbox:checked[name=' + name.replace('TXT_NP_RS_OTH', 'CK_NP_RS') + ']').map(function () { return $(this).val(); }).get();;
+                            if (checked != undefined && checked.indexOf('5') >= 0) {
+                                ok = false;
+                                alert('[先生未陪產-原因-其他]未填寫!');
+                                break;
+                            }
+                            else
+                                continue;
+                        }
+                        //終止妊娠-原因-其他
+                        else if (name.indexOf('TXT_TOP_RS_O') >= 0) {
+                            var checked = $('input:checkbox:checked[name=' + name.replace('TXT_TOP_RS_O', 'CK_TOP_RS') + ']').map(function () { return $(this).val(); }).get();;
+                            if (checked != undefined && checked.indexOf('5') >= 0) {
+                                ok = false;
+                                alert('[終止妊娠-原因-其他]未填寫!');
+                                break;
+                            }
+                            else
+                                continue;
+                        }
+                        else if (name.indexOf('TXT_NNP_1') >= 0 || name.indexOf('TXT_NNP_2') >= 0) {
+                            if ($('input[name=' + name.replace('TXT_NNP_1', 'RB_TOP').replace('TXT_NNP_2', 'RB_TOP') + ']:checked').val() == "1") {
+                                continue;
+                            } else {
+                                ok = false;
+                                alert('[新生兒護理師]未填寫!');
+                                break;
+                            }
+                        }
+                        else if (name.indexOf('TXT_REMARK') >= 0) {
+                            continue;
+                        }
+                        else {
+                            ok = false;
+                            $(input_list[j]).focus();
+                            if (name.indexOf("TXT_GEST_D") >= 0) {
+                                alert('[生產天數]未填寫!');
+                            }
+                            else {
+                                alert('[' + $('#HD_' + name).html() + ']未填寫!');
+                            }
+                            break;
+                        }
+                    }
+                }
+                else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                    var input_val = $('input[name=' + name + ']:checked').val();
+                    if (input_val != '' && input_val != undefined) {
+                        ok = true;
+                    } else {
+                        ok = false;
+                        $(input_list[j]).focus();
+                        if (name.indexOf("RB_PAIN_ST_YN") >= 0) {
+                            alert('[陣痛開始時間]未填寫!');
+                        }
+                        else if (name.indexOf("RB_CERFO_TIME_YN") >= 0) {
+                            alert('[宮口全開時間]未填寫!');
+                        }
+                        else if (name.indexOf("RB_RFM") >= 0) {
+                            alert('[胎膜破裂方式]未填寫!');
+                        }
+                        else if (name.indexOf("CK_NP_RS") >= 0) {
+                            alert('[先生未陪產-原因]未填寫!');
+                        }
+                        else if (name.indexOf("RB_MECONIUM_COLOR") >= 0) {
+                            alert('[羊水性質-胎便染色]未填寫!');
+                        }
+                        else if (name.indexOf("RB_VACUUM_CS") >= 0 || name.indexOf("RB_VACUUM_NSD") >= 0) {
+                            alert('[生產方式-Vacuum]未填寫!');
+                        }
+                        else if (name.indexOf("RB_CS_NOTE") >= 0) {
+                            alert('[生產方式-註記]未填寫!');
+                        }
+
+                        else if (name.indexOf("RB_DOP") >= 0) {
+                            alert('[胎盤娩出方式]未填寫!');
+                        }
+                        else if (name.indexOf("CK_TOP_RS") >= 0) {
+                            alert('[終止妊娠-原因]未填寫!');
+                        }
+                        //else if (name.indexOf("RB_CHILD_QUANTITY") >= 0) {
+                        //    alert('[新生兒胎數]未填寫!');
+                        //}
+                        else {
+                            alert('[' + $('#HD_' + name).html() + ']未填寫!');
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        return ok;
+    }
+    function ProductionRecordEMR(dom, type) {
+        $('#action_type').val(type);
+        var form = $('#Upd_Child_Brith');
+        var alert_message = "";
+        if (type =='update' || check(true)) {
+            $.ajax({
+                type: "POST",
+                url: "Upd_Child_Brith",
+                data: form.serialize(),
+                success: function (data) {
+                    switch (data.status) {
+                        case 0:
+                            alert_message = "修改成功";
+                            if (type == "emr") {
+                                alert_message += "，送簽成功。"
+
+                            }
+                            alert(alert_message);
+                            if (type == "emr") {
+                                //downloadPDF(data.message);
+                            }
+                            window.location.href = 'Index?active=Before_Birth_List&mode=1&show=Y';
+
+
+
+                            break;
+                        default:
+                            if (data.message) {
+                                alert_message = data.message;
+                            }
+                            alert(alert_message);
+                            break;
+                    }
+
+                }, error: function (err) {
+                    alert('ajax error!');
+
+                }
+            });
+        }
+
+        //switch (type) {
+        //    case 'update':
+        //        $('#action_type').val('update');
+        //        $("form[name=Upd_Child_Brith]").submit();
+        //        break;
+        //    case 'emr':
+        //        $('#action_type').val('emr');
+        //        if (check(true)) {
+        //            $("form[name=Upd_Child_Brith]").submit();
+        //        }
+        //        break;
+        //    default:
+        //}
+
+        //var WinPrint = window.open("@(RootDocument)/PdfEMR/GetPDF_EMR?source_type=Btn&emr_source=Production_Record&fee_no=@(feeno)&user_no=@(userno)&url=@(RootDocument)/Obstetrics/Production_Record_Print?fee_no=@(feeno)");
+    }
+
+    function downloadPDF(filename) {
+        var WinPrint = window.open("../Print/Download_EMRPdf?filename=" + filename);
+
+    }
+
+    function update_RR_LV() {
+        $.ajax({
+            url: 'Upd_Child_Brith_RR_LVTIME',
+            type: 'post',
+            dataType: 'json',
+            data: $('form').serialize(),
+            success: function (data) {
+                switch (data.status) {
+                    case 0:
+                        alert_message = "修改成功";
+                        alert(alert_message);
+                        window.location.href = 'Index?active=Before_Birth_List&mode=1&show=Y';
+                        break;
+                    default:
+                        if (data.message) {
+                            alert_message = data.message;
+                        }
+                        alert(alert_message);
+                        break;
+                }
+                window.location.href = 'Index?active=Before_Birth_List&mode=1&show=Y';
+            },
+            failure: function (errMsg) {
+                alert('修改失敗');
+                window.location.href = 'Index?active=Before_Birth_List&mode=1&show=Y';
+            }
+        });
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt; //生產史
+    DataTable stadt = ViewBag.stadt; //第二、三產程
+    DataRow dtrow = null;
+    DataTable nbdt = ViewBag.nbdt;
+    int count = Convert.ToInt32(ViewBag.count);
+    if (dt != null && dt.Rows.Count > 0)
+    {
+        dtrow = dt.Rows[0];
+    }
+    if (stadt == null || stadt.Rows.Count == 0)
+    {
+        <form action="Insert_Child_Brith" method="post">
+            <div class="funcArea">
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%; font-size:12px;">
+                    <tr>
+                        <td style="padding:5px 0 5px 0;">
+                            <div class="dataArea2">
+                                <table border="0" cellpadding="4" cellspacing="1" style="width:100%">
+                                    <tr>
+                                        <td id="HD_RB_PLACE" style="width:15%;" class="head">是否院外生產</td>
+                                        <td style="width:35%;" colspan="3">
+                                            <input type="radio" name="RB_PLACE" value="0" />否
+                                            <input type="radio" name="RB_PLACE" value="1" />是
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_PAIN_ST_DAY" class="head">陣痛開始時間</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_PAIN_ST_YN" value="0" onclick="$('.PAIN_ST_YN').fadeOut()" />無</label>
+                                            <label><input type="radio" name="RB_PAIN_ST_YN" value="1" onclick="$('.PAIN_ST_YN').fadeIn()" />有</label>
+                                            <span class="PAIN_ST_YN" style="display:none">
+                                                @Html.TextBox("TXT_PAIN_ST_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_PAIN_ST_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                                @WebTool.setDateTime("TXT_PAIN_ST_DAY", "TXT_PAIN_ST_TIME", "", "30")
+                                                <input type="checkbox" name="CK_PAIN_ST_NA" value="0" />不詳
+                                            </span>
+                                        </td>
+                                        <td id="HD_RB_CORDBLOOD" class="head">留臍帶血</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_CORDBLOOD" value="0" />否</label>
+                                            <label><input type="radio" name="RB_CORDBLOOD" value="1" />是</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_CERFO_TIME_DAY" class="head">宮口全開時間</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_CERFO_TIME_YN" value="0" onclick="$('.CERFO_TIME_YN').fadeOut()" />無</label>
+                                            <label><input type="radio" name="RB_CERFO_TIME_YN" value="1" onclick="$('.CERFO_TIME_YN').fadeIn()" />有</label>
+                                            <span class="CERFO_TIME_YN" style="display:none">
+                                                @Html.TextBox("TXT_CERFO_TIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_CERFO_TIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                                @WebTool.setDateTime("TXT_CERFO_TIME_DAY", "TXT_CERFO_TIME_TIME", "", "30")
+                                                <input type="checkbox" name="CK_CERFO_TIME_NA" value="0" />不詳
+                                            </span>
+                                        </td>
+                                        <td id="HD_RB_EPIDURAL" class="head">無痛分娩</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_EPIDURAL" value="0" />否</label>
+                                            <label><input type="radio" name="RB_EPIDURAL" value="1" />是</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_RFM_TIME_DAY" class="head">胎膜破裂時間</td>
+                                        <td>
+                                            @Html.TextBox("TXT_RFM_TIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_RFM_TIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_RFM_TIME_DAY", "TXT_RFM_TIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_RFM_TIME_NA" value="0" />不詳
+                                            <label><input type="radio" name="RB_RFM" value="0" />早期</label>
+                                            <label><input type="radio" name="RB_RFM" value="1" />自然</label>
+                                            <label><input type="radio" name="RB_RFM" value="2" />人工</label>
+                                        </td>
+                                        <td id="HD_RB_PATERNITY" class="head">先生陪產</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_PATERNITY" value="1" onclick="$('.span_paternity_n').fadeOut(500);" />有</label>
+                                            <label><input type="radio" name="RB_PATERNITY" value="0" onclick="$('.span_paternity_n').fadeIn(500);" />沒有</label>
+                                            <span class="span_paternity_n" style="display:none;">
+                                                ，
+                                                <input type="checkbox" name="CK_NP_RS" value="0" />顧小孩
+                                                <input type="checkbox" name="CK_NP_RS" value="1" />上班
+                                                <input type="checkbox" name="CK_NP_RS" value="2" />路途中
+                                                <input type="checkbox" name="CK_NP_RS" value="3" />害怕
+                                                <input type="checkbox" name="CK_NP_RS" value="4" />國外
+                                                <input type="checkbox" name="CK_NP_RS" value="5" onclick="$('#span_np_rs_other').fadeToggle()" />其他
+                                                <span id="span_np_rs_other" style="display:none">
+                                                    ，@Html.TextBox("TXT_NP_RS_OTH", "", new { style = "width:60px" })
+                                                </span>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_RUPTURETYPE" class="head">羊水性質</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_RUPTURETYPE" value="0" onclick="$('.span_rupturetype').fadeOut();" />清澈</label>
+                                            <label><input type="radio" name="RB_RUPTURETYPE" value="1" onclick="$('.span_rupturetype').fadeOut();" />惡臭</label>
+                                            <label><input type="radio" name="RB_RUPTURETYPE" value="2" onclick="$('.span_rupturetype').fadeIn();" />胎便染色</label>
+                                            <span class="span_rupturetype" style="display:none;padding-top:3px;">
+                                                (
+                                                <label><input type="radio" name="RB_MECONIUM_COLOR" value="0" />+</label>
+                                                <label><input type="radio" name="RB_MECONIUM_COLOR" value="1" />++</label>
+                                                <label><input type="radio" name="RB_MECONIUM_COLOR" value="2" />+++</label>
+                                                <label><input type="radio" name="RB_MECONIUM_COLOR" value="3" />++++</label>
+                                                )
+                                            </span>
+                                        </td>
+                                        <td id="HD_RB_CORDCLAMP" class="head">先生斷臍</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_CORDCLAMP" value="1" />有</label>
+                                            <label><input type="radio" name="RB_CORDCLAMP" value="0" />沒有</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_DR_ETTIME_DAY" class="head">進分娩室時間</td>
+                                        <td>
+                                            @Html.TextBox("TXT_DR_ETTIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_DR_ETTIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_DR_ETTIME_DAY", "TXT_DR_ETTIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_DR_ETTIME_NA" value="0" />不詳
+                                        </td>
+                                        <td style="width:15%;" id="HD_RB_PERINEUM" class="head">會陰情形</td>
+                                        <td style="width:35%;">
+                                            <label><input type="radio" name="RB_PERINEUM" value="0" onclick="$('.PERINEUM_OTH').fadeOut()" />完整</label>
+                                            <label><input type="radio" name="RB_PERINEUM" value="1" onclick="$('.PERINEUM_OTH').fadeOut()" />自裂</label>
+                                            <label><input type="radio" name="RB_PERINEUM" value="2" onclick="$('.PERINEUM_OTH').fadeOut()" />正中切開</label>
+                                            <label><input type="radio" name="RB_PERINEUM" value="3" onclick="$('.PERINEUM_OTH').fadeIn(500)" />其他</label>
+                                            <span class="PERINEUM_OTH" style="display:none;">
+                                                ，@Html.TextBox("TXT_PERINEUM_OTH", "", new { style = "width:100px" })
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_BIRTH_DAY" class="head">生產日期時間</td>
+                                        <td>
+                                            @Html.TextBox("TXT_BIRTH_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_BIRTH_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_BIRTH_DAY", "TXT_BIRTH_TIME", "", "30")
+                                            <label><input type="radio" name="RB_BIRTH_NA" value="0" />口述</label>
+                                            <label><input type="radio" name="RB_BIRTH_NA" value="1" />不詳</label>
+                                        </td>
+                                        <td id="HD_RB_PERI_LAC" class="head">裂傷程度</td>
+                                        <td>
+                                            <label><input type="radio" id="RB_PERI_LAC_0" name="RB_PERI_LAC" value="0" checked />無</label>
+                                            <label><input type="radio" id="RB_PERI_LAC_1" name="RB_PERI_LAC" value="1" />1度</label>
+                                            <label><input type="radio" id="RB_PERI_LAC_2" name="RB_PERI_LAC" value="2" />2度</label>
+                                            <label><input type="radio" id="RB_PERI_LAC_3" name="RB_PERI_LAC" value="3" />3度</label>
+                                            <label><input type="radio" id="RB_PERI_LAC_4" name="RB_PERI_LAC" value="4" />4度</label>
+                                            裂傷
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td rowspan="3" id="HD_RB_BIRTH_TYPE" class="head">生產方式</td>
+                                        <td rowspan="3">
+                                            <div>
+                                                <input type="radio" name="RB_BIRTH_TYPE" value="0" onclick="$('#birth_type_nsd').fadeIn(); $('#birth_type_cs').fadeOut();$('.CSReason').fadeOut()" />NSD
+                                                <span id="birth_type_nsd" style="display:none">
+                                                    ，Vacuum
+                                                    <input name="RB_VACUUM_NSD" type="radio" value="0" />是
+                                                    <input name="RB_VACUUM_NSD" type="radio" value="1" />否
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <label><input type="radio" name="RB_BIRTH_TYPE" value="1" onclick="$('#birth_type_nsd').fadeOut(); $('#birth_type_cs').fadeIn();$('.CSReason').fadeIn()" />C/S</label>
+                                                <span id="birth_type_cs" style="display:none;">
+                                                    ，Vacuum
+                                                    <input name="RB_VACUUM_CS" type="radio" value="0" />是
+                                                    <input name="RB_VACUUM_CS" type="radio" value="1" />否
+                                                    <br />
+                                                    註記:
+                                                    <input type="radio" name="RB_CS_NOTE" value="0" />初次剖腹產
+                                                    <input type="radio" name="RB_CS_NOTE" value="1" />前胎剖腹產
+
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_ABD_WND" class="head">腹部傷口</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_ABD_WND" value="1" />有</label>
+                                            <label><input type="radio" name="RB_ABD_WND" value="0" />無</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_PHYSICIAN_1" class="head">接生醫師</td>
+                                        <td>
+                                            @Html.TextBox("TXT_PHYSICIAN_1", ptinfo == null ? "" : ptinfo.DocNo, new { style = "width:100px", onchange = "get_employee_name(this, 'PHYSICIAN_1');" })
+                                            @Html.Label("LB_PHYSICIAN_1", ptinfo == null ? "" : ptinfo.DocName, new { id = "LB_PHYSICIAN_1", style = "width:100px" })，
+                                            @Html.TextBox("TXT_PHYSICIAN_2", "", new { style = "width:100px", onchange = "get_employee_name(this, 'PHYSICIAN_2');" })
+                                            @Html.Label("LB_PHYSICIAN_2", "請輸入員工編號", new { id = "LB_PHYSICIAN_2", style = "width:100px" })
+                                        </td>
+                                    </tr>
+                                    <tr class="CSReason" style="display:none;">
+                                        <td id="HD_TXT_CS_MR" class="head">C/S 原因</td>
+                                        <td colspan="3">
+                                            <input type="button" value="選取原因" onclick="window.open('./CS_Reason_List?page=M', 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                            主要原因：
+                                            @Html.TextBox("TXT_CS_MR", "", new { id = "TXT_CS_MR", style = "width:500px" })
+                                            <br>
+                                            <input type="button" value="選取原因" onclick="window.open('./CS_Reason_List?page=S', 'popUpWindow','menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                            次要原因：
+                                            @Html.TextBox("TXT_CS_OR", "", new { id = "TXT_CS_OR", style = "width:500px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_DOP_TIME_DAY" class="head">胎盤娩出時間</td>
+                                        <td>
+                                            @Html.TextBox("TXT_DOP_TIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_DOP_TIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_DOP_TIME_DAY", "TXT_DOP_TIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_DOP_TIME_NA" value="0" />不詳
+                                            <br />
+                                            <label><input type="radio" name="RB_DOP" value="0" />稀氏</label>
+                                            <label><input type="radio" name="RB_DOP" value="1" />鄧氏</label>
+                                            <label><input type="radio" name="RB_DOP" value="2" />混合剝離</label>
+                                            <label><input type="radio" name="RB_DOP" value="3" />人工剝離</label>
+                                        </td>
+                                        <td id="HD_TXT_CLNURSE_1" class="head">流動護理師</td>
+                                        <td>
+                                            @Html.TextBox("TXT_CLNURSE_1", "", new { style = "width:100px", onchange = "get_employee_name(this, 'CLNURSE_1');" })
+                                            @Html.Label("LB_CLNURSE_1", "請輸入員工編號", new { id = "LB_CLNURSE_1", style = "width:100px" })
+                                            ，
+                                            @Html.TextBox("TXT_CLNURSE_2", "", new { style = "width:100px", onchange = "get_employee_name(this, 'CLNURSE_2');" })
+                                            @Html.Label("LB_CLNURSE_2", "請輸入員工編號", new { id = "LB_CLNURSE_2", style = "width:100px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_DR_LVTIME_DAY" class="head">離開分娩室時間</td>
+                                        <td>
+                                            @Html.TextBox("TXT_DR_LVTIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_DR_LVTIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_DR_LVTIME_DAY", "TXT_DR_LVTIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_DR_LVTIME_NA" value="0" />不詳
+                                        </td>
+
+                                        <td id="HD_TXT_SRNURSE_1" class="head">刷手護理師</td>
+                                        <td>
+                                            @Html.TextBox("TXT_SRNURSE_1", "", new { style = "width:100px", onchange = "get_employee_name(this, 'SRNURSE_1');" })
+                                            @Html.Label("LB_SRNURSE_1", "請輸入員工編號", new { id = "LB_SRNURSE_1", style = "width:100px" })
+                                            ，
+                                            @Html.TextBox("TXT_SRNURSE_2", "", new { style = "width:100px", onchange = "get_employee_name(this, 'SRNURSE_2');" })
+                                            @Html.Label("LB_SRNURSE_2", "請輸入員工編號", new { id = "LB_SRNURSE_2", style = "width:100px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_GEST_M" class="head" style="width:20%;">生產週數</td>
+                                        <td style="width:30%;">
+                                            @if (dtrow == null)
+                                            {
+                                                @Html.TextBox("TXT_GEST_M", "", new { style = "width:100px", onchange = "numcheck(this);" })
+                                                <label>週</label>
+                                                @Html.TextBox("TXT_GEST_D", "", new { style = "width:100px", onchange = "numcheck(this);" })
+                                                <label>天</label>
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_GEST_M", dtrow["GA_W"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                                <label>週</label>
+                                                @Html.TextBox("TXT_GEST_D", dtrow["GA_D"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                                <label>天</label>
+                                            }
+                                        </td>
+                                        <td id="HD_TXT_NNP_1" class="head">新生兒護理師</td>
+                                        <td>
+                                            @Html.TextBox("TXT_NNP_1", "", new { style = "width:100px", onchange = "get_employee_name(this, 'NNP_1');" })
+                                            @Html.Label("LB_NNP_1", "請輸入員工編號", new { id = "LB_NNP_1", style = "width:100px" })
+                                            ，
+                                            @Html.TextBox("TXT_NNP_2", "", new { style = "width:100px", onchange = "get_employee_name(this, 'NNP_2');" })
+                                            @Html.Label("LB_NNP_2", "請輸入員工編號", new { id = "LB_NNP_2", style = "width:100px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_LB_TOTAL_N" class="head">總活產數</td>
+                                        <td>
+                                            @if (dtrow == null)
+                                            {
+                                                @Html.TextBox("TXT_LB_TOTAL_N", "", new { style = "width:100px", onchange = "numcheck(this);" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_LB_TOTAL_N", dtrow["LB_TOTAL"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                            }
+                                        </td>
+                                        <td id="HD_TXT_RR_ETTIME_DAY" class="head">進恢復室時間</td>
+                                        <td>
+                                            @Html.TextBox("TXT_RR_ETTIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_RR_ETTIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_RR_ETTIME_DAY", "TXT_RR_ETTIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_RR_ETTIME_NA" value="0" />不詳
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_TOP" class="head">終止妊娠</td>
+                                        <td>
+                                            <div>
+                                                <label><input type="radio" name="RB_TOP" value="0" onclick="$('.TOP').fadeOut();" />否</label>
+                                                <label><input type="radio" name="RB_TOP" value="1" onclick="$('.TOP').fadeIn();" />是</label>
+                                                <br />
+                                                <span class="TOP" style="display:none;">
+                                                    <input type="checkbox" name="CK_TOP_RS" value="0" />染色體異常
+                                                    <input type="checkbox" name="CK_TOP_RS" value="1" />胎兒無心跳
+                                                    <input type="checkbox" name="CK_TOP_RS" value="2" />器官異常
+                                                    <input type="checkbox" name="CK_TOP_RS" value="3" />感染
+                                                    <input type="checkbox" name="CK_TOP_RS" value="4" />個人因素
+                                                    <input type="checkbox" name="CK_TOP_RS" value="5" onclick="$('.TOP_RS').fadeToggle();" />其它
+                                                </span>
+                                                <span class="TOP_RS" style="display:none;">
+                                                    ，@Html.TextBox("TXT_TOP_RS_O", "", new { style = "width:100px" })
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td id="HD_TXT_RR_LVTIME_DAY" class="head">出恢復室時間</td>
+                                        <td>
+                                            @Html.TextBox("TXT_RR_LVTIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_RR_LVTIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_RR_LVTIME_DAY", "TXT_RR_LVTIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_RR_LVTIME_NA" value="0" />不詳
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_PARITY_N" class="head">P(產次)</td>
+                                        <td>
+                                            @if (dtrow == null)
+                                            {
+                                                @Html.TextBox("TXT_PARITY_N", "", new { style = "width:100px", onchange = "numcheck(this);" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_PARITY_N", dtrow["PARITY"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                            }
+                                        </td>
+                                        <td rowspan="2" id="HD_TXT_REMARK" class="head">備註</td>
+                                        <td rowspan="2">
+                                            @Html.TextArea("TXT_REMARK", "", new { @rows = "5", style = "width:300px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_ABORTION" class="head">A(流產)</td>
+                                        <td>
+                                            @if (dtrow == null)
+                                            {
+                                                @Html.TextBox("TXT_ABORTION", "", new { style = "width:100px", onchange = "numcheck(this);" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_ABORTION", dtrow["ABORTION"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                            }
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="4" style="text-align:center;">
+                                            <div style="text-align:center;">
+                                                <input type="button" value="儲存" style="width:60px;" onclick="submit();" />
+                                                <br />
+                                                (儲存後再繼續新增新生兒資料)
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <div class="dataArea2" id="new_child"></div>
+                            </div>
+                </table>
+            </div>
+        </form>
+    }
+    else
+    {
+        var r = stadt.Rows[0];
+        <form action="Upd_Child_Brith" id="Upd_Child_Brith" name="Upd_Child_Brith" method="post">
+            <div class="funcArea">
+                <div style="text-align:center;">
+                    @if (IsHisView != true)
+                    {
+                        if (r["EMR_SIGN"].ToString() != "" && r["EMR_TIME"].ToString() != "")
+                        {
+                        }
+                        else
+                        {
+                            <input type="button" id="Upd_Child_Brith" value="修改" style="width:60px;" onclick="ProductionRecordEMR(this,'update')" />
+                        }
+                        <input type="button" id="Production_Record_Emr" url="Production_Record_Emr" onclick="ProductionRecordEMR(this, 'emr')" value="送簽" style="width:60px;" />
+                    }
+                    <p id="prompt" style="color:red">* 非流動護理師不可送簽</p>
+                    <input type="hidden" name="action_type" id="action_type" value="">
+
+                    <input type="hidden" name="ID" value="@r["IID"]" />
+                </div>
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%; font-size:12px;">
+                    <tr>
+                        <td style="padding:5px 0 5px 0;">
+                            <div class="dataArea2">
+                                <table border="0" cellpadding="4" cellspacing="1" style="width:100%">
+                                    <tr>
+                                        <td id="HD_RB_PLACE" style="width:15%;" class="head">是否院外生產</td>
+                                        <td style="width:35%;" colspan="3">
+                                            <input type="radio" name="RB_PLACE" value="0" />否
+                                            <input type="radio" name="RB_PLACE" value="1" />是
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_PAIN_ST_DAY" class="head">陣痛開始時間</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_PAIN_ST_YN" value="0" onclick="$('.PAIN_ST_YN').fadeOut()" />無</label>
+                                            <label><input type="radio" name="RB_PAIN_ST_YN" value="1" onclick="$('.PAIN_ST_YN').fadeIn()" />有</label>
+                                            <span class="PAIN_ST_YN" style="display:none">
+                                                @if (r["PAIN_ST"].ToString() == "")
+                                                {
+                                                    @Html.TextBox("TXT_PAIN_ST_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                    @Html.TextBox("TXT_PAIN_ST_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                                }
+                                                else
+                                                {
+                                                    @Html.TextBox("TXT_PAIN_ST_DAY", Convert.ToDateTime(r["PAIN_ST"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                    @Html.TextBox("TXT_PAIN_ST_TIME", Convert.ToDateTime(r["PAIN_ST"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                                }
+                                                @WebTool.setDateTime("TXT_PAIN_ST_DAY", "TXT_PAIN_ST_TIME", "", "30")
+                                                <input type="checkbox" name="CK_PAIN_ST_NA" value="0" />不詳
+                                            </span>
+                                        </td>
+                                        <td id="HD_RB_CORDBLOOD" class="head">留臍帶血</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_CORDBLOOD" value="0" />否</label>
+                                            <label><input type="radio" name="RB_CORDBLOOD" value="1" />是</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_CERFO_TIME_DAY" class="head">宮口全開時間</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_CERFO_TIME_YN" value="0" onclick="$('.CERFO_TIME_YN').fadeOut()" />無</label>
+                                            <label><input type="radio" name="RB_CERFO_TIME_YN" value="1" onclick="$('.CERFO_TIME_YN').fadeIn()" />有</label>
+                                            <span class="CERFO_TIME_YN" style="display:none">
+                                                @if (r["CERFO_TIME"].ToString() == "")
+                                                {
+                                                    @Html.TextBox("TXT_CERFO_TIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                    @Html.TextBox("TXT_CERFO_TIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                                }
+                                                else
+                                                {
+                                                    @Html.TextBox("TXT_CERFO_TIME_DAY", Convert.ToDateTime(r["CERFO_TIME"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                    @Html.TextBox("TXT_CERFO_TIME_TIME", Convert.ToDateTime(r["CERFO_TIME"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                                }
+                                                @WebTool.setDateTime("TXT_CERFO_TIME_DAY", "TXT_CERFO_TIME_TIME", "", "30")
+                                                <input type="checkbox" name="CK_CERFO_TIME_NA" value="0" />不詳
+                                            </span>
+                                        </td>
+                                        <td id="HD_RB_EPIDURAL" class="head">無痛分娩</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_EPIDURAL" value="0" />否</label>
+                                            <label><input type="radio" name="RB_EPIDURAL" value="1" />是</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_RFM_TIME_DAY" class="head">胎膜破裂時間</td>
+                                        <td>
+                                            @if (r["RFM_TIME"].ToString() == "")
+                                            {
+                                                @Html.TextBox("TXT_RFM_TIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_RFM_TIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_RFM_TIME_DAY", Convert.ToDateTime(r["RFM_TIME"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_RFM_TIME_TIME", Convert.ToDateTime(r["RFM_TIME"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            @WebTool.setDateTime("TXT_RFM_TIME_DAY", "TXT_RFM_TIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_RFM_TIME_NA" value="0" />不詳
+                                            <label><input type="radio" name="RB_RFM" value="0" />早期</label>
+                                            <label><input type="radio" name="RB_RFM" value="1" />自然</label>
+                                            <label><input type="radio" name="RB_RFM" value="2" />人工</label>
+                                        </td>
+                                        <td id="HD_RB_PATERNITY" class="head">先生陪產</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_PATERNITY" value="1" onclick="$('.span_paternity_n').fadeOut(500);" />有</label>
+                                            <label><input type="radio" name="RB_PATERNITY" value="0" onclick="$('.span_paternity_n').fadeIn(500);" />沒有</label>
+                                            <span class="span_paternity_n" style="display:none;">
+                                                ，
+                                                <input type="checkbox" name="CK_NP_RS" value="0" />顧小孩
+                                                <input type="checkbox" name="CK_NP_RS" value="1" />上班
+                                                <input type="checkbox" name="CK_NP_RS" value="2" />路途中
+                                                <input type="checkbox" name="CK_NP_RS" value="3" />害怕
+                                                <input type="checkbox" name="CK_NP_RS" value="4" />國外
+                                                <input type="checkbox" name="CK_NP_RS" value="5" onclick="$('#span_np_rs_other').fadeToggle()" />其他
+                                                <span id="span_np_rs_other" style="display:none">
+                                                    ，@Html.TextBox("TXT_NP_RS_OTH", r["NP_RS_OTH"], new { style = "width:60px" })
+                                                </span>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_RUPTURETYPE" class="head">羊水性質</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_RUPTURETYPE" value="0" onclick="$('.span_rupturetype').fadeOut();" />清澈</label>
+                                            <label><input type="radio" name="RB_RUPTURETYPE" value="1" onclick="$('.span_rupturetype').fadeOut();" />惡臭</label>
+                                            <label><input type="radio" name="RB_RUPTURETYPE" value="2" onclick="$('.span_rupturetype').fadeIn();" />胎便染色</label>
+                                            <span class="span_rupturetype" style="display:none;padding-top:3px;">
+                                                (
+                                                <label><input type="radio" name="RB_MECONIUM_COLOR" value="0" />+</label>
+                                                <label><input type="radio" name="RB_MECONIUM_COLOR" value="1" />++</label>
+                                                <label><input type="radio" name="RB_MECONIUM_COLOR" value="2" />+++</label>
+                                                <label><input type="radio" name="RB_MECONIUM_COLOR" value="3" />++++</label>
+                                                )
+                                            </span>
+                                        </td>
+                                        <td id="HD_RB_CORDCLAMP" class="head">先生斷臍</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_CORDCLAMP" value="1" />有</label>
+                                            <label><input type="radio" name="RB_CORDCLAMP" value="0" />沒有</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_DR_ETTIME_DAY" class="head">進分娩室時間</td>
+                                        <td>
+                                            @if (r["DR_ETTIME"].ToString() == "")
+                                            {
+                                                @Html.TextBox("TXT_DR_ETTIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_DR_ETTIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_DR_ETTIME_DAY", Convert.ToDateTime(r["DR_ETTIME"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_DR_ETTIME_TIME", Convert.ToDateTime(r["DR_ETTIME"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            @WebTool.setDateTime("TXT_DR_ETTIME_DAY", "TXT_DR_ETTIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_DR_ETTIME_NA" value="0" />不詳
+                                        </td>
+                                        <td style="width:15%;" id="HD_RB_PERINEUM" class="head">會陰情形</td>
+                                        <td style="width:35%;">
+                                            <label><input type="radio" name="RB_PERINEUM" value="0" onclick="$('.PERINEUM_OTH').fadeOut()" />完整</label>
+                                            <label><input type="radio" name="RB_PERINEUM" value="1" onclick="$('.PERINEUM_OTH').fadeOut()" />自裂</label>
+                                            <label><input type="radio" name="RB_PERINEUM" value="2" onclick="$('.PERINEUM_OTH').fadeOut()" />正中切開</label>
+                                            <label><input type="radio" name="RB_PERINEUM" value="3" onclick="$('.PERINEUM_OTH').fadeIn(500)" />其他</label>
+                                            <span class="PERINEUM_OTH" style="display:none;">
+                                                ，@Html.TextBox("TXT_PERINEUM_OTH", r["PERINEUM_OTH"], new { style = "width:100px" })
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_BIRTH_DAY" class="head">生產日期時間</td>
+                                        <td>
+                                            @if (r["BIRTH"].ToString() == "")
+                                            {
+                                                @Html.TextBox("TXT_BIRTH_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_BIRTH_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_BIRTH_DAY", Convert.ToDateTime(r["BIRTH"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_BIRTH_TIME", Convert.ToDateTime(r["BIRTH"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            @WebTool.setDateTime("TXT_BIRTH_DAY", "TXT_BIRTH_TIME", "", "30")
+                                            <label><input type="radio" name="RB_BIRTH_NA" value="0" />口述</label>
+                                            <label><input type="radio" name="RB_BIRTH_NA" value="1" />不詳</label>
+                                        </td>
+                                        <td id="HD_RB_PERI_LAC" class="head">裂傷程度</td>
+                                        <td>
+                                            <label><input type="radio" id="RB_PERI_LAC_0E" name="RB_PERI_LAC" value="0" checked />無</label>
+                                            <label><input type="radio" id="RB_PERI_LAC_1E" name="RB_PERI_LAC" value="1" />1度</label>
+                                            <label><input type="radio" id="RB_PERI_LAC_2E" name="RB_PERI_LAC" value="2" />2度</label>
+                                            <label><input type="radio" id="RB_PERI_LAC_3E" name="RB_PERI_LAC" value="3" />3度</label>
+                                            <label><input type="radio" id="RB_PERI_LAC_4E" name="RB_PERI_LAC" value="4" />4度</label>
+                                            裂傷
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td rowspan="3" id="HD_RB_BIRTH_TYPE" class="head">生產方式</td>
+                                        <td rowspan="3">
+                                            <div>
+                                                <input type="radio" name="RB_BIRTH_TYPE" value="0" onclick="$('#birth_type_nsd').fadeIn(); $('#birth_type_cs').fadeOut();$('.CSReason').fadeOut()" />NSD
+                                                <span id="birth_type_nsd" style="display:none">
+                                                    ，Vacuum
+                                                    <input name="RB_VACUUM_NSD" type="radio" value="0" />是
+                                                    <input name="RB_VACUUM_NSD" type="radio" value="1" />否
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <label><input type="radio" name="RB_BIRTH_TYPE" value="1" onclick="$('#birth_type_nsd').fadeOut(); $('#birth_type_cs').fadeIn();$('.CSReason').fadeIn()" />C/S</label>
+                                                <span id="birth_type_cs" style="display:none;">
+                                                    ，Vacuum
+                                                    <input name="RB_VACUUM_CS" type="radio" value="0" />是
+                                                    <input name="RB_VACUUM_CS" type="radio" value="1" />否
+                                                    <br />
+                                                    註記:
+                                                    <input type="radio" name="RB_CS_NOTE" value="0" />初次剖腹產
+                                                    <input type="radio" name="RB_CS_NOTE" value="1" />前胎剖腹產
+
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_ABD_WND" class="head">腹部傷口</td>
+                                        <td>
+                                            <label><input type="radio" name="RB_ABD_WND" value="1" />有</label>
+                                            <label><input type="radio" name="RB_ABD_WND" value="0" />無</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_PHYSICIAN_1" class="head">接生醫師</td>
+                                        <td>
+                                            @Html.TextBox("TXT_PHYSICIAN_1", r["PHYSICIAN_1"], new { style = "width:100px", onchange = "get_employee_name(this,'PHYSICIAN_1');" })
+                                            @if (r["PHYSICIAN_1_NAME"].ToString() != "")
+                                            {
+                                                @Html.Label("LB_PHYSICIAN_1", r["PHYSICIAN_1_NAME"].ToString(), new { id = "LB_PHYSICIAN_1", style = "width:100px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.Label("LB_PHYSICIAN_1", "請輸入員工編號", new { id = "LB_PHYSICIAN_1", style = "width:100px" })
+                                            }
+                                            ，
+                                            @Html.TextBox("TXT_PHYSICIAN_2", r["PHYSICIAN_2"], new { style = "width:100px", onchange = "get_employee_name(this,'PHYSICIAN_2');" })
+                                            @if (r["PHYSICIAN_2_NAME"].ToString() != "")
+                                            {
+                                                @Html.Label("LB_PHYSICIAN_2", r["PHYSICIAN_2_NAME"].ToString(), new { id = "LB_PHYSICIAN_2", style = "width:100px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.Label("LB_PHYSICIAN_2", "請輸入員工編號", new { id = "LB_PHYSICIAN_2", style = "width:100px" })
+                                            }
+                                        </td>
+                                    </tr>
+                                    <tr class="CSReason" style="display:none;">
+                                        <td id="HD_TXT_CS_MR" class="head">C/S 原因</td>
+                                        <td colspan="3">
+                                            <input type="button" value="選取原因" onclick="window.open('./CS_Reason_List?page=M&value=' + $('#TXT_CS_MR').val(), 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                            主要原因：
+                                            @Html.TextBox("TXT_CS_MR", r["CS_MR"], new { id = "TXT_CS_MR", style = "width:500px" })
+                                            <br>
+                                            <input type="button" value="選取原因" onclick="window.open('./CS_Reason_List?page=S&value=' + $('#TXT_CS_OR').val(), 'popUpWindow','menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                            次要原因：
+                                            @Html.TextBox("TXT_CS_OR", r["CS_OR"], new { id = "TXT_CS_OR", style = "width:500px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_DOP_TIME_DAY" class="head">胎盤娩出時間</td>
+                                        <td>
+                                            @if (r["DOP_TIME"].ToString() == "")
+                                            {
+                                                @Html.TextBox("TXT_DOP_TIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_DOP_TIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_DOP_TIME_DAY", Convert.ToDateTime(r["DOP_TIME"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_DOP_TIME_TIME", Convert.ToDateTime(r["DOP_TIME"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            @WebTool.setDateTime("TXT_DOP_TIME_DAY", "TXT_DOP_TIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_DOP_TIME_NA" value="0" />不詳
+                                            <br />
+                                            <label><input type="radio" name="RB_DOP" value="0" />稀氏</label>
+                                            <label><input type="radio" name="RB_DOP" value="1" />鄧氏</label>
+                                            <label><input type="radio" name="RB_DOP" value="2" />混合剝離</label>
+                                            <label><input type="radio" name="RB_DOP" value="3" />人工剝離</label>
+                                        </td>
+                                        <td id="HD_TXT_CLNURSE_1" class="head">流動護理師</td>
+                                        <td>
+                                            @Html.TextBox("TXT_CLNURSE_1", r["CLNURSE_1"], new { style = "width:100px", onchange = "get_employee_name(this,'CLNURSE_1');" })
+                                            @if (r["CLNURSE_1_NAME"].ToString() != "")
+                                            {
+                                                @Html.Label("LB_CLNURSE_1", r["CLNURSE_1_NAME"].ToString(), new { id = "LB_CLNURSE_1", style = "width:100px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.Label("LB_CLNURSE_1", "請輸入員工編號", new { id = "LB_CLNURSE_1", style = "width:100px" })
+                                            }
+                                            ，
+                                            @Html.TextBox("TXT_CLNURSE_2", r["CLNURSE_2"], new { style = "width:100px", onchange = "get_employee_name(this,'CLNURSE_2');" })
+                                            @if (r["CLNURSE_2_NAME"].ToString() != "")
+                                            {
+                                                @Html.Label("LB_CLNURSE_2", r["CLNURSE_2_NAME"].ToString(), new { id = "LB_CLNURSE_2", style = "width:100px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.Label("LB_CLNURSE_2", "請輸入員工編號", new { id = "LB_CLNURSE_2", style = "width:100px" })
+                                            }
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_DR_LVTIME_DAY" class="head">離開分娩室時間</td>
+                                        <td>
+                                            @if (r["DR_LVTIME"].ToString() == "")
+                                            {
+                                                @Html.TextBox("TXT_DR_LVTIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_DR_LVTIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_DR_LVTIME_DAY", Convert.ToDateTime(r["DR_LVTIME"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_DR_LVTIME_TIME", Convert.ToDateTime(r["DR_LVTIME"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            @WebTool.setDateTime("TXT_DR_LVTIME_DAY", "TXT_DR_LVTIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_DR_LVTIME_NA" value="0" />不詳
+                                        </td>
+
+                                        <td id="HD_TXT_SRNURSE_1" class="head">刷手護理師</td>
+                                        <td>
+                                            @Html.TextBox("TXT_SRNURSE_1", r["SRNURSE_1"], new { style = "width:100px", onchange = "get_employee_name(this,'SRNURSE_1');" })
+                                            @if (r["SRNURSE_1_NAME"].ToString() != "")
+                                            {
+                                                @Html.Label("LB_SRNURSE_1", r["SRNURSE_1_NAME"].ToString(), new { id = "LB_SRNURSE_1", style = "width:100px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.Label("LB_SRNURSE_1", "請輸入員工編號", new { id = "LB_SRNURSE_1", style = "width:100px" })
+                                            }
+                                            ，
+                                            @Html.TextBox("TXT_SRNURSE_2", r["SRNURSE_2"], new { style = "width:100px", onchange = "get_employee_name(this,'SRNURSE_2');" })
+                                            @if (r["SRNURSE_2_NAME"].ToString() != "")
+                                            {
+                                                @Html.Label("LB_SRNURSE_2", r["SRNURSE_2_NAME"].ToString(), new { id = "LB_SRNURSE_2", style = "width:100px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.Label("LB_SRNURSE_2", "請輸入員工編號", new { id = "LB_SRNURSE_2", style = "width:100px" })
+                                            }
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_GEST_M" class="head" style="width:20%;">生產週數</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_GEST_M", r["GEST_M"], new { style = "width:100px", onchange = "numcheck(this);" })週
+                                            @Html.TextBox("TXT_GEST_D", r["GEST_D"], new { style = "width:100px", onchange = "numcheck(this);" })天
+                                        </td>
+                                        <td id="HD_TXT_NNP_1" class="head">新生兒護理師</td>
+                                        <td>
+                                            @Html.TextBox("TXT_NNP_1", r["NNP_1"], new { style = "width:100px", onchange = "get_employee_name(this,'NNP_1');" })
+                                            @if (r["NNP_1_NAME"].ToString() != "")
+                                            {
+                                                @Html.Label("LB_NNP_1", r["NNP_1_NAME"].ToString(), new { id = "LB_NNP_1", style = "width:100px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.Label("LB_NNP_1", "請輸入員工編號", new { id = "LB_NNP_1", style = "width:100px" })
+                                            }
+                                            ，
+                                            @Html.TextBox("TXT_NNP_2", r["NNP_2"], new { style = "width:100px", onchange = "get_employee_name(this,'NNP_2');" })
+                                            @if (r["NNP_2_NAME"].ToString() != "")
+                                            {
+                                                @Html.Label("LB_NNP_2", r["NNP_2_NAME"].ToString(), new { id = "LB_NNP_2", style = "width:100px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.Label("LB_NNP_2", "請輸入員工編號", new { id = "LB_NNP_2", style = "width:100px" })
+                                            }
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_LB_TOTAL_N" class="head">總活產數</td>
+                                        <td>
+                                            @Html.TextBox("TXT_LB_TOTAL_N", r["LB_TOTAL_N"].ToString(), new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td id="HD_TXT_RR_ETTIME_DAY" class="head">進恢復室時間</td>
+                                        <td>
+                                            @if (r["RR_ETTIME"].ToString() == "")
+                                            {
+                                                @Html.TextBox("TXT_RR_ETTIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_RR_ETTIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_RR_ETTIME_DAY", Convert.ToDateTime(r["RR_ETTIME"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_RR_ETTIME_TIME", Convert.ToDateTime(r["RR_ETTIME"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            @WebTool.setDateTime("TXT_RR_ETTIME_DAY", "TXT_RR_ETTIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_RR_ETTIME_NA" value="0" />不詳
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_TOP" class="head">終止妊娠</td>
+                                        <td>
+                                            <div>
+                                                <label><input type="radio" name="RB_TOP" value="0" onclick="$('.TOP').fadeOut();" />否</label>
+                                                <label><input type="radio" name="RB_TOP" value="1" onclick="$('.TOP').fadeIn();" />是</label>
+                                                <br />
+                                                <span class="TOP" style="display:none;">
+                                                    <input type="checkbox" name="CK_TOP_RS" value="0" />染色體異常
+                                                    <input type="checkbox" name="CK_TOP_RS" value="1" />胎兒無心跳
+                                                    <input type="checkbox" name="CK_TOP_RS" value="2" />器官異常
+                                                    <input type="checkbox" name="CK_TOP_RS" value="3" />感染
+                                                    <input type="checkbox" name="CK_TOP_RS" value="4" />個人因素
+                                                    <input type="checkbox" name="CK_TOP_RS" value="5" onclick="$('.TOP_RS').fadeToggle();" />其它
+                                                </span>
+                                                <span class="TOP_RS" style="display:none;">
+                                                    ，@Html.TextBox("TXT_TOP_RS_O", r["TOP_RS_O"], new { style = "width:100px" })
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td id="HD_TXT_RR_LVTIME_DAY" class="head">出恢復室時間</td>
+                                        <td>
+                                            @if (r["RR_LVTIME"].ToString() == "")
+                                            {
+                                                @Html.TextBox("TXT_RR_LVTIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_RR_LVTIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_RR_LVTIME_DAY", Convert.ToDateTime(r["RR_LVTIME"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_RR_LVTIME_TIME", Convert.ToDateTime(r["RR_LVTIME"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            @WebTool.setDateTime("TXT_RR_LVTIME_DAY", "TXT_RR_LVTIME_TIME", "", "30")
+                                            <input type="checkbox" name="CK_RR_LVTIME_NA" value="0" />不詳
+
+                                            <input type="button" value="修改" onclick="update_RR_LV()">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_PARITY_N" class="head">P(產次)</td>
+                                        <td>
+                                            @Html.TextBox("TXT_PARITY_N", r["PARITY_N"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td rowspan="2" id="HD_TXT_REMARK" class="head">備註</td>
+                                        <td rowspan="2">
+                                            @Html.TextArea("TXT_REMARK", r["REMARK"].ToString(), new { @rows = "5", style = "width:300px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_ABORTION" class="head">A(流產)</td>
+                                        <td>
+                                            @Html.TextBox("TXT_ABORTION", r["ABORTION"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                    </tr>
+                                    @if (r["BIRTH"].ToString() != "" || r["BIRTH_NA"].ToString() != "")
+                                    {
+                                        <tr>
+                                            <td id="HD_" class="head">新生兒資料</td>
+                                            <td colspan="3" style="text-align:center;">
+                                                <div>
+                                                    <label><input type="radio" name="RB_CHILD_QUANTITY" value="1" onclick="div_hidden('span_child_quantity_other'); add_new_child(this);" />單胎</label>
+                                                    <label>
+                                                        <input type="radio" name="RB_CHILD_QUANTITY" value="2" onclick="div_hidden('span_child_quantity_other'); add_new_child(this);" />雙胞胎
+                                                    </label>
+                                                    <label><input type="radio" name="RB_CHILD_QUANTITY" value="99" onclick=" $('.span_child_quantity_other').fadeIn(500);" />其他</label>
+                                                    <span class="span_child_quantity_other" style="display:none;">
+                                                        @if (nbdt != null && nbdt.Rows.Count != 0)
+                                                        {
+                                                            @Html.TextBox("child_quantity_other", nbdt.Rows.Count.ToString(), new { id = "child_quantity_other", style = "width:60px", @readonly = "readonly", onchange = "numcheck(this); add_new_child();", })
+                                                        }
+                                                        else
+                                                        {
+                                                            @Html.TextBox("child_quantity_other", "", new { id = "child_quantity_other", style = "width:60px", onchange = "numcheck(this); add_new_child();", })
+                                                        }
+                                                    </span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </table>
+                                <div class="dataArea2" id="new_child"></div>
+                            </div>
+                            <script>
+                                function loadChild(num) {
+                                    $("#new_child").empty();
+                                    $("#new_child").load('Add_New_Child?count=' + num + '&IsHisView=' + '@IsHisView', function () {
+			                            setGridColor();
+		                            });
+	}
+	@if(nbdt!= null)
+	{
+		if(nbdt.Rows.Count > 0)
+		{
+			if(nbdt.Rows.Count <= 2)
+			{
+                                                    @:set_for_rb('RB_CHILD_QUANTITY', '@nbdt.Rows.Count');
+                                                    @:$("input[name = RB_CHILD_QUANTITY]").attr("disabled", "disabled")
+                                                }
+                                                else
+                                                {
+                                                    @:set_for_rb('RB_CHILD_QUANTITY', '99');
+                                                    @:$("input[name = RB_CHILD_QUANTITY]").attr("disabled", "disabled")
+                                                }
+            if (r["DOP_TIME"].ToString() != "" || r["DOP_TIME_NA"].ToString() != "")
+            {
+                @:loadChild('@nbdt.Rows.Count');
+            }
+                                            }
+                                        }
+                                        @if(r["PLACE"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_PLACE', '@r["PLACE"]');
+                                        }
+                                        @if(r["PAIN_ST_YN"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_PAIN_ST_YN', '@r["PAIN_ST_YN"]');
+                                        }
+                                        @if(r["PAIN_ST_NA"].ToString() != "")
+                                        {
+                                            @:set_for_ck('CK_PAIN_ST_NA', '@r["PAIN_ST_NA"]');
+                                        }
+                                        @if(r["CERFO_TIME_YN"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_CERFO_TIME_YN', '@r["CERFO_TIME_YN"]');
+                                        }
+                                        @if(r["CERFO_TIME_NA"].ToString() != "")
+                                        {
+                                            @:set_for_ck('CK_CERFO_TIME_NA', '@r["CERFO_TIME_NA"]');
+                                        }
+                                        @if(r["RFM_TIME_NA"].ToString() != "")
+                                        {
+                                            @:set_for_ck('CK_RFM_TIME_NA', '@r["RFM_TIME_NA"]');
+                                        }
+                                        @if(r["RFM"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_RFM', '@r["RFM"]');
+                                        }
+                                @if(r["RUPTURETYPE"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_RUPTURETYPE', '@r["RUPTURETYPE"]');
+                                        }
+
+                                        @if(r["MECONIUM_COLOR"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_MECONIUM_COLOR', '@r["MECONIUM_COLOR"]');
+                                        }
+                                        @if(r["DR_ETTIME_NA"].ToString() != "")
+                                        {
+                                            @:set_for_ck('CK_DR_ETTIME_NA', '@r["DR_ETTIME_NA"]');
+                                        }
+                                        @if(r["BIRTH_NA"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BIRTH_NA', '@r["BIRTH_NA"]');
+                                        }
+                                        @if(r["BIRTH_TYPE"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BIRTH_TYPE', '@r["BIRTH_TYPE"]');
+                                        }
+                                        @if(r["VACUUM_NSD"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_VACUUM_NSD', '@r["VACUUM_NSD"]');
+                                        }
+                                        @if(r["VACUUM_CS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_VACUUM_CS', '@r["VACUUM_CS"]');
+                                        }
+                                        @if(r["CS_NOTE"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_CS_NOTE', '@r["CS_NOTE"]');
+                                        }
+                                        @if(r["DOP_TIME_NA"].ToString() != "")
+                                        {
+                                            @:set_for_ck('CK_DOP_TIME_NA', '@r["DOP_TIME_NA"]');
+                                        }
+                                        @if(r["DOP"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_DOP', '@r["DOP"]');
+                                        }
+                                        @if(r["DR_LVTIME_NA"].ToString() != "")
+                                        {
+                                            @:set_for_ck('CK_DR_LVTIME_NA', '@r["DR_LVTIME_NA"]');
+                                        }
+                                        @if(r["CORDBLOOD"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_CORDBLOOD', '@r["CORDBLOOD"]');
+                                        }
+                                        @if(r["EPIDURAL"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_EPIDURAL', '@r["EPIDURAL"]');
+                                        }
+                                        @if(r["PATERNITY"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_PATERNITY', '@r["PATERNITY"]');
+                                        }
+    @if(r["TOP"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_TOP', '@r["TOP"]');
+                                        }
+                                @if(r["TOP_RS"].ToString() != "")
+                                {
+                                    var TOP_RS = r["TOP_RS"].ToString();
+                                    var TOP_RSV = new List<string>();
+
+                                    for (var i = 0; i < TOP_RS.ToString().Length; i++)
+                                    {
+                                        if (TOP_RS[i] == '1')
+                                        {
+                                            TOP_RSV.Add(i.ToString());
+                                        }
+                                    }
+                                                 @:set_for_ck('CK_TOP_RS', '@String.Join(",", TOP_RSV)');
+                                        }
+
+
+                                        @if(r["NP_RS"].ToString() != "")
+                                        {
+                                            var NP_RS = r["NP_RS"].ToString();
+                                            var NP_RSV = new List<string>();
+
+                                            for (var i = 0; i < NP_RS.ToString().Length; i++)
+                                            {
+                                                if (NP_RS[i] == '1')
+                                                {
+                                                    NP_RSV.Add(i.ToString());
+                                                }
+                                            }
+                                                 @:set_for_ck('CK_NP_RS', '@String.Join(",", NP_RSV)');
+                                        }
+                                        @if(r["CORDCLAMP"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_CORDCLAMP', '@r["CORDCLAMP"]');
+                                        }
+                                        @if(r["PERINEUM"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_PERINEUM', '@r["PERINEUM"]');
+                                        }
+                                        @if(r["PERI_LAC"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_PERI_LAC', '@r["PERI_LAC"]');
+                                        }
+                                        @if(r["ABD_WND"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_ABD_WND', '@r["ABD_WND"]');
+                                        }
+                                        @if(r["RR_ETTIME_NA"].ToString() != "")
+                                        {
+                                            @:set_for_ck('CK_RR_ETTIME_NA', '@r["RR_ETTIME_NA"]');
+                                        }
+                                        @if(r["RR_LVTIME_NA"].ToString() != "")
+                                        {
+                                            @:set_for_ck('CK_RR_LVTIME_NA', '@r["RR_LVTIME_NA"]');
+                                        }
+                            </script>
+                </table>
+            </div>
+        </form>
+    }
+}
+
+<script>
+    $('form').on('keyup keypress', function (e) {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode === 13) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>
+
+<style type="text/css">
+
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>

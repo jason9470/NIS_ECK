@@ -1,0 +1,276 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string[] unitStr = { "mL", "g", "mg" };
+    string unit = ViewBag.seleunit;
+    string title = "攝入/輸出 範圍查詢";
+    string obs = ViewBag.obs;
+    string Inquire_url = "";
+    if (obs == "T")
+    {
+        Inquire_url = "Inquire_obs";
+    }
+    else
+    {
+        Inquire_url = "Inquire";
+    }
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .dataArea td
+    {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        /*white-space: nowrap;*/
+    }
+
+    #module_define
+    {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+</script>
+@using System.Data;
+@{
+    int number = 1;
+    if(ViewBag.key != null)
+    { number = Convert.ToInt32(ViewBag.key) + 1; }
+    DateTime start_date = DateTime.Now;
+    DateTime end_date = DateTime.Now;
+    if(ViewBag.start_date != null && ViewBag.start_date != "")
+    { start_date = Convert.ToDateTime(ViewBag.start_date); }
+    if(ViewBag.end_date != null && ViewBag.end_date != "")
+    { end_date = Convert.ToDateTime(ViewBag.end_date); }
+    DataTable dtType = ViewBag.dtType;
+    }
+<div class="funcArea">
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%;padding-bottom:10px;"">
+     <tr>
+                    <td>
+                        <div id="module_define">@title</div>
+                    </td>
+                </tr>
+    <tr>
+        <td style="padding-top:5px;">
+            <form action="IO_Range_Index" method="post">
+                <div class="funcArea">
+                    日期範圍：
+                    @Html.TextBox("start_date", @start_date.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                    @Html.Label("lab", " ~ ")
+                    @Html.TextBox("end_date", @end_date.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                    @*@WebTool.setDateTime("start_date")
+                    @WebTool.setDateTime("end_date")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "", false)
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "", false)
+                    <select name="unit" style="display:none;">
+                        @if(ViewBag.seleunit != null)
+                        {
+                            if(ViewBag.seleunit == "1")
+                            {
+                                <option value="1" selected="selected">mL</option>
+                                <option value="2">g</option>
+                                <option value="3">mg</option>
+                            }
+                            else if(ViewBag.seleunit == "2")
+                            {
+                                <option value="1">mL</option>
+                                <option value="2" selected="selected">g</option>
+                                <option value="3">mg</option>
+                            }
+                            else if(ViewBag.seleunit == "3")
+                            {
+                                <option value="1">mL</option>
+                                <option value="2">g</option>
+                                <option value="3" selected="selected">mg</option>
+                            }
+                        }
+                        else
+                        {
+                        <option value="1">mL</option>
+                        <option value="2">g</option>
+                        <option value="3">mg</option>
+                        }
+                    </select>
+                    <input type="submit" value="查詢" style="width:80px;" />
+                    <input type="hidden" name ="obs" value="@obs">
+                    <input type="button" value="單日查詢" style="width:80px;" onclick="window.location.href = '../IOManage/@Inquire_url?date=@(DateTime.Now.ToString("yyyy/MM/dd"))    &hour=2&unit=1';" />
+                    <input type="button" value="新增攝入/輸出" style="width:120px;" onclick="window.location.href = '../IOManage/IO_Insert_List';" />
+                </div>
+            </form>
+        </td>
+    </tr>
+</table>
+
+<div class="dataHeader" id="dataHeader">
+    <table border="0" cellpadding="4" cellspacing="1" style="table-layout: fixed; white-space: nowrap; width: 100%;" class="dtl_VS">
+        <tbody>
+            <tr>
+                <td style="width: 8.3%;" @*colspan="2"*@>
+                    <div style="overflow: hidden;">&nbsp;</div>
+                </td>
+                <td style="width: 35.4%; text-align: center;" colspan="6">
+                    <div style="overflow: hidden;">攝入</div>
+                </td>
+                <td style="width: 41.3%; text-align: center;" colspan="7">
+                    <div style="overflow: hidden;">輸出</div>
+                </td>
+                <td style="width: 15%; text-align: center;" rowspan="2">總計</td>
+            </tr>
+            <tr>
+                <td style="width: 7.67%; text-align: center;font-size:12px;">日期 \ 部位</td>
+                @for(int i = 0; i < dtType.Rows.Count; i++)
+                {
+                    <td style="width: 5.9%; text-align: center;">
+                        <label style="font-size:12px;" name="lab_type_pname" pvalue="@dtType.Rows[i]["P_VALUE"]">@(dtType.Rows[i]["P_NAME"])</label></td>
+                }
+            </tr>
+        </tbody>
+    </table>
+</div>
+<div class="dataArea" onscroll="document.getElementById('dataHeader').scrollLeft = this.scrollLeft;" style="height: 280px;width: 100%;">
+    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+        @{
+            int hourtotalcount = 0, classnamecount = 0, lossCount = 0, OlossCount = 0;
+            float Ihourtotalamount = 0, Ohourtotalamount = 0;
+            List<NIS.Models.IOManager.IOManagerUnit> io_List = (List<NIS.Models.IOManager.IOManagerUnit>)ViewData["io_List"];
+        }
+        @for(DateTime x = start_date; x <= end_date; x = x.AddDays(1))
+        {
+            @Html.Raw("<tr style='background: rgb(171, 200, 226);'>")
+            
+            if(x <= end_date)
+            {
+            @Html.Raw("<td style='width: 8.3%;text-align: center;'>")
+            @Html.Raw("<div style='overflow: hidden;'><label style='font-size:12px;'>")
+            @(x.ToString("yyyy/MM/dd"))
+            @Html.Raw("</label></div>")
+            @Html.Raw("</td>")
+                lossCount = 0;
+                OlossCount = 0;
+                double TypeI = 0, TypeO = 0;
+                for(int y = 0; y < dtType.Rows.Count; y++)
+                {
+                    double TempAmount = 0;
+                    if(io_List.Count != 0)
+                    {
+                        int typeid = Convert.ToInt32(dtType.Rows[y]["P_VALUE"].ToString());
+                        for(int j = 0; j <= io_List.Count - 1; j++)
+                        {
+                            //DateTime TempTime = Convert.ToDateTime(x.ToString("yyyy/MM/dd 22:59:59"));
+                            //string TempValues1 = x.AddDays(-1).ToString("yyyy/MM/dd 23:00:00");//左方開始時間
+                            DateTime TempTime = Convert.ToDateTime(x.ToString("yyyy/MM/dd 07:00:00"));
+                            string TempValues1 = x.ToString("yyyy/MM/dd 07:01:00");//左方開始時間
+                            string TempValues2 = io_List[j].CREATTIME.ToString("yyyy/MM/dd HH:mm:ss");//資料庫 資料時間
+                            string TempValues3 = TempTime.AddDays(1).ToString("yyyy/MM/dd HH:mm:ss");//該行結束的時間
+
+                            if(dtType.Rows[y]["P_VALUE"].ToString() == (io_List[j].TYPEID)
+                                && (DateTime.Compare(Convert.ToDateTime(TempValues1), Convert.ToDateTime(TempValues2)) <= 0)
+                                && (DateTime.Compare(Convert.ToDateTime(TempValues2), Convert.ToDateTime(TempValues3)) <= 0))
+                            {
+                                if(io_List[j].AMOUNT.ToString() != "" && io_List[j].AMOUNT.ToString() != null)
+                                {
+                                    TempAmount += Convert.ToDouble(io_List[j].AMOUNT);
+                                }
+                                else
+                                {
+                                    if(1 <= typeid && typeid <= 5)//判斷為I或O
+                                    {
+                                        lossCount += 1;
+                                    }
+                                    else if(6 <= typeid && typeid <= 10)
+                                    {
+                                        OlossCount += 1;
+                                    }
+                                }
+                                //if(Temp != 0)
+                                //{ TempAmount += Temp; }
+                                //break;
+                            }
+                            //if(io_List[j].REASON == "Loss"
+                            //    && (DateTime.Compare(Convert.ToDateTime(TempValues1), Convert.ToDateTime(TempValues2)) < 0)
+                            //    && (DateTime.Compare(Convert.ToDateTime(TempValues2), Convert.ToDateTime(TempValues3)) < 0))
+                            //{
+                            //    if(1 <= typeid && typeid <= 5)//判斷為I或O
+                            //    {
+                            //        lossCount += 1;
+                            //    }
+                            //    else if(6 <= typeid && typeid <= 10)
+                            //    {
+                            //        OlossCount++;
+                            //    }
+                            //}
+                        }
+                        //int typeid = Convert.ToInt32(dtType.Rows[y]["P_VALUE"].ToString());
+                        if(1 <= typeid && typeid <= 5)//判斷為I或O
+                        {
+                            TypeI += Convert.ToDouble(TempAmount.ToString("F3"));
+                        }
+                        else if(6 <= typeid && typeid <= 10)
+                        {
+                            TypeO += Convert.ToDouble(TempAmount.ToString("F3"));
+                        }
+                        @Html.Raw("<td style='width: 5.9%;word-break:break-all;' ><label id='lab_amount_" + x.ToString("yyyyMMdd") + "_" + y + "' name='lab_amount_" + x.ToString("yyyyMMdd") + "'>" + TempAmount + "</label></td>")       
+                    }
+                    else
+                    {
+                        int typeid = Convert.ToInt32(dtType.Rows[y]["P_VALUE"].ToString());
+                        if(1 <= typeid && typeid <= 5)//判斷為I或O
+                        {
+                            TypeI += TempAmount;
+                        }
+                        else if(6 <= typeid && typeid <= 10)
+                        {
+                            TypeO += TempAmount;
+                        }
+                        TempAmount = 0;
+                        @Html.Raw("<td style='width: 5.9%;word-break:break-all;' ><label id='lab_amount_" + x.ToString("yyyyMMdd") + "_" + y + "' name='lab_amount_" + x.ToString("yyyyMMdd") + "'>" + TempAmount + "</label></td>")
+                    }
+                }
+                @Html.Raw("<td style='width: 15%;' name='td_timehour_total'><label style='font-size:10px;color:red;'>" + Math.Round(TypeI, 3).ToString() + unitStr[Convert.ToInt32(unit) - 1])
+               
+                if(lossCount > 0)
+                { 
+                    @Html.Raw("+loss" + lossCount + "次")                                            
+                }
+                @Html.Raw(" / ")
+                @Html.Raw(Math.Round(TypeO, 3).ToString() + unitStr[Convert.ToInt32(unit) - 1])
+
+                if(OlossCount > 0)
+                { 
+                    @Html.Raw("+loss" + OlossCount + "次")                                                                                                  
+                }
+                @Html.Raw("</label>")
+                @Html.Raw("<label style='font-size:10px;color:red;'>(</label><label style='font-size:10px;color:red;'>" + Math.Round((TypeI - TypeO), 3).ToString() + unitStr[Convert.ToInt32(unit) - 1] + "</label><label style='font-size:10px;color:red;'>)</label> </td>")
+ @Html.Raw("</tr>")
+            }
+        }
+    </table>
+</div>
+    </div>

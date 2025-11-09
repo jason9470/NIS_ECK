@@ -1,0 +1,177 @@
+﻿@using Newtonsoft.Json
+@{
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<script type="text/javascript">
+    $(function () {
+        setBundleGridColor();
+
+        // 20230731 LU 配合選中關閉選項
+        $("input[name='bundle_bsi_position']").on("click", function () {
+            var value = this.value;
+            var $obj = $("input[name='bundle_bsi_skin_disinfect'][value='本日不須更換敷料']");
+            if (value == "否") {
+                $obj.prop("disabled", true);
+                $obj.prop("checked", false);
+            } else {
+                $obj.prop("disabled", false);
+            }
+        });
+    });
+    $(document).ready(function () {
+        //依照type進行日期預設
+        $("input[name='bundle_bsi_copied_type']").click(function(){
+            countDay();
+        });
+        $("input[name='bundle_bsi_date_start_date']").change(function(){
+            countDay();
+        });
+    });
+
+    //20231016 ken 新增敷料日期計算並預帶截止日期
+    function countDay()
+    {
+        var type =  $("input[name='bundle_bsi_copied_type']:checked").val();
+        var startTime =  $("input[name='bundle_bsi_date_start_date']").val();
+        var stop = "";
+        const date = new Date(startTime);
+
+        switch (type)
+        {
+            case '紗布':
+                var end = date.setDate(date.getDate()+2);
+                stop = moment(end).format("YYYY/MM/DD");
+                break;
+            case '一般OP SITE':
+            case '親水性OP SITE(TEGADERM)':
+                var end = date.setDate(date.getDate()+7);
+                stop = moment(end).format("YYYY/MM/DD");
+                break;
+        }
+        $("input[name='bundle_bsi_date_end_date']").val(stop)
+    }
+</script>
+
+<table id="@ViewBag.table_id" class="tb_area bc_type" bctype="BSI" border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+    <tr must="S">
+        <th colspan="4" class="bundle_title">BSI Bundle Care</th>
+    </tr>
+    @* 20230731 LU 依需求暫時隱藏選項並調整非必選 *@
+    <tr must="N" hidden style="display:none;">
+        <th style="width:25%">評估中心導管是否需要留存</th>
+        <td colspan="3">
+            @VitalSign_Helper.assess_radio("bundle_bsi_reason", "是|否", "", "")
+        </td>
+    </tr>
+    <tr must="Y">
+        <th style="width:25%;text-align:left;">1.照護中心導管前確實執行手部衛生</th>
+        <td colspan="3">
+            @VitalSign_Helper.assess_radio("bundle_bsi_hand", "是|否", "", "")
+        </td>
+    </tr>
+    @* 20230731 LU 依需求新增敷料種類 20230927 LU 依需求需求敷料選項 *@
+    <tr must="Y">
+
+        <th style="width:25%;text-align:left;">2.敷料種類</th>
+        <td colspan="3">
+            @*@VitalSign_Helper.assess_radio("bundle_bsi_copied_type", "紗布|TEGADERM", "", "")*@
+            @VitalSign_Helper.assess_radio("bundle_bsi_copied_type", "紗布|一般OP SITE|親水性OP SITE(TEGADERM)|其他", "其他", "span_bundle_bsi_copied_type_other")
+            <span class="span_bundle_bsi_copied_type_other" style="display:none;">
+                @Html.TextBox("bundle_bsi_copied_type_other", "", new { style = "width:80px;" })
+            </span>
+        </td>
+    </tr>
+    @* 20230731 LU 依需求新增敷料種類 *@
+    <tr must="Y">
+
+        <th style="width:25% ;text-align:left;">3.敷料有效日期</th>
+        <td colspan="3">
+            起始日:
+            @Html.TextBox("bundle_bsi_date_start_date", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px" })
+            @Html.Label("lab", " ~ ")
+            截止日:
+            @Html.TextBox("bundle_bsi_date_end_date", "", new { style = "width:80px" })
+            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy"), @DateTime.Now.ToString("yyyy/MM/dd"), "bundle_bsi_date_start_date", "", false)
+            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy"), @DateTime.Now.ToString("yyyy/MM/dd"), "bundle_bsi_date_end_date", "", true, "7")
+            @*<p style="font-size:10px; color: #0070C0;">※BUNDLE敷料效期定義:紗布為2天、一般OP SITE及親水性OP SITE(TEGADERM)為7天</p>*@
+            <p style="font-size:10px; color: #0070C0;">※BUNDLE敷料效期定義:紗布為2天、一般OP SITE及親水性OP SITE(TEGADERM)為7天</p>
+
+        </td>
+    </tr>
+    <tr must="Y">
+        <th style="width: 25%; text-align: left;">4.評估中心導管置放部位無紅、腫、熱、痛等情形</th>
+        <td colspan="3">
+            @VitalSign_Helper.assess_radio("bundle_bsi_position", "是|否", "", "")
+        </td>
+    </tr>
+    @* 20230731 LU 依需求暫時隱藏選項並調整非必選 *@
+    <tr must="N" hidden style="display:none;">
+        <th style="width:25%">評估合併症</th>
+        <td colspan="3">
+            @VitalSign_Helper.assess_checkbox("bundle_bsi_complication", "心律不整|血管損傷|出血|" +
+           "血腫|血胸|氣胸|空氣栓塞|血栓靜脈炎", "", "")<br />
+            是否感染
+            @VitalSign_Helper.assess_radio("bundle_bsi_complication_infection", "是|否", "", "")
+        </td>
+    </tr>
+    <tr must="Y">
+        <th style="width: 25%; text-align: left;">5.更換敷料前消毒皮膚方式(可複選)</th>
+        @*20230627 LU 增加選項互斥*@
+        <td colspan="3" model="" onclick="bindExclusive(this,'bundle_bsi_skin_disinfect','本日不須更換敷料');">
+            @VitalSign_Helper.assess_checkbox("bundle_bsi_skin_disinfect", "使用2% chlorhexidine|使用酒精性優碘|" +
+    "使用其他消毒劑|本日不須更換敷料", "", "")
+        </td>
+    </tr>
+    @* 20230731 LU 依需求暫時隱藏選項並調整非必選 *@
+    <tr must="N" hidden style="display:none;">
+        <th style="width:25%">管路照護消毒</th>
+        @*20230627 LU 增加選項互斥*@
+        <td colspan="3" model="" onclick="bindExclusive(this,'bundle_bsi_tube_disinfect','有執行管路照護但未消毒|本日未執行管路照護工作');">
+            @VitalSign_Helper.assess_checkbox("bundle_bsi_tube_disinfect", "使用2% chlorhexidine|使用優碘|使用70%-75%酒精消毒|" +
+    "使用其他消毒劑|有執行管路照護但未消毒|本日未執行管路照護工作", "", "")
+        </td>
+    </tr>
+</table>
+
+@if (ViewBag.dt_detail != null)
+{
+    <script type="text/javascript">
+        $(function () {
+            var detail = @(Html.Raw(JsonConvert.SerializeObject(ViewBag.dt_detail)));
+            var form = $("#bundleArea input");
+
+            form.each(function (idx,item) {
+                var $currentItem = $(item);
+                for (var idx1 in detail) {
+                    if ($currentItem.is(":checkbox")) {
+                        if (($currentItem.prop("name") == detail[idx1].NAME) && ($currentItem.prop("value") == detail[idx1].VALUE))
+                            $currentItem.prop("checked", "true");
+                    } else if ($currentItem.is(":radio")) {
+                        if (($currentItem.prop("name") == detail[idx1].NAME) && ($currentItem.prop("value") == detail[idx1].VALUE))
+                            $currentItem.prop("checked", "true");
+                    } else if ($currentItem.is(":text")) {
+                        if ($currentItem.prop("name") == detail[idx1].NAME)
+                            $currentItem.attr("value", detail[idx1].VALUE);
+                    }
+                };
+            });
+        });
+    </script>
+}
+else
+{
+    <script type="text/javascript">
+        $(function () {
+            // 20230731 LU 配合新增預帶選項
+            $("input[name='bundle_bsi_hand'][value='是']").prop("checked", true);
+            $("input[name='bundle_bsi_position'][value='是']").prop("checked", true);
+
+            //更新時沒資料則隱藏此頁面
+            var action = $("#form1").attr('action');
+            if (action.includes("Upd_Assess"))
+                no_bundlecare();
+        });
+    </script>
+}

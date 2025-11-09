@@ -1,0 +1,169 @@
+﻿@{
+    //Layout = "~/Views/Layout/Main.cshtml";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string RootDocument = ViewBag.RootDocument;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+  .dataArea td {
+    border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+    text-align: left;
+    white-space:pre-line;
+    word-break:break-all;
+  }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 120);
+        }).trigger("resize");
+        setGridColor();
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+    function turn_pdf() {
+        if (window.location.href.indexOf('feeno') == -1) {
+            var url = '/CareRecord_PDF?starttime=' + $('#start_date').val() + '|' + $('#start_time').val() + '&endtime=' + $('#end_date').val() + '|' + $('#end_time').val() + '&feeno=@(ViewBag.feeno)';
+            $.ajax({
+                type: "POST",
+                url: 'Html_To_Pdf',
+                data: { "url": window.location.href.replace('/CareRecord', url) },
+                success: function (reslut) { document.write(reslut); }
+            });
+
+        }
+        else {
+            var url = '/CareRecord_PDF?starttime=' + $('#start_date').val() + '|' + $('#start_time').val() + '&endtime=' + $('#end_date').val() + '|' + $('#end_time').val() + '&';
+            $.ajax({
+                type: "POST",
+                url: 'Html_To_Pdf',
+                data: { "url": window.location.href.replace('/CareRecord?', url) },
+                success: function (reslut) { document.write(reslut); }
+            });
+        }
+    }
+
+    function turn_pdf_tmuh() {
+        @*var startdate = $('#start_date').val() + " " + $('#start_time').val();
+        var enddate = $('#end_date').val() + " " + $('#end_time').val();
+        window.open('../CareRecord/exportPDF?startdate=' + startdate + '&enddate=' + enddate + '&feeno=@(ViewBag.feeno)');*@
+        window.open('@(RootDocument)/Print/GetPDF?HeaderVal=@(Server.UrlEncode("護理記錄單"))&FooterVal=@(Server.UrlEncode("(102_Q4)恩主公醫院BAIA000-040-01"))&url=@(RootDocument)/CareRecord/List_PDF?1=1&starttime=' + $('#start_date').val() + '|' + $('#start_time').val() + '&endtime=' + $('#end_date').val() + '|' + $('#end_time').val() + '&filename=test&fromVIEW=HisView&feeno=@(ViewBag.feeno)');
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+    string feeno = ViewBag.feeno;
+    DateTime start_date = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00"));
+    DateTime end_date = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd HH:mm"));
+    if (ViewBag.start_date != null)
+    { start_date = ViewBag.start_date; }
+    if (ViewBag.end_date != null)
+    { end_date = ViewBag.end_date; }
+}
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+            <td style="padding-bottom:5px;">
+                <form action="CareRecord" method="post">
+                    <input name="feeno" type="hidden" value="@feeno"/>
+                    @Html.TextBox("start_date", start_date.ToString("yyyy/MM/dd"), new {style="width:80px" })
+                    @Html.TextBox("start_time", start_date.ToString("HH:mm"), new {style="width:50px" })
+                    @Html.Label("lab"," ~ ")
+                    @Html.TextBox("end_date", end_date.ToString("yyyy/MM/dd"), new {style="width:80px" })
+                    @Html.TextBox("end_time", end_date.ToString("HH:mm"), new { style = "width:50px" })
+                    @*@WebTool.setDateTime("start_date", "start_time")
+                    @WebTool.setDateTime("end_date", "end_time")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "start_time", false)
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "end_time", false)
+                    <input type="button" value="查詢" style="width:60px;" onclick="submit();" />
+                         <input type="button" value="列印" style="width:80px;" onclick="turn_pdf_tmuh();" />
+                </form>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:5px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td style="width:15%;">時間日期</td>
+                            <td style="width:75%;">紀錄</td>
+                            <td style="width:10%;">輸入者</td>
+                            @*<td style="width:8%;"><div style="width:60px; overflow:hidden;"></div></td>
+                            <td style="width:8%;"><div style="width:60px; overflow:hidden;"></div></td>*@
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:350px;">
+                    @if(dt != null)
+                    {
+                    <table border="0" cellpadding="4" cellspacing="1" width="100%" style="width:100%;background-color: #FFFFFF;">
+                        @foreach(DataRow r in dt.Rows)
+                        {
+                        <tr>
+                            <td style="width:15%;vertical-align:text-top;">
+                                <div>@Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd HH:mm")</div>
+                            </td>
+                            <td style="max-width:19%;vertical-align:text-top;">
+                                @if (r["TITLE"].ToString() != "")
+                                {
+                                    <div>@r["TITLE"]</div>
+                                }
+                            </td>
+                            <td style="vertical-align:text-top;">
+                                @if (r["C"].ToString() != "" || r["C_OTHER"].ToString() != "")
+                                {
+                                    <div><span style="width:10px;color:blue;">一般：</span><span style="color:red;">@r["C_OTHER"]</span>&nbsp;@r["C"]</div>
+                                }
+                                @if (r["S"].ToString() != "" || r["S_OTHER"].ToString() != "")
+                                {
+                                    <div><span style="width:10px;color:blue;">S：</span><span style="color:red;">@r["S_OTHER"]</span>&nbsp;@r["S"]</div>
+                                }
+                                @if (r["O"].ToString() != "" || r["O_OTHER"].ToString() != "")
+                                {
+                                    <div><span style="width:10px;color:blue;">O：</span><span style="color:red;">@r["O_OTHER"]</span>&nbsp;@r["O"]</div>
+                                }
+                                @if (r["I"].ToString() != "" || r["I_OTHER"].ToString() != "")
+                                {
+                                    <div><span style="width:10px;color:blue;">I：</span><span style="color:red;">@r["I_OTHER"]</span>&nbsp;@r["I"]</div>
+                                }
+                                @if (r["E"].ToString() != "" || r["E_OTHER"].ToString() != "")
+                                {
+                                    <div><span style="width:10px;color:blue;">E：</span><span style="color:red;">@r["E_OTHER"]</span>&nbsp;@r["E"]</div>
+                                }
+                                @if (r["EKG"].ToString() != "")
+                                {
+                                    byte[] imageBytes = (byte[])r["EKG"];
+                                    string base64String = Convert.ToBase64String(imageBytes);
+                                    <img data-name="sourceImage" src="@String.Format("data:image/png;base64,{0}", base64String)" style="display:inline;" height="150px" onclick="ShowImg(this);" />
+                                }
+                            </td>
+                            <td style="width:10%;text-align:center;vertical-align:text-top;">
+                                    @*<div>@r["CREATNAME"]</div>*@<div>@r["username"]</div>
+                            </td>
+                            @*<td style="width:8%;vertical-align:text-top;">
+                                
+                            </td>
+                            <td style="width:8%;vertical-align:text-top;">
+                            </td>*@
+                        </tr>
+                        }
+                    </table>
+                    }
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>

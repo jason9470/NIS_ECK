@@ -1,0 +1,277 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string RootDocument = ViewBag.RootDocument;
+    string title = "護理計畫總表(護理紀錄)";
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+    string feeno = ViewBag.feeno;
+    string rb_mode = ViewBag.rb_mode;
+    string s_datetime = ViewBag.s_datetime;
+    string e_datetime = ViewBag.e_datetime;
+    string t_diagnosis = ViewBag.t_diagnosis;
+    DataTable ck_list = ViewBag.ck_list;
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        search_btn();
+
+        close_pup_window();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 150);
+        }).trigger("resize");
+        $('#rb_diagnosis').trigger('click');
+        //$('#@(rb_mode)').prop('checked', true);
+        setGridColor();
+
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');}
+
+    function pup_window(url, width, height) {
+        new_window.push(window.open(url, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,resizable=yes,left=200,toolbar=no,width=' + width + ',height=' + height));
+    }
+
+
+    function toDelete(obj) {
+        if(confirm('確定刪除?')) {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Content("~/CareRecord/Delete")',
+                data: { "id": $(obj).attr('data-id'), "self": $(obj).attr('data-self') },
+                success: function (reslut) {
+                    alert(reslut);
+                    $('#btnSearch').click();
+                }
+            });
+        }
+    }
+    function ShowImg(obj) {
+        var src = $(obj).attr('src');
+        var newwindow = window.open('', 'top_dialog', 'menubar=yes,status=yes,scrollbars=yes,top=0,resizable=yes,left=0');
+        var t = newwindow.document.createElement('img');
+        $(t).prop('src', src);
+        $(newwindow.document.body).html(t);
+
+    }
+    function search_type(type) {
+        switch (type)
+        {
+            case "diagnosis":
+                $('#time_range').fadeOut(0);
+                $('#ck_diagnosis').fadeIn(0);
+                break;
+            case "unfinished":
+                $('#time_range').fadeOut(0);
+                $('#ck_diagnosis').fadeOut(0);
+                break;
+            case "timerange":
+                $('#time_range').fadeIn(0);
+                $('#ck_diagnosis').fadeOut(0);
+                break;
+            default :
+                break;
+        }
+    }
+    function search_btn() { //查詢
+        $.ajax({
+            type: "POST",
+            url: 'AllList_Search',
+            data: {
+                "feeno": $('#feeno').val(),
+                "rb_mode": $('#rb_mode').val(),
+                "s_datetime": $('#s_datetime').val(),
+                "e_datetime": $('#e_datetime').val(),
+                "t_diagnosis": $('#t_diagnosis').val()
+            },
+            beforeSend: function () {
+                $("#block,#loading").show();
+            },
+            success: function (data) {
+                //$("#dataArea").html('')//清空
+                var tr_str = "";
+                var item_tmp_html = $("#item_tmp");//取得樣板
+                var i = 0;
+                $.each(data, function (i, obj) {
+                    var m_status = "";
+                    var a_status = "";
+                    if (obj.MODIFT_bool) {
+                        m_status = "修改";
+                    }
+                    if (obj.ASSESS_bool) {
+                        a_status = "重整";
+                    }
+                    //item_tmp_html.find('tr').attr('data-json', JSON.stringify(obj));
+                    item_tmp_html.find('td[name=pno]').html('#' + obj.PNO);
+                    item_tmp_html.find('td[name=topicdesc]').html(obj.TOPICDESC);
+                    item_tmp_html.find('td[name=planstartdate]').html(obj.PLANSTARTDATE);
+                    item_tmp_html.find('td[name=planenddate]').html(obj.PLANENDDATE);
+                    item_tmp_html.find('td[name=status]').html(m_status + '<br>' + a_status);
+                    item_tmp_html.find('td[name=status_date]').html(obj.MODIFT_DATE + '<br>' + obj.ASSESS_DATE);
+                    item_tmp_html.find('td[name=recoderccname]').html(obj.RECORDER_UNIT);
+                    item_tmp_html.find('td[name=recoder]').html(obj.RECORDER_NAME);
+                    item_tmp_html.find('td[name=assessccname]').html(obj.ASSESS_UNIT);
+                    item_tmp_html.find('td[name=assess_id]').html(obj.ASSESS_NAME);
+                    tr_str += item_tmp_html.html();
+                    i++;
+                });
+
+                $(".dataArea_PDF tbody").html(tr_str);
+
+                //$("#funcArea").html(data);
+            },
+            complete: function () {
+                $("#block,#loading").hide();
+            }
+        });
+    }
+    ////function search_btn(obj) { //排序
+    ////    window.location.href = 'AllList?rb_mode=' + obj;
+    ////    loop_windows("open_cover");
+    ////}
+</script>
+<div class="funcArea">
+    <input type="hidden" class="feeno" id="feeno" value="@feeno" />
+    <input type="hidden" class="rb_mode" id="rb_mode" value="@rb_mode" />
+    <input type="hidden" class="s_datetime" id="s_datetime" value="@s_datetime" />
+    <input type="hidden" class="e_datetime" id="e_datetime" value="@e_datetime" />
+    <input type="hidden" class="t_diagnosis" id="t_diagnosis" value="@t_diagnosis" />
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">    
+        <tr>
+            <td>
+                <table border="0" style="width:100%;">
+                    <tr>
+                        <td>病人姓名：@ptinof.PatientName</td>
+                        @if (ptinof.Birthday != null)
+                        {
+                            <td>生日：@Convert.ToDateTime(ptinof.Birthday).ToString("yyyy/MM/dd")</td>
+                        }
+                        else
+                        {
+                            <td>生日：</td>
+                        }
+                        <td>年齡：@(ptinof.Age)  &nbsp; 性別：@(ptinof.PatientGender)</td>
+                        @*<td>病床號：@ptinof.BedNo</td>*@
+
+                        <td colspan="2">病歷號：@ptinof.ChartNo</td>
+                    </tr>
+                    <tr>
+                        <td>科別：@ptinof.DeptName</td>
+                        <td>主治醫師：@ptinof.DocName</td>
+                        @if (ptinof.InDate != null)
+                        {
+                            <td>住院日期：@Convert.ToDateTime(ptinof.InDate).ToString("yyyy/MM/dd HH:mm") (@ptinof.InDay)</td>
+                        }
+                        else
+                        {
+                            <td>住院日期：</td>
+                        }
+
+                        <td colspan="2">診斷：@ptinof.ICD9_code1</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>    
+        <tr>
+            <td style="padding:5px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="3" style="width:100%;">
+                        <tr>
+                            <td style="width:5%;">序號</td>
+                            <td style="width:15%;">護理計畫名稱</td>
+                            <td style="width:10%;">新增日期</td>
+                            <td style="width:10%;">結束日期</td>
+                            <td style="width:10%;">異動內容</td>
+                            <td style="width:10%;">異動日期</td>
+                            <td style="width:10%;">單位</td>
+                            <td style="width:10%;">護理師</td>
+                            <td style="width:10%;">異動單位</td>
+                            <td style="width:10%;">異動者</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea_PDF">
+                    <table border="0" cellpadding="4" cellspacing="3" style="width:100%;background-color: #FFFFFF;">
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <table class="dataTb" border="0" cellpadding="4" cellspacing="1" style="width:100%;display:none;">
+                    <tbody id="item_tmp">
+                        <tr style="height:50px">
+                            <td name="pno" style="width:5%;"></td>
+                            <td name="topicdesc" style="width:15%;"></td>
+                            <td name="planstartdate" style="width:10%;text-align:center;"></td>
+                            <td name="planenddate" style="width:10%;text-align:center;"></td>
+                            <td name="status" style="width:10%;text-align:center;"></td>
+                            <td name="status_date" style="width:10%;text-align:center;"></td>
+                            <td name="recoderccname" style="width:10%;text-align:center;"></td>
+                            <td name="recoder" style="width:10%;text-align:center;"></td>
+                            <td name="assessccname" style="width:10%;text-align:center;"></td>
+                            <td name="assess_id" style="width:10%;text-align:center;"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+</div>
+
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size: 16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

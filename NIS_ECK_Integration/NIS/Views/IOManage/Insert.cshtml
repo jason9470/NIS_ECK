@@ -1,0 +1,629 @@
+﻿@{
+    ViewBag.Title = "New_Insert";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if (complement_List.Status)
+    { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (pf.InDate > mindate)
+        { mindate = pf.InDate; }
+    }
+}
+
+<style type="text/css">
+    .dataArea {
+        overflow-x: auto;
+        overflow-y: scroll;
+        border-top: 2px solid #666;
+    }
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        white-space: nowrap;
+    }
+    .header {
+        margin-right: 17px;
+        overflow: hidden;
+    }
+    .header td {
+        font-weight: bold;
+        margin: 1px 1px 1px 1px;
+        text-align: center;
+        vertical-align: middle;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        setIntakeColor();
+        setOutputColor();
+        @if (ViewBag.IO != null)
+        {
+            string io = ViewBag.IO;
+            if (io == "I")
+            { 
+                @:$('#btn_intake').click();
+            }
+            else
+            { 
+                @:$('#btn_output').click();
+            }
+        }
+    });
+
+    function setIntakeColor() {
+        //格行換色
+        $('#tb_inake tr:odd').css('background', '#ABC8E2');
+        $('#tb_inake tr:even').css('background', '#E1E6FA');
+    }
+    function setOutputColor() {
+        //格行換色
+        $('#tb_output tr:odd').css('background', '#E8D0D0');
+        $('#tb_output tr:even').css('background', '#F4E9E9');
+    }
+    
+    //buton變色_以選
+    function setButtonColor(id, btnid) {
+        var all_btn = $('.' + id + ' input[type=button]');
+        if (btnid != '') {
+            for (var i = 0; i < all_btn.length; i++) {
+                if (all_btn[i].id == btnid) {
+                    $("#" + all_btn[i].id).css("background-color", "#666666");
+                    $("#" + all_btn[i].id).css("color", "#FFFFFF");
+                }
+                else {
+                    $("#" + all_btn[i].id).css("background-color", "#9CB7CF");
+                    $("#" + all_btn[i].id).css("color", "Black");
+                }
+            }
+        }
+        else {
+            for (var i = 0; i < all_btn.length; i++) {
+                $("#" + all_btn[i].id).css("background-color", "#9CB7CF");
+                $("#" + all_btn[i].id).css("color", "Black");
+            }
+        }
+    }
+
+    //點選按鈕_變色
+    function btn_click(obj) {
+        var divid = document.getElementById(obj.id).parentNode.getAttribute('class');
+        setButtonColor(divid, obj.id);
+    }
+
+    //選擇輸入或輸出
+    function btn_io_click(obj) {
+        var id = $(obj).attr('showid');
+        var io_div = $('.intake_output');
+        for (var i = 0; i < io_div.length; i++) {
+            $('#' + io_div[i].id).fadeOut(0);
+        }
+        $('#' + id).show();
+        var all_div = $('.kind_maintain');
+        setButtonColor('kind_maintain', '');
+        setButtonColor('intake_output', '');
+        for (var i = 0; i < all_div.length; i++) {
+            $('#' + all_div[i].id).fadeOut(0);
+        }
+        all_clear();
+    }
+    
+    //選擇項目後顯示對應子項目
+    function show_btn(obj) {
+        var divid = document.getElementById(obj.id).parentNode.getAttribute('id');
+        var divclass = document.getElementById(obj.id).parentNode.getAttribute('class');
+        var row = $(obj).attr('row');
+        var all_div = $('.kind_maintain');
+        for (var i = 0; i < all_div.length; i++) {
+            if (all_div[i].id == 'div' + row) {
+                var btn = $('#' + all_div[i].id + ' input[type=button]');
+                if (btn.length > 0) {
+                    $('#' + divid).fadeOut(0);
+                    $('#div' + row).show();
+                    all_clear();
+                }
+                else {
+                    setButtonColor(divclass, obj.id);
+                    $('#typeid').val(row);
+                    $('#txt_amount').focus();
+                }
+            }
+            else {
+                $('#' + all_div[i].id).fadeOut(0);
+            }
+        }
+    }
+
+    //選擇項目
+    function btn_item_click(obj) {
+        $('#typeid').val($(obj).attr('typeid'));
+        $('#itemid').val($(obj).attr('id'));
+        $('#calories').val($(obj).attr('calorie'));
+        $('#txt_amount').val('');
+        $('#txt_carloe').val('');
+        $('#txt_amount').focus();
+    }
+
+    //點選確認
+    function btn_insert_click() {
+        var success = false;
+        $('#creat_day').val($('#txt_day').val());
+        $('#creat_time').val($('#txt_time').val());
+        if (document.getElementById('Loss').checked || $.trim($('#txt_amount').val()) != '') {
+            var typeid = $('#typeid').val();
+            if (typeid != '') {
+                document.getElementById('txt_amount').disabled = false;
+                document.getElementById('txt_carloe').disabled = false;
+                if ($('#txt_carloe').val() == '')
+                    $('#txt_carloe').val('0');
+                success = true;
+            }
+            else
+                alert('請選擇項目');
+        }
+        else {
+            alert('請輸入數量');
+        }
+        return success;
+    }
+
+    ///     其他    ///
+
+    function all_clear() {
+        $('#typeid').val('');
+        $('#itemid').val('');
+        $('#calories').val('0');
+        $('#txt_amount').val('');
+        $('#txt_carloe').val('');
+    }
+
+    function set_loss(obj) {
+        if (obj.checked) {
+            $('#txt_amount').val('');
+            $('#txt_carloe').val('');
+            document.getElementById('txt_amount').disabled = true;
+            document.getElementById('txt_carloe').disabled = true;
+        }
+        else {
+            document.getElementById('txt_amount').disabled = false;
+            document.getElementById('txt_carloe').disabled = false;
+        }
+    }
+
+    //註記focus的text
+    function Mark(id) {
+        $("#key").val(id);
+    }
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        var success = true;
+        if (obj.value.indexOf('.') > -1)
+            var re = /^[0-9]+\.[0-9]*$/;
+        else
+            var re = /^[0-9]+$/;
+
+        if (!re.test(obj.value) && obj.value != "") {
+            alert("只能輸入數字");
+            $(obj).val('');
+            success = false;
+        }
+        return success;
+    }
+
+    //計算卡路里
+    function count_calories(amount) {
+        var num = multiplication(amount, $('#calories').val());
+        $('#txt_carloe').val(num);
+    }
+
+    //螢幕鍵盤輸入_驗證
+    function btn_write(word) {
+        var Markid = $("#key").val();
+        var new_word = $("#" + Markid).val() + word;
+        if (new_word.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(new_word) && new_word != "") {
+            alert("只能輸入數字");
+        }
+        else {
+            $("#" + Markid).val(new_word);
+            count_calories(new_word);
+        }
+    }
+
+    function btn_backspace() {
+        var Markid = $("#key").val();
+        var new_word = $("#" + Markid).val();
+        new_word = new_word.substring(0, new_word.length - 1)
+        $("#" + Markid).val(new_word);
+        count_calories(new_word);
+    }
+
+    //判斷是否選擇其他
+    function txt_fordrop(dropid, txtid) {
+        var list = $('#' + dropid).val()
+        if (list != '99') {
+            $('#' + txtid).attr('defaultvalue', $('#' + txtid).val());
+            document.getElementById(txtid).disabled = true;
+            $('#' + txtid).val('');
+        }
+        else {
+            $('#' + txtid).val($('#' + txtid).attr('defaultvalue'));
+            document.getElementById(txtid).disabled = false;
+        }
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt_intake = ViewBag.dt_intake;
+    DataTable dt_output = ViewBag.dt_output;
+    DataTable dt_kind_maintain = ViewBag.dt_kind_maintain;
+    DataTable dt_io_data = ViewBag.dt_io_data;
+    DataTable dt_tubekind = ViewBag.dt_tubekind;
+    DataTable dt = ViewBag.dt;
+    DateTime date = DateTime.Now;
+    double input = 0, input_clorie = 0;
+    double output = 0, output_clorie = 0;
+    if (ViewBag.date != null)
+    { date = Convert.ToDateTime(ViewBag.date); }
+}
+<input id="key" type="hidden" value="txt_amount" />
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+            <td colspan="2" style="padding:5px 0 5px 0;text-align:center;height:40px;">
+                @Html.TextBox("txt_day", date.ToString("yyyy/MM/dd"), new { style = "width:80px;", @readonly = "readonly" })
+                @Html.TextBox("txt_time", date.ToString("HH:mm"), new { style = "width:50px;", @readonly = "readonly" })
+                @*@WebTool.setDateTime("txt_day", "txt_time", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                <input type="button" value="查詢" onclick="window.location.href = 'Index';" />
+            </td>
+        </tr>
+        <tr>
+            <td rowspan="2" style="width:40%;height:134px;">
+                <div class="header">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td style="width:50%;height:20px;background-color: #85A5CC;">輸入項目</td>
+                            <td style="width:50%;height:20px;background-color: #85A5CC;">量(kcal)</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:135px;">
+                @if (dt_io_data != null)
+                {
+                    <table id="tb_inake" border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;text-align:center;">
+                    @foreach (DataRow r in dt_io_data.Rows)
+                    {
+                        if (r["P_GROUP"].ToString() == "intaketype")
+                        {
+                        <tr>
+                            <td style="width:50%;">
+                                @if (r["NAME"].ToString() != "")
+                                {
+                                    @:@r["NAME"]
+                                }
+                                else
+                                {
+                                    @:@r["P_NAME"]
+                                }
+                            </td>
+                            <td style="width:50%;">
+                                @if (r["REASON"].ToString() != "")
+                                {
+                                    @:@r["REASON"]
+                                }
+                                else
+                                {
+                                    @:@Convert.ToDouble(r["AMOUNT"].ToString())
+                                    input += Convert.ToDouble(r["AMOUNT"].ToString());
+                                    input_clorie += Convert.ToDouble(r["CALORIES"].ToString());
+                                }
+                            </td>
+                        </tr>
+                        }
+                    }
+                        <tr>
+                            <td style="width:50%;"><span style="color:red;">合計</span></td>
+                            <td style="width:50%;">
+                                @input
+                                (@input_clorie)
+                            </td>
+                        </tr>
+                    </table>
+                }
+                </div>
+                <div class="header">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td style="width:50%;height:20px;background-color: #C0504D;">輸出項目</td>
+                            <td style="width:50%;height:20px;background-color: #C0504D;">量</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:135px;">
+                @if (dt_io_data != null)
+                {
+                    <table id="tb_output" border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;text-align:center;">
+                    @foreach (DataRow r in dt_io_data.Rows)
+                    {
+                        if (r["P_GROUP"].ToString() == "outputtype")
+                        {
+                        <tr>
+                            <td style="width:50%;">
+                            @if (r["TYPEID"].ToString() == "9")
+                            {
+                                if (r["NAME"].ToString() == "" && r["ITEMID"].ToString() != "")
+                                {
+                                    @:@Html.Raw(ViewBag.tube_name(r["ITEMID"].ToString()))
+                                }
+                                else
+                                {
+                                    @:@r["P_NAME"]
+                                }
+                            }
+                            else
+                            {
+                                if (r["NAME"].ToString() != "")
+                                {
+                                    @:@r["NAME"]
+                                }
+                                else
+                                {
+                                    @:@r["P_NAME"]
+                                }
+                            }
+                            </td>
+                            <td style="width:50%;">
+                                @if (r["REASON"].ToString() != "")
+                                {
+                                    @:@r["REASON"]
+                                }
+                                else
+                                {
+                                    @:@Convert.ToDouble(r["AMOUNT"].ToString())
+                                    output += Convert.ToDouble(r["AMOUNT"].ToString());
+                                    output_clorie += Convert.ToDouble(r["CALORIES"].ToString());
+                                }
+                            </td>
+                        </tr>
+                        }
+                    }
+                        <tr>
+                            <td style="width:50%;"><span style="color:red;">合計</span></td>
+                            <td style="width:50%;">
+                                @output
+                               @* (@output_clorie)*@
+                            </td>
+                        </tr>
+                    </table>
+                }
+                </div>
+                <div class="header">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:16px;">
+                        <tr>
+                            <td style="height:20px;font-size:14px;background-color:#9BBB59;">小計 量(kcal)</td>
+                        </tr>
+                    </table>
+                </div>
+                <div style="height:30px;overflow:hidden;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:96%;text-align:center;">
+                        <tr style="font-size:12px;">
+                            <td style="background-color:#EFF3EA;">
+                                @(input - output)
+                                (@(input_clorie - output_clorie))
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+            <td style="width:60%;height:264px;">
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;height:264px;background-color: #EEEFFF;border: 1px solid #CC88FF;">
+                    <tr>
+                        <td class="io" align="center" style="width:15%;height:50px;">
+                            <input id="btn_intake" type="button" style="width:100px;height:60px;" showid="dv_intake" value="輸入" onclick="btn_click(this); btn_io_click(this); $('#cal').show();" />
+                            <input id="btn_output" type="button" style="width:100px;height:60px;" showid="dv_output" value="輸出" onclick="btn_click(this); btn_io_click(this); $('#cal').hide();" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="height:80%;text-align:center;overflow:auto">
+                        <div style="height:200px;overflow-x:hidden;overflow-y:auto;">
+                            <div class="intake_output" id="dv_intake" style="display:none;padding: 2px 0 2px 0;">
+                            @if (dt_intake != null)
+                            {
+                                foreach (DataRow r in dt_intake.Rows)
+                                {
+                                    <input type="button" value="@r["P_NAME"]" id="intake@(r["P_VALUE"])" row="@r["P_VALUE"]" style="width:80px;height:60px;" onclick=" show_btn(this, 'intake');" />
+                                }
+                            }
+                            </div>
+                            <div class="intake_output" id="dv_output" style="display:none;padding: 2px 0 2px 0;">
+                            @if (dt_output != null)
+                            {
+                                foreach (DataRow r in dt_output.Rows)
+                                {
+                                    <input type="button" value="@r["P_NAME"]" id="output@(r["P_VALUE"])" row="@r["P_VALUE"]" style="width:80px;height:60px;" onclick=" show_btn(this, 'output');" />
+                                }
+                            }
+                            </div>
+                            @if (dt_kind_maintain != null)
+                            {
+                                foreach (DataRow r in dt_intake.Rows)
+                                {
+                            <div class="kind_maintain" id="div@(r["P_VALUE"])" style="display:none;padding: 2px 0 2px 0;">
+                                @for (int i = 0; i < dt_kind_maintain.Rows.Count; i++)
+                                {
+                                    if (dt_kind_maintain.Rows[i]["TYPEID"].ToString() == r["P_VALUE"].ToString())
+                                    {
+                                <input id="@dt_kind_maintain.Rows[i]["ITEMID"]" type="button" typeid="@dt_kind_maintain.Rows[i]["TYPEID"]" value="@dt_kind_maintain.Rows[i]["NAME"]" calorie="@Convert.ToDouble(dt_kind_maintain.Rows[i]["CALORIES"].ToString())" style="min-width:80px;height:60px;margin:2px 0 2px 0;" onclick="btn_click(this); btn_item_click(this);" />
+                                    }
+                                }
+                            </div>
+                                }
+                                foreach (DataRow r in dt_output.Rows)
+                                {
+                            <div class="kind_maintain" id="div@(r["P_VALUE"])" style="display:none;padding: 2px 0 2px 0;">
+                                    @for (int i = 0; i < dt_kind_maintain.Rows.Count; i++)
+                                    {
+                                        if (dt_kind_maintain.Rows[i]["TYPEID"].ToString() == r["P_VALUE"].ToString())
+                                        {
+                                <input id="@dt_kind_maintain.Rows[i]["ITEMID"]" type="button" typeid="@dt_kind_maintain.Rows[i]["TYPEID"]" value="@dt_kind_maintain.Rows[i]["NAME"]" calorie="@Convert.ToDouble(dt_kind_maintain.Rows[i]["CALORIES"].ToString())" style="min-width:80px;height:60px;margin:2px 0 2px 0;" onclick="btn_click(this); btn_item_click(this);" />
+                                        }
+                                    }
+                                    @if (r["P_VALUE"].ToString() == "9")
+                                    {
+                                        for (int j = 0; j < dt_tubekind.Rows.Count; j++)
+                                        {
+                                            if (dt_tubekind.Rows[j]["TYPE_GROUP"].ToString() == "1")
+                                            {
+                                                string name = dt_tubekind.Rows[j]["TYPE_NAME"].ToString() + dt_tubekind.Rows[j]["POSITION"].ToString() + dt_tubekind.Rows[j]["LOCATION_NAME"].ToString();
+                                                if (dt_tubekind.Rows[j]["NUMBERID"].ToString() != "99")
+                                                { name += "#" + dt_tubekind.Rows[j]["NUBER_NAME"].ToString(); }
+                                                else
+                                                { name += "#" + dt_tubekind.Rows[j]["NUMBEROTHER"].ToString(); }
+                                <input id="@dt_tubekind.Rows[j]["TUBEROW"]" type="button" tubetype="@dt_tubekind.Rows[j]["TYPEID"]" typeid="@r["P_VALUE"]" value="@name" calorie="0" style="min-width:80px;height:60px;margin:2px 0 2px 0;" onclick="btn_click(this); btn_item_click(this);" />        
+                                            }
+                                        }
+                                    }
+                            </div>
+                                }
+                            }
+                        </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:50%;height:134px;">
+                <form action="Insert" method="post" style="height:100%;width:100%;">
+                    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;height:134px;background-color: #EEEFFF;border: 1px solid #CC88FF;">
+                        <tr>
+                            <td style="height:100%;width:45%;">
+                                <table border="0" cellpadding="0" cellspacing="0" style="height:100%;">
+                                    <tr>
+                                        <td style="padding-left:40px;">
+                                            @Html.TextBox("txt_amount", "", new { style = "width:60px", maxlength = "10", onchange = "if(numcheck(this)) { count_calories(this.value); } ", onfocus = "Mark(this.id);" })
+                                            <select name="unit_select">
+                                                <option value="1">mL</option>
+                                                <option value="2">次</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="cal" style="padding-left:40px;">
+                                            @Html.TextBox("txt_carloe", "", new { style = "width:60px", onchange = "numcheck(this); " }) 大卡
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-left:40px;">
+                                            <input type="button" value="確定" style="width:60px;" onclick="if (btn_insert_click()) { loop_windows('open_cover'); submit(); }" />
+                                            <label><input type="checkbox" value="Loss" id="Loss" name="Loss" onclick="set_loss(this);" />遺失</label>
+                                            <input id="creat_day" name="creat_day" type="hidden" value="" />
+                                            <input id="creat_time" name="creat_time" type="hidden" value="" />
+                                            <input id="typeid" name="typeid" type="hidden" value="" />
+                                            <input id="itemid" name="itemid" type="hidden" value="" />
+                                            <input id="calories" type="hidden" value="0" />
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                            <td style="height:100%;width:55%;">
+                                <table style="height:100%;">
+                                    <tr>
+                                        <td>
+                                                顏色
+                                                @Html.DropDownList("color_drainage", (List<SelectListItem>)ViewData["color_drainage"], new { onchange = "txt_fordrop(this.id,'color_other');" })
+                                                @Html.TextBox("color_other", "", new { style = "width:60px;", defaultvalue = "", disabled = "disabled" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                                氣味
+                                                @Html.DropDownList("taste_drainage", (List<SelectListItem>)ViewData["taste_drainage"], new { onchange = "txt_fordrop(this.id,'taste_other');" })
+                                                @Html.TextBox("taste_other", "", new { style = "width:60px;", defaultvalue = "", disabled = "disabled" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                                性質
+                                                @Html.DropDownList("nature_drainage", (List<SelectListItem>)ViewData["nature_drainage"], new { onchange = "txt_fordrop(this.id,'nature_other');" })
+                                                @Html.TextBox("nature_other", "", new { style = "width:60px;", defaultvalue = "", disabled = "disabled" })
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </form>
+            </td>
+        </tr>
+    </table>
+</div>
+
+@*<table class="num_picker" cellpadding="3" >
+    <tr>
+        <td>
+            <input type="button" value="  7  " class="num_but" onclick="btn_write('7');" /></td>
+        <td>
+            <input type="button" value="  8  " class="num_but" onclick="btn_write('8');" /></td>
+        <td>
+            <input type="button" value="  9  " class="num_but" onclick="btn_write('9');" /></td>
+        <td>
+            <input type="button" value="  0  " class="num_but" onclick="btn_write('0');" /></td>
+    </tr>
+    <tr>
+        <td>
+            <input type="button" value="  4  " class="num_but" onclick="btn_write('4');" /></td>
+        <td>
+            <input type="button" value="  5  " class="num_but" onclick="btn_write('5');" /></td>
+        <td>
+            <input type="button" value="  6  " class="num_but" onclick="btn_write('6');" /></td>
+        <td>
+            <input type="button" value="  .  " class="num_but" onclick="btn_write('.');" /></td>
+    </tr>
+    <tr>
+        <td>
+            <input type="button" value="  1  " class="num_but" onclick="btn_write('1');" /></td>
+        <td>
+            <input type="button" value="  2  " class="num_but" onclick="btn_write('2');" /></td>
+        <td>
+            <input type="button" value="  3  " class="num_but" onclick="btn_write('3');" /></td>
+        <td>
+            <input type="button"value=" ← " class="num_but" onclick="btn_backspace();" /></td>
+    </tr>
+</table>*@

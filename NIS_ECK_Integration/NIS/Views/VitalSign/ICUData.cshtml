@@ -1,0 +1,426 @@
+﻿@using NIS.Controllers;
+@using System.Data;
+@{
+    ViewBag.Title = "ICUData";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style>
+    #header-fixed {
+        position: fixed;
+        display: none;
+        border-collapse: collapse;
+        border-spacing: initial;
+        background-color: white;
+    }
+
+    #search_block {
+        position: fixed;
+        top: 0px;
+        width: 100%;
+        padding: 10px 0 10px 0;
+        background-color: white;
+    }
+
+    .abnormal_color {
+        background-color: pink;
+    }
+
+    .manual_checked_color {
+        background-color: pink;
+    }
+
+    .icu_data_used {
+        color: #A9A9A9;
+    }
+
+     .grid_view th {
+        background-color: #85A5CC;
+    }
+
+    .grid_view .odd{
+        background:rgb(171, 200, 226);
+    }
+
+    .grid_view .even{
+        background:rgb(225, 230, 250);
+    }
+
+    .odd_even thead tr{
+        background-color:#85A5CC;
+        font-weight:bold;
+    }
+    .odd_even tbody tr:nth-child(odd){
+        background:rgb(171, 200, 226);
+
+    }
+    .odd_even tbody tr:nth-child(even){
+        background:rgb(225, 230, 250);
+    }
+
+    #location_content{
+        height: 240px;
+    }
+
+    #location_footer {
+        height: 60px;
+        position: relative;
+        text-align: right;
+        margin: 20px 12px 0px 0px;
+    }
+
+    .tr_required td:first-child :before{
+        content: '*';
+        color: #f00;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        var now_hours = moment().hours();
+        if (now_hours >= 0 && now_hours < 8) {
+            //大夜
+            $("[name=shift][value='N']").trigger('click').trigger('onclick');
+        } else if (now_hours >= 8 && now_hours < 16) {
+            //白班
+            $("[name=shift][value='D']").trigger('click').trigger('onclick');
+        } else {
+            //小夜
+            $("[name=shift][value='E']").trigger('click').trigger('onclick');
+        }
+    });
+
+    //resize event
+    $(window).resize(function () {
+        fixedHeader();
+    });
+
+    //設定班別
+    function set_range() {
+        if ($('[name=shift]:checked').val() == "N") {
+            $('#start_date').val('@(DateTime.Today.ToString("yyyy/MM/dd"))');
+            $('#start_time').val('@(DateTime.Today.ToString("HH:mm"))');
+            $('#end_date').val('@(DateTime.Today.ToString("yyyy/MM/dd"))');
+            $('#end_time').val('@(DateTime.Today.AddHours(8).ToString("HH:mm"))');
+        }
+        if ($('[name=shift]:checked').val() == "D") {
+            $('#start_date').val('@(DateTime.Today.ToString("yyyy/MM/dd"))');
+            $('#start_time').val('@(DateTime.Today.AddHours(8).ToString("HH:mm"))');
+            $('#end_date').val('@(DateTime.Today.ToString("yyyy/MM/dd"))');
+            $('#end_time').val('@(DateTime.Today.AddHours(16).ToString("HH:mm"))');
+        }
+        if ($('[name=shift]:checked').val() == "E") {
+            $('#start_date').val('@(DateTime.Today.ToString("yyyy/MM/dd"))');
+            $('#start_time').val('@(DateTime.Today.AddHours(16).ToString("HH:mm"))');
+            $('#end_date').val('@(DateTime.Today.AddDays(1).ToString("yyyy/MM/dd"))');
+            $('#end_time').val('@(DateTime.Today.AddHours(24).ToString("HH:mm"))');
+        }
+    }
+
+    //帶入篩選
+    function set_feq() {
+        var feq = $('#feq').val();
+        //改變核選狀態與屬性
+        $("input[name='vs_id']").attr("data-feq", feq).prop("checked", false);
+        //回復自選狀態
+        $("input[name='vs_id'][data-feq='NA']").each(function () {
+            if ($(this).closest("tr").find('td[name=status]').hasClass("manual_checked_color")) {
+                $(this).prop("checked", true);
+            }
+        });
+        if (feq != "NA") {
+            $("#Dt input[name='vs_id']").each(function () {
+                var tr_dom = $(this).closest("tr");
+                if ($(this).val() % $('#feq').val() == 0 || $(this).closest("tr").find('td[name=status]').hasClass("manual_checked_color")) {
+                    tr_dom.show();
+                    if (!tr_dom.hasClass("icu_data_used")) {
+                        $(this).prop("checked", true);
+                    }
+                } else {
+                    tr_dom.hide();
+                }
+            })
+        } else {
+            $("#Dt>tbody>tr").show();
+        }
+        fixedHeader();
+    }
+
+    //取得ICU
+    function getICUdata() {
+        var start_date = $("input[name='start_date']").val();
+        var start_time = $("input[name='start_time']").val();
+        var end_date = $("input[name='end_date']").val();
+        var end_time = $("input[name='end_time']").val();
+        $.ajax({
+            type: 'POST',
+            cache: false,
+            url: '@Url.Content("~/VitalSign/ICUDataJson")',
+            data: {
+                'start_date': start_date,
+                'start_time': start_time,
+                'end_date': end_date,
+                'end_time': end_time
+            },
+            beforeSend: function () {
+                $.blockUI({
+                    message: "載入中...",
+                    css: {
+                        border: '2px solid #aaa'
+                    }
+                });
+            },
+            success: function (data) {
+                $("#Dt tbody").html('')//清空
+                var tr_str = "";
+                var item_tmp_html = $("#item_tmp");//取得樣板
+                var i = 0;
+                $.each(data, function (i, obj) {
+                    item_tmp_html.find('tr').attr('data-json', JSON.stringify(obj));
+                    item_tmp_html.find('td>input[name=vs_id]').val(obj.T_Result).prop('id', 'vs_id_' + i);
+                    item_tmp_html.find('td[name=VS_Date]').html(obj.VS_Date);
+                    if (obj.used == true) {
+                        item_tmp_html.find('td[name=status]').html("已帶入");
+                        item_tmp_html.find('td>input[name=vs_id]').prop("disabled", true);
+                        item_tmp_html.find('tr').addClass("icu_data_used");
+                    } else {
+                        item_tmp_html.find('td[name=status]').html("");
+                        item_tmp_html.find('td>input[name=vs_id]').prop("disabled", false);
+                        item_tmp_html.find('tr').removeClass("icu_data_used");
+                    }
+                    item_tmp_html.find('td[name=mp]').html(obj.mp).prop("class", obj.mp_num_abnormal == "Y" ? "abnormal_color" : "");
+                    item_tmp_html.find('td[name=bf]').html(obj.bf).prop("class", obj.bf_num_abnormal == "Y" ? "abnormal_color" : "");
+                    item_tmp_html.find('td[name=bp]').html(obj.bp).prop("class", obj.bp_num_abnormal == "Y" ? "abnormal_color" : "");
+                    item_tmp_html.find('td[name=sp]').html(obj.sp).prop("class", obj.sp_num_abnormal == "Y" ? "abnormal_color" : "");
+                    item_tmp_html.find('td[name=cv1]').html(obj.cv1).prop("class", obj.cv1_num_abnormal == "Y" ? "abnormal_color" : "");
+                    item_tmp_html.find('td[name=ic1]').html(obj.ic1).prop("class", obj.ic1_num_abnormal == "Y" ? "abnormal_color" : "");
+                    item_tmp_html.find('td[name=cpp]').html(obj.cpp).prop("class", obj.cpp_num_abnormal == "Y" ? "abnormal_color" : "");
+                    item_tmp_html.find('td[name=abp]').html(obj.abp).prop("class", obj.abp_num_abnormal == "Y" ? "abnormal_color" : "");
+                    item_tmp_html.find('td[name=pa]').html(obj.pa).prop("class", obj.pa_num_abnormal == "Y" ? "abnormal_color" : "");
+                    item_tmp_html.find('td[name=pcwp]').html(obj.pcwp).prop("class", obj.pcwp_num_abnormal == "Y" ? "abnormal_color" : "");
+                    item_tmp_html.find('td[name=etco]').html(obj.etco).prop("class", obj.etco_num_abnormal == "Y" ? "abnormal_color" : "");
+                    tr_str += item_tmp_html.html();
+                    i++;
+                });
+
+                $("#Dt tbody").html(tr_str);
+                set_feq();
+
+                $("#Dt input:checkbox").unbind('click').bind('click', function () {
+                    //註記手動勾選
+                    $(this).attr("data-feq", $('#feq').val());
+                    if ($('#feq').val() == "NA") {
+                        if ($(this).prop("checked")) {
+                            $(this).closest("tr").find('td[name=status]').html("手動").addClass("manual_checked_color");
+                        } else {
+                            $(this).closest("tr").find('td[name=status]').html("").removeClass("manual_checked_color");
+                        }
+                    }
+                });
+            },
+            complete: function () {
+                $.unblockUI();
+            }
+        });
+    }
+
+    //fixedHeader
+    function fixedHeader() {
+        var header_width = $("#icuForm").trueWidth().toFixed(2);
+        var tableOffset = $("#Dt").offset().top - header_width;
+        var fixedHeader = $("#header-fixed").html("").append($("#Dt > thead tr").first().clone()).width(header_width).css('top', $("#Dt").offset().top);
+
+        $("#Dt > thead th").each(function () {
+            var th_width = $(this).trueWidth();
+            $(this).width(th_width);
+            $("#header-fixed th:eq(" + $(this).index() + ")").css("width", th_width);
+        });
+
+        $(window).unbind("scroll").bind("scroll", function () {
+            var offset = $(this).scrollTop();
+            if (offset >= tableOffset && fixedHeader.is(":hidden")) {
+                fixedHeader.show();
+            } else if (offset < tableOffset) {
+                fixedHeader.hide();
+            }
+        });
+    }
+
+    //帶入
+    function saveICUdata(part_obj) {
+        var icu_data_arr = [];
+        if ($("#Dt input[type=checkbox]:checked").length <= 0) {
+            alert("請至少勾選一筆記錄!");
+            return false;
+        } else {
+            $("#Dt input[type=checkbox]:checked").each(function () {
+                var item_json = JSON.parse($(this).closest("tr").attr("data-json"));
+                //插入量測部位
+                item_json.mp_part = part_obj.mp;
+                item_json.bp_part = part_obj.bp;
+                item_json.sp_part = part_obj.sp;
+
+                icu_data_arr.push(item_json);
+            });
+        }
+
+        $.ajax({
+            type: 'POST',
+            cache: false,
+            url: '@Url.Content("~/VitalSign/ICUDataSave")',
+            data: JSON.stringify({ icu_datas: icu_data_arr }),
+            dataType: 'json',
+            contentType: "application/json",
+            beforeSend: function (xhr, settings) {
+                $.blockUI({
+                    message: "帶入中...",
+                    css: {
+                        border: '2px solid #aaa'
+                    }
+                });
+            },
+            success: function (data) {
+                if (data.message != "") {
+                    alert(data.message);
+                    window.close();
+                }
+            },
+            complete: function () {
+                $.unblockUI();
+            }
+        });
+    }
+
+    //帶入前選擇預設部位
+    function beforeSaveICUdata() {
+        if ($("#Dt input[type=checkbox]:checked").length <= 0) {
+            alert("請至少勾選一筆記錄!");
+            return false;
+        }
+        //除體溫項目外，其餘重置成非必填
+        $("#def_location_table tbody tr[id!=bt]").removeClass("tr_required");
+        $("#Dt input[type=checkbox]:checked").each(function () {
+            var item_json = JSON.parse($(this).closest("tr").attr("data-json"));
+            if (item_json.mp != "") {
+                //心跳必填
+                $("#def_location_table #mp").addClass("tr_required");
+            }
+            if (item_json.bp != "") {
+                //血壓必填
+                $("#def_location_table #bp").addClass("tr_required");
+            }
+            if (item_json.sp != "") {
+                //血氧必填
+                $("#def_location_table #sp").addClass("tr_required");
+            }
+        });
+        var div_view = $("#def_location");
+        
+        $.blockUI({
+            message: div_view,
+            onOverlayClick: $.unblockUI(),
+            overlayCSS: {
+                border: 'none',
+                cursor: 'default'
+            },
+            css: {
+                top: ($(window).height() - div_view.height()) / 2 + 'px',
+                left: ($(window).width() - div_view.width()) / 2 + 'px',
+                width: 'min-content',
+                border: 'none',
+                cursor: 'default'
+            }
+        });
+    }
+
+</script>
+<form id="icuForm" method="post" action="@Url.Content("~/VitalSign/ICUDataSave")">
+    <div id="search_block">
+        <span>
+            班別：
+            <label><input name="shift" type="radio" value="N" onclick="window.set_range();" />大夜</label>
+            <label><input name="shift" type="radio" value="D" onclick="window.set_range();" />白班</label>
+            <label><input name="shift" type="radio" value="E" onclick="window.set_range();" />小夜</label>
+        </span>
+        <br>
+        <span>
+            <input type="text" name="start_date" id="start_date" />
+            <input type="text" name="start_time" id="start_time" /> ~
+            <input type="text" name="end_date" id="end_date" />
+            <input type="text" name="end_time" id="end_time" />
+            @*@WebTool.setDateTime("start_date", "start_time")
+            @WebTool.setDateTime("end_date", "end_time")*@
+            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "start_time", false)
+            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "end_time", false)
+            帶入頻率：
+            <select name="feq" id="feq" onchange="set_feq();">
+                <option value="NA">手動勾選</option>
+                <option value="1">1 分鐘</option>
+                <option value="15">15 分鐘</option>
+                <option value="30">30 分鐘</option>
+                <option value="60">1 小時</option>
+                <option value="120">2 小時</option>
+            </select>
+            <input type="button" value="查詢" onclick="window.getICUdata();" />
+            <input type="button" value="帶入" onclick="window.beforeSaveICUdata();" />
+        </span>
+    </div>
+
+    <table id="Dt" style="margin-top:67px;border: 1px solid;width:100%;border-collapse: collapse;">
+        <thead>
+            <tr class="" style="border: 1px solid;">
+                <th style="border: 1px solid;">帶入</th>
+                <th style="border: 1px solid;">量測時間</th>
+                <th style="border: 1px solid;">狀態</th>
+                <th style="border: 1px solid;">心跳</th>
+                <th style="border: 1px solid;">呼吸</th>
+                <th style="border: 1px solid;">血壓</th>
+                <th style="border: 1px solid;">血氧</th>
+                <th style="border: 1px solid;">中心靜脈壓CVP(mmHg)</th>
+                <th style="border: 1px solid;">顱內壓(mmHg)</th>
+                <th style="border: 1px solid;">CPP</th>
+                <th style="border: 1px solid;">ABP</th>
+                <th style="border: 1px solid;">PA</th>
+                <th style="border: 1px solid;">PCWP</th>
+                <th style="border: 1px solid;">ETCO2</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <table id="header-fixed"></table>
+</form>
+<table style="display:none;">
+    <tbody id="item_tmp">
+        <tr style="background-color:honeydew;border: 1px solid;" data-json="">
+            <td style="border: 1px solid;text-align:center;">
+                <input type="checkbox" name="vs_id" id="" value="" data-feq="" />
+            </td>
+            <td name="VS_Date" style="border: 1px solid;"></td>
+            <td name="status" style="border: 1px solid;text-align:center;"></td>
+            <td name="mp" style="border: 1px solid;"></td>
+            <td name="bf" style="border: 1px solid;"></td>
+            <td name="bp" style="border: 1px solid;text-align:center;"></td>
+            <td name="sp" style="border: 1px solid;"></td>
+            <td name="cv1" style="border: 1px solid;"></td>
+            <td name="ic1" style="border: 1px solid;"></td>
+            <td name="cpp" style="border: 1px solid;"></td>
+            <td name="abp" style="border: 1px solid;text-align:center;"></td>
+            <td name="pa" style="border: 1px solid;text-align:center;"></td>
+            <td name="pcwp" style="border: 1px solid;"></td>
+            <td name="etco" style="border: 1px solid;"></td>
+        </tr>
+    </tbody>
+</table>
+
+<div id="def_location" style="width:700px;height:300px;display:none;">
+    <div style="height:500px;width:100%;">
+        <div id="location_header"></div>
+        <div id="location_content">@VitalSign_Helper.def_location_table("icu")</div>
+        <div id="location_footer">
+            <input type="button" value="確定帶入" onclick="check_required(saveICUdata)" />
+            <input type="button" value="取消" onclick="$.unblockUI();" />
+        </div>
+    </div>
+</div>
+

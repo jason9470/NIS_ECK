@@ -1,0 +1,248 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DateTime start = ViewBag.start;
+    string end = ViewBag.end;
+    string status = ViewBag.status;
+    string discharge_time = ViewBag.discharge_time;
+    int end_date = ViewBag.discharge_day;
+
+    if (discharge_time != "" && Convert.ToDateTime(discharge_time) < Convert.ToDateTime(end))
+    {
+        end = Convert.ToDateTime(discharge_time).ToString("yyyy/MM/dd");
+    }
+    else
+    {
+        end_date = 0;
+    }
+    if (discharge_time != "" && Convert.ToDateTime(discharge_time) < start)
+    {
+        start = Convert.ToDateTime(discharge_time);
+    }
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .btn_m {
+        width:140px;
+        margin:2px 2px 2px 2px;
+    }
+</style> 
+
+<script type="text/javascript">
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        reload_div();
+    });
+    $(document).ready(function () {
+
+        set_btn($('#set'));
+        //set_btn($('#special_events'));
+
+    });
+    function set_fade(id) {
+        var click = $('#' + id).attr('click');
+        if(click == 'true'){
+            $('#' + id).css("background-color", "gray");
+            $('#' + id).css("color", "white");
+            $('#' + id).attr('click','false');
+            $('.' + id).fadeOut(0);
+        }
+        else{
+            $('#' + id).css("background-color", "#9CB7CF");
+            $('#' + id).css("color", "#000000");
+            $('#' + id).attr('click','true');
+            $('.' + id).fadeIn(0);
+        }
+    }
+
+    function reload_div() {
+        $("#block,#loading").show();
+        $('#partial_tpr').fadeOut(0);
+        var url = 'Partial_Tpr?feeno=' + '@(ViewBag.feeno)' + '&start=' + $('#start_date').val() + '&end=' + $('#end_date').val() + '&print_set=';
+        $("#partial_tpr").load(url, function () {
+            $("#block,#loading").hide();
+            $('#partial_tpr').fadeIn(500);
+        });
+        var btn_list = $('.btn_m');
+        for (var i = 0; i < btn_list.length; i++) {
+            set_click(btn_list[i]);
+        }
+    }
+
+    function turn_pdf() { //已移除
+        var url ="";
+        var status = '@(ViewBag.status)';
+        $("#block,#loading").show();
+        if (status == '') {
+            url = window.location.href.replace('/Tpr_Index', '/Partial_Tpr?start=' + $('#start_date').val() + '&end=' + $('#end_date').val() + '&feeno=' + '@(ViewBag.feeno)');
+        }else {
+            url = window.location.href.replace('/Tpr_Index?status=after_print&', '/Partial_Tpr?') + '&feeno=' + '@(ViewBag.feeno)';
+        }
+        var start = $('#start_date').val();
+        var end = $('#end_date').val();
+        $.ajax({
+            type: "POST",
+            url: 'Html_To_Pdf',
+            data: {
+                "url": url,
+                "start": start,
+                "end": end
+            },
+            async: false,
+            success: function (result) {
+                //2022/10/25 家雄 因為跳窗後window.open會被瀏覽器擋掉，所以改用iframe的方式下載
+                try {
+                    result = result.substring(0, result.indexOf(";"));
+                    result = result.substring(21, result.length - 2);
+                    $("#downloadFrame").attr("src", result);
+                } catch (e) {
+                    //Do nothing
+                }
+                //document.write(result);
+            },
+            complete: function () {
+                $("#block,#loading").hide();
+            },
+            error: function () {
+                $("#block,#loading").hide();
+            }
+        });
+    }
+
+    function set_btn(obj){
+        var click = $(obj).attr('click');
+        if(click == 'true'){
+            $(".btn_area").slideUp(500, function () {
+                $(".btn_area").css("top", "10px");
+                $('#partial_tpr').css('height', parseInt($('#partial_tpr').css('height')) + 70);
+                set_unclick(obj)
+            });
+        }
+        else{
+            $('#partial_tpr').css('height',parseInt($('#partial_tpr').css('height')) - 70);
+            $(".btn_area").slideDown(500, function () {
+                $(".btn_area").css("top", "60px");
+                set_click(obj);
+            });
+        }
+    }
+
+    function set_unclick(obj) {
+        $(obj).css("background-color", "gray");
+        $(obj).css("color", "white");
+        $(obj).attr('click', 'false');
+    }
+
+    function set_click(obj) {
+        $(obj).css("background-color", "#9CB7CF");
+        $(obj).css("color", "#000000");
+        $(obj).attr('click', 'true');
+    }
+</script>
+<!--2022/10/25 家雄 因為跳窗後window.open會被瀏覽器擋掉，所以改用iframe的方式下載-->
+<iframe id="downloadFrame" src="" style="display:none;"></iframe>
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:996px;">
+        <tr>
+           <td style="text-align:center;">
+                @Html.TextBox("start_date", start.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                @Html.Label("lab", " ~ ")
+                @Html.TextBox("end_date", end, new { style = "width:80px", @readonly = "readonly" })
+                @WebTool.setDateTime("start_date", "", "", (end_date).ToString(), (ViewBag.inday).ToString())
+                @WebTool.setDateTime("end_date", "", "", (end_date).ToString(), (ViewBag.inday).ToString())
+               @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "", false)
+               @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "", false)*@
+                <input type="button" id="btn_qry" value="查詢" style="width:60px;" onclick="reload_div();" />
+                <input type="button" value="取消" style="width:60px;" />
+                <input type="button" value="設定" click="true" style="width:60px;" onclick="set_btn(this);" id="set" />
+               <input type="button" value="列印" style="width:60px;" onclick="turn_pdf();" />               
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align:center;padding-top:5px;padding-bottom:12px;border-bottom:2px solid black;">
+                <div class="btn_area">
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="InHospitalDays" value="住院日數" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="ODDays" value="手術日數/生產日數" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="special_events" value="特殊事件註記" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="SPO2" value="SPO2" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="ComaScale" value="Coma Scale" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="Pupils" value="瞳孔反應" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="MsPower" value="肌肉強度" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="BloodPressureArea" value="血壓" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="BloodSugarArea" value="血糖" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="Eat" value="飲食" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="Antibiotic" value="抗生素" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="TBilHCT" value="總膽紅素" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="HCT" value="血球容積比" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="CVVH" value="CVVH" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="Input" value="輸入" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="Output" value="輸出" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="InputOutputSum" value="輸入總量/輸出總量" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="Excrement" value="大便次數/形狀/顏色" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="HeightWeight" value="身高/體重" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="CVP2" value="CVP" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="ICP2" value="ICP" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="CPP" value="CPP" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="ABP2" value="ABP" />@*20171023新增*@
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="PA" value="PA" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="PCWP" value="PCWP" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="PICCO" value="PICCO" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="ETCO2" value="ETCO2" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="BoxTemperature" value="保溫箱溫度" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="Umbilical" value="臍帶脫落" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="Girth" value="圍長" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="SpecialProcedure" value="特殊處置" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="c_preterm_birth" value="早產週數" />
+                    <input type="button" class="btn_m" click="true" onclick="set_fade(this.id);" id="PainAssessment" value="疼痛評估" style="display:none;" />
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div id="partial_tpr" style="height:500px;width:1000px;overflow-x:auto;overflow-y:auto;"></div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<style type="text/css">
+        #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

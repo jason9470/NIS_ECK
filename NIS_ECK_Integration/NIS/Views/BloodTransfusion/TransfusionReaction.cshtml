@@ -1,0 +1,816 @@
+﻿@using System.Data;
+@using Newtonsoft.Json;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    NIS.Data.PatientInfo patientInfo = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.UserInfo userInfo = (NIS.Data.UserInfo)Session["UserInfo"];
+    DataTable TransfusionReaction = ViewBag.TransfusionReaction;
+    string JsonTransfusionReaction = JsonConvert.SerializeObject(TransfusionReaction);
+    string BloodTransfusionSerial = ViewBag.BloodTransfusionSerial;
+    string Serial = "";
+    var ReactTime = DateTime.Now;
+    if (TransfusionReaction != null && TransfusionReaction.Rows.Count > 0)
+    {
+        Serial = TransfusionReaction.Rows[0]["SERIAL"].ToString();
+        //ReactTime = DateTime.Parse(TransfusionReaction.Rows[0]["REACT_TIME"].ToString());
+    }
+    string title = "";
+    if (Serial != null && Serial != "")
+    {
+        title = "編輯輸血反應";
+    }
+    else
+    {
+        title = "新增輸血反應";
+    }
+}
+
+<style type="text/css" scoped>
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: left;
+        background-color: #d5d5f7;
+        width: 100%;
+        border-radius: 5px;
+        font-size: 28px;
+        font-weight: 800
+    }
+
+    .dataArea {
+        border: 0 !important;
+        border-radius: 10px !important;
+        font-family: Arial, EUDC !important;
+        overflow-y: auto !important;
+    }
+
+        .dataArea td {
+            text-align: left;
+            height: 20px;
+        }
+
+    .count_btn {
+        border-radius: 60px;
+        border-width: 0;
+        color: white;
+        background-color: #3c7ec3;
+        height: 20px;
+    }
+
+    .fun_btn {
+        font-size: 18px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        margin: 0.1rem !important;
+        width: 70px !important;
+        color: white !important;
+        cursor: pointer;
+    }
+
+    .dataHeader {
+        text-align: center !important;
+        border-radius: 6px !important;
+        font-size: 20px !important;
+        margin-right: 0 !important
+    }
+
+    .funcArea legend {
+        margin-left: 5px;
+        font-size: 14px;
+        font-family: "微軟正黑體";
+        background: #E1E6FA;
+        padding: 3px 7px 2px 7px;
+        border-top: 0 !important;
+        border-left: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        border-radius: 10px;
+    }
+
+    .card {
+        background-color: #FAFAFA;
+        color: #3D3D3D;
+        margin: 0.2rem;
+        min-width: 140px;
+        height: 130px;
+        border-radius: 15px;
+        border-style: solid;
+        border-color: #cfe1eb;
+        border-width: 3px;
+        flex: 1;
+    }
+
+    .card-out {
+        background-color: #FAFAFA;
+        color: #3D3D3D;
+        /*margin: 0.2rem;*/
+        /*width: 750px;*/
+        height: 200px;
+        border-radius: 15px;
+        border-style: solid;
+        border-color: #cfe1eb;
+        border-width: 3px;
+    }
+
+    .title-card {
+        background-color: #FAFAFA;
+        color: #3D3D3D;
+        margin: 0.1rem;
+        width: 430px;
+        height: 80px;
+        border-radius: 15px;
+        border-style: solid;
+        border-color: #d5d5f7;
+        border-width: 3px;
+    }
+
+    .title {
+        margin: 0.3rem;
+        font-size: 18px;
+        color: #136286;
+    }
+
+    .value-div {
+        height: 40%;
+        display: flex;
+        justify-content: center;
+        margin-top: 0.5rem;
+    }
+
+    .value {
+        font-size: 36px;
+    }
+
+    .unit {
+        width: 100%;
+        text-align: end;
+        font-size: 30px;
+    }
+
+    .Timevalue {
+        margin: 1rem;
+        font-size: 24px;
+    }
+
+    .vs_value {
+        font-size: 30px;
+        caret-color: #FAFAFA;
+        outline: none;
+        border: none;
+        background-color: #FAFAFA;
+        text-align: center;
+    }
+
+    #cover {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1001;
+    }
+
+    #divrecord {
+        display: none;
+        position: fixed;
+        top: 20%;
+        left: 25%;
+        background: white;
+        z-index: 2000;
+        padding: 20px;
+        border: 1px solid #333;
+    }
+</style>
+
+<script type="text/javascript">
+    var TransfusionReaction = @Html.Raw(JsonTransfusionReaction);
+
+    $(document).ready(function () {
+        //輸血紀錄單Serial
+        $('input[name=BloodTransfusionSerial]').val('@BloodTransfusionSerial');
+        $('input[name=Serial]').val('@Serial');
+        setGridColor();
+        LoadTransfusionReaction();
+        ImportVitalSign();
+    });
+
+    //格行換色
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', 'rgb(211 237 249)');
+        $('.dataArea tr:even').css('background', 'rgb(231, 238, 245)');
+        $('.dtl_VS tr:odd').css('background', 'rgb(211 237 249)');
+        $('.dtl_VS tr:even').css('background', 'rgb(231, 238, 245)');
+    }
+
+    // 儲存
+    function loading_change() {
+        $("#save").prop('disabled', true);
+        loop_windows("open_cover");
+        $('#CareRecordStr').val($('#text_content').val());
+
+        const queryString = $('#form1').serialize();
+        const params = new URLSearchParams(queryString);
+        const formObject = {};
+
+        for (const [key, value] of params.entries()) {
+            if (formObject[key]) {
+                //if (!Array.isArray(formObject[key])) {
+                //    formObject[key] = [formObject[key]];
+                //}
+                //formObject[key].push(value);
+                formObject[key] += ',' + value;
+            } else {
+                formObject[key] = value;
+            }
+        }
+
+        if (dtl_check()) {
+            $.ajax({
+                url: $('#form1').attr('action'),
+                type: 'post',
+                data: JSON.stringify(formObject),
+                contentType: 'application/json',
+                success: function (data) {
+                    let alert_message = "";
+                    switch (data.status) {
+                        case 0:
+                            if (data.message) {
+                                alert_message = data.message;
+                            }
+                            alert(alert_message);
+                            window.close();
+                            window.opener.location.href = 'Insert?BloodTransfusionSerial=' + '@BloodTransfusionSerial';
+                            break;
+                        default:
+                            if (data.message) {
+                                alert_message = data.message;
+                            }
+                            alert(alert_message);
+                            $("#save").prop('disabled', false);
+                            loop_windows("close_cover");
+                            break;
+                    }
+                },
+                error: function (result) {
+                }
+            });
+        }
+        else {
+            $("#save").prop('disabled', false);
+            loop_windows("close_cover");
+        }
+    }
+
+    //設定input值
+    function SetValue(id, val) {
+        $("#" + id).val(val);
+    }
+
+    //載入核血作業資料
+    function LoadTransfusionReaction() {
+        if (TransfusionReaction != null && TransfusionReaction.length > 0) {
+            let Data = TransfusionReaction[0];
+            let AssessTime = "";
+            set_for_rb('TransfusionReact', Data.TRANSFUSION_REACT);
+            set_for_rb('MD_TRA', Data.MD_TRA);
+            set_for_rb('DC_BloodTransfusion', Data.DC_BLOODTRANSFUSION);
+            if (Data.REACT_SYMPTOM != null && Data.REACT_SYMPTOM != '') {
+                let ReactSymptomList = Data.REACT_SYMPTOM.split(",");
+                if (ReactSymptomList.length > 0) {
+                    for (let i = 0; i < ReactSymptomList.length; i++) {
+                        set_for_ck('ReactSymptom', ReactSymptomList[i]);
+                    }
+                };
+            }
+            set_for_txt('txt_ReactSymptom_Other', Data.TXT_REACT_SYMPTOM_OTHER);
+            set_for_txt('ReactProcedure', Data.REACT_PROCEDURE);
+            if (Data.ASSESS_TIME != null && Data.ASSESS_TIME != "") {
+                AssessTime = moment(Data.ASSESS_TIME).format("YYYY/MM/DD HH:mm");
+            }
+            $('input[name=VS_Id]').val(Data.VS_ID);
+
+            set_for_txt('Assess_Time', AssessTime);
+            set_for_txt('BT', Data.BT);
+            set_for_txt('HR', Data.HR);
+            set_for_txt('Respiratory', Data.RESPIRATORY);
+            set_for_txt('BP_Systolic', Data.BP_SYSTOLIC);
+            set_for_txt('BP_Diastolic', Data.BP_DIASTOLIC);
+            set_for_txt('SPO2', Data.SPO2);
+        }
+    }
+
+    // 驗證儲存資料
+    function dtl_check() {
+        let success = true;
+        let noNeedCheck = ['ReactProcedureImport'];
+
+        // 輸血反應填無的時候無需驗證
+        if (document.querySelector('input[name=TransfusionReact]:checked').value == '無') {
+            return success;
+        }
+
+        let tr_list = $('p[must=Y]:visible,div[must=Y]:visible,td[must=Y]:visible');
+        for (let i = 0; i < tr_list.length; i++) {
+            let input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea), textarea:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                let input_name = '';
+                for (let j = 0; j < input_list.length; j++) {
+                    //檢查input的name是否為空
+                    if (input_name != $(input_list[j]).attr('name')) {
+                        input_name = $(input_list[j]).attr('name');
+                        //判斷input類型
+                        if (input_list[j].type == 'text' || input_list[j].type == 'textarea') {
+                            var input_val = $.trim(input_list[j].value);
+                        }
+                        else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                            var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+                        }
+                        //input值為空時停止驗證並提示
+                        if (input_val == undefined || input_val == '') {
+                            if (!noNeedCheck.includes(input_name)) {
+                                success = false;
+                                alert($(tr_list[i]).find('.subtitle').html() + ' 未填寫!')
+                                i = tr_list.length;
+                                j = input_list.length;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 特例驗證
+        if (success) {
+            // 驗證是否帶入生命徵象
+            let VS_Id = document.querySelector('input[name=VS_Id]').value;
+            if (VS_Id == null || VS_Id == '') {
+                success = false;
+                alert('未帶入任何生命徵象!');
+            }
+        }
+
+        return success;
+    }
+
+    //設定radio值
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue == null || dvalue == '') {
+            return;
+        }
+        dvalue = dvalue.replace('&lt;', '<').replace('&gt;', '>');//過濾特殊字元
+        if (dvalue != '') {
+            $("input:radio[name=" + rb_name + "]").each(function () {
+                if ($(this).val() == dvalue) {
+                    $(this).trigger('click');
+                }
+            });
+        }
+    }
+
+    //設定checkbox值
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            let default_val = val.split(",");
+            let ck = document.getElementsByName(ck_name);
+            for (let i = 0; i < default_val.length; i++) {
+                for (let j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+    //設定text值
+    function set_for_txt(txt_name, dvalue) {
+        if (dvalue != '') {
+            let txt = document.getElementsByName(txt_name);
+            $(txt[0]).val(dvalue);
+        }
+    }
+
+    //輸血反應片語帶入
+    function importReactProcedure(text) {
+        let ReactProcedure = document.querySelector('textarea[name=ReactProcedure]');
+        //排除空值
+        if (text != null || text != '') {
+            if (ReactProcedure.value != '') {
+                ReactProcedure.value += '，';
+            }
+            ReactProcedure.value += text;
+
+            //自動點選停止輸血為是
+            if (text == '立即停止輸血，通知醫療科，維持靜脈輸液通暢，再次核對病人姓名及血袋') {
+                document.querySelector('input[type=radio][name=DC_BloodTransfusion][value=是]').checked = true;
+            }
+        }
+    }
+
+    //載入VitalSign資料帶入畫面
+    function ImportVitalSign() {
+        loop_windows("open_cover");
+
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/BloodTransfusion/TransfusionReaction_VitalSign_Interfacing")',
+            dataType: 'html',
+            data: { starttime: $('#startDate').val() + ' ' + $('#startTime').val(), endtime: $('#edDate').val() + ' ' + $('#edTime').val(), feeno: '@patientInfo.FeeNo', BloodTransfusionSerial:'@BloodTransfusionSerial'},
+            cache: false,
+            success: function (response) {
+                $('.dataAreaX').html();
+                $('.dataAreaX').html(response);
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    // 顯示/隱藏題目
+    function toggleSwitchContent(type) {
+        let switchContentElements = document.getElementsByClassName('switchContent');
+        Array.from(switchContentElements).forEach(element => {
+            if (type == 'hide') {
+                element.style.display = 'none';
+            }
+            else {
+                element.style.display = '';
+            }
+        });
+    }
+
+    // 顯示Span
+    function ShowSpan(idList) {
+        if (idList.length > 0) {
+            for (let i = 0; i < idList.length; i++) {
+                $("#" + idList[i]).show();
+            }
+        }
+    }
+
+    // 隱藏Span並清空Span內的input值
+    function HideSpan(idList) {
+        if (idList.length == 0) {
+            return;
+        }
+        for (let i = 0; i < idList.length; i++) {
+            let spanElement = $("#" + idList[i]);
+            if (spanElement == null) {
+                continue;
+            }
+            spanElement.hide();
+            let inputList = $("#" + idList[i] + " :input");
+            if (inputList.length > 0) {
+                for (let j = 0; j < inputList.length; j++) {
+                    let inputType = inputList[j].type;
+                    switch (inputType) {
+                        case 'text':
+                            inputList[j].value = '';
+                            break;
+                        case 'radio':
+                        case 'checkbox':
+                            inputList[j].checked = false;
+                            break;
+                    }
+                }
+            }
+        }
+    }
+
+    //儲存護理紀錄
+    function CheckCareRecord() {
+        var careRecordStr = buildCareRecordStr()
+        $("#divrecord").show();
+        $('#text_content').val(careRecordStr);
+        $("#cover").show();
+    }
+
+    function buildCareRecordStr() {
+        // ----------- 共用取值函式 -----------
+        const f = (name) => {
+            const els = document.querySelectorAll(`[name="${name}"]`);
+            if (!els.length) return "";
+            const type = els[0].type;
+            if (type === "radio") {
+                const checked = [...els].find((el) => el.checked);
+                return checked ? checked.value.trim() : "";
+            }
+            if (type === "checkbox") {
+                return [...els].filter((el) => el.checked).map((el) => el.value.trim());
+            }
+            return els[0].value.trim();
+        };
+        const fAll = (name) => f(name).join(",");
+
+        // ----------- 抓取欄位值 -----------
+        const recordTime = f("Assess_Time") || "";
+        const bt = f("BT");
+        const hr = f("HR");
+        const resp = f("Respiratory");
+        const bpSys = f("BP_Systolic");
+        const bpDia = f("BP_Diastolic");
+        const spo2 = f("SPO2");
+
+        const transfusionReact = f("TransfusionReact"); // 有 / 無
+        const reactSymptoms = f("ReactSymptom"); // checkbox 陣列
+        let reactSymptomStr = Array.isArray(reactSymptoms) ? reactSymptoms.join(",") : reactSymptoms;
+        reactSymptomStr = reactSymptomStr.replace(/其他/g, ""); // 移除「其他」字樣
+
+        const reactSymptomOther = f("txt_ReactSymptom_Other");
+        const reactProcedure = f("ReactProcedure");
+
+        // ----------- 組合內容 -----------
+        let content = "";
+        const title = "輸血不適症狀";
+
+        content += `${recordTime}病人生命徵象：體溫：${bt}℃、心跳：${hr}次/分鐘、呼吸：${resp}次/分鐘、血壓：${bpSys}/${bpDia}mmHg、血氧：${spo2}%。`;
+        content += `輸血反應：${reactSymptomStr}${reactSymptomOther}，告知________專科護理師，依______醫師醫囑予${reactProcedure}`;
+
+        if (transfusionReact === "有") {
+            content += "，通報懷疑輸血反應";
+        }
+
+        content += "，持續觀察生命徵象及輸血反應等變化。";
+
+        console.log({ title, content });
+        return content;
+    }
+</script>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+    <tr>
+        <td style="width:100%;text-align:center;">
+            <div id="module_define"><label style="margin-left:1rem">@title</label></div>
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 5px 0 5px 0;">
+            <div class="funcArea">
+                <input type="button" id="save" class="fun_btn" value="存檔" style="width: 60px; background-color: #5ab95a" onclick="CheckCareRecord()" />
+                <input type="button" value="取消" class="fun_btn" style="width: 60px; background-color: #ed6f6f " onclick="if (confirm('確定取消?'))window.close()" />
+            </div>
+        </td>
+    </tr>
+</table>
+
+@*病人資訊*@
+<div style="width:100%;display:flex;justify-content:center">
+    <div style="width: 100%">
+        <div class="dataHeader">
+            <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 18px;">
+                <tr>
+                    <td style="width: 25%; background-color: rgb(231, 238, 245)">床號:@patientInfo.BedNo</td>
+                    <td style="width: 25%; background-color: rgb(231, 238, 245)">病歷號:@patientInfo.ChartNo</td>
+                    <td style="width: 25%; background-color: rgb(231, 238, 245)">姓名:@patientInfo.PatientName</td>
+                    <td style="width: 25%; background-color: rgb(231, 238, 245)">性別:@patientInfo.PatientGender</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+@*輸血反應*@
+<form id="form1" method="post" action="TransfusionReactionSave">
+    <input type="hidden" name="BloodTransfusionSerial" />
+    <input type="hidden" name="Serial" />
+    <div style="width:100%;display:flex;justify-content:center;margin-top:5px">
+        <div style="width: 100%">
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:18px;">
+                    <tr>
+                        <td style="width: 25%; background-color: #cfe1eb !important">
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">輸血反應</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;overflow-y:hidden">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 18px;">
+                    <tr>
+                        <th style="width:20%"><span style="color: red">＊</span>有無輸血反應</th>
+                        <td must="Y">
+                            <label class="subtitle" style="display:none">有無輸血反應</label>
+                            <label><input type="radio" name="TransfusionReact" value="無" onclick="toggleSwitchContent('hide')" />無</label>
+                            <label><input type="radio" name="TransfusionReact" value="有" checked="checked" onclick="toggleSwitchContent('show')" />有</label>
+                        </td>
+                    </tr>
+                    <tr class="switchContent">
+                        <th><span style="color: red">＊</span>輸血不適症狀</th>
+                        <td>
+                            <div must="Y">
+                                <label class="subtitle" style="display:none">輸血不適症狀</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="皮膚發癢" />輸血處疼痛</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="輸血處疼痛" />輸血處疼痛</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="呼吸困難" />呼吸困難</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="紫斑" />紫斑</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="一般蕁麻疹" />一般蕁麻疹</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="背痛" />背痛</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="休克" />休克</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="臉部潮紅" />臉部潮紅</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="發燒" />發燒</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="出血傾向" />出血傾向</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="嘔吐" />嘔吐</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="尿量變少或無尿" />尿量變少或無尿</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="發冷" />發冷</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="血紅素尿" />血紅素尿</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="頭痛" />頭痛</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="腳痛" />腳痛</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="昏迷" />昏迷</label>
+                                <label><input type="checkbox" name="ReactSymptom" value="黃疸" />黃疸</label>
+                                <label><input type="checkbox" name="ReactSymptom" id="ReactSymptom_Other" value="其他" onclick="if (this.checked) { ShowSpan(['span_ReactSymptom_Other']) } else { HideSpan(['span_ReactSymptom_Other'])}" />其他</label>
+                                <span must="Y" id="span_ReactSymptom_Other" style="display:none">
+                                    @Html.TextBox("txt_ReactSymptom_Other", null, new { style = "width:80px" })
+                                </span>
+                            </div>
+
+                        </td>
+                    </tr>
+                    <tr class="switchContent">
+                        <th><span style="color: red">＊</span>醫療科輸血反應評估</th>
+                        <td>
+                            <div must="Y">
+                                <label class="subtitle" style="display:none">醫療科輸血反應評估</label>
+                                <label><input type="radio" name="MD_TRA" value="是" />是</label>
+                                <label><input type="radio" name="MD_TRA" value="否" />否</label>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="switchContent">
+                        <th><span style="color: red">＊</span>反應處置</th>
+                        <td>
+                            <div style="width:100%;display:flex">
+                                <div must="Y" style="width: 50%">
+                                    <label class="subtitle" style="display:none">反應處置</label>
+                                    @Html.TextArea("ReactProcedure", "", new { style = "width:95%;max-width:95%;height:95%;" })
+                                </div>
+                                <div style="width: 50%">
+                                    <input type="button" class="fun_btn" value="&larr;" style="width: 40px !important; background-color: #5ab95a;align-self:center" onclick="importReactProcedure('因寒顫增加被蓋，依醫囑給予症狀治療')" />
+                                    <label>因寒顫增加被蓋，依醫囑給予症狀治療</label>
+                                    <br>
+                                    <input type="button" class="fun_btn" value="&larr;" style="width: 40px !important; background-color: #5ab95a; align-self: center " onclick="importReactProcedure('通知醫療科，依醫囑給予藥物')" />
+                                    <label>通知醫療科，依醫囑給予藥物</label>
+                                    <br>
+                                    <input type="button" class="fun_btn" value="&larr;" style="width: 40px !important; background-color: #5ab95a; align-self: center " onclick="importReactProcedure('通知醫療科，依醫囑給予氧氣')" />
+                                    <label>通知醫療科，依醫囑給予氧氣</label>
+                                    <br>
+                                    <input type="button" class="fun_btn" value="&larr;" style="width: 40px !important; background-color: #5ab95a; align-self: baseline " onclick="importReactProcedure('立即停止輸血，通知醫療科，維持靜脈輸液通暢，再次核對病人姓名及血袋')" />
+                                    <label>立即停止輸血，通知醫療科，維持靜脈輸液通暢，再次核對病人姓名及血袋</label>
+                                    <br>
+                                    <input type="button" class="fun_btn" value="&larr;" style="width: 40px !important; background-color: #5ab95a; align-self: center " onclick="importReactProcedure('告知主治醫生，醫囑送輸血反應單')" />
+                                    <label>告知主治醫生，醫囑送輸血反應單</label>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="switchContent">
+                        <th><span style="color: red">＊</span>停止輸血</th>
+                        <td>
+                            <div must="Y">
+                                <label class="subtitle" style="display:none">停止輸血</label>
+                                <label><input type="radio" name="DC_BloodTransfusion" value="是" />是</label>
+                                <label><input type="radio" name="DC_BloodTransfusion" value="否" />否</label>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr style="display:none">
+                        <th>備註</th>
+                        <td>
+                            <textarea id="CareRecordStr" type="text" name="CareRecordStr" style="width:200px;height:80px"></textarea>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="funcArea switchContent">
+        <table style="width:100%;">
+            <tr>
+                <td>
+                    <fieldset>
+                        <legend>查詢區間</legend>
+                        @(Html.TextBox("startDate", DateTime.Now.AddDays(-3).ToString("yyyy/MM/dd")))
+                        @(Html.TextBox("startTime", DateTime.Now.AddDays(-3).ToString("HH:mm")))
+                        @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "startDate", "startTime", false)
+                        ~
+                        @(Html.TextBox("edDate", DateTime.Now.ToString("yyyy/MM/dd")))
+                        @(Html.TextBox("edTime", DateTime.Now.ToString("HH:mm")))
+                        @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "edDate", "edTime", false)
+                        <input type="button" class="fun_btn" value="查詢" style="font-size:14px !important;width :60px" onclick="ImportVitalSign()" />
+
+                        @*(紅色數值表過高，藍色數值表過低)*@
+                    </fieldset>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataAreaX switchContent" style="height: auto;">
+    </div>
+
+    @*生命徵象*@
+    <div class="switchContent">
+        <input type="hidden" name="VS_Id" />
+        <div style="width:100%;display:flex;justify-content:center;margin-top:5px">
+            <div style="width: 100%">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width: 25%; background-color: #cfe1eb !important">
+                                <div style="display:flex;justify-content:center">
+                                    <div style="align-content:center;margin-right:5px">生命徵象</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height: auto;">
+                    <div class="card-out" style="width: 99%;">
+                        <label class="title" style="color:#9F4D95">測量時間</label>
+                        @Html.TextBox("Assess_Time", "-", new { style = "width:180px;font-size: 20px", @readonly = "readonly", @class = "vs_value" })
+
+                        <div style="display: flex; margin: 0.7rem; justify-content: space-between; gap: 10px;overflow-x:auto ">
+                            <div class="card" style="">
+                                <div class="title" style="color:#136286">體溫</div>
+                                <div class="value-div">
+                                    <div style="width: 90%; display: flex; justify-content: center">
+                                        @Html.TextBox("BT", "-", new { style = "width:100%;", @readonly = "readonly", @class = "vs_value" })
+                                    </div>
+                                </div>
+                                <div class="unit"><label style="padding-right:5px">℃</label></div>
+                            </div>
+                            <div class="card" style="">
+                                <div class="title" style="color:#136286">心跳</div>
+                                <div class="value-div">
+                                    <div style="width: 90%; display: flex; justify-content: center">
+                                        @Html.TextBox("HR", "-", new { style = "width:100%;", @readonly = "readonly", @class = "vs_value" })
+                                    </div>
+                                </div>
+                                <div class="unit"><label style="padding-right:5px">bpm</label></div>
+                            </div>
+                            <div class="card" style="">
+                                <div class="title" style="color:#136286">呼吸</div>
+                                <div class="value-div">
+                                    <div style="width: 90%; display: flex; justify-content: center">
+                                        @Html.TextBox("Respiratory", "-", new { style = "width:100%;", @readonly = "readonly", @class = "vs_value" })
+                                    </div>
+                                </div>
+                                <div class="unit"><label style="padding-right:5px">bpm</label></div>
+                            </div>
+                            <div class="card" style="min-width:250px">
+                                <div class="title" style="color:#136286">血壓</div>
+                                <div class="value-div">
+                                    <div style="width: 95%;display:flex;justify-content:center">
+                                        @Html.TextBox("BP_Systolic", "-", new { style = "width:40%", @readonly = "readonly", @class = "vs_value" })
+                                        <div style="font-size: 30px;align-self:center">/</div>
+                                        @Html.TextBox("BP_Diastolic", "-", new { style = "width:40%", @readonly = "readonly", @class = "vs_value" })
+                                    </div>
+                                </div>
+                                <div class="unit"><label style="padding-right:5px">mmHg</label></div>
+                            </div>
+                            <div class="card" style="">
+                                <div class="title" style="color:#136286">SPO2</div>
+                                <div class="value-div">
+                                    <div style="width: 90%; display: flex; justify-content: center">
+                                        @Html.TextBox("SPO2", "-", new { style = "width:100%;", @readonly = "readonly", @class = "vs_value" })
+                                    </div>
+                                </div>
+                                <div class="unit"><label style="padding-right:5px">%</label></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+    <tr>
+        <td style="text-align: center; padding: 5px 0 5px 0;">
+            <div class="funcArea">
+                <input type="button" id="save" class="fun_btn" value="存檔" style="width: 60px; background-color: #5ab95a" onclick="CheckCareRecord()" />
+                <input type="button" value="取消" class="fun_btn" style="width: 60px; background-color: #ed6f6f " onclick="if (confirm('確定取消?'))window.close()" />
+            </div>
+        </td>
+    </tr>
+</table>
+
+<div id="cover" class="dialog"></div>
+<div id="divrecord" class="dialog" style="width:700px;height:330px;">
+    <table width="100%" align="center">
+        <tr>
+            <td style="text-align:center;">
+                <textarea id="text_content" style="width:95%; height:280px; font-size:17px;"></textarea>
+                <input type="button" value="存檔" tempstatus="N" onclick="loading_change();" />
+                <input type="button" value="取消" onclick="$('#divrecord').hide(); $('#cover').hide();" />
+            </td>
+        </tr>
+    </table>
+</div>

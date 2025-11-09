@@ -1,0 +1,770 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if (complement_List.Status)
+    { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (pf.InDate > mindate)
+        { mindate = pf.InDate; }
+    }
+    string NoTimeWord = "不詳";
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        word-break: break-all;
+        height: 30px;
+    }
+
+    dataArea th {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 200);
+        }).trigger("resize");
+    });
+
+    // 20230627 LU 互斥功能
+    // el == 互斥狀態保存對象
+    // option == 互斥選項集群
+    // exclusives == 互斥選項
+    function bindExclusive(el, option, exclusives) {
+        var currentArr = el.getAttribute('model');
+        var nextArr = initBindExclusive(el,option);
+
+        var exclusive = exclusives.split('|');
+        for (var i in exclusive) {
+            if (currentArr.indexOf(exclusive[i]) != -1)
+            {
+                $("[name='" + option + "'][value='" + exclusive[i] + "']").prop("checked", "");
+            }
+            else if (nextArr.indexOf(exclusive[i]) != -1)
+            {
+                for (var o in nextArr)
+                {
+                    $("[name='" + option + "'][value='" + nextArr[o]+ "']").prop("checked", "");
+                }
+                $("[name='" + option + "'][value='" + exclusive[i] + "']").prop("checked", "true");
+            }
+        }
+        initBindExclusive(el,option);
+    }    
+
+    // 20230627 LU 初始化互斥對象
+    // el == 互斥狀態保存對象
+    // option == 互斥選項集群
+    function initBindExclusive(el,option) {
+        var arr = [];
+        var $obj = $("[name='" + option + "']:checked");
+        $obj.each(function (idx, item) {
+            var $currentItem = $(item);
+            arr.push($currentItem.val());
+        });
+        el.setAttribute('model', arr);
+        return arr;
+    }
+
+    function setBundleGridColor() {
+        //格行換色
+        $('.tb_area tr:odd').css('background', '#ABC8E2');
+        $('.tb_area tr:even').css('background', '#E1E6FA');
+        $('.tb_area th').css('background', '#85A5CC');
+        $('.tb_area .bundle_title').css('background', '#eccdb8');
+    }
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        if (obj.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(obj.value) && obj.value != "") {
+            alert("只能輸入數字");
+            $(obj).val('');
+        }
+    }
+
+    function close_allck(obj) {
+        var ck = document.getElementsByName($(obj).attr('name'));
+        for (var i = 1; i < ck.length; i++) {
+            if (ck[i].checked)
+                $(ck[i]).click();
+        }
+    }
+
+    function ck_judge(obj, classname) {
+        if (obj.checked) {
+            var ck = document.getElementsByName($(obj).attr('name'));
+            if (ck[0].checked)
+                $(ck[0]).click();
+            $('.' + classname).fadeIn(0);
+        }
+        else {
+            div_hidden(classname);
+        }
+    }
+
+    function reset_title() {
+        document.getElementById('td_position').innerText = '';
+        document.getElementById('td_starttime').innerText = '';
+        document.getElementById('td_endtime').innerText = '';
+        $('#tube_position').val('');
+        $('#tube_name').val('');
+        $('#tuberow').val('');
+        $('#form1').attr('action', '');
+        //$('#dataArea').empty();
+        $('#assessArea').empty();
+        $('#bundleArea').empty();
+        $('#bundlecare').hide();
+        $('#bundlecare_type').val(-1);
+    }
+
+    function hide() {
+        $('select#color_drainage')[0].selectedIndex = 0;
+        $('select#taste_drainage')[0].selectedIndex = 0;
+        $('select#nature_drainage')[0].selectedIndex = 0;
+        txt_fordrop('color_drainage', 'color_drainage_other');
+        txt_fordrop('taste_drainage', 'taste_drainage_other');
+        txt_fordrop('nature_drainage', 'nature_drainage_other');
+    }
+
+    function tubeselect(selid, assid) {
+        var id = $('#' + selid).val();
+        if (id != '-1') {
+            document.getElementById('td_position').innerText = $('#' + id).attr('position') + ' ' + $('#' + id).attr('location').replace(/請選擇/, '');
+            document.getElementById('td_starttime').innerText = $('#' + id).attr('strattime');
+            document.getElementById('td_endtime').innerText = $('#' + id).attr('endtime');
+            $('#tube_position').val($('#' + id).attr('position'));
+            $('#tube_name').val($('#' + id).attr('tubename'));
+            $('#tuberow').val(id);
+
+            if ($('#' + id).attr('assesstype') == '1') {
+                $('#assessArea').load('Assess_Artery_Index' + assid);
+                $('#form1').attr('action', 'Insert_Assess_Artery2');
+            }
+            else if ($('#' + id).attr('assesstype') == '2') {
+                $('#assessArea').load('Assess_Tracheostomy_Index' + assid);
+                $('#form1').attr('action', 'Insert_Assess_Tracheostomy2');
+            }
+            else {
+                $('#assessArea').load('Assess_Other_Index' + assid);
+                $('#form1').attr('action', 'Insert_Assess_Other2');
+            }
+
+            var tuberow = $('#tubelist').val();
+            var bc_type = $('#' + tuberow).attr('bundlecare');
+            $('#bundlecare_type').val(bc_type);
+
+            if (assid) {
+                //更新
+                assid = $('#tube_id').val();
+                care_type_select(assid, '', bc_type);
+            } else {
+                //新增
+                care_type_select('', tuberow, bc_type);
+            }
+        }
+        else {
+            reset_title();
+        }
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    //判斷是否選擇其他
+    function txt_fordrop(dropid, txtid) {
+        var list = $('#' + dropid).val()
+        if (list != '99') {
+            $('#' + txtid).attr('defaultvalue', $('#' + txtid).val());
+            $('#' + txtid).val('');
+            div_hidden('span_' + txtid);
+        }
+        else {
+            $('#' + txtid).val($('#' + txtid).attr('defaultvalue'));
+            $('.span_' + txtid).fadeIn(100);
+        }
+
+    }
+
+    function reset_for_rb(rb_name, dvalue) {
+        if (dvalue != '') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+            }
+        }
+    }
+
+    function reset_for_ck_other(ck_name, defaultvalue) {
+        var dvalue = defaultvalue.split(',');
+        var ck = document.getElementsByName(ck_name);
+        for (var i = 0; i < dvalue.length - 1; i++) {
+            for (var j = 0; j < ck.length - 1; j++) {
+                if (dvalue[i] == ck[j].value) {
+                    $(ck[j]).click();
+                    j = ck.length;
+                }
+            }
+        }
+        $(ck[ck.length - 1]).val(dvalue[dvalue.length - 1]);
+    }
+
+    function reset_for_ck(ck_name, defaultvalue) {
+        var dvalue = defaultvalue.split(',');
+        var ck = document.getElementsByName(ck_name);
+        for (var i = 0; i < dvalue.length; i++) {
+            for (var j = 0; j < ck.length; j++) {
+                if (dvalue[i] == ck[j].value) {
+                    $(ck[j]).click();
+                    j = ck.length;
+                }
+            }
+        }
+    }
+
+    function reset_text(txt_name, defaultvalue) {
+        var txt_list = document.getElementsByName(txt_name);
+        var dvalue = defaultvalue.split(',');
+        for (var i = 0; i < dvalue.length; i++) {
+            $(txt_list[i]).val(dvalue[i]);
+        }
+    }
+
+    function check() {
+        var success = true;
+        var tr_list = $('tr[must=Y]:visible');
+        for (var i = 0; i < tr_list.length; i++) {
+            var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                for (var j = 0; j < input_list.length; j++) {
+                    if (input_list[j].type == 'text' || input_list[j].type == 'textarea')
+                        var input_val = $.trim(input_list[j].value);
+                    else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox')
+                        var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+
+                    if (input_val == undefined || input_val == '') {
+                        alert('尚有項目未填寫!');
+                        success = false;
+                        i = tr_list.length;
+                        j = input_list.length;
+                        return false;
+
+                    }
+                }
+            }
+        }
+
+        //20180726  引流液顏色必填, 其餘可填/可不填
+        var s1 = $("#color_drainage :selected").val();  //引流液顏色
+        var non_color = $('input[name=rb_other_drainage]:checked').val()
+        if (s1 === "-1") {
+            success = false;
+            if (success == false)
+                if (non_color != "此管路非作為引流用途")
+                    alert('請選擇 引流液顏色(必填)!');
+                else
+                    success = true;
+        }
+
+        if (success) {
+            var tr_list = $('tr[must=S]:visible');
+            for (var i = 0; i < tr_list.length; i++) {
+                var s_success = false;
+                var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+                if (input_list.length > 0) {
+                    for (var j = 0; j < input_list.length; j++) {
+                        if (input_list[j].type == 'text' || input_list[j].type == 'textarea')
+                            var input_val = $.trim(input_list[j].value);
+                        else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox')
+                            var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+
+                        if (input_val == undefined || input_val == '')
+                            s_success = true;
+                        else {
+                            j = input_list.length;
+                            s_success = false;
+                        }
+                    }
+                }
+                if (s_success) {
+                    alert('尚有項目未填寫!');
+                    i = tr_list.length;
+                    success = false;
+                }
+            }
+        }
+        var today = moment().format("YYYY/MM/DD");
+        var endDate = $("input[name='bundle_bsi_date_end_date']").val()
+
+        if (today == endDate)
+        {
+            var disinfect = $("input[name='bundle_bsi_skin_disinfect']:checked").val()
+            if (disinfect != "本日不須更換敷料")
+            {
+                alert('截止日期不能與系統操作日期相同!');
+                success = false;
+            }
+
+        }
+        return success;
+    }
+    function loading_change() {
+        if (check()) {
+            $(".loading").show();
+            //$("#form1").submit();
+            tube_assess_submit();
+        }
+    }
+
+    //LU 20230109 Ajax送資料 assess!
+    function tube_assess_submit() {
+
+        var form = $("#form1").serialize();
+        var url = $("#form1").attr('action');
+
+        url = "@Url.Action("","TubeManage")/" + url
+
+        $.ajax({
+            url: url,
+            method: 'POST',
+            data: form,
+            success: function (d) {
+                var msg = d.substring(0, 9);
+                var assid = d.substring(9, d.length).trim();
+                var type = '';
+                var sel_bc = $('#bundlecare_type').val();//是否有管路照護
+                var is_bc = $('[name="bundle_care"]:checked').val();//是否增加管路照護
+                var path = "";
+
+                if ("管路評估更新成功!" == msg && sel_bc != "-1") {
+                    path = "Update";
+                    tube_bundlecare_submit(assid, path, msg, url);
+                } else {
+                    if (sel_bc != "-1" && is_bc == "是") {
+                        path = "Insert";
+                        tube_bundlecare_submit(assid, path, msg, url);
+                    } else {
+                        if (sel_bc != "-1" && is_bc == "否") {
+                            msg += "\n管路照護不須紀錄!";
+                        }
+                        switch (url) {
+                            case '/TubeManage/Insert_Assess_Artery2':
+                            case '/TubeManage/Upd_Assess_Artery':
+                                type = 'Artery';
+                                break;
+                            case '/TubeManage/Insert_Assess_Tracheostomy2':
+                            case '/TubeManage/Upd_Assess_Tracheostomy':
+                                type = 'Tracheostomy';
+                                break;
+                            case '/TubeManage/Insert_Assess_Other2':
+                            case '/TubeManage/Upd_Assess_Other':
+                                type = 'Other';
+                                break;
+                        }
+                        alert(msg);
+                        window.close();
+                        window.opener.location.href = 'Assessment_List?type='+type;
+                    }
+                }
+            },
+            error: function () {
+                alert("無法送出");
+                window.close();
+                window.opener.location.href = 'Assessment_List';
+            }
+        });
+    }
+
+    //LU 20230111 Ajax送資料 bundlecare! 暫時未用
+    function tube_bundlecare_submit1(ASSID, path) {
+
+        var form = $("input:visible, textarea:visible", "#bundleArea");
+
+        var BC_TYPE = $(".bc_type").attr("bctype");
+        var id = $('#tubelist').val();
+        var TUBEID = $('#' + id).attr('tubeid');
+        var TUBEROW = $('#' + id).attr('id');
+
+        var result = [];
+
+        var json = {
+            ASSID: ASSID,
+            TUBEID: TUBEID,
+            TUBEROW: TUBEROW,
+            BC_TYPE: BC_TYPE,
+        };
+
+        result.push(json);
+
+        form.each(function (idx, item) {
+            var obj = null;
+            var $currentItem = $(item);
+            if ($currentItem.is(":checkbox:checked")) {
+                obj = {
+                    NAME: $currentItem.prop("name"),
+                    VALUE: $currentItem.val(),
+                    TYPE: $currentItem.prop("type"),
+                };
+            } else if ($currentItem.is(":radio:checked")) {
+                obj = {
+                    NAME: $currentItem.prop("name"),
+                    VALUE: $currentItem.val(),
+                    TYPE: $currentItem.prop("type"),
+                };
+            } else if ($currentItem.is(":text")) {
+                if ($currentItem.val()) {
+                    obj = {
+                        NAME: $currentItem.prop("name"),
+                        VALUE: $currentItem.val(),
+                        TYPE: $currentItem.prop("type"),
+                    };
+                }
+            }
+            if (obj) {
+                result.push(obj);
+            }
+        });
+
+        var url = "";
+        if ("Insert" == path) {
+            //var url = "/TubeManage/Insert_BundleCare";
+            url = "@Url.Action("Insert_BundleCare", "TubeManage")";
+        } else {
+            //url = "/TubeManage/Update_BundleCare";
+            var table_id = $(".bc_type").attr("id");
+            if (table_id)
+            url = "@Url.Action("Update_BundleCare", "TubeManage")";
+        }
+
+        $.ajax({
+            url: url,
+            method: 'POST',
+            contentType: "application/json",
+            data: JSON.stringify(result),
+            success: function (r) {
+                var R = JSON.parse(r);
+                alert(R.message)
+                window.close();
+                window.opener.location.href = 'Assessment_List';
+            },
+            error: function () {
+                alert("無法送出");
+                window.close();
+                window.opener.location.href = 'Assessment_List';
+            }
+        });
+    }
+
+    //LU 20230118 Ajax送資料 bundlecare!
+    function tube_bundlecare_submit(ass_id, path, msg,typeUrl) {
+
+        var form = $("input:visible, textarea:visible", "#bundleArea");
+        var type = "";
+        var bc_type = $(".bc_type").attr("bctype");
+        var id = $('#tubelist').val();
+        var tube_id = $('#' + id).attr('tubeid');
+        var tube_row = $('#' + id).attr('id');
+        var start_date = $("input[name='start_date']").val()
+        var start_time = $("input[name='start_time']").val();
+
+        var result = [];
+        form.each(function (idx, item) {
+            var obj = null;
+            var $currentItem = $(item);
+            if ($currentItem.is(":checkbox:checked")) {
+                obj = {
+                    NAME: $currentItem.prop("name"),
+                    VALUE: $currentItem.val(),
+                    TYPE: $currentItem.prop("type"),
+                };
+            } else if ($currentItem.is(":radio:checked")) {
+                obj = {
+                    NAME: $currentItem.prop("name"),
+                    VALUE: $currentItem.val(),
+                    TYPE: $currentItem.prop("type"),
+                };
+            } else if ($currentItem.is(":text")) {
+                if ($currentItem.val()) {
+                    obj = {
+                        NAME: $currentItem.prop("name"),
+                        VALUE: $currentItem.val(),
+                        TYPE: $currentItem.prop("type"),
+                    };
+                }
+            }
+            if (obj) {
+                result.push(obj);
+            }
+        });
+        var data = new Object();
+        var url = "";
+        if ("Insert" == path) {
+            //var url = "/TubeManage/Insert_BundleCare";
+            url = "@Url.Action("Insert_BundleCare", "TubeManage")";
+        } else if ("Update" == path){
+             //url = "/TubeManage/Update_BundleCare";
+            url = "@Url.Action("Update_BundleCare", "TubeManage")";
+        }
+        data["ass_id"] = ass_id;
+        data["tube_id"] = tube_id;
+        data["tube_row"] = tube_row;
+        data["bc_type"] = bc_type;
+        data["record_time"] = start_date + " " + start_time;
+        data["model"] = result;
+
+        var typeArr = typeUrl.split('/');
+        typeUrl = typeArr[typeArr.length-1];
+        switch (typeUrl)
+        {
+            case 'Insert_Assess_Artery2':
+            case 'Upd_Assess_Artery':
+                type = 'A';
+                break;
+            case 'Insert_Assess_Tracheostomy2':
+            case 'Upd_Assess_Tracheostomy':
+                type = 'T';
+                break;
+            case 'Insert_Assess_Other2':
+            case 'Upd_Assess_Other':
+                type = 'O';
+                break;
+        }
+        $.ajax({
+            url: url,
+            method: 'POST',
+            contentType: "application/json",
+            data: JSON.stringify(data),
+            success: function (r) {
+                var R = JSON.parse(r);
+                msg += '\n' + R.message;
+                alert(msg)
+                window.close();
+                window.opener.location.href = 'Assessment_List?type='+ type;
+            },
+            error: function () {
+                alert("無法送出");
+                window.close();
+                window.opener.location.href = 'Assessment_List';
+            }
+        });
+    }
+
+    //LU 20230109 判斷視圖
+    function care_type_select(ass_id, tuberow, bc_type) {
+
+        var id = "";
+
+        if (tuberow) {
+            var tube_id = $('#' + tuberow).attr('tubeid');
+            id = "?tube_id=" + tube_id;
+        } else if (ass_id) {
+            id = "?ass_id=" + ass_id;
+        }
+        //20231016 ken 將自創的管路排除
+        if (bc_type != '-1' && bc_type != '0') {
+                $('#bundlecare').show();
+                var _bc = $('.bundle_care');
+                _bc.eq(0).prop('checked', true);
+                _bc.eq(1).prop('checked', false);
+                $('.bundleArea').fadeIn(0);
+
+                if (bc_type == '1') {
+                    $('#bundleArea').load('Assess_BundleCare_UTI' + id);
+                }
+                else if (bc_type == '2') {
+                    $('#bundleArea').load('Assess_BundleCare_VAP' + id);
+                }
+                else if (bc_type == '3') {
+                    $('#bundleArea').load('Assess_BundleCare_BSI' + id);
+                }
+        } else {
+            $('#bundlecare').hide();
+            no_bundlecare();
+        }
+    }
+
+    //LU 20230109 無管路照顧關閉選項
+    function no_bundlecare() {
+        var _bc = $('.bundle_care');
+        _bc.eq(0).prop('checked', false);
+        _bc.eq(1).prop('checked', true);
+        $('.bundleArea').fadeOut(0);
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+<form id="form1" action="" method="post">
+    <div class="funcArea">
+        <input type="hidden" name="tube_position" id="tube_position" />
+        <input type="hidden" name="tube_name" id="tube_name" />
+        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+            <tr>
+                <td style="padding:5px 0 5px 0;">
+                    <div style="margin-right:17px;padding-bottom:5px;">
+                        <table border="0" cellpadding="2" cellspacing="2" style="width:100%;font-size:14px;text-align:left;">
+                            <tr style="background-color: #99CCFF;">
+                                <th style="width:25%;height:25px;">導管：</th>
+                                <td style="width:25%;">
+                                    <select id="tubelist" onchange="tubeselect(this.id, '');">
+                                        <option value="-1">請選擇</option>
+                                        @foreach (DataRow r in dt.Rows)
+                                        {
+                                            if (r["ASSESS_TYPE"].ToString() != "-1")
+                                            {
+                                                <option value="@r["TUBEROW"]">@r["TYPE_NAME"]</option>
+                                            }
+                                        }
+                                    </select>
+                                    @foreach (DataRow r in dt.Rows)
+                                    {@* LU 20230105新增 bundlecare="@r["BUNDLE_CARE"]" 20230107 tubeid="@r["TUBEID"]" *@
+                                    <input type="hidden" tubeid="@r["TUBEID"]" id="@r["TUBEROW"]" tubename="@r["TYPE_NAME"]" location="@r["LOCATION_NAME"]" position="@r["POSITION"]" assesstype="@r["ASSESS_TYPE"]" bundlecare="@r["BUNDLE_CARE"]" strattime="@((!string.IsNullOrWhiteSpace(r["STARTTIME"].ToString())) ? Convert.ToDateTime(r["STARTTIME"]).ToString("yyyy/MM/dd HH:mm") : NoTimeWord)" endtime="@r["ENDTIME"]" />
+                                }
+                                </td>
+                                <th style="width:25%;">位置：</th>
+                                <td id="td_position" style="width:25%;"></td>
+                            </tr>
+                            <tr style="background-color: #b1e1fc;">
+                                <th style="height:30px;">插管日期：</th>
+                                <td id="td_starttime"></td>
+                                <th>拔管日期：</th>
+                                <td id="td_endtime"></td>
+                            </tr>
+                            <tr style="background-color: #99CCFF;">
+                                <th style="width:25%;height:30px;">評估日期：</th>
+                                <td>
+                                    <input type="hidden" id="tube_id" name="id" value="" />
+                                    <input type="hidden" name="tuberow" id="tuberow" />
+                                    @Html.TextBox("start_date", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                    @Html.TextBox("start_time", DateTime.Now.ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                    @*@WebTool.setDateTime("start_date", "start_time","","0","",mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "start_time", true)
+                                </td>
+                                <th style="width:25%;height:25px;">導管照護相關：</th>
+                                <td style="width:25%;">
+                                    <input type="hidden" id="bc_type" name="bc_type" value="" />
+                                    <input type="hidden" id="bundle_table_id" name="bundle_table_id" value="" />
+                                    <select id="bundlecare_type" disabled>
+                                        <option value="-1">請選擇</option>
+                                        <option value="1">UTI相關</option>
+                                        <option value="2">VAP相關</option>
+                                        <option value="3">BSI相關</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <div class="dataArea" id="dataArea">
+
+                            <div class="assessArea" id="assessArea">
+                            </div>
+
+                            <table class="tb_area" border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                                <tr must="Y" id="bundlecare" style="display:none">
+                                    @*20230912 LU依需求修改文字*@
+                                    <th style="width:25%;">Bundle Care照護紀錄</th>
+                                    <td colspan="3">                                       
+                                        <input class="bundle_care" name="bundle_care" type="radio" value="是" onclick="$('.bundleArea').fadeIn(0)" />是
+                                        <input class="bundle_care" name="bundle_care" type="radio" value="否" onclick="div_hidden('bundleArea')" />否
+                                        @*VitalSign_Helper.assess_radio("bundle_care", "是|否", "是", "bundleArea")*@
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <div class="bundleArea" id="bundleArea">
+                            </div>
+
+                        </div>
+
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:5px 0 5px 0; text-align:center;">
+                    <input type="button" value="儲存" onclick="loading_change()" />
+                    <input type="button" value="取消" onclick="if(confirm('確認取消?'))window.close();" />
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+<div class="loading" id="cover"></div>
+<div class="loading" id="loading">
+    <label for="lab">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>
+
+@if (ViewBag.id != null)
+{
+    <script type="text/javascript">
+        $(function () {
+            $('#tube_id').val('@ViewBag.id'); //ASSESS ID
+            $('#tubelist').val('@ViewBag.row'); //管路流水號
+            @*$('#@ViewBag.row').attr('assesstype', '@ViewBag.type');*@
+            tubeselect('tubelist', '?id=@ViewBag.id');
+            document.getElementById('tubelist').disabled = true;
+        });
+    </script>
+}

@@ -1,0 +1,175 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable dt = ViewBag.dt;
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    .block {
+        overflow: hidden;
+        width: 40px;
+    }
+    #sys_Block {
+    position: fixed;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    z-index: 1;
+    background-color: #666;
+    /* other browsers */
+    opacity: 0.65;
+    /* this works in IE6, IE7, and IE8 */
+    filter: alpha(opacity=65);
+    /* this works in IE8 only */
+    display: none;
+    }
+    #sys_Loading {
+    position: fixed;
+    text-align: center;
+    left: 50%;
+    top: 50%;
+    height: 50px;
+    width: 200px;
+    margin-top: -25px;
+    margin-left: -100px;
+    _position: absolute;
+    color: #040FD9;
+    font-weight: bold;
+    z-index: 98;
+    display: none;
+    }
+</style>
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 120);
+        }).trigger("resize");
+
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    });
+
+    function toUpdate(obj) {
+        window.location.href = '@(Url.Content("~/PressureSoreAssess/Insert"))?id=' + $(obj).attr('data-pid');
+    }
+
+    function toDelete(obj) {
+        if (confirm('確認刪除?')) {
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/PressureSoreAssess/Del_Pressure")',
+                data: { 'PressureID': $(obj).attr('data-pid') },
+                success: function (data) {
+                    alert(data);
+                    window.location.href = 'List';
+                },
+                beforeSend: function () {
+                    $("#sys_Block, #sys_Loading").show();
+                },
+                complete: function () {
+                    $("#sys_Block, #sys_Loading").hide();
+                }
+            });
+        }
+    }
+
+</script>
+
+<div class="funcArea">
+    <div style="padding-bottom:5px;text-align:center;">
+        <input type="button" style="width:80px;" value="新增評估" onclick="window.location.href='Insert'" />
+    </div>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+            <tr>
+                <td style="width:4%;"><div class="block"></div></td>
+                <td style="width:4%;"><div class="block"></div></td>
+                <td style="width:11%;">評估日期</td>
+                <td style="width:9%;">感覺知覺</td>
+                <td style="width:8%;">潮濕程度</td>
+                <td style="width:8%;">活動力</td>
+                <td style="width:12%;">移動力</td>
+                <td style="width:10%;">營養狀態</td>
+                <td style="width:9%;">摩擦力<br />/剪力</td>
+                <td style="width:4%;">總分</td>
+                <td style="width:10%;">危險等級</td>
+                <td style="width:4%;">壓傷</td>
+                <td style="width:7%;">紀錄者</td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea">
+    @if(dt != null && dt.Rows.Count > 0 )
+    {
+        int total;
+        string content;
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+            @foreach(DataRow r in dt.Rows)
+            {
+                total = int.Parse(r["TOTAL"].ToString());
+                content = "無危險性";
+                if (total < 19)
+                { content = "輕度危險性"; }
+                if (total < 15)
+                { content = "中度危險性"; }
+                if (total < 13)
+                { content = "高度危險性"; }
+                if (total <= 9)
+                { content = "極高度危險性"; }
+            <tr>
+                <td style="width:4%;">
+                    <div class="block">
+                    @if (r["CREATNO"].ToString() == ViewBag.userno)
+                    {
+                        <input type="button" value="更新" data-pid="@r["PRESSURE_ID"]" onclick="toUpdate(this);" style="width:40px;" />
+                    }
+                    </div>
+                </td>
+                <td style="width:4%;">
+                    <div class="block">
+                    @if (r["CREATNO"].ToString() == ViewBag.userno)
+                    {
+                        <input type="button" value="刪除" data-pid="@r["PRESSURE_ID"]" onclick="toDelete(this);"  style="width:40px;"/>
+                    }
+                    </div>
+                </td>
+                <td style="width:11%;">
+                    @Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd HH:mm")
+                </td>
+                <td style="width:9%;">@r["PERCEPTION"]</td>
+                <td style="width:8%;">@r["DAMP"]</td>
+                <td style="width:8%;">@r["ACTIVITY"]</td>
+                <td style="width:12%;">@r["MOVING"]</td>
+                <td style="width:10%;">@r["NUTRITION"]</td>
+                <td style="width:9%;">@r["FRICTION"]</td>
+                <td style="width:4%;">
+                    <span style="@((total < 19) ? "color:red;" : "")">@r["TOTAL"]</span>
+                </td>
+                <td style="width:10%;">@content</td>
+                <td style="width:4%;">@r["HAVE"]</td>
+                <td style="width:7%;">@r["CREATNAME"]</td>
+            </tr>
+            }
+        </table>
+    }
+    </div>
+</div>
+<!--遮罩-->
+<div id="inp" class="dialog"></div>
+<div id="cover" class="dialog"></div>
+<div id="sys_Block"></div>
+<div id="sys_Loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/System/loading.gif" alt="" />
+</div>

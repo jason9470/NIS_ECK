@@ -1,0 +1,219 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<link rel="Stylesheet" type="text/css" href="~/Content/StyleSheet/naStyle.css" />
+<script type="text/javascript">
+
+    function setColor() {
+        $('.dataHeader th').css('background', '#85A5CC');
+        $('.dataArea tr:odd, #new_tag tr:even').css('background', '#ABC8E2');
+        $('.dataArea tr:even, #new_tag tr:odd').css('background', '#E1E6FA');
+    }
+
+    @{ 
+        if (Request["message"] != null)
+        {
+            @Html.Raw("showHint(\"" + Request["message"].ToString().Trim() + "\");")
+        }
+    }
+
+    $(document).ready(function () {
+
+        $("input[type=button]").click(function () {
+
+            switch ($(this).attr("id")) {
+                case "but_save":
+                    // 資料檢查
+                    var checkFlag = true;
+                    $(".dataArea").find("textarea").each(function () {
+                        if (Trim($(this).val()) == "") {
+                            $(this).css("background-color", "#FFCCCC").stop(true, true).animate({ backgroundColor: "" }, 5000);
+                            checkFlag = false;
+                        }
+                    });
+                    $(".dataArea").find("input[type=text]").each(function () {
+                        if (Trim($(this).val()) == "") {
+                            $(this).css("background-color", "#FFCCCC").stop(true, true).animate({ backgroundColor: "" }, 5000);
+                            checkFlag = false;
+                        }
+                    });
+                    if (checkFlag) {
+                        $("form[name=ann_form]").submit();
+                    } else {
+                        showHint("資料欄位不可空白");
+                    }
+                    break;
+                case "but_inc_sa":
+                    var checkFlag = true;
+                    if ($("textarea[name=inc_sa_desc]").val() == "") {
+                        checkFlag = false;
+                        $(this).css("background-color", "#FFCCCC").stop(true, true).animate({ backgroundColor: "" }, 5000);
+                    }
+                    $("input[name=inc_sa_dateline], input[name=inc_sa_sort]").each(function () {
+                        if (Trim($(this).val()) == "") {
+                            checkFlag = false;
+                            $(this).css("background-color", "#FFCCCC").stop(true, true).animate({ backgroundColor: "" }, 5000);
+                        }
+                    });
+
+                    if (checkFlag) {
+                        //取得資料字串
+                        var dataStr = "sa_desc=" + encodeURIComponent($("textarea[name=inc_sa_desc]").val());
+                        dataStr += "&sa_sort=" + $("input[name=inc_sa_sort]").val();
+                        dataStr += "&sa_dateline=" + encodeURIComponent($("input[name=inc_sa_dateline]").val());;
+                        // 開始新增
+                        $.ajax({
+                            url: "../Function/Announcement_Add",
+                            type: "post",
+                            timeout: 5000,
+                            data: dataStr,
+                            success: function (data) {
+                                if (data == "Y") {
+                                    location.href = "Announcement?message=" + encodeURIComponent("新增成功");
+                                } else {
+                                    showHint("新增失敗，請聯絡系統負責人");
+                                }
+                            }
+                        });
+                    } else {
+                        showHint("欄位不可空白");
+                    }
+
+                    break;
+                case "but_del":
+                    var delid = $(this).attr("title");
+                    $.ajax({
+                        url: "../Function/Announcement_Del",
+                        type: "post",
+                        timeout: 5000,
+                        data: "sa_id=" + delid,
+                        success: function (data) {
+                            if (data == "Y") {
+                                location.href = "Announcement?message=" + encodeURIComponent("刪除成功");
+                            } else {
+                                showHint("刪除失敗，請聯絡系統負責人");
+                            }
+                        }
+                    });
+                    break;
+                case "but_add":
+                    var top = $(this).position().top + $(this).height() + 10;
+                    var left = $(this).position().left;
+                    $("#new_tag").css({
+                        "top": top,
+                        "left": left
+                    });
+
+                    if (!$("#new_tag").is(":visible")) {
+                        $('#new_tag').slideDown(500);
+                        $(this).val("關閉新增").css("background-color", "#FFFFCC");
+                    } else {
+                        $("#new_tag").find("input[type=text], input[type=hidden]").each(function () {
+                            $(this).val("");
+                        });
+                        $('#new_tag').slideUp(500);
+                        $(this).val("新增公告").css("background-color", "");
+                    }
+                    break;
+            }
+
+        });
+        setColor();
+    });
+</script>
+<style type="text/css">
+    table {
+        table-layout: fixed;
+        white-space: nowrap;
+        text-align: center;
+    }
+
+    textarea, input[type=text] {
+        border: 1px dotted #666;
+        background-color: transparent;
+    }
+
+        textarea:hover, input[type=text]:hover {
+            border-style: solid;
+            background-color: #FFFFFF;
+        }
+</style>
+<form name="ann_form" action="Announcement_Save" method="post">
+    <p>
+        <input type="button" id="but_save" value="儲存" />
+        <input type="button" id="but_add" value="新增公告" />
+    </p>
+    <div class="dataHeader">
+        <table width="100%" cellpadding="4" cellspacing="1">
+            <tr>
+                <td width="100">編輯</td>
+                <td width="180">公告時限</td>
+                <td>公告內容</td>
+                <td width="100">排序</td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea">
+        <table width="100%" cellpadding="4" cellspacing="1">
+            @{
+                List<AnnouncmentItem> sa_list = (List<AnnouncmentItem>)ViewData["sa_list"];
+                for (int i = 0; i <= sa_list.Count - 1; i++)
+                {
+               
+                <tr>
+                    <td width="100" align="center">
+                        <input type="button" name="but_del" id="but_del" value="刪除" title="@(sa_list[i].sa_id.ToString())" />
+                        <input type="hidden" name="sa_id" value="@(sa_list[i].sa_id.ToString())" />
+                    </td>
+                    <td width="180">
+                        <input type="text" id="@(sa_list[i].sa_id.ToString())_dateline" name="@(sa_list[i].sa_id.ToString())_sa_dateline" value="@(sa_list[i].sa_dateline.ToString("yyyy/MM/dd"))"/>
+                        @*@WebTool.setDateTime(sa_list[i].sa_id.ToString() + "_dateline", "", "", "30")*@
+                        @WebTool.complementList_Status(complement_List.Status, @DateTime.Now.ToString("yyyy/MM/dd"), @DateTime.Now.ToString("yyyy/MM/dd"), sa_list[i].sa_id.ToString() + "_dateline", "", false, "30")
+                    </td>
+                    <td>
+                        <textarea rows="5" name="@(sa_list[i].sa_id.ToString())_sa_desc" style="width:95%;">@(sa_list[i].sa_desc)</textarea>
+                    </td>
+                    <td width="100">
+                        <input type="text" name="@(sa_list[i].sa_id.ToString())_sa_sort" value="@(sa_list[i].sa_sort.ToString())" style="width:50px;"/>
+                    </td>
+                </tr>
+                }
+        
+            }
+        </table>
+    </div>
+</form>
+
+<div id="new_tag">
+    <p>
+        <input type="button" name="but_inc_sa" id="but_inc_sa" value="新增公告" />
+        <a class="tooltip" href="javascript:void(0);" title="新增登入首頁公告">說明</a>
+    </p>
+    <table border="0" cellpadding="4" cellspacing="1">
+        <tr>
+            <td width="100">公告內容</td>
+            <td align="left">
+                <textarea rows="5" cols="60" name="inc_sa_desc"></textarea>
+            </td>
+        </tr>
+        <tr>
+            <td width="100">公告時限</td>
+            <td align="left">
+                <input type="text" id="inc_sa_dateline" name="inc_sa_dateline" size="70" />
+                @WebTool.setDateTime("inc_sa_dateline", "", "", "", "", "", "", "1020")
+                @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "inc_sa_dateline", "", false, "180")*@
+            </td>
+        </tr>
+        <tr>
+            <td width="100">排序</td>
+            <td align="left">
+                <input type="text" name="inc_sa_sort" maxlength="3" />
+            </td>
+        </tr>
+    </table>
+
+</div>

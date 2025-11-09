@@ -1,0 +1,1715 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if (complement_List.Status)
+    { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (pf.InDate > mindate)
+        { mindate = pf.InDate; }
+    }
+    string sex = pf.PatientGender;
+    int age = pf.Age;
+
+}
+
+<style type="text/css">
+    .ui-tabs .ui-tabs-nav li a {
+        font-size: 16px;
+        padding: 3px 5px 3px 5px;
+    }
+
+    .ui-tabs {
+        font-size: 16px;
+    }
+
+    .hide {
+        display: none;
+    }
+</style>
+
+<script type="text/javascript">
+    $.fn.getType = function () { return this[0].tagName == "INPUT" ? this[0].type.toLowerCase() : this[0].tagName.toLowerCase(); }
+    $(document).ready(function () {
+        update_tabs_11_data_field();
+        //自動調整頁面高度   //分頁選項高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $("#unfilled").outerHeight(height - 115);
+            $(".tabArea").outerHeight(height - 115);
+            $(".tab").outerHeight($(".tabArea").outerHeight() - 100);
+        }).trigger("resize");
+
+        //GCS 判斷
+        @if( age >= 18)
+        {
+            @:$('#gcs_age_18').show();
+        }
+        else if (age > 2 & age < 18)
+        {
+            @:$('#gcs_age_s2').show();
+        }
+        else
+        {
+            @:$('#gcs_age_s2').show();
+        }        
+        //GCS 判斷
+
+        $(".tabArea").tabs({ active: 0 });
+
+        // inital tooltip
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+
+        var activePage = 0;
+        var tabCount = 0;
+        if ($(".tabArea").length > 0) {
+            $(".tab_control").click(function () {
+                activePage = $(".tabArea").tabs("option", "active");
+                tabCount = $(".tabArea").find("li").length - 1;
+                switch ($(this).attr("control_code")) {
+                    case "page_up":
+                        window.scrollTo(0, 0);
+                        if (activePage > 0)
+                            $(".tabArea").tabs("option", "active", activePage - 1);
+                        break;
+                    case "page_down":
+                        window.scrollTo(0, 0);
+                        if (activePage < tabCount)
+                            $(".tabArea").tabs("option", "active", activePage + 1);
+                        break;
+                    case "back":
+                        window.location.href = 'AssessmentList?natype=ER';
+                        break;
+                }
+            }).prop("disabled", false);
+        }
+        //MultiSetDateTime('tube_start_date_0', 'tube_start_time_0');
+        //MultiSetDateTime('tube_forecast_time_0');
+        //MultiSetDateTime('wound_date_0');
+        //MultiSetDateTime('wound_pre_date_0');
+        var mode = '@(ViewData["mode"])';
+        if (mode == "insert") {
+            //$('#tubeMaterial_other_0').val('');
+            //$('#param_tube_model_0').val('');
+            $('#txt_position_0').val('-1');
+        }
+        $('#place1_0').attr('onclick', "SwitchHosp(this,'in');");
+        $('#place2_0').attr('onclick', "SwitchHosp(this,'out');CheckHosp(this);");
+        $("#tabs-3 div input:radio").click(function () {
+            //更新疼痛強度
+            AdultPSNumberCount("tabs-3");
+        });
+    });
+
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        if (obj.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(obj.value) && obj.value != "") {
+            alert("只能輸入數字");
+            $(obj).val('');
+            return false;
+        }
+        else
+            return true;
+    }
+
+
+
+    function set_for_rb(rb_name, dvalue) {
+        dvalue = htmldecode(dvalue.replace('&lt;', '<').replace('&gt;', '>'));
+        if (dvalue != '') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+            }
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (ck_name == "wound_date_unknown" || ck_name == "wound_pre_date_unknown") { //vanda
+            var DateName = "wound_date";
+            if (ck_name == "wound_pre_date_unknown") DateName = "wound_pre_date";
+            var cnt = $('input[name=' + ck_name + ']').length;
+            for (var a = 0 ; a < cnt; a++) {
+                if ($.trim($('#' + DateName + '_' + a).val()) != '') {
+                    $('#' + DateName + '_' + a).show();
+                } else {
+                    $('#' + ck_name + '_' + a).attr('checked', true);
+                    $('#' + DateName + '_' + a).hide();
+                }
+            }
+        } else {
+            if (val != '') {
+                var default_val = val.split(",");
+                var ck = document.getElementsByName(ck_name);
+                for (var i = 0; i < default_val.length; i++) {
+                    for (var j = 0; j < ck.length; j++) {
+                        if (default_val[i] == ck[j].value || (ck_name = "param_allergy_other_other" && ck[j].value.indexOf("麈") > -1))
+                            $(ck[j]).click();
+                    }
+                }
+            }
+        }
+    }
+
+    function set_for_ddl(ddl_name, dvalue) {
+        if (dvalue != '') {
+            var ddl = document.getElementsByName(ddl_name);
+            var selectval = dvalue.split(',');
+            for (var i = 0; i < ddl.length; i++) {
+                $("#" + ddl_name + "_" + i).children().each(function () {
+                    if ($(this).val().replace(/ /g, "") == selectval[i].replace(/ /g, "")) {
+                        $(this).attr("selected", "true");
+                        ckeckddll(ddl_name, i, selectval[i]);
+
+                    }
+                });
+                if (($.trim(selectval[i]) == "99" || $.trim(selectval[i]) == "其他")) {
+                    if (ddl_name == "tubeMaterial") {
+                        $('#tubeMaterial_other_' + i).show();
+                    }
+                    if (ddl_name == "txt_section") {
+                        $('#txt_section_other_' + i).show();
+                    }
+                }
+            }
+        }
+    }
+    function ckeckddll(ddl_name, i, dvalue) {
+        if (ddl_name == 'ddl_wound_type') {
+            if (dvalue == '燙傷')
+            { $('#wound_scald_' + i).show(); $('#wound_general_' + i).hide(); }
+            else {
+                $('#wound_general_' + i).show(); $('#wound_scald_' + i).hide();
+            }
+        }
+        if (ddl_name == 'ddl_wound_general' || 'ddl_wound_scald') {
+            if (dvalue == '其他')
+            { $('#wound_other_txt_' + i).show(); }
+        }
+        if (ddl_name == 'wound_pressure') {
+            if (dvalue == '其他')
+            { $('#wound_pre_other_txt_' + i).show(); }
+        }
+        if (ddl_name == 'outHosp') {
+            CheckHosp($('#outHosp_' + i));
+        }
+    }//檢查開關
+
+    function set_for_txt(txt_name, dvalue) {
+        if (dvalue != '') {
+            var default_val = dvalue.split(",");
+            var txt = document.getElementsByName(txt_name);
+            if (txt.length > 1) {
+                for (var i = 0; i < txt.length; i++) {
+                    $(txt[i]).val(htmldecode(default_val[i]));
+                }
+            }
+            else
+                $(txt[0]).val(htmldecode(dvalue));
+        }
+    }
+    function htmldecode(s) {
+        var div = document.createElement('div');
+        div.innerHTML = s;
+        return div.innerText || div.textContent;
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0 ; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    function check(obj) {
+        var num = $('#check_tab').val();
+        $('#check_tab').val($(obj).attr('num'));
+        var success = dtl_check();
+        if (success)
+            $('a[num=' + num + ']').attr('must', 'N');
+        else
+            $('a[num=' + num + ']').attr('must', 'Y');
+    };
+
+    function dtl_check() {
+        var success = true;
+        var tr_list = $('p[must=Y]:visible');
+        for (var i = 0; i < tr_list.length; i++) {
+            var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                var input_name = '';
+                for (var j = 0; j < input_list.length; j++) {
+                    if (input_name != $(input_list[j]).attr('name')) {
+                        input_name = $(input_list[j]).attr('name');
+                        if (input_list[j].type == 'text' || input_list[j].type == 'textarea')
+                            var input_val = $.trim(input_list[j].value);
+                        else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox')
+                            var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+
+                        if (input_val == undefined || input_val == '') {
+                            success = false;
+                            i = tr_list.length;
+                            j = input_list.length;
+                        }
+                    }
+                }
+            }
+        }        
+        return success;
+    }
+
+    function sel_check() {
+        var success = dtl_check();
+        if (success)
+            $('a[num=' + $(".tabArea").tabs("option", "active") + ']').attr('must', 'N');
+        else
+            $('a[num=' + $(".tabArea").tabs("option", "active") + ']').attr('must', 'Y');
+        return true;
+    }
+
+    function final_check() {
+        $("input[type=button]").prop("disabled", true);
+        var success = true;
+        var ch_tab_list = $('a[must=Y]');
+        var CurrentTab = $(".tabArea").tabs("option", "active");
+        TabLoop:
+            for (var g = 1; g <= 3; g++) {
+                $(".tabArea").tabs("option", "active", g - 1);
+                if ($("input[name=gc_r1]:checked").length == 0) {
+                    alert("睜眼反射未填寫！");
+                    $("input[name=gc_r1]:visible:first").focus();
+                    success = false;
+                    break TabLoop;
+                }
+                if ($("input[name=gc_r2]:checked").length == 0) {
+                    alert("語言反射未填寫！");
+                    $("input[name=gc_r2]:visible:first").focus();
+                    success = false;
+                    break TabLoop;
+                }
+                if ($("input[name=gc_r3]:checked").length == 0) {
+                    alert("運動反射未填寫！");
+                    $("input[name=gc_r3]:visible:first").focus();
+                    success = false;
+                    break TabLoop;
+                }
+                
+                $('#check_tab').val((g - 1).toString());
+                var CheckType = "#tabs-" + g.toString();
+                var tr_list = $(CheckType + ' p[must=Y]:visible');
+                for (var i = 0; i < tr_list.length; i++) {
+                    //var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+                    var input_list = $(tr_list[i]).find(':input').filter(':visible');
+                    if (input_list.length > 0) {
+                        var input_name = '';
+                        for (var j = 0; j < input_list.length; j++) {
+                            if (input_name != $(input_list[j]).attr('name')) {
+                                input_name = $(input_list[j]).attr('name');
+                                if (input_list[j].type == 'text' || input_list[j].type == 'textarea' || input_list[j].type == 'select-one')
+                                    var input_val = $.trim(input_list[j].value);
+                                else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                                    var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+                                }
+                                else
+                                    continue;
+
+                                if (input_val == undefined || input_val == '') {
+                                    success = false;
+                                    if ($(tr_list[i]).find('.subtitle').html() != undefined)
+                                        alert($(tr_list[i]).find('.subtitle').html() + ' 未填寫!');
+                                    else
+                                        alert($('p[fid=' + $(tr_list[i]).attr('fid') + ']').find('.subtitle').html() + ' 未填寫!');
+
+                                    $(input_list[j]).focus();
+                                    break TabLoop;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        if (success == true) {
+            $(".tabArea").tabs("option", "active", CurrentTab);
+            save();
+        }
+        else
+            $("input[type=button]").prop("disabled", false);
+    }
+
+    function set_a_must(num) {
+        var num_list = num.split(',');
+        var a_list = $('a');
+        for (var i = 0; i < num_list.length; i++) {
+            $(a_list[i]).attr('must', num_list[i]);
+        }
+    }
+
+    function save() {
+        var all_id = "";
+        var all_type = "";
+        var all_id_list = $('input, textarea');
+        for (var i = 0; i < all_id_list.length; i++) {
+            if (all_id.indexOf($(all_id_list[i]).attr('name') + ',') == -1) {
+                all_id += $(all_id_list[i]).attr('name') + ",";
+                if ($(all_id_list[i]).attr('type') != undefined)
+                    all_type += $(all_id_list[i]).attr('type') + ",";
+                else
+                    all_type += "textarea,";
+            }
+        }
+        $('#na_all_id').val(all_id.substring(0, all_id.length - 1));
+        $('#na_all_type').val(all_type.substring(0, all_type.length - 1));
+        $('input[type=text], textarea').each(function () { $(this).val($(this).val().replace(/,/g, "|")); });
+
+        var all_check_must = '';
+        var a_list = $('a');
+        for (var i = 0; i < a_list.length; i++) {
+            if ($(a_list[i]).attr('must') != undefined)
+                all_check_must += $(a_list[i]).attr('must') + ",";
+        }
+        $('#check_tab_val').val(all_check_must.substring(0, all_check_must.length - 1));
+
+        // 入評轉身評字串組合
+        var R1TXTVal = $("input[name=param_EyesReflection]:checked").val() + "|" + $("input[name=param_LanguageReflection]:checked").val() + "|" + $("input[name=param_SportReflection]:checked").val() + "|||||";
+        $("#R1TXT").val(R1TXTVal);
+        get_rb_row('rb1', 'undefined,param_MotionRange,param_ActiveStatus,param_UnActiveDesc,undefined,param_LULimb,param_RULimb,param_LDLimb,param_RDLimb');
+
+        get_rb_row('rb2', 'param_Breathing_Type,param_Breathing_LeftVoive,param_Breathing_RightVoive,param_Breathing_Treatment,param_Breathing_Type_Abnormal,param_Breathing_LeftVoive_Abnormal,param_Breathing_RightVoive_Abnormal,param_Breathing_Treatment_Abnormal,param_Sputum_Amount,param_Sputum_Amount_Option,param_Sputum_Amount_Color,param_Heart_Rhythm,undefined');
+
+        get_rb_row('rb3', 'param_Heart_Symptoms,param_Heart_Rhythm,param_LeftFoot_Artery_Strength,param_RightFoot_Artery_Strength,param_Tip,param_Tip_Abnormal_LeftTop,param_Tip_Abnormal_RightTop,param_Tip_Abnormal_LeftDown,param_Tip_Abnormal_RightDown');
+
+        get_rb_row('rb4', 'param_Eating,param_Swallowing,param_Mouth,undefined,param_Peristalsis,param_PeristalsisStatus');
+
+        get_rb_row('rb5', 'param_Voiding_Way,param_Voiding_Type,param_Voiding_Characters,param_Voiding_Characters,param_Voiding_Characters_Desc');
+
+        get_rb_row('rb6', 'param_Skin_Temp,param_Skin_Exterior,param_Skin_Wound,undefined,undefined');
+        // 入評轉身評字串組合
+        loop_windows("open_cover");
+
+        $("form[name=na_form]").submit();
+    }
+
+    function get_rb_row(rb_row, rowname) {
+        //將checkbox用,分開紀錄
+        var content = '';
+        var obj = rowname.split(",");
+        if (obj.length > 0) {
+            for (var i = 0; i < obj.length; i++) {
+                content = content + $('input:radio[name=' + obj[i] + ']:checked').val() + ',';
+            }
+            $('#' + rb_row).val(content.substring(0, content.length - 1));
+        }
+    }
+
+    function set_disabled() {
+        $("#block,#loading").show();
+        alert('資料儲存中，請稍候!');
+    }
+
+    function set_abled() {
+        $("#block,#loading").hide();
+        alert('資料尚未填寫完成，請補填!');
+    }
+    
+    //複製div
+    function clonediv(p_id, btnid, div_id) {
+        //取得屬性值
+        //   alert(btnid);
+        var countid = parseInt($('#' + p_id).attr("countid")) + 1;
+        var copyPart = $('#' + p_id).clone();     //複製一份
+        $('#' + p_id).attr("countid", countid);  //修改id
+        $(copyPart).attr('id', p_id + '_' + countid);
+
+
+
+        //修改按鈕id,name,value,bind click事件
+        $('#' + btnid, copyPart)
+                .attr('id', p_id + 'btnDel' + countid)
+                .attr('src', '../Images/minus.png')
+                .attr('title', '刪除')
+                .attr('alt', '刪除')
+                .attr('delid', p_id + '_' + countid);
+        //清空Textbox值
+        $('input[type=text]', copyPart).each(function () {
+            $(this).val('');
+            if ($(this).attr('name') == "tube_start_date" || $(this).attr('name') == "tube_start_time" || $(this).attr('name') == "tube_forecast_time" || $(this).attr('name') == "tubeMaterial_other" || $(this).attr('name') == "param_tube_model" || $(this).attr('name') == "txt_section_other" || $(this).attr('name') == "txt_section") {
+                $(this).attr('id', $(this).attr('name') + '_' + countid);
+                if ($(this).attr('name') == "tubeMaterial") $(this).attr('key', countid);
+            }
+        });
+
+        //下拉選單替換屬性值
+        $('select[key=0]', copyPart).each(function () {
+            $(this).attr('id', $(this).attr('name') + '_' + countid);
+            $(this).attr('key', countid);
+        });
+        $('select', copyPart).each(function () {
+            if ($(this).attr('name') == 'wound_pressure') {
+                $(this).val('');
+            }
+        });
+
+        //checkbox替換屬性值
+        $('input[type=checkbox]', copyPart).each(function () {
+            $(this).attr('id', $(this).attr('name') + '_' + countid);
+            $(this).attr('key', countid);
+            $(this).attr('checked', false);
+        });
+
+        //加上小日曆id
+        $('span', copyPart).each(function () {
+            if ($(this).attr('class') == "TubeDate" || $(this).attr('class') == "WoundDate" || $(this).attr('class') == "WoundPreDate") {
+                $(this).attr('id', $(this).attr('section') + '_' + countid);
+            }
+        });
+
+        //設定radio_清空值
+        $('input[type=radio]', copyPart).each(function () {
+            $(this).attr('name', $(this).attr('name') + '_' + countid);
+            if (p_id != "wound_pre") $(this).attr('checked', false);
+        });
+
+
+        //加入複製出來的項目
+        $('#' + div_id).append(copyPart);
+        $('#' + p_id + '_' + countid).css('opacity', '100');
+        document.getElementById(p_id + 'btnDel' + countid).setAttribute('onclick', 'colDel(this)');
+
+        if (p_id == 'wound_ass')//傷口要另外處裡的東西
+        {
+            var str = document.getElementById('wound_ass_' + countid).innerHTML.replace(/_0/g, '_' + countid);
+            document.getElementById('wound_ass_' + countid).innerHTML = str;
+            //setDateTime('Wound_occurs_date_' + countid);
+            $('.P_wound_general_' + countid).hide();
+            $('.P_wound_scald_' + countid).hide();
+            $('#wound_count_' + countid).val(countid);
+        }
+        if (p_id == 'wound_pre')//壓傷要另外處裡的東西
+        {
+            var str = document.getElementById('wound_pre_' + countid).innerHTML.replace(/_0/g, '_' + countid);
+            document.getElementById('wound_pre_' + countid).innerHTML = str;
+            $('#inHosp_' + countid).hide();
+            $('#outHosp_' + countid).hide();
+            $('#outHosp_other_' + countid).hide();
+            $('#place1_' + countid).attr('checked', false);
+            $('#place2_' + countid).attr('checked', false);
+            $('#place1_' + countid).attr('onclick', "SwitchHosp(this,'in');");
+            $('#place2_' + countid).attr('onclick', "SwitchHosp(this,'out');CheckHosp(this);");
+            $('#inHosp_' + countid).val('');
+        }
+
+    }
+
+    //綁訂日期
+    function MultiSetDateTime(DateField, TimeField) {
+        var maxDate = new Date();
+        maxDate.setDate(maxDate.getDate());
+        $("#" + DateField).removeAttr('readonly');
+        $("#" + DateField).attr("readonly", true);
+        $("#" + DateField).css({ "width": "80px" });
+        $("#" + DateField).css({ "font-size": "12px" });
+        if (TimeField != null) {
+            $("#" + TimeField).removeAttr('readonly');
+            $("#" + TimeField).attr("readonly", true);
+            $("#" + TimeField).css({ "width": "50px" });
+            $("#" + TimeField).css({ "font-size": "12px" });
+            $("#" + DateField).datetimepicker({
+                altField: "#" + TimeField,
+                beforeShowDay: function (date) {
+                    switch (date.getDay()) {
+                        case 6:
+                            return [true, 'satday'];
+                            break;
+                        case 0:
+                            return [true, 'sunday'];
+                            break;
+                        default:
+                            return [true, ''];
+                            break;
+                    }
+                },
+                inline: true,
+                changeYear: true,
+                changeMonth: true,
+                showAnim: "slideDown",
+                controlType: myControl,
+                maxDateTime: maxDate,
+                addSliderAccess: true,
+                sliderAccessArgs: { touchonly: false }
+            });
+        } else {
+            $("#" + DateField).datetimepicker({
+                showTimepicker: false,
+                beforeShowDay: function (date) {
+                    switch (date.getDay()) {
+                        case 6:
+                            return [true, 'satday'];
+                            break;
+                        case 0:
+                            return [true, 'sunday'];
+                            break;
+                        default:
+                            return [true, ''];
+                            break;
+                    }
+                },
+                inline: true,
+                changeYear: true,
+                changeMonth: true,
+                showAnim: "slideDown",
+                controlType: myControl,
+                maxDateTime: maxDate,
+                addSliderAccess: true,
+                sliderAccessArgs: { touchonly: false }
+            });
+        }
+
+    }
+
+    //替換日期元件
+    function ChangeDateCont(pCtrl, pPanel, pCalendar) {
+        var countid = parseInt($(pCtrl).attr("countid"));
+        $(pPanel + countid).empty();
+        $(pPanel + countid).append("<input type='text' name='" + pCalendar + "' id='" + pCalendar + "_" + countid + "' />");
+        MultiSetDateTime(pCalendar + "_" + countid);
+
+
+        //var countid = parseInt($('#tube_div').attr("countid"));
+        //$('#PnTubeDate1' + '_' + countid).empty();
+        //$('#PnTubeDate2' + '_' + countid).empty();
+        //$('#PnTubeDate1' + '_' + countid).append("<input type='text' name='tube_start_date' id='tube_start_date_" + countid + "' /><input type='text' name='tube_start_time' id='tube_start_time_" + countid + "' />");
+        //$('#PnTubeDate2' + '_' + countid).append("<input type='text' name='tube_forecast_time' id='tube_forecast_time_" + countid + "' />");
+        //MultiSetDateTime("tube_start_date_" + countid, "tube_start_time_" + countid);
+        //MultiSetDateTime("tube_forecast_time_" + countid);
+    }
+
+    //判斷是否選擇其他
+    function txt_fordrop(drop_ctrl, txtid) {
+        dropid = $(drop_ctrl).attr("id");
+        if (txtid == "tubeMaterial_other" || txtid == "txt_section_other") {
+            var key = $(drop_ctrl).attr("key");
+            txtid += "_" + key;
+        }
+
+        var list = $('#' + dropid).val()
+        if (list != '99' && list != '其他') {
+            $('#' + txtid).attr('defaultvalue', $('#' + txtid).val());
+            $('#' + txtid).hide();
+            $('#' + txtid).val('');
+        }
+        else {
+            $('#' + txtid).val($('#' + txtid).attr('defaultvalue'));
+            $('#' + txtid).show();
+        }
+    }
+
+    //判斷下拉選單值是否存在
+    function ExistOption(pId, pVal) {
+        var Exist = false;
+        var count = $('#' + pId).find('option').length;
+        for (var i = 0; i < count; i++) {
+            if ($('#' + pId).get(0).options[i].value == pVal) {
+                Exist = true;
+                break;
+            }
+        }
+        return Exist;
+    }
+
+    //管路種類
+    function SetKind(pId) {
+        var id = $(pId).val();
+        $.ajax({
+            type: 'post',
+            url: '@Url.Content("~/AdmissionAssessment/GetTubeChange")',
+            data: { pTube: id },
+            dataType: "json",
+            success: function (data) {
+                var pk = $(pId).attr('key');
+                var param_tube_model = "param_tube_model";
+                var txt_section = "txt_section";
+                var txt_section_other = "txt_section_other";
+                param_tube_model += "_" + pk;
+                txt_section += "_" + pk;
+                txt_section_other += "_" + pk;
+                //var model = data[0].PRE_MODEL;
+                var position = data[0].PRE_POSITION;
+                //if (model == null) model = "";
+                //$('#' + param_tube_model).val(model);
+                if (position != null && position != "") {
+                    position = position.split('|')[0];
+                    if (ExistOption(txt_section, position)) {
+                        $('#' + txt_section).val(position);
+                        $('#' + txt_section_other).val('');
+                        $('#' + txt_section_other).hide();
+                    } else {
+                        $('#' + txt_section).val('其他');
+                        $('#' + txt_section_other).show();
+                        $('#' + txt_section_other).val(position);
+                    }
+                } else {
+                    $('#' + txt_section).val('');
+                    $('#' + txt_section_other).val('');
+                    $('#' + txt_section_other).hide();
+                }
+            }
+        });
+    }
+
+    //設定TEMP管路名稱及位置名稱
+    function SetTubeArray() {
+        var TubeNameArr = "";
+        var TubePoseArr = "";
+        $('select[name=Prompt_TubeKind]').each(function () {
+            var id = $(this).attr('id');
+            TubeNameArr += $('#' + id + ' option:selected').text() + ',';
+        })
+        $('#HfTubeName').val(TubeNameArr);
+        $('select[name=txt_position]').each(function () {
+            var id = $(this).attr('id');
+            TubePoseArr += $('#' + id + ' option:selected').text() + ',';
+        })
+        $('#HfTubePose').val(TubePoseArr);
+    }
+
+    //置換壓傷傷口院外輸入框
+    function CheckHosp(pCtrl) {
+        var id = $(pCtrl).attr('id');
+        if (id != null && id != "") {
+            var key = id.split('_')[1];
+            if ($('#outHosp_' + key).val() == "家中")
+                $('#outHosp_other_' + key).hide();
+            else
+                $('#outHosp_other_' + key).show();
+        }
+    }
+    function SwitchHosp(pCtrl, pType) {
+        var id = $(pCtrl).attr('id');
+        if (id != null && id != "") {
+            var key = id.split('_')[1];
+            if (pType == "in") {
+                $('#inHosp_' + key).show();
+                $('#outHosp_' + key).hide();
+                $('#outHosp_' + key).val('家中');
+                $('#outHosp_other_' + key).hide();
+                $('#outHosp_other_' + key).val('');
+            } else {
+                $('#inHosp_' + key).hide();
+                $('#inHosp_' + key).val('');
+                $('#outHosp_' + key).show();
+            }
+        }
+    }
+
+    function SwitchPosition(pCtrl) {
+        var key = $(pCtrl).attr('key');
+        $('#wound_scald_' + key).hide();
+        $('#ddl_wound_scald_' + key).val('');
+
+        $('#wound_general_' + key).hide();
+        $('#ddl_wound_general_' + key).val('');
+
+        $('#wound_other_txt_' + key).hide();
+        $('#wound_other_txt_' + key).val('');
+
+        if ($(pCtrl).val() == '燙傷') {
+            $('#wound_scald_' + key).show();
+            $('#wound_general_' + key).hide();
+        } else if ($(pCtrl).val() != '') {
+            $('#wound_general_' + key).show();
+            $('#wound_scald_' + key).hide();
+        }
+    }
+
+    function WoundOtherChange(pCtrl) {
+        var key = $(pCtrl).attr('key');
+        if ($(pCtrl).val() == '其他')
+            $('#wound_other_txt_' + key).show();
+        else {
+            $('#wound_other_txt_' + key).hide();
+            $('#wound_other_txt_' + key).val('');
+        }
+    }
+
+    //刪除事件
+    function colDel(obj) {
+        var delid = $(obj).attr('delid');
+        $('#' + delid).remove();
+    }
+    function display(id) {
+        document.getElementById(id).setAttribute("style", "display:none;");
+    }
+    function endisplay(id) {
+        document.getElementById(id).setAttribute("style", "display:;");
+    }
+    //更新tabs-3 data-relate_field
+    function update_tabs_11_data_field() {
+        $("#tabs-3 div input[data-relate_field]").each(function (index, element) {
+            var rel_list = $(this).attr("data-relate_field").split('|');
+            var c_value = new Array();
+            for (var i = 0; i <= rel_list.length - 1; i++) {
+                var dom_type = $("[name='" + rel_list[i] + "']").getType();
+                switch (dom_type) {
+                    case 'select':
+                        c_value[i] = $("select[name='" + rel_list[i] + "']").val();
+                        break;
+                    default:
+                        c_value[i] = $("input[name='" + rel_list[i] + "']:checked").val();
+                        break;
+                }
+            }
+            $(this).val(c_value.join('|'));
+        });
+    }
+    //連動疼痛評估時機
+    function trigger_occasion(param_assessment_v) {
+        var assessment_occasion_v = "";
+        switch (param_assessment_v) {
+            case '轉入':
+                assessment_occasion_v = "轉入";
+                break;
+            default:
+                assessment_occasion_v = "新病人";
+                break;
+        }
+        $("input[name=param_pain_assessment_occasion]").val(assessment_occasion_v);
+    }
+
+    //疼痛強度算分
+    function AdultPSNumberCount(tabs_id) {
+        var CountToCheckbox = 0;
+        var check_value_arr = $("#" + tabs_id + " div input:radio:checked").map(function () {
+            var val_str = $(this).val().match(/^(.{0,1}\d{1,2})/g).toString();
+            return parseInt(val_str.replace("(", ""));
+        }).get();
+        //強度加總
+        $.each(check_value_arr, function (index, value) {
+            CountToCheckbox += parseInt(value);
+        });
+        $("#" + tabs_id + " input[name=param_pain_assessment_score]").val(CountToCheckbox);
+
+        //更新轉換field
+        update_tabs_11_data_field();
+    }
+
+    //切換疼痛量表類型
+    function change_ps_table(ps_type) {
+        var show_tab_id = "", hidden_tab_ids = [];
+        //疼痛type對應
+        var ps_type_mapping = [
+            { key: '數字量表', value: 'ps_type_1' },
+            { key: '臉譜量表', value: 'ps_type_2' },
+            { key: '困難評估(成人)', value: 'ps_type_3' },
+            { key: '困難評估(兒童)', value: 'ps_type_4' },
+            { key: '困難評估(新生兒)', value: 'ps_type_5' },
+            { key: 'CPOT評估(加護單位)', value: 'ps_type_6' }
+        ];
+        //疼痛強度歸零
+        $("#tabs-3 input[name=param_pain_assessment_score]").val(0);
+        //$("#tabs-3 .hidden_param_pain_assessment_record").attr("name", "test");
+
+        $.each(ps_type_mapping, function (index, obj) {
+            if (obj.key == ps_type) {
+                show_tab_id = obj.value;
+            } else {
+                hidden_tab_ids.push(obj.value);
+            }
+        });
+
+        $("div[class=" + show_tab_id + "]").fadeIn(500);
+        $("#tabs-3 .hidden_param_pain_assessment_record").attr("name", "param_pain_assessment_record");
+        div_hidden(hidden_tab_ids.join(","));
+    }
+</script>
+
+
+@using System.Data;
+@{
+    DateTime pt_indate = ViewBag.pt_indate;
+    string reason = ViewBag.pt_icd9.Substring(ViewBag.pt_icd9.IndexOf("(") + 1, ViewBag.pt_icd9.Length - ViewBag.pt_icd9.IndexOf("(") - 2);
+    DataTable dt = ViewBag.dt;
+    List<NIS.Data.DrugOrder> Drug_list = (List<NIS.Data.DrugOrder>)ViewData["Drug_list"];
+    string num = (ViewBag.number != null) ? ViewBag.number : "";
+    string lastdate = (ViewBag.lastdate != null) ? ViewBag.lastdate : "";
+    string lastICD9 = (ViewBag.lastICD9 != null) ? ViewBag.lastICD9 : "";
+    string heigth = (ViewBag.Heigth != null) ? ViewBag.Heigth : "";
+    string weigth = (ViewBag.Weigth != null) ? ViewBag.Weigth : "";
+    string painlist = (ViewBag.painlist != null) ? ViewBag.painlist : "";
+
+
+}
+<input type="hidden" value="0" id="contant_count" />
+<form id="form1" name="na_form" method="post" action="SaveAssessment">
+    <input type="hidden" id="check_tab" value="0" />
+    @* 20140112 增加身評隱藏欄位 *@
+    <input type="hidden" id="R1TXT" name="R1TXT" />
+    <input type="hidden" id="rb1" name="rb1" />
+    <input type="hidden" id="rb2" name="rb2" />
+    <input type="hidden" id="rb3" name="rb3" />
+    <input type="hidden" id="rb4" name="rb4" />
+    <input type="hidden" id="rb5" name="rb5" />
+    <input type="hidden" id="rb6" name="rb6" />
+    @* 20140112 增加身評隱藏欄位 *@
+    <input type="hidden" name="na_type" value="ER" />
+    <input type="hidden" id="tableid" name="tableid" value="" />
+    <input type="hidden" id="na_all_id" name="na_all_id" value="" />
+    <input type="hidden" id="na_all_type" name="na_all_type" value="" />
+    <input type="hidden" id="maode" name="maode" value="insert" />
+    <input type="hidden" id="check_tab_val" name="check_tab_val" value="" />
+
+    @* <input type="button" class="tab_control" control_code="page_up" value="上一頁" />
+        <input type="button" class="tab_control" control_code="page_down" value="下一頁" />*@
+    <input type="button" class="btn_save" value="儲存" onclick="SetTubeArray(); final_check();" />
+    <input type="button" value="暫存" onclick="$('input[type=button]').prop('disabled', true); if ($('#maode').val() == 'insert') { $('#tableid').val(''); } $('#maode').val('temporary'); if (sel_check()) { save(); } else { $('input[type=button]').prop('disabled', false); }" />
+    <input type="button" class="tab_control" control_code="back" value="返回" />
+    急診入院護理評估
+    <div id="filled" class="tabArea" style="margin-bottom: 5px;">
+        <ul>
+            <li><a href="#tabs-1" must="Y" num="3" onclick="check(this);">身體評估</a></li>
+            <li><a href="#tabs-2" must="Y" num="4" onclick="check(this);">傷口評估</a></li>
+            <li><a href="#tabs-3" must="Y" num="10" onclick="check(this);">疼痛評估</a></li>
+        </ul>  
+
+        <!-- 身體評估 -->
+        <div id="tabs-1" class="tab">                   
+            <p must="Y">
+                <span style="color:red">＊</span><label class="subtitle">COMA SCALE</label>
+            </p>
+                    <span id="gcs_age_5" style="display:none">
+                        @VitalSign_Helper.gcs_radio_item("(E)睜眼反射", "gc_r1", "(4分)Spontaneous|(3分)To speech|(2分)To pain|(1分)None|(C)無法睜眼", "")
+                        @VitalSign_Helper.gcs_radio_item("(V)語言反射", "gc_r2", "(5分)Orientated|(4分)Confuse|(3分)Inappropriate Word|(2分)Incomprehensible|(1分)None|(T)氣切管|(A)失語症|(E)氣管內管", "")
+                        @VitalSign_Helper.gcs_radio_item("(M)運動反射", "gc_r3", "(6分)Obeys Command|(5分)Localized to pain|(4分)Withdraw to pain|(3分)Flexion to pain|(2分)Extension to pain|(1分)None", "")
+                    </span>
+                    <span id="gcs_age_2_5" style="display:none">
+                        @VitalSign_Helper.gcs_radio_item("(E)睜眼反射", "gc_r1", "(4分)自行睜眼|(3分)聽到聲音|(2分)痛刺激|(1分)無反應|(C)無法睜眼", "")
+                        @VitalSign_Helper.gcs_radio_item("(V)語言反射", "gc_r2", "(4分)可說話|(3分)發出聲音|(2分)會哭|(1分)無反應|(T)氣切管|(A)失語症|(E)氣管內管", "")
+                        @VitalSign_Helper.gcs_radio_item("(M)運動反射", "gc_r3", "(6分)活動可依指令而行|(5分)對痛反應良好|(4分)對痛可稍許活動|(3分)對痛呈肢體屈曲|(2分)對痛呈肢體伸張|(1分)無反應", "")
+                    </span>
+                    <span id="gcs_age_1_2" style="display:none;">
+                        @VitalSign_Helper.gcs_radio_item("(E)睜眼反射", "gc_r1", "(4分)自行睜眼|(3分)聽到聲音|(2分)痛刺激|(1分)無反應|(C)無法睜眼", "")
+                        @VitalSign_Helper.gcs_radio_item("(V)語言反射", "gc_r2", "(4分)可說話|(3分)發出聲音|(2分)會哭|(1分)無反應|(T)氣切管|(A)失語症|(E)氣管內管", "")
+                        @VitalSign_Helper.gcs_radio_item("(M)運動反射", "gc_r3", "(5分)對痛反應良好|(4分)對痛可稍許活動|(3分)對痛呈肢體屈曲|(2分)對痛呈肢體伸張|(1分)無反應", "")
+                    </span>
+                    <span id="gcs_age_m7_m12" style="display:none">
+                        @VitalSign_Helper.gcs_radio_item("(E)睜眼反射", "gc_r1", "(4分)自行睜眼|(3分)聽到聲音|(2分)痛刺激|(1分)無反應|(C)無法睜眼", "")
+                        @VitalSign_Helper.gcs_radio_item("(V)語言反射", "gc_r2", "(3分)發出聲音|(2分)會哭|(1分)無反應|(T)氣切管|(A)失語症|(E)氣管內管", "")
+                        @VitalSign_Helper.gcs_radio_item("(M)運動反射", "gc_r3", "(5分)對痛反應良好|(4分)對痛可稍許活動|(3分對痛呈肢體屈曲)|(2分)對痛呈肢體伸張|(1分)無反應", "")
+                    </span>
+                    <span id="gcs_age_m6" style="display:none">
+                        @VitalSign_Helper.gcs_radio_item("(E)睜眼反射", "gc_r1", "(4分)自行睜眼|(3分)聽到聲音|(2分)痛刺激|(1分)無反應|(C)無法睜眼", "")
+                        @VitalSign_Helper.gcs_radio_item("(V)語言反射", "gc_r2", "(3分)發出聲音|(2分)會哭|(1分)無反應|(T)氣切管|(A)失語症|(E)氣管內管", "")
+                        @VitalSign_Helper.gcs_radio_item("(M)運動反射", "gc_r3", "(3分)肢體屈曲|(2分)肢體伸張|(1分)無反應", "")
+                    </span>
+                    <span id="gcs_age_18" style="display:none">
+                        @VitalSign_Helper.gcs_radio_item("(E)睜眼反射", "gc_r1", "(4分)Spontaneous|(3分)To speech|(2分)To pain|(1分)None|(C)無法睜眼", "")
+                        @VitalSign_Helper.gcs_radio_item("(V)語言反射", "gc_r2", "(5分)Orientated|(4分)Confuse|(3分)Inappropriate Word|(2分)Incomprehensible|(1分)None|(T)氣切管|(A)失語症|(E)氣管內管", "")
+                        @VitalSign_Helper.gcs_radio_item("(M)運動反射", "gc_r3", "(6分)Obeys Command|(5分)Localized to pain|(4分)Withdraw to pain|(3分)Flexion to pain|(2分)Extension to pain|(1分)None", "")
+                    </span>
+                    <span id="gcs_age_b2" style="display:none">
+                        @VitalSign_Helper.gcs_radio_item("(E)睜眼反射", "gc_r1", "(4分)自動|(3分)語言指揮|(2分)對痛刺激|(1分)無反應|(C)無法睜眼", "")
+                        @VitalSign_Helper.gcs_radio_item("(V)語言反射", "gc_r2", "(5分)表達適當，具定向感|(4分)混亂，迷糊不清|(3分)表達不適當|(2)說話含糊不清|(1)無反應|(T)氣切管|(A)失語症|(E)氣管內管", "")
+                        @VitalSign_Helper.gcs_radio_item("(M)運動反射", "gc_r3", "(6分)聽從指揮|(5分)痛覺定位|(4分)收縮反應|(3分)去大腦皮質收縮|(2)去大腦伸張|(1)無反應", "")
+                    </span>
+                    <span id="gcs_age_s2" style="display:none">
+                        @VitalSign_Helper.gcs_radio_item("(E)睜眼反射", "gc_r1", "(4分)自動|(3分)語言指揮|(2分)對痛刺激|(1分)無反應|(C)無法睜眼", "")
+                        @VitalSign_Helper.gcs_radio_item("(V)語言反射", "gc_r2", "(5分)笑、傾聽|(4分)哭泣但可安撫|(3分)不當且持續性哭泣，偶可安撫|(2)躁動不安，無法安撫|(1)無反應|(T)氣切管|(A)失語症|(E)氣管內管", "")
+                        @VitalSign_Helper.gcs_radio_item("(M)運動反射", "gc_r3", "(6分)正常自然活動|(5分)對輕觸有收縮反應|(4分)對痛覺有收縮反應|(3分)去大腦皮質收縮|(2)去大腦伸張|(1)無反應", "")
+                    </span>
+           
+          
+            <p must="Y">
+                <span style="color: red">＊</span><label class="subtitle">一般外觀：</label>
+                @VitalSign_Helper.assess_checkbox("pt_action", "衣著適當|衣著異常|肥胖|瘦", "", "")
+            </p>
+            <p must="Y" fid="param_vs_conscious">
+                <span style="color: red">＊</span><label class="subtitle">意識狀態</label>
+                @VitalSign_Helper.assess_radio("param_vs_conscious", "清醒|欠清", "欠清", "param_vs_conscious_desc")
+            </p>
+            <p must="Y" fid="param_vs_conscious" class="param_vs_conscious_desc" style="display: none;">
+                @VitalSign_Helper.assess_checkbox("param_vs_conscious_item_other", "警醒|混亂|嗜睡|木僵|昏迷", "", "")                
+            </p>
+            <p must="Y" fid="param_MentalCondition">
+                <span style="color: red">＊</span><label class="subtitle">精神狀態</label>
+                @VitalSign_Helper.assess_radio("param_MentalCondition", "正常|異常", "異常", "param_MentalCondition_desc")
+            </p>
+            <p must="Y" fid="param_MentalCondition" class="param_MentalCondition_desc" style="display: none;">
+                @VitalSign_Helper.assess_checkbox("param_MentalCondition_desc_item_other", "焦慮|憂鬱|冷漠|欣快|激動|躁動不安|其他", "其他", "param_MentalCondition_desc_other")
+                <span class="param_MentalCondition_desc_other" style="display: none;">
+                    @Html.TextBox("param_MentalCondition_desc_other_txt", "", new { style = "width:150px" })
+                </span>
+            </p>
+            <p must="Y" fid="param_NervousSystem">
+                <span style="color: red">＊</span><label class="subtitle">神經系統</label>
+                @VitalSign_Helper.assess_radio("param_NervousSystem", "正常|異常", "異常", "param_NervousSystem_desc")
+            </p>
+            <p must="Y" fid="param_NervousSystem" class="param_NervousSystem_desc" style="display: none;">
+                <label><input type="checkbox" value="昏暈感" name="param_Nervous_desc_item_other" />昏暈感</label>
+                <label><input type="checkbox" value="眩暈" name="param_Nervous_desc_item_other" />眩暈</label>
+                <label><input type="checkbox" value="頸部僵硬" name="param_Nervous_desc_item_other" />頸部僵硬</label>
+                <label><input type="checkbox" value="抽搐" name="param_Nervous_desc_item_other" onclick="if ($(this).prop('checked')) { $('#twitch_part').show(); } else { $('#twitch_part').hide(); }" />抽搐</label>
+                <span style="display:none" id="twitch_part">部位<input type="text" style="width:150px;" name="twitch_part_txt" /></span>
+                <label><input type="checkbox" value="痛" name="param_Nervous_desc_item_other" onclick="if ($(this).prop('checked')) { $('#pain_part').show(); } else { $('#pain_part').hide(); }" />痛</label>
+                <span style="display:none" id="pain_part">部位<input type="text" style="width:150px;" name="pain_part_txt" /></span>
+                <label><input type="checkbox" value="麻" name="param_Nervous_desc_item_other" onclick="if ($(this).prop('checked')) { $('#hpan_part').show(); } else { $('#hpan_part').hide(); }" />麻</label>
+                <span style="display:none" id="hpan_part">部位<input type="text" style="width:150px;" name="hpan_part_txt" /></span>@*have pins and needles*@
+                <label><input type="checkbox" value="肢體障礙" name="param_Nervous_desc_item_other" onclick="if ($(this).prop('checked')) { $('#LimbDisorders').show(); } else { $('#LimbDisorders').hide(); }" />肢體障礙</label>
+                <span id="LimbDisorders" style="display:none;">
+                    <label><input type="checkbox" name="LimbDisorders_part" value="上肢" />上肢</label>
+                    <label><input type="checkbox" name="LimbDisorders_part" value="下肢" />下肢</label>
+                    <label><input type="checkbox" name="LimbDisorders_part" value="左側" />左側</label>
+                    <label><input type="checkbox" name="LimbDisorders_part" value="右側" />右側</label>
+                </span>
+                <label><input type="checkbox" value="其他" name="param_Nervous_desc_item_other" onclick="if ($(this).prop('checked')) { $('#param_NervousSystem_desc_other').show(); } else { $('#param_NervousSystem_desc_other').hide(); }" />其他</label>
+                <span style="display:none" id="param_NervousSystem_desc_other"><input type="text" style="width:150px;" name="param_NervousSystem_desc_other_txt" /></span>
+            </p>
+
+            <p must="Y" fid="param_CardiovascularSystem">
+                <span style="color: red">＊</span><label class="subtitle">心臟血管系統</label>
+                @VitalSign_Helper.assess_radio("param_CardiovascularSystem", "正常|異常", "異常", "param_Cardiovascular_desc")
+            </p>
+            <p must="Y" fid="param_CardiovascularSystem" class="param_Cardiovascular_desc" style="display: none;">
+                <label><input type="checkbox" value="心律不整" name="param_Cardiovascular_desc_item_other" />心律不整</label>
+                <label><input type="checkbox" value="心悸" name="param_Cardiovascular_desc_item_other" />心悸</label>
+                <label><input type="checkbox" value="胸悶" name="param_Cardiovascular_desc_item_other" />胸悶</label>
+                <label><input type="checkbox" value="杵狀指" name="param_Cardiovascular_desc_item_other" />杵狀指</label>
+                <label><input type="checkbox" value="血壓高" name="param_Cardiovascular_desc_item_other" />血壓高</label>
+                <label><input type="checkbox" value="心臟節律器" name="param_Cardiovascular_desc_item_other" />心臟節律器</label>
+                <label><input type="checkbox" value="心搏過速" name="param_Cardiovascular_desc_item_other" />心搏過速</label>
+                <label><input type="checkbox" value="心搏過緩" name="param_Cardiovascular_desc_item_other" />心搏過緩</label>
+                <label><input type="checkbox" value="其他" name="param_Cardiovascular_desc_item_other" onclick="if ($(this).prop('checked')) { $('#param_Cardiovascular_desc_other').show(); } else { $('#param_Cardiovascular_desc_other').hide(); }" />其他</label>
+                <span style="display:none" id="param_Cardiovascular_desc_other"><input type="text" style="width:150px;" name="param_Cardiovascular_desc_other_txt" /></span>
+            </p>
+
+            <p must="Y">
+                <span style="color: red">＊</span><label class="subtitle">呼吸系統</label>
+            </p>
+            <p must="Y" fid="param_RespiratoryTract">
+                <label style="font:bolder" class="subtitle">呼吸道</label>
+                @VitalSign_Helper.assess_radio("param_RespiratoryTract", "通暢|異常", "異常", "param_RespiratoryTract_desc")
+            </p>
+            <p must="Y" fid="param_RespiratoryTract" class="param_RespiratoryTract_desc" style="display: none;">
+                <label><input type="checkbox" value="咳嗽" name="param_RespiratoryTract_desc_item_other" />咳嗽</label>
+                <label><input type="checkbox" value="痰" name="param_RespiratoryTract_desc_item_other" onclick="if ($(this).prop('checked')) { $('#sputum_desc').show(); } else { $('#sputum_desc').hide(); }" />痰</label>
+                <span style="display:none" id="sputum_desc">量<input type="text" style="width:150px;" name="sputum_amount" />顏色<input type="text" style="width:150px;" name="sputum_color" /></span>
+                <label><input type="checkbox" value="咳血" name="param_RespiratoryTract_desc_item_other" />咳血</label>
+                <label><input type="checkbox" value="插管" name="param_RespiratoryTract_desc_item_other" />插管</label>
+                <label><input type="checkbox" value="氣切" name="param_RespiratoryTract_desc_item_other" />氣切</label>
+                <label><input type="checkbox" value="其他" name="param_RespiratoryTract_desc_item_other" onclick="if ($(this).prop('checked')) { $('#param_RespiratoryTract_desc_item_other_other').show(); } else { $('#param_RespiratoryTract_desc_item_other_other').hide(); }" />其他</label>
+                <span style="display:none" id="param_RespiratoryTract_desc_item_other_other"><input type="text" style="width:150px;" name="param_RespiratoryTract_other_txt" /></span>
+            </p>
+
+            <p must="Y" fid="param_RespiratoryRateAndPattern">
+                <label style="font:bolder" class="subtitle">呼吸速率與型態</label>
+                @VitalSign_Helper.assess_radio("param_RespiratoryRateAndPattern", "正常|異常", "異常", "param_RespiratoryRateAndPattern_desc")
+            </p>
+            <p must="Y" fid="param_RespiratoryRateAndPattern" class="param_RespiratoryRateAndPattern_desc" style="display: none;">
+                <label><input type="checkbox" value="快" name="param_RespiratoryRateAndPattern_desc_item_other" />快</label>
+                <label><input type="checkbox" value="慢" name="param_RespiratoryRateAndPattern_desc_item_other" />慢</label>
+                <label><input type="checkbox" value="深" name="param_RespiratoryRateAndPattern_desc_item_other" />深</label>
+                <label><input type="checkbox" value="淺" name="param_RespiratoryRateAndPattern_desc_item_other" />淺</label>
+                <label><input type="checkbox" value="困難" name="param_RespiratoryRateAndPattern_desc_item_other" />困難</label>
+                <label><input type="checkbox" value="其他" name="param_RespiratoryRateAndPattern_desc_item_other" onclick="if ($(this).prop('checked')) { $('#param_RespiratoryRateAndPattern_desc_item_other_other').show(); } else { $('#param_RespiratoryRateAndPattern_desc_item_other_other').hide(); }" />其他</label>
+                <span style="display:none" id="param_RespiratoryRateAndPattern_desc_item_other_other"><input type="text" style="width:150px;" name="param_RespiratoryRateAndPattern_other_txt" /></span>
+            </p>
+
+            <p must="Y" fid="param_RespiratorySound">
+                <label style="font:bolder" class="subtitle">呼吸音</label>
+                @VitalSign_Helper.assess_radio("param_RespiratorySound", "正常|異常", "異常", "param_RespiratorySound_desc")
+            </p>
+            <p must="Y" fid="param_RespiratorySound" class="param_RespiratorySound_desc" style="display: none;">
+                <label><input type="checkbox" value="哮鳴" name="param_RespiratorySound_desc_item_other" />哮鳴</label>
+                <label><input type="checkbox" value="哮吼" name="param_RespiratorySound_desc_item_other" />哮吼</label>
+                <label><input type="checkbox" value="喘鳴音" name="param_RespiratorySound_desc_item_other" />喘鳴音</label>
+                <label><input type="checkbox" value="囉音" name="param_RespiratorySound_desc_item_other" />囉音</label>
+                <label><input type="checkbox" value="其他" name="param_RespiratorySound_desc_item_other" onclick="if ($(this).prop('checked')) { $('#param_RespiratorySound_desc_item_other_other').show(); } else { $('#param_RespiratorySound_desc_item_other_other').hide(); }" />其他</label>
+                <span style="display:none" id="param_RespiratorySound_desc_item_other_other"><input type="text" style="width:150px;" name="param_RespiratorySound_other_txt" /></span>
+            </p>
+
+            <p must="Y" fid="param_GastrointestinalSystem">
+                <span style="color: red">＊</span><label class="subtitle">腸胃系統</label>
+                @VitalSign_Helper.assess_radio("param_GastrointestinalSystem", "正常|異常", "異常", "param_GastrointestinalSystem_desc")
+            </p>
+            <p must="Y" fid="param_GastrointestinalSystem" class="param_GastrointestinalSystem_desc" style="display: none;">
+                <label><input type="checkbox" value="食慾增加" name="param_GastrointestinalSystem_desc_item_other" />食慾增加</label>
+                <label><input type="checkbox" value="食慾減少" name="param_GastrointestinalSystem_desc_item_other" />食慾減少</label>
+                <label><input type="checkbox" value="吞嚥困難" name="param_GastrointestinalSystem_desc_item_other" />吞嚥困難</label>
+                <label><input type="checkbox" value="噁心" name="param_GastrointestinalSystem_desc_item_other" />噁心</label>
+                <label><input type="checkbox" value="嘔吐" name="param_GastrointestinalSystem_desc_item_other" />嘔吐</label>
+                <label><input type="checkbox" value="嘔血" name="param_GastrointestinalSystem_desc_item_other" />嘔血</label>
+                <label><input type="checkbox" value="胃不適" name="param_GastrointestinalSystem_desc_item_other" />胃不適</label>
+                <label><input type="checkbox" value="腹脹" name="param_GastrointestinalSystem_desc_item_other" />腹脹</label>
+                <label><input type="checkbox" value="腹水" name="param_GastrointestinalSystem_desc_item_other" />腹水</label>
+                <label><input type="checkbox" value="體重改變" name="param_GastrointestinalSystem_desc_item_other" />體重改變</label>
+                <label><input type="checkbox" value="便秘" name="param_GastrointestinalSystem_desc_item_other" />便秘</label>
+                <label><input type="checkbox" value="腹瀉" name="param_GastrointestinalSystem_desc_item_other" />腹瀉</label>
+                <label><input type="checkbox" value="黑便" name="param_GastrointestinalSystem_desc_item_other" />黑便</label>
+                <label><input type="checkbox" value="血便" name="param_GastrointestinalSystem_desc_item_other" />血便</label>
+                <label><input type="checkbox" value="插胃管" name="param_GastrointestinalSystem_desc_item_other" />插胃管</label>
+                <label><input type="checkbox" value="腹痛" name="param_GastrointestinalSystem_desc_item_other" />腹痛</label>
+                <label><input type="checkbox" value="壓痛" name="param_GastrointestinalSystem_desc_item_other" />壓痛</label>
+                <label><input type="checkbox" value="反彈痛" name="param_GastrointestinalSystem_desc_item_other" />反彈痛</label>
+                <label><input type="checkbox" value="人工肛門" name="param_GastrointestinalSystem_desc_item_other" />人工肛門</label>
+                <label><input type="checkbox" value="其他" name="param_GastrointestinalSystem_desc_item_other" onclick="if ($(this).prop('checked')) { $('#param_GastrointestinalSystem_desc_item_other_other').show(); } else { $('#param_GastrointestinalSystem_desc_item_other_other').hide(); }" />其他</label>
+                <span style="display:none" id="param_GastrointestinalSystem_desc_item_other_other"><input type="text" style="width:150px;" name="param_GastrointestinalSystem_desc_other_txt" /></span>
+            </p>
+
+            <p must="Y" fid="param_UrinarySystem">
+                <span style="color: red">＊</span><label class="subtitle">泌尿系統</label>
+                @VitalSign_Helper.assess_radio("param_UrinarySystem", "正常|異常", "異常", "param_UrinarySystem_desc")
+            </p>
+            <p must="Y" fid="param_UrinarySystem" class="param_UrinarySystem_desc" style="display: none;">
+                <label><input type="checkbox" value="解尿困難" name="param_UrinarySystem_desc_item_other" />解尿困難</label>
+                <label><input type="checkbox" value="疼痛" name="param_UrinarySystem_desc_item_other" />疼痛</label>
+                <label><input type="checkbox" value="灼熱感" name="param_UrinarySystem_desc_item_other" />灼熱感</label>
+                <label><input type="checkbox" value="頻尿" name="param_UrinarySystem_desc_item_other" />頻尿</label>
+                <label><input type="checkbox" value="失禁" name="param_UrinarySystem_desc_item_other" />失禁</label>
+                <label><input type="checkbox" value="滲尿" name="param_UrinarySystem_desc_item_other" />滲尿</label>
+                <label><input type="checkbox" value="插尿管" name="param_UrinarySystem_desc_item_other" />插尿管</label>
+                <label><input type="checkbox" value="血尿" name="param_UrinarySystem_desc_item_other" />血尿</label>
+                <label><input type="checkbox" value="殘尿多" name="param_UrinarySystem_desc_item_other" />殘尿多</label>
+                <label><input type="checkbox" value="其他" name="param_UrinarySystem_desc_item_other" onclick="if ($(this).prop('checked')) { $('#param_UrinarySystem_desc_item_other_other').show(); } else { $('#param_UrinarySystem_desc_item_other_other').hide(); }" />其他</label>
+                <span style="display:none" id="param_UrinarySystem_desc_item_other_other"><input type="text" style="width:150px;" name="param_UrinarySystem_desc_other_txt" /></span>
+            </p>
+
+            <p must="Y" fid="param_SkinSystem">
+                <span style="color: red">＊</span><label class="subtitle">皮膚系統</label>
+                @VitalSign_Helper.assess_radio("param_SkinSystem", "正常|異常", "異常", "param_SkinSystem_desc")
+            </p>
+            <p must="Y" fid="param_SkinSystem" class="param_SkinSystem_desc" style="display: none;">
+                <label><input type="checkbox" value="乾燥" name="param_SkinSystem_desc_item_other" />乾燥</label>
+                <label><input type="checkbox" value="水腫" name="param_SkinSystem_desc_item_other" />水腫</label>
+                <label><input type="checkbox" value="黃疸" name="param_SkinSystem_desc_item_other" />黃疸</label>
+                <label><input type="checkbox" value="潮紅" name="param_SkinSystem_desc_item_other" />潮紅</label>
+                <label><input type="checkbox" value="蒼白" name="param_SkinSystem_desc_item_other" />蒼白</label>
+                <label><input type="checkbox" value="發紺" name="param_SkinSystem_desc_item_other" />發紺</label>
+                <label><input type="checkbox" value="腫塊" name="param_SkinSystem_desc_item_other" />腫塊</label>
+                <label><input type="checkbox" value="發癢" name="param_SkinSystem_desc_item_other" />發癢</label>
+                <label><input type="checkbox" value="發疹" name="param_SkinSystem_desc_item_other" />發疹</label>
+                <label><input type="checkbox" value="其他" name="param_SkinSystem_desc_item_other" onclick="if ($(this).prop('checked')) { $('#param_SkinSystem_desc_item_other_other').show(); } else { $('#param_SkinSystem_desc_item_other_other').hide(); }" />其他</label>
+                <span style="display:none" id="param_SkinSystem_desc_item_other_other"><input type="text" style="width:150px;" name="param_SkinSystem_desc_other_txt" /></span>
+            </p>
+
+            <p fid="param_skeleton" must="Y">
+                <span style="color: red">＊</span><label class="subtitle">骨骼系統</label>
+                @VitalSign_Helper.assess_radio("param_skeleton", "正常|異常", "異常", "span_param_skeleton_Desc")
+
+            </p>
+            <p fid="param_skeleton" must="Y" class="span_param_skeleton_Desc" style="display: none;">
+
+                @VitalSign_Helper.assess_checkbox("param_skeleton_Desc", "駝背", "", "")
+                <br />
+                @VitalSign_Helper.assess_checkbox("param_skeleton_Desc", "骨折", "骨折", "span_param_skeleton_Desc_fracture")
+                <span class="span_param_skeleton_Desc_fracture" style="display: none;">
+                    部位
+                    @VitalSign_Helper.assess_checkbox_block("param_skeleton_Desc_fracture", "右大粗隆|左大粗隆|右膝|左膝|枕骨|右肩胛骨|左肩胛骨|右手肘|左手肘|薦骨|右坐骨粗隆|左坐骨粗隆|左腳踝|右腳踝|右前臂|左前臂|右上臂|左上臂|右大腿|左大腿|右小腿|左小腿|右手拇指|右手食指|右手中指|右手無名指|右手小指|左手拇指|左手食指|左手中指|左手無名指|左手小指|右腳大拇趾|右腳食趾|右腳中趾|右腳無名趾|右腳小趾|左腳大拇趾|左腳食趾|左腳中趾|左腳無名趾|左腳小趾", "", "")
+                </span><br />
+                @VitalSign_Helper.assess_checkbox("param_skeleton_Desc", "脫臼", "脫臼", "span_param_skeleton_Desc_dislocation")
+                <span class="span_param_skeleton_Desc_dislocation" style="display: none;">
+                    部位 @VitalSign_Helper.assess_checkbox_block("param_skeleton_Desc_dislocation", "右大粗隆|左大粗隆|右膝|左膝|枕骨|右肩胛骨|左肩胛骨|右手肘|左手肘|薦骨|右坐骨粗隆|左坐骨粗隆|左腳踝|右腳踝|右前臂|左前臂|右上臂|左上臂|右大腿|左大腿|右小腿|左小腿|右手拇指|右手食指|右手中指|右手無名指|右手小指|左手拇指|左手食指|左手中指|左手無名指|左手小指|右腳大拇趾|右腳食趾|右腳中趾|右腳無名趾|右腳小趾|左腳大拇趾|左腳食趾|左腳中趾|左腳無名趾|左腳小趾", "", "")
+                </span><br />
+                @VitalSign_Helper.assess_checkbox("param_skeleton_Desc", "關節腫", "關節腫", "span_param_skeleton_Desc_arthrosis")
+                <span class="span_param_skeleton_Desc_arthrosis" style="display: none;">
+                    部位 @VitalSign_Helper.assess_checkbox_block("param_skeleton_Desc_arthrosis", "右大粗隆|左大粗隆|右膝|左膝|枕骨|右肩胛骨|左肩胛骨|右手肘|左手肘|薦骨|右坐骨粗隆|左坐骨粗隆|左腳踝|右腳踝|右前臂|左前臂|右上臂|左上臂|右大腿|左大腿|右小腿|左小腿|右手拇指|右手食指|右手中指|右手無名指|右手小指|左手拇指|左手食指|左手中指|左手無名指|左手小指|右腳大拇趾|右腳食趾|右腳中趾|右腳無名趾|右腳小趾|左腳大拇趾|左腳食趾|左腳中趾|左腳無名趾|左腳小趾", "", "")
+                </span><br />
+                @VitalSign_Helper.assess_checkbox("param_skeleton_Desc", "截肢", "截肢", "span_param_skeleton_Desc_amputation")
+                <span class="span_param_skeleton_Desc_amputation" style="display: none;">
+                    部位 @VitalSign_Helper.assess_checkbox_block("param_skeleton_Desc_amputation", "右大粗隆|左大粗隆|右膝|左膝|枕骨|右肩胛骨|左肩胛骨|右手肘|左手肘|薦骨|右坐骨粗隆|左坐骨粗隆|左腳踝|右腳踝|右前臂|左前臂|右上臂|左上臂|右大腿|左大腿|右小腿|左小腿|右手拇指|右手食指|右手中指|右手無名指|右手小指|左手拇指|左手食指|左手中指|左手無名指|左手小指|右腳大拇趾|右腳食趾|右腳中趾|右腳無名趾|右腳小趾|左腳大拇趾|左腳食趾|左腳中趾|左腳無名趾|左腳小趾", "", "")
+                </span><br />
+                @VitalSign_Helper.assess_checkbox("param_skeleton_Desc", "畸形", "畸形", "span_param_skeleton_Desc_deformity")
+                <span class="span_param_skeleton_Desc_deformity" style="display: none;">
+                    部位 @VitalSign_Helper.assess_checkbox_block("param_skeleton_Desc_deformity", "右大粗隆|左大粗隆|右膝|左膝|枕骨|右肩胛骨|左肩胛骨|右手肘|左手肘|薦骨|右坐骨粗隆|左坐骨粗隆|左腳踝|右腳踝|右前臂|左前臂|右上臂|左上臂|右大腿|左大腿|右小腿|左小腿|右手拇指|右手食指|右手中指|右手無名指|右手小指|左手拇指|左手食指|左手中指|左手無名指|左手小指|右腳大拇趾|右腳食趾|右腳中趾|右腳無名趾|右腳小趾|左腳大拇趾|左腳食趾|左腳中趾|左腳無名趾|左腳小趾", "", "")
+                </span><br />
+                @VitalSign_Helper.assess_checkbox("param_skeleton_Desc", "其他", "其他", "span_param_skeleton_Desc_other")
+                <span class="span_param_skeleton_Desc_other" style="display: none;">
+                    @Html.TextBox("param_skeleton_Desc_other", "", new { style = "width:150px" })
+                </span>
+            </p>
+
+            <p fid="param_Other_Desc">
+                <label class="subtitle">其他描述</label>
+            </p>
+            <p fid="param_Other_Desc">
+                @Html.TextArea("other_desc_txt", "", 5, 60, new { })
+            </p>
+        </div>
+
+        <div id="tabs-2" class="tab">
+            <p must="Y">
+                <span style="color: red">＊</span><label class="subtitle">一般傷口</label>
+                @VitalSign_Helper.assess_radio("param_General_wound", "無|有", "有", "span_param_General_wound_Desc")
+            </p>
+            <div id="wound_ass" countid="0" class="span_param_General_wound_Desc" style="display: none;">
+                <p>
+                    <img id="but_wound_ass" src="~/Images/plus.png" style="cursor: pointer; width: 15px;" title="新增一筆" alt="新增一筆" onclick="clonediv('wound_ass', this.id, 'add_wound_ass'); ChangeDateCont($('#wound_ass'), '#PnWoundDate_', 'wound_date');" />
+                    發生日期:
+                    <span section="PnWoundDate" id="PnWoundDate_0" class="WoundDate">
+                        @Html.TextBox("wound_date", "", new { style = "width:100px;", @id = "wound_date_0" })
+                        @WebTool.complementList_Status(complement_List.Status, "", @DateTime.Now.ToString("yyyy/MM/dd"), "wound_date_0", "", false)
+                    </span>
+                    <label><input type="checkbox" name="wound_date_unknown" id="wound_date_unknown_0" value="不詳" key="0" onclick="if (this.checked) { $('#wound_date_' + $(this).attr('key')).hide(); $('#wound_date_' + $(this).attr('key')).val(''); } else { $('#wound_date_' + $(this).attr('key')).show(); }" />不詳</label>
+                    種類:
+                    @Html.DropDownList("ddl_wound_type", (List<SelectListItem>)ViewBag.dt_w_type, "請選擇",
+                    new { key = "0", id = "ddl_wound_type_0", onchange = "SwitchPosition(this);" })
+                    <span section="wound_general" id="wound_general_0" class="WoundDate" style="display: none;">
+                        部位:@Html.DropDownList("ddl_wound_general", (List<SelectListItem>)ViewBag.dt_w_g, "請選擇",
+                        new { key = "0", id = "ddl_wound_general_0", onchange = "WoundOtherChange(this);" })
+                    </span>
+                    <span section="wound_scald" id="wound_scald_0" class="WoundDate" style="display: none;">
+                        部位:@Html.DropDownList("ddl_wound_scald", (List<SelectListItem>)ViewBag.dt_w_s, "請選擇",
+                        new { key = "0", id = "ddl_wound_scald_0", onchange = "WoundOtherChange(this);" })
+                    </span>
+                    @Html.TextBox("wound_other_txt", "", new { @style = "display:none;", @id = "wound_other_txt_0" })
+                </p>
+            </div>
+            <div id="add_wound_ass">
+            </div>
+            <p must="Y">
+                <span style="color: red">＊</span><label class="subtitle">壓傷傷口</label>
+                @VitalSign_Helper.assess_radio("param_pressure", "無|有", "有", "span_param_pressure_Desc")
+            </p>
+            <div id="wound_pre" countid="0" class="span_param_pressure_Desc" style="display: none;">
+                <p>
+                    <img id="but_wound_pre" src="~/Images/plus.png" style="cursor: pointer; width: 15px;" title="新增一筆" alt="新增一筆" onclick="clonediv('wound_pre', this.id, 'add_wound_pre'); ChangeDateCont($('#wound_pre'), '#PnWoundPreDate_', 'wound_pre_date');" />
+                    發生日期:
+                    <span section="PnWoundPreDate" class="WoundPreDate">
+                        @Html.TextBox("wound_pre_date", "", new { style = "width:100px;", @id = "wound_pre_date_0" })
+                        @WebTool.complementList_Status(complement_List.Status, "", @DateTime.Now.ToString("yyyy/MM/dd"), "wound_pre_date_0", "", false)
+                    </span>
+                    <label><input type="checkbox" name="wound_pre_date_unknown" id="wound_pre_date_unknown_0" value="不詳" key="0" onclick="if (this.checked) { $('#wound_pre_date_' + $(this).attr('key')).hide(); $('#wound_pre_date_' + $(this).attr('key')).val(''); } else { $('#wound_pre_date_' + $(this).attr('key')).show(); }" />不詳</label>
+
+                    發生地點:
+                    <label>
+                        @Html.RadioButton("place", "1", false, new { id = "place1_0", @onclick = "SwitchHosp(this,'in');" })
+                        院內
+                    </label>
+                    @Html.DropDownList("inHosp", (List<SelectListItem>)ViewData["costlist"], new { id = "inHosp_0", style = "display:none;" })
+                    <label>
+                        @Html.RadioButton("place", "2", false, new { id = "place2_0", onclick = "SwitchHosp(this,'out');CheckHosp(this);" })
+                        院外
+                    </label>
+                    <select id="outHosp_0" name="outHosp" size="1" style="display: none;" onchange="CheckHosp(this);">
+                        <option value="家中">家中</option>
+                        <option value="長期養護機構">長期養護機構</option>
+                        <option value="其他醫院">其他醫院</option>
+                        <option value="其他">其他</option>
+                    </select>
+                    @Html.TextBox("outHosp_other", "", new { id = "outHosp_other_0", style = "width:80px;display:none;" })
+                    部位:@Html.DropDownList("wound_pressure", (List<SelectListItem>)ViewBag.dt_w_p, "請選擇",
+                    new { key = "0", id = "wound_pressure_0", onchange = "if($(this).val()=='其他'){$('#wound_pre_other_txt_' + $(this).attr('key')).show();}else{$('#wound_pre_other_txt_' + $(this).attr('key')).hide(); }" })
+                    @Html.TextBox("wound_pre_other_txt", "", new { id = "wound_pre_other_txt_0", style = "display: none;" })
+                </p>
+            </div>
+            <div id="add_wound_pre">
+            </div>
+        </div>
+        
+        <!-- 疼痛評估 -->
+        <div id="tabs-3" class="tab">
+            <p fid="pain_assessment" must="Y">
+                <label class="subtitle">疼痛評估</label>
+            </p>
+            @*<p fid="pain_assessment" must="Y">
+                <label class="subtitle">評估時機</label>
+                <input type="text" name="param_pain_assessment_occasion" style="text-align:left;border:0;background:none;" value="" readonly />
+            </p>
+            <p fid="pain_assessment" must="Y">
+                <label class="subtitle">疼痛強度</label>
+                <input type="text" name="param_pain_assessment_score" style="width:20px;text-align:center;border:0;background:none;" value="0" readonly />分
+            </p>*@
+            <p fid="pain_assessment" must="Y">
+                <span style="color: red">＊</span><label class="subtitle">疼痛</label>
+                @*@VitalSign_Helper.vs_part_radio("param_pain_assessment_assess", "數字量表|臉譜量表|困難評估(成人)|困難評估(兒童)|困難評估(新生兒)", "")*@
+                @VitalSign_Helper.vs_part_radio("param_pain_assessment_assess", "數字量表|臉譜量表|困難評估(成人)|困難評估(兒童)|困難評估(新生兒)|CPOT評估(加護單位)", "")
+            </p>
+            <div class="ps_type_1" style="display:none;">
+                <span style="color: red">＊</span><label class="subtitle">數字量表</label>
+                <p fid="pain_assessment" must="Y">
+                    @VitalSign_Helper.vs_part_radio("param_pain_assessment_r1", "(0)|(1)|(2)|(3)|(4)|(5)|(6)|(7)|(8)|(9)|(10)", "")
+                </p>
+            </div>
+            <div class="ps_type_2" style="display:none;">
+                <span style="color: red">＊</span><label class="subtitle">臉譜量表</label>
+                <div style="padding-bottom:10px;" fid="pain_assessment" must="Y">
+                    <table>
+                        <tr>
+                            <td colspan="11">
+                                <img src="~/Images/NumericalPainScale/ps_chart_01.png" alt="" width="80" />
+                                <img src="~/Images/NumericalPainScale/ps_chart_02.png" alt="" width="80" />
+                                <img src="~/Images/NumericalPainScale/ps_chart_03.png" alt="" width="80" />
+                                <img src="~/Images/NumericalPainScale/ps_chart_04.png" alt="" width="80" />
+                                <img src="~/Images/NumericalPainScale/ps_chart_05.png" alt="" width="80" />
+                                <img src="~/Images/NumericalPainScale/ps_chart_06.png" alt="" width="80" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="0" onclick>0</label></td>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="1" onclick>1</label></td>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="2" onclick>2</label></td>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="3" onclick>3</label></td>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="4" onclick>4</label></td>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="5" onclick>5</label></td>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="6" onclick>6</label></td>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="7" onclick>7</label></td>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="8" onclick>8</label></td>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="9" onclick>9</label></td>
+                            <td><label><input type="radio" name="param_pain_assessment_r1" value="10" onclick>10</label></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="ps_type_3" style="display:none;">
+                <span style="color: red">＊</span><label class="subtitle">困難評估(成人)</label>
+                <p fid="pain_assessment" must="Y">
+                    呼吸:<br />
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(0)正常" onclick>(0)正常</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(1)略喘" onclick>(1)略喘</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(2)喘(有明顯呼吸音)/呼吸呈現陳施氏呼吸型態(Cheyne-Stokes respiration)" onclick>(2)喘(有明顯呼吸音)/呼吸呈現陳施氏呼吸型態(Cheyne-Stokes respiration)</label><br />
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    非言語表達:<br />
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(0)無" onclick>(0)無</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(1)呻吟聲" onclick>(1)呻吟聲</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(2)大聲呻吟/哭泣" onclick>(2)大聲呻吟/哭泣</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    臉部表情:<br />
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(0)輕鬆自然" onclick>(0)輕鬆自然</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(1)蹙眉/憂愁" onclick>(1)蹙眉/憂愁</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(2)痛苦狀" onclick>(2)痛苦狀</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    肢體語言:<br />
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(0)微笑/輕鬆" onclick>(0)微笑/輕鬆</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(1)緊張" onclick>(1)緊張</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(2)僵硬/咬緊牙關" onclick>(2)僵硬/咬緊牙關</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    安撫:<br />
+                    <label><input type="radio" name="param_pain_assessment_r5" value="(0)不需要" onclick>(0)不需要</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r5" value="(1)需要" onclick>(1)需要</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r5" value="(2)無法安撫" onclick>(2)無法安撫</label><br>
+                </p>
+            </div>
+            <div class="ps_type_4" style="display:none;">
+                <span style="color: red">＊</span><label class="subtitle">困難評估(兒童)</label>
+                <p fid="pain_assessment" must="Y">
+                    臉部表情:<br />
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(0)沒有特別的表情或微笑" onclick>(0)沒有特別的表情或微笑</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(1)偶爾出現鬼臉、皺眉、退縮，或對週遭刺激缺乏興趣" onclick>(1)偶爾出現鬼臉、皺眉、退縮，或對週遭刺激缺乏興趣</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(2)下巴頻繁地顫抖或下巴緊閉" onclick>(2)下巴頻繁地顫抖或下巴緊閉</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    腳部:<br />
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(0)正常位置肢體放鬆" onclick>(0)正常位置肢體放鬆</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(1)不安、焦躁不安、緊張" onclick>(1)不安、焦躁不安、緊張</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(2)拳打腳踢腿拉長伸直" onclick>(2)拳打腳踢腿拉長伸直</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    活動力:<br />
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(0)平靜的躺臥、正常的擺位可以輕鬆移動" onclick>(0)平靜的躺臥、正常的擺位可以輕鬆移動</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(1)扭動不安、前後翻滾身體緊張" onclick>(1)扭動不安、前後翻滾身體緊張</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(2)身體拱起、僵硬、抽搐、痙攣" onclick>(2)身體拱起、僵硬、抽搐、痙攣</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    哭泣:<br />
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(0)沒有哭泣(醒著或睡著)" onclick>(0)沒有哭泣(醒著或睡著)</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(1)呻吟或哽咽偶而哭吵" onclick>(1)呻吟或哽咽偶而哭吵</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(2)不斷哭吵、尖叫、啜泣" onclick>(2)不斷哭吵、尖叫、啜泣</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    安撫:<br />
+                    <label><input type="radio" name="param_pain_assessment_r5" value="(0)滿足的、放鬆的" onclick>(0)滿足的、放鬆的</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r5" value="(1)撫觸、擁抱、說話，或轉移注意，可稍加安撫" onclick>(1)撫觸、擁抱、說話，或轉移注意，可稍加安撫</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r5" value="(2)難以安撫" onclick>(2)難以安撫</label><br>
+                </p>
+            </div>
+            <div class="ps_type_5" style="display:none;">
+                <span style="color: red">＊</span><label class="subtitle">困難評估(新生兒)</label>
+                <p fid="pain_assessment" must="Y">
+                    哭泣:<br />
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(0)無" onclick>(0)無</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(1)高音頻的哭泣聲/尚可被安撫" onclick>(1)高音頻的哭泣聲/尚可被安撫</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(2)傷心欲絕的高頻哭泣/無法被安撫" onclick>(2)傷心欲絕的高頻哭泣/無法被安撫</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    需氧量；血氧飽合濃度高於95%:<br />
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(0)毋須使用氧氣" onclick>(0)毋須使用氧氣</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(1)FiO2 < 30%" onclick>(1)FiO2 < 30%</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(2)FiO2 > 30%" onclick>(2)FiO2 > 30%</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    生命徵象:<br />
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(0)心跳速率及血壓=或<手術/侵入性治療前" onclick>(0)心跳速率及血壓=或<手術/侵入性治療前</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(1)心跳速率或血壓較手術/侵入性治療前上升【增加<20%】" onclick>(1)心跳速率或血壓較手術/侵入性治療前上升【增加<20%】</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(2)心跳速率或血壓較手術/侵入性治療前上升【增加>20%】" onclick>(2)心跳速率或血壓較手術/侵入性治療前上升【增加>20%】</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    表情:<br />
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(0)平靜，無特殊表情變化" onclick>(0)平靜，無特殊表情變化</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(1)表情扭曲、作鬼臉" onclick>(1)表情扭曲、作鬼臉</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(2)表情極度痛苦，出現呻吟聲" onclick>(2)表情極度痛苦，出現呻吟聲</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    睡眠狀態:<br />
+                    <label><input type="radio" name="param_pain_assessment_r5" value="(0)安睡" onclick>(0)安睡</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r5" value="(1)經常醒來" onclick>(1)經常醒來</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r5" value="(2)無法入眠" onclick>(2)無法入眠</label><br>
+                </p>
+            </div>
+            <div class="ps_type_6" style="display:none;">
+                <span style="color: red">＊</span><label class="subtitle" style="width:164px;">CPOT評估(加護單位)</label>
+                <p fid="pain_assessment" must="Y">
+                    臉部表情:<br />
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(0)未見面部肌肉緊張" onclick>(0)未見面部肌肉緊張</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(1)表現為皺眉，面部肌肉緊張" onclick>(1)表現為皺眉，面部肌肉緊張</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r1" value="(2)出現以上所有表情並雙眼緊閉" onclick>(2)出現以上所有表情並雙眼緊閉</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    身體動作:<br />
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(0)安靜，無運動（不一定表示無疼痛）" onclick>(0)安靜，無運動（不一定表示無疼痛）</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(1)緩慢小心地移動，輕撫痛處，通過移動身體引起別人的注意" onclick>(1)緩慢小心地移動，輕撫痛處，通過移動身體引起別人的注意</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r2" value="(2)拉扯氣管插管，試圖坐起，在床上翻來覆去，不配合指示，襲擊工作人員，試圖翻越床欄" onclick>(2)拉扯氣管插管，試圖坐起，在床上翻來覆去，不配合指示，襲擊工作人員，試圖翻越床欄</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    肌肉緊張:<br />
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(0)被動運動時無阻力" onclick>(0)被動運動時無阻力</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(1)被動運動時有阻力" onclick>(1)被動運動時有阻力</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r3" value="(2)被動運動時阻力非常大，無法完成動作" onclick>(2)被動運動時阻力非常大，無法完成動作</label><br>
+                </p>
+                <p fid="pain_assessment" must="Y">
+                    呼吸器:<br />
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(0)無呼吸器說話時語調平穩或不出聲" onclick>(0)無呼吸器說話時語調平穩或不出聲</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(1)無呼吸器嘆息、呻吟" onclick>(1)無呼吸器嘆息、呻吟</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(2)無呼吸器哭喊、抽泣" onclick>(2)無呼吸器哭喊、抽泣</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(0)有呼吸器通氣順暢，無呼吸機報警" onclick>(0)有呼吸器通氣順暢，無呼吸機報警</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(1)有呼吸器嗆咳，呼吸機報警觸發，疼痛時自主呼吸暫停" onclick>(1)有呼吸器嗆咳，呼吸機報警觸發，疼痛時自主呼吸暫停</label><br>
+                    <label><input type="radio" name="param_pain_assessment_r4" value="(2)有呼吸器人機不同步，呼吸機頻繁報警" onclick>(2)有呼吸器人機不同步，呼吸機頻繁報警</label><br>
+                </p>
+                <input type="hidden" class="hidden_param_pain_assessment_record" name="param_pain_assessment_record" data-relate_field="param_pain_assessment_r1|param_pain_assessment_r2|param_pain_assessment_r3|param_pain_assessment_r4|param_pain_assessment_r5" value="" />
+            </div>
+        </div>       
+
+    </div>
+
+    <div id="unfilled" class="tabArea" style="display: none; overflow-y: auto; padding-left: 5px;">
+    </div>
+
+    <input type="button" class="btn_save" value="儲存" onclick="SetTubeArray(); final_check();" />
+    <input type="button" value="暫存" onclick="$('input[type=button]').prop('disabled', true); if ($('#maode').val() == 'insert') { $('#tableid').val(''); } $('#maode').val('temporary'); if (sel_check()) { save(); } else { $('input[type=button]').prop('disabled', false); }" />
+    <input type="button" class="tab_control" control_code="back" value="返回" />
+</form>
+
+<script type="text/javascript">
+    $("input[name=param_pain_assessment_assess]").click(function () {
+        change_ps_table($(this).val());
+    });
+    set_for_rb('param_urine', '有');
+    $('#param_ph_office').val('@pf.PatientWorkNo ');
+    $('#param_ph_home').val('@pf.PatientHomeNo ');
+    $('#param_ph_number').val('@pf.PatientMobile ');
+    @if (num != "" && int.Parse(num) > 0)
+    {
+        @:set_for_rb('param_hasipd', '有');
+    }
+    @if (num != "" && int.Parse(num) > 0)
+    {
+        @:set_for_rb('param_hasipd', '有');
+                if (int.Parse(num) < 5)
+        {
+        @:set_for_rb('param_ipd_count', '@(num)次');
+                }
+        else
+        {
+         @:set_for_rb('param_ipd_count', '@(num)次以上');
+                }
+        @:$('#param_ipd_lasttime').val('@lastdate');
+                    @:$('#param_ipd_diag').val('@lastICD9');
+                }
+    //20141210 過去病史有門診用藥自動勾選"有" mod by yungchen
+    @if (Drug_list.Count > 0)
+    {
+          @:set_for_rb('param_med', '有');
+                }
+    @if (sex != null && sex != "")
+    {
+        @:set_for_rb('param_Light', '@(sex)');
+            }
+    @if (age>=65)
+    {
+        @:set_for_rb('param_pressure_assessment', '有');
+        @:set_for_rb('param_age_fall', '1分:年齡大於65歲');
+        @:set_for_ck('param_pressure_assessment_Desc', '年齡＞65歲');
+            }
+    else if (age < 65)
+    {
+    @:set_for_rb('param_age_fall', '0分:15-64歲');
+            }
+
+    @if (dt != null && dt.Rows.Count > 0)
+    {
+        int PlaceCnt = dt.AsEnumerable().Count(x => x.Field<string>("ITEMID").StartsWith("place_"));
+        @*string wound_type = "";
+        if (dt.AsEnumerable().Count(x => x.Field<string>("ITEMID") == "wound_type") == 1)
+        {
+            wound_type = dt.AsEnumerable().Where(x => x.Field<string>("ITEMID") == "wound_type").Select(x => x.Field<string>("ITEMVALUE")).First();
+            if (wound_type != null && wound_type != "")
+            {
+                for (int i = 0; i < wound_type.Split(',').Length - 1; i++)
+                {
+                          @:$('#but_wound_ass').click();
+                      }
+            }
+        }*@
+        int CurrentPlace = 1;
+        string med_name = "", med_feq = "", med_amount = "", med_way = "";
+        @:$('#maode').val('@ViewBag.mode');
+                    @:$('#tableid').val('@dt.Rows[0]["TABLEID"]');
+                foreach (DataRow r in dt.Rows)
+            {
+
+           if (r["ITEMTYPE"].ToString() == "radio")
+                {
+                    if (r["ITEMID"].ToString().Trim().IndexOf("place_") >= 0 && CurrentPlace <= PlaceCnt)
+                    {
+                        @:set_for_rb('place_@(CurrentPlace.ToString())', '@r["ITEMVALUE"]');
+                        CurrentPlace += 1;
+                    }
+                    else
+                    {
+                        @:set_for_rb('@r["ITEMID"]', '@r["ITEMVALUE"]');
+                    }
+                }
+
+                else if (r["ITEMTYPE"].ToString() == "checkbox")
+                {
+                @:set_for_ck('@r["ITEMID"]', '@r["ITEMVALUE"]');
+                    if (r["ITEMID"].ToString() == "param_pressure_assessment_Desc" && r["ITEMVALUE"].ToString().IndexOf("65") > -1)
+                    {
+                          @:set_for_ck('param_pressure_assessment_Desc', '年齡＞65歲');
+                    }
+                }
+                else if (r["ITEMTYPE"].ToString() == "ddl")
+                {
+                    @*if (r["ITEMID"].ToString() == "wound_type")//傷口
+                    {
+                        for (int i = 0; i < r["ITEMVALUE"].ToString().Split(',').Length - 1; i++)
+                        {
+                          @:$('#but_wound_ass').click();
+
+                            }
+
+                    }*@
+                    @*if (r["ITEMID"].ToString() == "inHosp")//壓傷
+                    {
+                        for (int i = 0; i < r["ITEMVALUE"].ToString().Split(',').Length - 1; i++)
+                        {
+                          @:$('#but_wound_pre').click();
+
+                            }
+
+                    }*@
+                    if (r["ITEMID"].ToString() == "Prompt_TubeKind")//管路
+                    {
+                        for (int i = 0; i < r["ITEMVALUE"].ToString().Split(',').Length - 1; i++)
+                        {
+                          @:$('#but_tube_div').click();
+                            }
+
+                    }
+
+
+                        @:set_for_ddl('@r["ITEMID"]', '@r["ITEMVALUE"]')
+                 }
+                else if (r["ITEMTYPE"].ToString() == "text" || r["ITEMTYPE"].ToString() == "textarea")
+                {
+                    if (r["ITEMID"].ToString() == "param_med_name")
+                    {
+                        med_name = r["ITEMVALUE"].ToString();
+                    }
+                    if (r["ITEMID"].ToString() == "param_med_frequency")
+                    {
+                        med_feq = r["ITEMVALUE"].ToString();
+                    }
+                    if (r["ITEMID"].ToString() == "param_med_amount")
+                    {
+                        med_amount = r["ITEMVALUE"].ToString();
+                    }
+                    if (r["ITEMID"].ToString() == "param_med_way")
+                    {
+                        med_way = r["ITEMVALUE"].ToString();
+                    }
+                    if (r["ITEMID"].ToString() == "param_EMGContact")
+                    {
+                        for (int i = 0; i < r["ITEMVALUE"].ToString().Split(',').Length - 1; i++)
+                        {
+                    @:$('#btn_add_contact').click();
+                            }
+                    }
+                    if (r["ITEMID"].ToString() == "param_ipd_past_reason")//住院次數
+                    {
+                        for (int i = 0; i < r["ITEMVALUE"].ToString().Split(',').Length - 1; i++)
+                        {
+                    @:$('#btn_ipd_past').click();
+                            }
+                    }
+                    if (r["ITEMID"].ToString() == "param_ipd_surgery_reason")//手術次數
+                    {
+                        for (int i = 0; i < r["ITEMVALUE"].ToString().Split(',').Length - 1; i++)
+                        {
+                    @:$('#btn_ipd_surgery').click();
+                            }
+                    }
+                    if (r["ITEMID"].ToString() == "param_taboo_position_txt")//禁忌部位
+                    {
+                        for (int i = 0; i < r["ITEMVALUE"].ToString().Split(',').Length - 1; i++)
+                        {
+                            @:$('#but_taboo_position').click();
+                        }
+                            @*@:$('#wound_assbtnDel1').click();
+                              @:$('#wound_assbtnDel2').click();*@
+
+                    }
+                    if (r["ITEMID"].ToString() == "wound_date")//傷口 //vanda
+                    {
+                        for (int i = 0; i < r["ITEMVALUE"].ToString().Split(',').Length - 1; i++)
+                        {
+                            @:$('#but_wound_ass').click();
+                        }
+                    }
+                    if (r["ITEMID"].ToString() == "wound_pre_date")//壓傷 //vanda
+                    {
+                        for (int i = 0; i < r["ITEMVALUE"].ToString().Split(',').Length - 1; i++)
+                        {
+                            @:$('#but_wound_pre').click();
+                        }
+                    }
+                    if (r["ITEMVALUE"].ToString().Split(',').Length > 0)
+                    {
+                        @:set_for_txt('@r["ITEMID"]', '@r["ITEMVALUE"]');
+                    }
+                    else
+                    {
+                        @:$('#@r["ITEMID"]').val('@r["ITEMVALUE"].ToString()');
+                    }
+                }
+                else if (r["ITEMTYPE"].ToString() == "hidden" && r["ITEMID"].ToString() == "check_tab_val")
+                {
+                    @:set_a_must('@r["ITEMVALUE"].ToString()');
+                }
+            }
+        		if (med_name != "" || med_feq != "" || med_amount != "" || med_way != "")
+                {
+                    for (int i = 0; i < med_name.Split(',').Length - 1; i++)
+                    {
+                        @:$('#btn_add_med').click();
+                    }
+                        @:set_for_txt('param_med_name', '@med_name');
+                        @:set_for_txt('param_med_frequency', '@med_feq');
+                        @:set_for_txt('param_med_amount', '@med_amount');
+                        @:set_for_txt('param_med_way', '@med_way');
+                }
+
+        @*if (param_ipd_past_reason != "" || param_ipd_past_location != "")
+        {
+            for (int i = 0; i < med_name.Split(',').Length - 1; i++)
+            {
+            @:$('#btn_add_med').click();
+            }
+            @:set_for_txt('param_med_name', '@med_name');
+                @:set_for_txt('param_med_frequency', '@med_feq');
+                @:set_for_txt('param_med_amount', '@med_amount');
+                @:set_for_txt('param_med_way', '@med_way');
+        }*@
+        @:$('input[type=text], textarea').each(function () { $(this).val($(this).val().replace(/\|/g, ',')); });
+                }
+</script>
+
+<style type="text/css">
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size: 16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

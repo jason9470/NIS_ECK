@@ -1,0 +1,363 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    #item_body_item input[type=text]:hover, #item_body_division input[type=text]:hover{
+        border: 1px solid #000000;
+        background-color: #FFFFFF;
+    }
+
+    #item_body_item input[type=text], #item_body_division input[type=text] {
+        background-color: transparent;
+        width: 240px;
+        padding: 3px 3px 3px 3px;
+        border: 1px solid #999999;
+    }
+
+    input[type=checkbox] {
+        display: block;
+        padding: 0px;
+        width: 22px;
+        height: 22px;
+    }
+
+    .item_header td {
+        font-weight:normal;
+        height:18px;
+        text-align:center;
+        background-color: #85A5CC;
+    }
+
+    input[type=button] {
+        min-width:80px;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        $('#partial_item_list').load('Partial_Health_Education_Item_List?mode=@ViewBag.mode');
+
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+    });
+
+    //設定底色
+    function setColor() {
+        $('.dataArea tr:odd').css('background', '#E1E6FA');
+        $('.dataArea tr:even').css('background', '#ABC8E2');
+    }
+
+    function insert_tr(id) {
+        var copy = $("#" + id + " tr:first").clone();
+        $("#" + id).append(copy);
+        $(copy).fadeIn(500);
+        setColor();
+    }
+
+    function check_for_type(tableid, nameid) {
+        var msg = "";
+        var tr = $("#" + tableid).find("tr:gt(0)");
+        for (var i = 0; i < tr.length; i++) {
+            if ($.trim($(tr[i]).find("input[name=" + nameid + "]").val()) != '') {
+                for (var j = i + 1; j < tr.length; j++) {
+                    if ($.trim($(tr[i]).find("input[name=" + nameid + "]").val()) == $.trim($(tr[j]).find("input[name=" + nameid + "]").val())) {
+                        msg = '【名稱】：' + '不可重複';
+                    }
+                }
+            }
+            else 
+                msg = '【名稱】不可為空白';
+        }
+        if (msg != '') {
+            alert(msg);
+            return false;
+        }
+        else
+            return true;
+    }
+    
+    function search(k){
+        $('#partial_item_list').fadeOut(0);
+        $.ajax({
+            type: 'post',
+            url: 'Partial_Health_Education_Item_List',
+            data: { mode: 'edit', column: $('input[name=rb_list]:checked').val(), key: k },
+            success: function (data) {
+                $('#partial_item_list').html(data);
+                $('#partial_item_list').fadeIn(500);
+            }
+        });
+    }
+
+    function check_for_item() {
+        var msg = "";
+        @if (ViewBag.mode == "insert")
+        {
+        @:$("#item_body_item").find("tr:gt(0)").each(function () {
+        }
+        else
+        {
+        @:$("#item_body_item").find("tr").each(function () {    
+        }
+            if ($.trim($(this).find("input[name=item_name]").val()) != '') {
+                $(this).find("input[name=icd]").val($.trim($(this).find("input[name=icd]").val()).replace(/,/g, '|'));
+            }
+            else 
+                msg = '【名稱】不可為空白';
+        });
+        if (msg != '') {
+            alert(msg);
+            return false;
+        }
+        else
+            return true;
+    }
+
+</script>
+
+@using System.Data;
+<div class="funcArea">
+    @if (ViewBag.mode == "insert")
+    {
+    <div id="module_define">護理指導項目新增</div>
+    <!-- Item新增功能按鈕 -->
+    <div class="item" style="padding:10px 0 5px 0;">
+        <input type="button" value="儲存" onclick="if (check_for_item()) $('#item_save').click();" />
+        <input type="button" value="新增項目" onclick="insert_tr('item_body_item');" />
+        <input type="button" value="維護科別" onclick="$('.item').fadeOut(0);$('.branch_division').fadeOut(0);$('.explanation').fadeOut(0); $('.division').fadeIn(500);" />
+        @*<input id="maintain_branch_division" type="button" value="維護次科別" onclick="$('.item').fadeOut(0);$('.division').fadeOut(0);$('.explanation').fadeOut(0); $('.branch_division').fadeIn(500);" />*@
+        <input id="maintain_explanation" type="button" value="維護說明類別" onclick="$('.item').fadeOut(0);$('.division').fadeOut(0);$('.branch_division').fadeOut(0); $('.explanation').fadeIn(500);" />
+    </div>
+    }
+    else
+    {
+    <div id="module_define">護理指導項目維護</div>
+    <!-- Item更新功能按鈕 -->
+    <div class="item" style="padding:10px 0 0 0;height:35px;">
+        @Html.RadioButton("rb_list", "ICD9_ID", false, new { id = "ICD9_ID", onclick = "$('#division').fadeOut(0);$('#keyword').fadeIn(0);" })
+        @Html.Label("ICD9_ID","依診斷碼")
+        @Html.RadioButton("rb_list", "NAME", false, new { id = "NAME", onclick = "$('#division').fadeOut(0);$('#keyword').fadeIn(0);" })
+        @Html.Label("NAME", "依關鍵字")
+        @Html.RadioButton("rb_list", "CATEGORY_ID", false, new { id = "CATEGORY_ID", onclick = "$('#division').fadeIn(0);$('#keyword').fadeOut(0);" })
+        @Html.Label("CATEGORY_ID", "依分類")
+        @Html.TextBox("keyword", "", new { style = "width:150px;" })
+        @Html.DropDownList("division", (List<SelectListItem>)ViewData["division"], new { style = "display:none;" })
+        @Html.DropDownList("branch_division", (List<SelectListItem>)ViewData["branch_division"], new { style = "display:none;" })
+        <input type="button" value="搜尋" onclick="if($('input[name=rb_list]:checked').val() != 'CATEGORY_ID'){ search($.trim($('#keyword').val())); }else{ search($('#division').val() + ',' + $('#branch_division').val())}" />
+    </div>
+    <div class="item" style="padding:5px 0 5px 0;">
+        <input type="button" value="儲存" onclick="if (check_for_item()) $('#item_save').click();" />
+        <input type="button" value="維護科別" onclick="$('.item').fadeOut(0);$('.branch_division').fadeOut(0);$('.explanation').fadeOut(0); $('.division').fadeIn(500);" />
+        @*<input type="button" value="維護次科別" onclick="$('.item').fadeOut(0);$('.division').fadeOut(0);$('.explanation').fadeOut(0); $('.branch_division').fadeIn(500);" />*@
+        <input type="button" value="維護說明類別" onclick="$('.item').fadeOut(0);$('.division').fadeOut(0);$('.branch_division').fadeOut(0); $('.explanation').fadeIn(500);" />
+        <a style="text-decoration: none; color: blue;" href="javascript:void(0);" class="tooltip"
+            title="儲存：修改後按下儲存則會將剛剛所變更之值儲存">操作說明</a>
+    </div>
+    }    
+    <!-- 科別功能按鈕 -->
+    <div class="division" style="padding:10px 0 5px 0;display:none;">
+        <input type="button" value="儲存" onclick="if (check_for_type('item_body_division','division_name')) { $('#division_save').click(); }" />
+        <input type="button" value="刪除" onclick="if ($('#item_body_division input:checked').length > 0) { $('#form_division').attr('action', 'Del_PARAMS'); $('#division_save').click(); } else { alert('尚未勾選刪除項目'); }" />
+        <input type="button" value="新增科別" onclick="insert_tr('item_body_division');" />
+        <input type="button" value="返回" onclick="$('.division').fadeOut(0); $('.item').fadeIn(500);" />
+        <a style="text-decoration: none; color: blue;" href="javascript:void(0);" class="tooltip"
+            title="<font color='red'>注意：已有項目之科別無法刪除</font><br/>儲存：修改後按下儲存則會將剛剛所變更之值儲存<br/>刪除：先勾選編輯勾選框，按下刪除後則進行刪除動作<br />">操作說明</a>
+    </div>    
+    <!-- 次科別功能按鈕 -->
+    @*<div class="branch_division" style="padding:10px 0 5px 0;display:none;">
+        <input type="button" value="儲存" onclick="if (check_for_type('item_body_branch_division','branch_division_name')) { $('#branch_division_save').click(); }" />
+        <input type="button" value="刪除" onclick="if ($('#item_body_branch_division input:checked').length > 0) { $('#form_branch_division').attr('action', 'Del_PARAMS'); $('#branch_division_save').click(); } else { alert('尚未勾選刪除項目'); }" />
+        <input type="button" value="新增次科別" onclick="insert_tr('item_body_branch_division');" />
+        <input id="maintain_branch_division_back" type="button" value="返回" onclick="$('.branch_division').fadeOut(0); $('.item').fadeIn(500);" />
+        <a style="text-decoration: none; color: blue;" href="javascript:void(0);" class="tooltip"
+            title="<font color='red'>注意：已有項目之次科別無法刪除</font><br/>儲存：修改後按下儲存則會將剛剛所變更之值儲存<br/>刪除：先勾選編輯勾選框，按下刪除後則進行刪除動作<br />">操作說明</a>
+    </div>*@
+    <!-- 說明類別功能按鈕 -->
+    <div class="explanation" style="padding:10px 0 5px 0;display:none;">
+        <input type="button" value="儲存" onclick="if (check_for_type('item_body_explanation','explanation_name')) { $('#explanation_save').click(); }" />
+        <input type="button" value="刪除" onclick="if ($('#item_body_explanation input:checked').length > 0) { $('#form_explanation').attr('action', 'Del_PARAMS'); $('#explanation_save').click(); } else { alert('尚未勾選刪除項目'); }" />
+        <input type="button" value="新增說明類別" onclick="insert_tr('item_body_explanation');" />
+        <input id="maintain_explanation_back" type="button" value="返回" onclick="$('.explanation').fadeOut(0); $('.item').fadeIn(500);" />
+        <a style="text-decoration: none; color: blue;" href="javascript:void(0);" class="tooltip"
+            title="<font color='red'>注意：已有項目之說明類別無法刪除</font><br/>儲存：修改後按下儲存則會將剛剛所變更之值儲存<br/>刪除：先勾選編輯勾選框，按下刪除後則進行刪除動作<br />">操作說明</a>
+    </div>
+    <hr />
+    <!-- 項目資料 -->
+    <div id="item_area">
+        <div id="partial_item_list">
+        </div>
+@{
+    DataTable dt = ViewBag.dt;
+    DataTable dt_branch_division = ViewBag.dt_branch_division;
+    DataTable dt_explanation = ViewBag.dt_explanation;
+}
+<form class="division" id="form_division" action="Divisioin_Insert" method="post" style="display:none;">
+        <table class="item_header" cellpadding="4" cellspacing="1">
+            <tr>
+                <td style="width:50px;">刪除</td>
+                <td style="width:240px;">科別名稱</td>
+            </tr>
+        </table>
+        <div class="dataArea" style="height:320px; width:100%;">                        
+            <input type="submit" id="division_save" style="display:none;" />
+            <input type="hidden" name="mode" value="@ViewBag.mode" />
+            <table id="item_body_division" cellpadding="4" cellspacing="1">
+                <tr style="display:none;">
+                    <td align="center" style="width:50px;">
+                        <img src="~/Images/minus.png" style="cursor:pointer;width:16px;" title="刪除此筆" alt="刪除此筆" onclick="$(this.parentNode.parentNode).remove();setColor();" />
+                        <input type="hidden" name="division_mode" value="Insert" />
+                        <input type="hidden" name="division_id" value="Insert" />
+                    </td>
+                    <td align="center" style="width:240px;">
+                        @Html.TextBox("division_name", "", new { style = "width:90%;" })
+                    </td>
+                </tr>
+                @if (dt != null && dt.Rows.Count > 0)
+                {
+                    foreach (DataRow r in dt.Rows)
+                    {
+                <tr>
+                        @if (r["P_VALUE"].ToString() == "0")
+                        {
+                    <td align="center" style="width:50px;"></td>
+                    <td align="center" style="width:240px;">
+                        @Html.TextBox("division_name", r["P_NAME"], new { style = "width:90%;", disabled = "disabled" })
+                    </td>
+                        }
+                        else
+                        {
+                    <td align="center" style="width:50px;">
+                        @if (int.Parse(r["CATEGORY_NUM"].ToString()) < 1)
+                        {<input type="checkbox" name="del_ID" value="@r["P_ID"]" />}
+                        <input type="hidden" name="division_mode" value="Update" />
+                        <input type="hidden" name="division_id" value="@r["P_ID"]" />
+                    </td>
+                    <td align="center" style="width:240px;">
+                        @Html.TextBox("division_name", r["P_NAME"], new { style = "width:90%;" })
+                    </td>
+                        }
+                </tr>
+                    }
+                }
+            </table>
+        </div>
+</form>
+
+@*<form class="branch_division" id="form_branch_division" action="Branch_Division_Insert" method="post" style="display:none;">
+        <table class="item_header" cellpadding="4" cellspacing="1">
+            <tr>
+                <td style="width:50px;">刪除</td>
+                <td style="width:240px;">次科別名稱</td>
+            </tr>
+        </table>
+        <div class="dataArea" style="height:320px; width:100%;">                        
+            <input type="submit" id="branch_division_save" style="display:none;" />
+            <input type="hidden" name="mode" value="@ViewBag.mode" />
+            <table id="item_body_branch_division" cellpadding="4" cellspacing="1">
+                <tr style="display:none;">
+                    <td align="center" style="width:50px;">
+                        <img src="~/Images/minus.png" style="cursor:pointer;width:16px;" title="刪除此筆" alt="刪除此筆" onclick="$(this.parentNode.parentNode).remove();setColor();" />
+                        <input type="hidden" name="branch_division_mode" value="Insert" />
+                        <input type="hidden" name="branch_division_id" value="Insert" />
+                    </td>
+                    <td align="center" style="width:240px;">
+                        @Html.TextBox("branch_division_name", "", new { style = "width:90%;" })
+                    </td>
+                </tr>
+                @if (dt != null && dt.Rows.Count > 0)
+                {
+                    foreach (DataRow r in dt_branch_division.Rows)
+                    {
+                <tr>
+                        @if (r["P_VALUE"].ToString() == "0")
+                        {
+                    <td align="center" style="width:50px;"></td>
+                    <td align="center" style="width:240px;">
+                        @Html.TextBox("branch_division_name", r["P_NAME"], new { style = "width:90%;", disabled = "disabled" })
+                    </td>
+                        }
+                        else
+                        {
+                    <td align="center" style="width:50px;">
+                        @if (int.Parse(r["SECOND_CATEGORY_NUM"].ToString()) < 1)
+                        {<input type="checkbox" name="del_ID" value="@r["P_ID"]" />}
+                        <input type="hidden" name="branch_division_mode" value="Update" />
+                        <input type="hidden" name="branch_division_id" value="@r["P_ID"]" />
+                    </td>
+                    <td align="center" style="width:240px;">
+                        @Html.TextBox("branch_division_name", r["P_NAME"], new { style = "width:90%;" })
+                    </td>
+                        }
+                </tr>
+                    }
+                }
+            </table>
+        </div>
+</form>*@
+        
+<form class="explanation" id="form_explanation" action="Explanation_Insert" method="post" style="display:none;">
+        <table class="item_header" cellpadding="4" cellspacing="1">
+            <tr>
+                <td style="width:50px;">刪除</td>
+                <td style="width:240px;">說明類別名稱</td>
+            </tr>
+        </table>
+        <div class="dataArea" style="height:320px; width:100%;">                        
+            <input type="submit" id="explanation_save" style="display:none;" />
+            <input type="hidden" name="mode" value="@ViewBag.mode" />
+            <table id="item_body_explanation" cellpadding="4" cellspacing="1">
+                <tr style="display:none;">
+                    <td align="center" style="width:50px;">
+                        <img src="~/Images/minus.png" style="cursor:pointer;width:16px;" title="刪除此筆" alt="刪除此筆" onclick="$(this.parentNode.parentNode).remove();setColor();" />
+                        <input type="hidden" name="explanation_mode" value="Insert" />
+                        <input type="hidden" name="explanation_id" value="Insert" />
+                    </td>
+                    <td align="center" style="width:240px;">
+                        @Html.TextBox("explanation_name", "", new { style = "width:90%;" })
+                    </td>
+                </tr>
+                @if (dt != null && dt.Rows.Count > 0)
+                {
+                    foreach (DataRow r in dt_explanation.Rows)
+                    {
+                <tr>
+                        @if (r["P_VALUE"].ToString() == "0")
+                        {
+                    <td align="center" style="width:50px;"></td>
+                    <td align="center" style="width:240px;">
+                        @Html.TextBox("explanation_name", r["P_NAME"], new { style = "width:90%;", disabled = "disabled" })
+                    </td>
+                        }
+                        else
+                        {
+                    <td align="center" style="width:50px;">
+                        @if (int.Parse(r["EXPLANATION_NUM"].ToString()) < 1)
+                        {<input type="checkbox" name="del_ID" value="@r["P_ID"]" />}
+                        <input type="hidden" name="explanation_mode" value="Update" />
+                        <input type="hidden" name="explanation_id" value="@r["P_ID"]" />
+                    </td>
+                    <td align="center" style="width:240px;">
+                        @Html.TextBox("explanation_name", r["P_NAME"], new { style = "width:90%;" })
+                    </td>
+                        }
+                </tr>
+                    }
+                }
+            </table>
+        </div>
+</form>
+
+    </div>
+</div>

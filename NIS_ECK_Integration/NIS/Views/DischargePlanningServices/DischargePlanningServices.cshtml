@@ -1,0 +1,210 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "出院準備服務";
+    string CaseSate = ViewBag.CaseSate;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+    });
+
+    function CheckOther(pVal, pText) {
+        if (pVal == "99" && pText == "") {
+            alert('其他必須輸入!');
+            return false;
+        }
+        return true;
+    }
+
+    function CheckValid(pName, pMsg, pType) {
+        if (pType == "r") {
+            if ($("input[name=" + pName + "]:checked").val() == null || $("input[name=" + pName + "]:checked").val() == "") {
+                alert(pMsg + '必須輸入!');
+                return false;
+            }
+        } else if (pType == "c") {
+            if ($("input[name=" + pName + "]:checked").length == 0) {
+                alert(pMsg + '至少勾選一項!');
+                return false;
+            }
+        } else if (pType == "t") {
+            if ($.trim($('#' + pName).val()) == "") {
+                alert(pMsg + '必須輸入!');
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function SaveData() {
+        var FilterState = "";
+        if (!CheckOther($('input[name=RblFilterState]:checked').val(), $('#TxtFilterOther').val())) return;
+        if (!CheckOther($('#CblTubeType').prop('checked') ? "99" : "", $('#TxtTubeOther').val())) return;
+        if (CheckValid('RblFilterState', '篩選狀態', 'r')) {
+            if ($('input[name=RblFilterState]:checked').val() == "99") FilterState = $('#TxtFilterOther').val();
+            else FilterState = $('input[name=RblFilterState]:checked')[0].nextSibling.nodeValue;
+        } else return;
+
+        if (!CheckValid('RblDailyLife', '日常生活', 'r')) return;
+        if (CheckValid('RblSkinState', '皮膚狀況', 'r')) {
+            if ($('input[name=RblSkinState]:checked').val() == '1' && !CheckValid('CblSkinWound', '一般傷口', 'c')) return;
+        } else return;
+        if (!CheckValid('RblSocialSupport', '社會支持', 'r')) return;
+
+        if (CheckValid('RblTubeRequest', '居家導管照護需求', 'r')) {
+            if ($('input[name=RblTubeRequest]:checked').val() == '1' && !CheckValid('CblTubeType', '導管', 'c')) return;
+        } else return;
+        if (!CheckValid('RblContinence', '大小便控制', 'r')) return;
+        if (!CheckValid('RblUsageVentilator', '使用呼吸器', 'r')) return;
+        if (!CheckValid('RblUsageOxygen', '使用氧氣', 'r')) return;
+        if ($('input[name=RblMomentus]:checked').val() == '2') {
+            if (!CheckValid('RblLtcType', '長期照護', 'r')) return;
+        }
+        if (!CheckValid('TxtTotal', '總分', 't')) return;
+
+        $.ajax({
+            url: '@Url.Content("~/DischargePlanningServices/Insert")',
+            type: 'POST',
+            data: $('form[name=FormDisCare]').serialize() + "&pFilter=" + FilterState,
+            success: function (data) {
+                var ChangeVal = data.split('|');
+                if (ChangeVal[0] == "Y") {
+                    if (ChangeVal[1] != "") {
+                        $('#HfDcId').val(ChangeVal[1]);
+                        $('#HfEdit').val('1');
+                    }
+                    alert('儲存成功!');
+                    QueryData();
+                    $('#PnEdit').hide();
+                    $('#PnQuery').fadeIn(500);
+                } else {
+                    alert('儲存失敗!');
+                }
+            }
+        });
+    }
+
+    function setGridColor() {
+        //格行換色
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+        $('.due').css('background', '#FF6666');
+    }
+
+    function QueryData(pCheck) {
+        if (pCheck != null && pCheck) {
+            if ($('#TxtStartDate').val() != "" || $('#TxtEndDate').val() != "") {
+                if ($('#TxtStartDate').val() == "" || $('#TxtEndDate').val() == "") {
+                    alert('起迄日必須輸入!');
+                    return;
+                }
+            }
+            if ($('#TxtStartDate').val().replace('/', '') > $('#TxtEndDate').val().replace('/', '')) {
+                alert('起始日期不得大於結束日期!');
+                return;
+            }
+        }       
+        $.ajax({
+            url: '@Url.Content("~/DischargePlanningServices/QueryData")',
+            type: 'POST',
+            dataType: 'html',
+            data: { pStart: $('#TxtStartDate').val(), pEnd: $('#TxtEndDate').val() },
+            success: function (response) {
+                $('#ResultDischargedServices').html(response);
+                $('#ResultDischargedServices').fadeIn(500);
+                setGridColor();
+            }
+        });
+    }
+
+    function EditData(pType, pId) {
+        $.ajax({
+            url: '@Url.Content("~/DischargePlanningServices/EditData")',
+            type: 'POST',
+            dataType: 'html',
+            data: { pType: pType, pId: pId },
+            success: function (response) {               
+                $('#PnQuery').hide();
+                $('#PnEdit').html(response);
+                $('#PnEdit').fadeIn(500);
+            }
+        });
+    }
+
+    function DelData(pId) {
+        if (confirm('確認刪除?')) {
+            $.ajax({
+                url: '@Url.Content("~/DischargePlanningServices/DelData")',
+                type: 'POST',
+                dataType: 'JSON',
+                data: { pId: pId },
+                success: function (data) {
+                    if (data == 'Y') {
+                        alert('刪除成功!');
+                        QueryData();
+                    } else {
+                        alert('刪除失敗!');
+                    }
+                }
+            });
+        }
+    }
+</script>
+
+<div class="funcArea">
+    <div id="module_define">@title</div>
+    <div id="PnQuery">        
+        <div style="width: 100%; text-align: center; padding: 0 0 5px 0;">
+            日期：<input type="text" id="TxtStartDate" /> ~ <input type="text" id="TxtEndDate" />
+            <input type="button" value="查詢" style="width:80px;" onclick="QueryData(true);" />
+            <input type="button" value="新增評估" style="width:80px;" onclick="EditData(0);" />
+        </div>
+        @*@WebTool.setDateTime("TxtStartDate", "")
+        @WebTool.setDateTime("TxtEndDate", "")*@
+        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "TxtStartDate", "", false)
+        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "TxtEndDate", "", false)
+        @if (CaseSate != "")
+        {
+            <div><span style="font-weight:bold;">收案狀態：<span style="color:red;">@(CaseSate)</span></span></div>
+        }
+        else
+        {
+            <div><span style="font-weight:bold;">收案狀態：</span></div>
+        }
+        @{Html.RenderPartial("ResultDischargedServices");}
+    </div>
+    <div id="PnEdit" style="display:none;">
+        @{Html.RenderPartial("EditDischargedServices");}
+    </div>
+</div>

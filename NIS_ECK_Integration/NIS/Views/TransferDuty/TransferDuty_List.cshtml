@@ -1,0 +1,620 @@
+﻿@using NIS.Data;
+@using System.Data;
+@using Newtonsoft.Json;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string UserNo = ViewBag.UserNo;
+    string UserPwd = ViewBag.UserPwd;
+    string Transfer = ViewBag.Transfer;
+    string Equip = "0";
+    string Isolation = "0";
+    List<TransList> tdList = (List<TransList>)ViewData["tdList"];
+    string feenoList = "";
+    List<string> feenoArrary = new List<string>();
+
+    if (tdList.Count > 0)
+    {
+        for(int i = 0; i < tdList.Count; i++)
+        {
+            var feeno = tdList[i].ptinfo.FeeNo;
+            feenoArrary.Add(feeno);
+        }
+        feenoList = string.Join(",", feenoArrary);
+    }
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid #666;
+        text-align: left;
+    }
+
+    .shift_title {
+        padding: 5px 10px 5px 10px;
+        font-size: 14px;
+        font-family: "微軟正黑體";
+        background: #E1E6FA;
+        border: 1px solid #CCCCCC;
+        border-right: 2px solid #AAAAAA;
+        border-bottom: 2px solid #AAAAAA;
+    }
+
+    textarea {
+        background-color: transparent;
+        border: none;
+        overflow: auto;
+        font-size: 16px;
+    }
+
+    .noedit {
+        width: 180px;
+        height: 160px;
+        overflow: auto;
+    }
+
+    .edit {
+        border: 1px solid #666;
+        width: 220px;
+    }
+
+        .edit:hover {
+            background-color: #FFFFFF;
+        }
+
+    table {
+        table-layout: fixed;
+        white-space: nowrap;
+        background-color: #FFFFFF;
+    }
+
+    #msgbox {
+        display: none;
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        margin-left: -175px;
+        margin-top: -25px;
+        width: 350px;
+        height: 50px;
+        text-align: center;
+        vertical-align: middle;
+        line-height: 50px;
+        background-color: #FFFF88;
+        font-weight: bold;
+        border-top: 1px solid #666;
+        border-left: 1px solid #666;
+        border-right: 3px solid #666;
+        border-bottom: 3px solid #666;
+        z-index: 999;
+        _position: absolute; /* position fixed for IE6 */
+        _top: expression(documentElement.scrollTop+(documentElement.clientHeight-this.clientHeight)/2);
+        _margin-top: 0;
+        color: red;
+    }
+
+    .mark_panel {
+        /*position: absolute;*/
+        position: fixed;
+        z-index: 5;
+        border: 1px solid #666;   
+        background-color: #FFFFFF; 
+        padding: 5px;
+        display: none;
+    }
+
+    .mark_panel label {
+        display: inline-block;
+        width: 180px;
+    }
+
+    .mark_panel label:hover {
+        background-color: #FFCC00;
+    }
+
+    .dialog {
+        display: none;
+        position: fixed;
+        _position: absolute; /* position fixed for IE6 */
+    }
+</style>
+
+<script type="text/javascript">
+    var cObj;
+    function setDataAreaSize() {
+        var height = $(document).innerHeight() - 170;
+        if (height <= 390)
+            height = 390;
+        $(".dataArea").innerHeight(height);
+
+        var textweight = $(".getw").innerWidth();
+
+        if (textweight <= 220)
+            textweight = 220;
+        $(".edit").innerWidth(textweight - 10);
+        var isIE9 = navigator.userAgent.search("MSIE 9") > -1;
+
+        $(".noedit").each(function (i) {
+            var td_noedit_H = $(this).parent().innerHeight() - 9;
+            //if (isIE9) {
+            //    if (td_noedit_H <= 390)
+            //        td_noedit_H = 390;
+            //}
+            $(this).innerHeight(td_noedit_H);
+            var td_noedit_W = $(this).parent().innerWidth();
+            $(this).innerWidth(td_noedit_W);
+
+        });
+        $(".edit").each(function (i) {
+            var td_edit_H = $(this).parent().innerHeight()-19;
+            //if (isIE9) {
+            //    if (td_edit_H <= 390)
+            //        td_edit_H = 390;
+            //}
+            $(this).innerHeight(td_edit_H);
+        });
+    }
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+    function text_status() { //註記其他選項
+        if ($('#other:checked').val() != undefined) {
+            $('#other_text').val('').show();
+        } else {
+            $('#other_text').val('').hide();
+        }
+    }
+
+    function pup_window(url, width, height) {
+        new_window.push(window.open(url, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=' + width + ',height=' + height));
+    }
+
+    function shiftselect()
+    {
+        $(".classE,.classD,.classN").hide();
+        $(".class" + $('#transcate2').val()).show();
+        setDataAreaSize();
+    }
+
+    function list_preview()
+    {
+        new_window.push(window.open("TransferDuty_Print?shift=" + $("#transcate2").val(), "top_dialog", "resizable=yes,menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=900,height=600"));
+    }
+    $(document).ready(function () {
+        close_pup_window();
+        var bwInfo = getBrowserInfo();
+
+        //設定文字可選
+        $(this).css('-moz-user-select', 'text');
+        $(this).get(0).onselectstart = function () { return true; };
+
+        setGridColor();
+        setTimeout(function () {
+            setDataAreaSize();
+        }, 200);
+        replace_text("back");
+        $(window).resize(function () { setDataAreaSize(); }).trigger('resize');
+
+        $(".classE,.classD,.classN").hide();
+        $(".class" + $('#transcate2').val()).show();
+
+        // 明細按鈕(之後改為讀入頁面)
+        $(".dataArea button").click(function () {
+            switch ($(this).attr('name')) {
+                case "dodtl":
+                    var feeno = $(this).attr("feeno");
+                    var charno = $(this).attr("charno");
+                    var shiftcate = $(this).attr("shift_cate");
+                    var duty_code = $(this).attr("duty_code");
+                    $.ajax({
+                        url: "../Main/SetPatient", timeout: 5000, type: "post",
+                        data: "fee_no=" + feeno,
+                        success: function () {
+                            window.parent.GetPtInfoArea('1');
+                            window.parent.readMqList();
+                        },
+                        complete: function () {
+                                window.parent.ReloadModule('dtl', feeno, charno, shiftcate, "M06"+duty_code);
+                        }
+                    });
+                    break;
+                case "domark":
+                    if (cObj == null || $(cObj).attr("feeno") == $(this).attr("feeno")) {
+                        if ($(".mark_panel").is(":visible")) {//註記的展開狀態，後準備關閉
+                            var feeno = $(this).attr("feeno");
+                            var feeno_original = $(this).attr("data-feeno");//取得原本字尾沒有班別代碼的feeno
+                            // 取得選取的資料
+                            var val_list = new Array();
+                            if ($('#other:checked').val() != undefined) {
+                                if ($('#other_text').val() == '') {
+                                    alert("註記選擇其他後 不可為空");
+                                    return false;
+                                }
+                            }
+                            $(".mark_panel input[type=checkbox]:checked").each(function (i) {
+                                val_list[i] = $(this).val();
+                            });
+                            if (!!$(".mark_panel input[type=text]").val()) {
+                                val_list[val_list.length - 1] += "|" + $(".mark_panel input[type=text]").val();
+                            }
+
+                            var splitword;
+                            if (bwInfo.name == "IE") {
+                                if (bwInfo.version != "10.0")
+                                    splitword = '<br />';
+                                else
+                                    splitword = '\n';
+                            } else {
+                                splitword = '\n';
+                            }
+
+                            var cname = feeno + "_remark";
+                            $(".dataArea input[name='" + cname + "']").val(val_list.join(','));
+                            var cshow = feeno + "_rshow";
+                            var extra = feeno + "_remarkExtra"
+                            var checkNoSpeech = $("input[name='" + extra + "']").val();
+                            var rshowMemo = (val_list.join(splitword) + checkNoSpeech).replace(",","\n")
+                            $(".dataArea textarea[name='" + cshow + "']").html(rshowMemo);
+
+                            /*----改成能再關閉小註記框框時，直接儲存單筆memo---*/
+                           SaveTempTransMemo(feeno_original, val_list.join(','));
+                            /*----改成能直接儲存單筆memo---*/
+
+
+                            $(".mark_panel").slideUp(500);
+                            $(this).css("background-color", "");
+                        } else {//註記內容正在關閉的狀態，然後點開
+                            cObj = $(this);
+                            var cfeeno = $(cObj).attr("feeno");
+                            var left = $(this).position().left + $(this).outerWidth() + 5;
+                            var top = $(this).position().top;
+                            var itemchecked = $(".dataArea input[name='" + cfeeno + "_remark']").val().replace("|", ",").split(",");
+                            $(".mark_panel input").each(function () {
+                                $(this).prop("checked", false);
+                                for (var i = 0; i <= itemchecked.length - 1; i++) {
+                                    if (itemchecked[i] == $(this).val()) {
+                                        $(this).prop("checked", true);
+                                        break;
+                                    }
+                                }
+                            });
+                            if (itemchecked[itemchecked.length - 2] == "其他") {
+                                $('#other_text').val('').show();
+                                $(".mark_panel input[type=text]").val(itemchecked[itemchecked.length - 1]);
+                            }
+                            else {
+                                $('#other_text').val('').hide();
+                            }
+                            $(".mark_panel").css({
+                                "top":"200px",
+                                "left": "150px"
+                            }).slideDown(500);
+                            //$(".mark_panel").css({
+                            //    "top": top + "px",
+                            //    "left": left + "px"
+                            //}).slideDown(500);
+                            $(this).css("background-color", "#FFCC00");
+                        }
+                    } else {
+                        showHint("請先關閉先前的編輯");
+                    }
+                    break;
+                case "doview":
+                    $.ajax({
+                        url: "../MedicalAdvice/Sign_View",
+                        type: "post",
+                        data: { feeno: $(this).attr("data-feeno") },
+                        timeout: 3000,
+                        success: function (data) {
+                            $("#inp").html(data);
+                            $(".dialog").fadeIn(500);
+                        }
+                    })
+                    break;
+                case "exview":
+                    $.ajax({
+                        url: "../MedicalAdvice/Excute_View",
+                        type: "post",
+                        data: { feeno: $(this).attr("data-feeno") },
+                        timeout: 3000,
+                        success: function (data) {
+                            $("#inp").html(data);
+                            $(".dialog").fadeIn(500);
+                        }
+                    })
+                    break;
+            }
+            return false;
+        });
+
+        $("#cover").click(function () {
+            $("#inp").hide();
+            $("#cover").hide();
+        });
+        @{
+            if (Request["message"] != null)
+            {
+                @Html.Raw("showHint(\"" + Request["message"].ToString() + "\");")
+            }
+        }
+
+    });
+
+    //只存個人的memo
+    function SaveTempTransMemo(feeno,list)
+    {
+        $.ajax({
+            url: "../TransferDuty/TransferDuty_Memo_Save",
+            type: "POST",
+            data: { feeno:feeno,list:list},
+            success: function (data) {
+                if (data == "Y") {
+                   // showHint("儲存成功");
+                } else
+                {
+                   // showHint("儲存失敗");
+                }
+            },
+            complete: function () {
+                cObj = null;
+        }
+    });
+    }
+
+    function trigger(option) {
+        var bool_touch = ".mark_panel input[type=checkbox][value='隔離(接觸)']";
+        var bool_MRSA = ".mark_panel input[type=checkbox][value='MRSA']";
+        var bool_MDRAB = ".mark_panel input[type=checkbox][value='MDRAB']";
+        var bool_MDRPA = ".mark_panel input[type=checkbox][value='MDRPA']";
+        var bool_VRE = ".mark_panel input[type=checkbox][value='VRE']";
+        var bool_Scabies = ".mark_panel input[type=checkbox][value='Scabies']";
+
+        if ($(bool_MRSA).prop('checked') || $(bool_MDRAB).prop('checked') || $(bool_MDRPA).prop('checked') || $(bool_VRE).prop('checked') || $(bool_Scabies).prop('checked')) {
+            if (!$(bool_touch).prop('checked')) {
+                $(bool_touch).trigger('click');
+            }
+        } else {
+            if ($(bool_touch).prop('checked')) {
+                $(bool_touch).trigger('click');
+            }
+        }
+        
+    }
+    //ken 20240401 新增儲存前將特殊符號轉換，不然會被擋
+    function loading_change() {
+        replace_text("trans");
+        $('form[name=trans_memo]').submit();
+    }
+    //將符號<>轉換&lt;、'&lt
+    function replace_text(type) {
+        var feenoList = '@feenoList';
+        var feeno = feenoList.split(',');
+        for (i = 0; i < feeno.length; i++) {
+            var ptFeeno = feeno[i];
+            var memo = $("#" + feeno[i] + "_memo").val();
+            if (type == "trans") {
+                var transmemo = memo.replace('<', '&lt;');
+                transmemo = transmemo.replace('>', '&gt;');
+                transmemo = transmemo.replace('<', '&lt;');
+                transmemo = transmemo.replace('>', '&gt;');
+            }
+            else {
+                var transmemo = memo.replace('&lt;', '<');
+                transmemo = transmemo.replace('&gt;', '>');
+            }
+
+            $("#" + feeno[i] + "_memo").val(transmemo);
+        }
+    }
+</script>
+
+<form method="post" action="TransferDutySave" name="trans_memo">
+    <p>
+        <span class="shift_title">交班日期：@DateTime.Now.ToString("yyyy/MM/dd")</span>
+        <span class="shift_title">
+            交班班別：
+            @Html.DropDownList("transcate2", (IEnumerable<SelectListItem>)ViewBag.transcate_list, new { style = "width:70px;background-color:pink", @onchange = "shiftselect()" })
+        </span>
+        <span class="shift_title">交班者：@(ViewData["transuser"].ToString())</span>
+        
+    </p>
+    <p>
+        <input type="button" value="儲存" style="width: 80px;" onclick="loading_change();" />
+        <input type="button" value="預覽列印" style="width: 80px;" onclick="list_preview()" />
+        
+    </p>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" width="100%">
+            <tr>
+                <td width="80">床號</td>
+                <td width="180">交班事項</td>
+                <td width="180">交班待處理事項</td>
+                <td class="getw">特殊交班</td>
+                <td width="180">交班註記</td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea">
+        <table border="0" cellpadding="4" cellspacing="1" width="100%">
+            @{
+                if (tdList != null)
+                {
+                    for (int i = 0; i <= tdList.Count - 1; i++)
+                    {
+                        string strClass = "class" + tdList[i].shift_cate.Trim();
+                        string feeno = tdList[i].ptinfo.FeeNo.Trim().Substring(0, tdList[i].ptinfo.FeeNo.Trim().Length - 1);
+                        string duty_code = (!string.IsNullOrEmpty(tdList[i].ptinfo.duty_code)) ? tdList[i].ptinfo.duty_code : "";
+                        <tr style="height: 140px;" class="@strClass">
+                            <td width="80" style="text-align: center;">
+                                @Html.Raw(tdList[i].ptinfo.BedNo)
+                                <br />
+                                @Html.Raw(tdList[i].ptinfo.PatientName)
+                                <br />
+                                @Html.Raw(tdList[i].ptinfo.ChartNo)
+                                <br />
+                                <span style="text-align:left">入院日期</span>
+                                <br />
+                                @Html.Raw(tdList[i].ptinfo.InDate.ToString("yyyy/MM/dd"))
+                                <br />
+                                <span style="text-align:left">預出日期</span>
+                                <br />
+                                @Html.Raw((tdList[i].ptinfo.Expected_OutDate > tdList[i].ptinfo.InDate) ? tdList[i].ptinfo.Expected_OutDate.ToString("yyyy/MM/dd") : "")
+                                <hr />
+                                <button name="dodtl" feeno="@feeno" duty_code="@duty_code" shift_cate="@tdList[i].shift_cate.Trim()" charno="@tdList[i].ptinfo.ChartNo">明細</button>
+                                <hr />
+                                <button name="domark" feeno="@(tdList[i].ptinfo.FeeNo.Trim())" data-feeno="@feeno">註記</button><br />
+                                <button name="doview" feeno="@(tdList[i].ptinfo.FeeNo.Trim())" data-feeno="@feeno">醫囑檢視</button><br />
+                                <button name="exview" feeno="@(tdList[i].ptinfo.FeeNo.Trim())" data-feeno="@feeno">藥囑檢視</button>
+                                @if (Transfer == "Y")
+                                {
+                                    <br />
+                                    Equip = "0";
+                                    Isolation = "0";
+                                    for (int r = 0; r < tdList[i].remark_info.Split(',').Length; r++)
+                                    {
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "大床")
+                                        {
+                                            Equip += "1,";
+                                        }
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "輪椅")
+                                        {
+                                            Equip += "2,";
+                                        }
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "生理監視器")
+                                        {
+                                            Equip += "3,";
+                                        }
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "點滴")
+                                        {
+                                            Equip += "4,";
+                                        }
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "無陪伴者")
+                                        {
+                                            Equip += "5,";
+                                        }
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "用氧")
+                                        {
+                                            Equip += "6,";
+                                        }
+
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "隔離(接觸)")
+                                        {
+                                            Isolation += "1,";
+                                        }
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "隔離(飛沬)")
+                                        {
+                                            Isolation += "2,";
+                                        }
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "隔離(空氣)")
+                                        {
+                                            Isolation += "3,";
+                                        }
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "隔離(標準防護)")
+                                        {
+                                            Isolation += "5,";
+                                        }
+                                        if (tdList[i].remark_info.Split(',').GetValue(r).ToString() == "隔離(保護性)")
+                                        {
+                                            Isolation += "6,";
+                                        }
+
+                                    }
+                                    if (Equip != "0")
+                                    { Equip = Equip.Substring(0, Equip.Length - 1).ToString().Replace("0", ""); }
+                                    if (Isolation != "0")
+                                    { Isolation = Isolation.Substring(0, Isolation.Length - 1).ToString().Replace("0", ""); }
+
+                                    //     @:<button name="eprotal" onclick="window.open('http://eporter.wanfang.gov.tw/eporternursing/NISfrmCreateJob.aspx?User=@UserNo&Pwd=@UserPwd&Name=@Html.Raw(tdList[i].ptinfo.PatientName)&NRIC=@Html.Raw(tdList[i].ptinfo.ChartNo)&Bed=@Html.Raw(tdList[i].ptinfo.BedNo)&Equip=@Equip&Isolation=@Isolation', '傳送系統', config ='height=830,width=650,scrollbars=yes');">傳送系統</button>
+                                    @:<button name="eprotal" onclick="window.open('http://eporter.wanfang.gov.tw/eporternursing/NISfrmCreateJob.aspx?User=@UserNo&Pwd=@UserPwd&Name=@Html.Raw(tdList[i].ptinfo.PatientName)&NRIC=@Html.Raw(tdList[i].ptinfo.ChartNo)&Room=@Html.Raw(tdList[i].ptinfo.CostCenterNo)&Bed=@Html.Raw(tdList[i].ptinfo.BedNo)&Equip=@Equip&Isolation=@Isolation');">傳送系統</button>
+
+
+
+
+                                }
+                            </td>
+                            <td width="180">
+                                <div class="noedit">
+                                    @Html.Raw(string.Join("<br />", tdList[i].vital_info) + ((string.Join("", tdList[i].vital_info) == "") ? "" : "<br />"))
+                                    @{
+                                        DataTable dt_TC = ViewBag.dt_TC(feeno, DateTime.Now.AddDays(-2).ToString("yyyy/MM/dd"));
+                                        if (dt_TC != null && dt_TC.Rows.Count > 0)
+                                        {
+                                            string func = "pup_window('TeamCare_List?feeno=" + feeno + "', '600', '400');";
+                                            <label style="color:blue;cursor:pointer;" title="點選觀看詳細資料" onclick="@func">跨團隊回覆訊息</label><br />
+                                        }
+                                    }
+                                }
+                            </div>
+                        </td>
+                        <td width="180">
+                            <div class="noedit">
+                                @Html.Raw(string.Join("<br />", tdList[i].wait_info))
+                            </div>
+                        </td>
+                        <td>
+                            <input type="hidden" name="fee_no" value="@(tdList[i].ptinfo.FeeNo)" />
+                            <div align="right">
+                                <input type="button" class="voiceBtn" value="語音歷程" onclick="VoiceopenText('@(UserNo)', '@(feeno)', 'SpecialHandOver',document.all('@(tdList[i].ptinfo.FeeNo + "_memo")'),'@Url.Content("~/Scripts")');" />
+                            </div>
+
+                            <textarea name="@(tdList[i].ptinfo.FeeNo + "_memo")" id="@(tdList[i].ptinfo.FeeNo + "_memo")" cols="10" rows="9" class="edit">@(tdList[i].special_info)</textarea>
+                        </td>
+                        <td width="180">
+                            @if (tdList[i].FRIDs == "藥")
+                            {
+                             <label style="color:red">易跌藥品</label><br>
+                            }
+                            <input type="hidden" name="@(tdList[i].ptinfo.FeeNo + "_remark")" value="@(tdList[i].remark_info)" />
+                            <input type="hidden" name="@(tdList[i].ptinfo.FeeNo + "_remarkExtra")" value="@(tdList[i].remarkExtra)" />
+                            @*<textarea cols="5" rows="7" class="noedit" readonly="readonly" name="@(tdList[i].ptinfo.FeeNo + "_rshow")">@("\n" +tdList[i].remark_info.Replace(',', '\n').Replace('|', '：'))</textarea>*@
+                            <textarea cols="5" rows="4" class="noedit" readonly="readonly" name="@(tdList[i].ptinfo.FeeNo + "_rshow")">@("\n" + tdList[i].remark_info.Trim().Replace(',', '\n').Replace('|', '：'))</textarea>
+
+                        </td>
+                    </tr>
+                    }
+                }
+            }
+        </table>
+    </div>
+</form>
+<div class="mark_panel">
+    <label><input type="checkbox" value="病危" />病危</label>
+    <label><input type="checkbox" value="DNR(全拒)" />DNR(全拒)</label>
+    <label><input type="checkbox" value="預立DNR意願書" />預立DNR意願書</label>
+    <br />
+    <label><input type="checkbox" value="生理監視器" />生理監視器</label>
+    <label><input type="checkbox" value="隔離(接觸)" />隔離(接觸)</label>
+    <label><input type="checkbox" value="VRE" onclick="trigger('VRE')" />VRE</label>
+    <br />
+    <label><input type="checkbox" value="用氧" />用氧</label>
+    <label><input type="checkbox" value="隔離(飛沬)" />隔離(飛沬)</label>
+    <label><input type="checkbox" value="VDRL(+)" />VDRL(+)</label>
+    <br />
+    <label><input type="checkbox" value="輪椅" />輪椅</label>
+    <label><input type="checkbox" value="隔離(空氣)" />隔離(空氣)</label>
+    <label><input type="checkbox" value="TPHA(+)" />TPHA(+)</label>
+     <br />
+    <label><input type="checkbox" value="無陪伴者" />無陪伴者</label>
+    <label><input type="checkbox" value="隔離(保護性)" />隔離(保護性)</label>
+    <label><input type="checkbox" value="HIV(+)" />HIV(+)</label>
+    <br />   
+    <label><input type="checkbox" value="PCT(Positive)" />PCT(Positive)</label>
+    <label><input type="checkbox" value="MRSA" onclick="trigger('MRSA')"  />MRSA</label>
+    <label><input type="checkbox" value="Scabies" onclick="trigger('Scabies')" />Scabies</label>
+    <br />
+    <label><input type="checkbox" value="PCT(Negative)" />PCT(Negative)</label>
+    <label><input type="checkbox" value="MDRAB" onclick="trigger('MDRAB')" />MDRAB</label>
+    <label><input type="checkbox" value="B肝" />B肝</label>
+    <br />
+    <label><input type="checkbox" value="MDRPA" onclick="trigger('MDRPA')" />MDRPA</label>
+    <label><input type="checkbox" value="C肝" />C肝</label>
+    <label><input id="other" type="checkbox" onclick="text_status()" value="其他" />其他：<input id="other_text" type="text" value="" style="width: 100px;" /></label>
+    <br />
+    <label><input type="checkbox" value="NPO" />NPO</label>
+    <label><input type="checkbox" value="NPO除藥" />NPO除藥</label>
+    <br />
+</div>
+<div id="inp" class="dialog"></div>
+<div id="cover" class="dialog"></div>

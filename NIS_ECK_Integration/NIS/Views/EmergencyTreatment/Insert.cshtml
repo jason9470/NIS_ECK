@@ -1,0 +1,1078 @@
+﻿@using System.Data;
+@using Newtonsoft.Json;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo patientInfo = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.UserInfo userInfo = (NIS.Data.UserInfo)Session["UserInfo"];
+    string MasterID = ViewBag.MasterID;
+    string TemplateBeforeID = ViewBag.TemplateBeforeID;
+    string TemplateAfterID = ViewBag.TemplateAfterID;
+    DataTable TemplateBefore = ViewBag.TemplateBefore;
+    string JsonTemplateBefore = JsonConvert.SerializeObject(TemplateBefore);
+    DataTable TemplateAfter = ViewBag.TemplateAfter;
+    string JsonTemplateAfter = JsonConvert.SerializeObject(TemplateAfter);
+    DataTable DetailBefore = ViewBag.DetailBefore;
+    string JsonDetailBefore = JsonConvert.SerializeObject(DetailBefore);
+    DataTable DetailAfter = ViewBag.DetailAfter;
+    string JsonDetailAfter = JsonConvert.SerializeObject(DetailAfter);
+    DataTable DetailNote = ViewBag.DetailNote;
+    string JsonDetailNote = JsonConvert.SerializeObject(DetailNote);
+    string title = "";
+    if (MasterID != null)
+    {
+        title = "編輯急救紀錄單";
+    }
+    else
+    {
+        title = "新增急救紀錄單";
+        MasterID = "EMERGENCYTREATMENT_MASTER" + "_" + userInfo.EmployeesNo + "_" + patientInfo.FeeNo + "_" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + "_" + "0";
+    }
+}
+<style type="text/css" scoped>
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: left;
+        background-color: #d5d5f7 !important;
+        width: 100%;
+        border-radius: 10px !important;
+        font-size: 28px;
+        font-weight: 800;
+        border: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        font-family: Arial, EUDC !important;
+    }
+
+    .fun_btn {
+        font-size: 17px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 5px 5px 4px 4px !important;
+    }
+
+    .check_btn {
+        background-color: #3c7ec3 !important;
+    }
+
+    .add_btn {
+        background-color: #42b55b !important;
+    }
+
+    .modify_btn {
+        background-color: #ed9017 !important;
+    }
+
+    .delete_btn {
+        background-color: #ed6f6f !important;
+    }
+
+    .dataHeader td {
+        font-weight: bold;
+        margin: 1px 1px 1px 1px;
+        background-color: #cfe1eb;
+        text-align: center;
+        vertical-align: middle;
+        height: 26px;
+    }
+
+    .dataHeader {
+        border-radius: 10px !important;
+        margin-right: 0 !important;
+    }
+
+    .funcArea table {
+        font-family: Arial, EUDC;
+    }
+
+    .dataArea {
+        border: 0 !important;
+        overflow:hidden;
+    }
+
+        .dataArea td {
+            border-bottom: 0 !important;
+        }
+</style>
+<script type="text/javascript">
+    var TemplateBefore = @Html.Raw(JsonTemplateBefore);
+    var TemplateAfter = @Html.Raw(JsonTemplateAfter);
+    var DetailBefore = @Html.Raw(JsonDetailBefore);
+    var DetailAfter = @Html.Raw(JsonDetailAfter);
+    var DetailNote = @Html.Raw(JsonDetailNote);
+
+    var propertiesList = ["MasterID", "TemplateID", "Type", "EKG_Picture_Base64"];
+    //藥物劑量單位對照列表
+    var MedicineDictionay = [
+        { ItemID: "Adrenaline", DisplayName: "Epinephrine(Adrenaline)", Mount: 1, Unit: "mg" },
+        { ItemID: "Dopamine", DisplayName: "Dopamine", Mount: 200, Unit: "mg" },
+        { ItemID: "SodiumBicarbonate", DisplayName: "Sodium bicarbonate", Mount: 20, Unit: "ml" },
+        { ItemID: "Amiodarone", DisplayName: "Amiodarone(Cordarone)", Mount: 150, Unit: "mg" },
+        { ItemID: "Adenosine", DisplayName: "Adenosine", Mount: 6, Unit: "mg" },
+        { ItemID: "AtropineSulfate", DisplayName: "Atropine sulfate", Mount: 1, Unit: "mg" },
+        { ItemID: "Diazepam", DisplayName: "Diazepam", Mount: 10, Unit: "mg" },
+        { ItemID: "SuccinylcholineCl", DisplayName: "Succinylcholine Cl", Mount: 500, Unit: "mg" },
+        { ItemID: "Midazolam", DisplayName: "Midazolam", Mount: 5, Unit: "mg" },
+        { ItemID: "Hydrocortisone", DisplayName: "Hydrocortisone", Mount: 100, Unit: "mg" },
+        { ItemID: "CalciumChloride", DisplayName: "Calcium chloride", Mount: 20, Unit: "ml" },
+        { ItemID: "Glucose50Water", DisplayName: "Glucose 50% water", Mount: 20, Unit: "ml" },
+        { ItemID: "Noradrenaline", DisplayName: "Noradrenaline (bitartrate)", Mount: 4, Unit: "mg" },
+    ]
+
+    $(document).ready(function () {
+        LoadEKGRecord('Before');
+        LoadEKGRecord('After');
+        LoadNoteRecord();
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr').css('background', '#E1E6FA');
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            //if (height <= 300)
+            //    height = 450;
+            $(".outerDiv").outerHeight(height-100);
+        }).trigger("resize");
+    }
+
+    // 開關內容
+    function ToggleContent(Type) {
+        $('#' + Type + 'Content').toggle();
+    }
+
+    // 載入EKG
+    function LoadEKGRecord(Type) {
+        var TemplateData, DetailData;
+        switch (Type) {
+            case 'Before':
+                TemplateData = TemplateBefore;
+                DetailData = DetailBefore;
+                break;
+            case 'After':
+                TemplateData = TemplateAfter;
+                DetailData = DetailAfter;
+                break;
+            default:
+                return;
+                break;
+        }
+
+        if (TemplateData.length == 0 || DetailData.length == 0) {
+            return;
+        }
+
+        // 載入EKG圖片
+        if (TemplateData[0].EKG != null) {
+            var srcString = "data:image/png;base64," + TemplateData[0].EKG;
+            var ECK_IMGElement = document.createElement('img');
+            ECK_IMGElement.src = srcString;
+            $('#EKGPicture_' + Type).html(ECK_IMGElement);
+        }
+
+        // 帶入資料
+        for (var i = 0; i < DetailData.length; i++) {
+            var ItemID = DetailData[i].ITEM_ID;
+            if (propertiesList.includes(ItemID)) {
+                continue;
+            }
+            var ItemValue = DetailData[i].ITEM_VALUE;
+            ItemValue.replace("其他", "");
+            switch (ItemID) {
+                case 'EKG_Picture':
+                    if (ItemValue != 'Import') {
+                        var EKG_PictureTXT = "";
+                        switch (ItemValue) {
+                            case 'Paper':
+                                EKG_PictureTXT = "紙本(詳見紙本記錄)";
+                                break;
+                            default:
+                                EKG_PictureTXT = ItemValue;
+                                break;
+                        }
+                        $("#" + ItemID + "_" + Type).html(EKG_PictureTXT);
+                    };
+                    break;
+                default:
+                    //if (titleMappingTable.filter((data) => { return data.itemID == ItemID }).length) {
+                    //    var matchInfo = titleMappingTable.filter((data) => { return data.itemID == ItemID })[0];
+                    //    $("#" + ItemID + "_" + Type).html(`${matchInfo.title} ${ItemValue} ${matchInfo.Unit}`);
+                    //}
+                    //else {
+                    //    $("#" + ItemID + "_" + Type).html(ItemValue);
+                    //}
+                    //$("#" + ItemID + "_" + Type).html(ItemValue);
+                    //break;
+            }
+        }
+    }
+
+    function LoadNoteRecord() {
+        var MedicineItemIDList = MedicineDictionay.map(data => {
+            return data.ItemID;
+        });
+        if (DetailNote.length > 0) {
+            $('#medicine').text($('#medicine').text() + ",")
+            for (var i = 0; i < DetailNote.length; i++) {
+                var TemplateID = DetailNote[i].TEMPLATE_ID;
+                var ItemID = DetailNote[i].ITEM_ID;
+                var ItemValue = DetailNote[i].ITEM_VALUE;
+                var UnitType = DetailNote.filter(data => data.TEMPLATE_ID == TemplateID && data.ITEM_ID == 'MedicationUnit');
+                if (MedicineItemIDList.includes(ItemID)) {
+                    //數量為零不顯示
+                    if (ItemValue == "0") {
+                        continue;
+                    }
+                    IntItemValue = Number(ItemValue);
+                    //查詢藥物相關資訊
+                    var MedicinInfo = MedicineDictionay.filter((data) => {
+                        return data.ItemID == ItemID
+                    });
+                    //若無資訊就跳過
+                    if (MedicinInfo.length == 0) {
+                        continue;
+                    }
+                    $('#medicine').append(MedicinInfo[0].DisplayName + ",");
+                }
+            }
+            $('#medicine').text($('#medicine').text().substring(0, $('#medicine').text().length - 1));
+        }
+    }
+
+    // 開啟編輯畫面
+    function OpenEditView(Type,MasterID,TemplateID) {
+        var url = 'Edit_Information_' + Type + '?MasterID=' + MasterID + '&&TemplateID=' + TemplateID;
+        window.location.href = url;
+    }
+</script>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+    <tr>
+        <td style="width:100%;text-align:center;">
+            <div id="module_define">@title</div>
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 5px 0 5px 0;">
+            <div class="funcArea">
+                <input type="button" class="fun_btn delete_btn" value="返回" style="width:50px;" onclick="if (confirm('確定返回?')) window.location.href = 'Index'" />
+            </div>
+        </td>
+    </tr>
+</table>
+<div class="outerDiv" style="overflow-y:auto;overflow-x:hidden;">
+    @*急救前資訊*@
+    <div style="width:100%;">
+        <div style="width: 100%">
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr onclick="ToggleContent('Before')" style="cursor:pointer">
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">急救前資訊</div>
+                                <div class="funcArea">
+                                    @{
+                                        if (TemplateBefore.Rows.Count == 0)
+                                        {
+                                            <input type="button" class="fun_btn add_btn" id="Add_Before" value="新增" onclick="OpenEditView('Before','@MasterID','')" />
+                                        }
+                                        else
+                                        {
+                                            if (TemplateBefore.Rows[0]["CREATE_USER"].ToString() == userInfo.EmployeesNo)
+                                            {
+                                                <input type="button" class="fun_btn modify_btn" id="Edit_Before" value="編輯" onclick="OpenEditView('Before','@MasterID','@TemplateBeforeID')" />
+                                            }
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div id="BeforeContent" style="width: 100%">
+            @{
+                var BeforeDictionary = new Dictionary<string, string>();
+                if (DetailBefore.Rows.Count > 0)
+                {
+                    BeforeDictionary = DetailBefore.AsEnumerable()
+                            .ToDictionary(
+                                row => row.Field<string>("ITEM_ID"),
+                                row => row.Field<string>("ITEM_VALUE")
+                            );
+                }
+            }
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr>
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">急救前紀錄</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr>
+                        <th style="width:13%">發生時間</th>
+                        <td style="width:87%">
+                            @{
+                                var IncidentDate_Before = "";
+                                var IncidentTime_Before = "";
+                                if (BeforeDictionary.ContainsKey("IncidentDate"))
+                                {
+                                    IncidentDate_Before = BeforeDictionary["IncidentDate"];
+                                }
+                                if (BeforeDictionary.ContainsKey("IncidentTime"))
+                                {
+                                    IncidentTime_Before = BeforeDictionary["IncidentTime"];
+                                }
+                                <label>@IncidentDate_Before</label> <label>@IncidentTime_Before</label>
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>原床號</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("OriginalBedNumber"))
+                                {
+                                    <label>@BeforeDictionary["OriginalBedNumber"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>急救類型</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("TypeOfResuscitation"))
+                                {
+                                    <label>@BeforeDictionary["TypeOfResuscitation"]</label>
+                                }
+
+                                if (BeforeDictionary.ContainsKey("TypeOfResuscitationOther"))
+                                {
+                                    <label>：@BeforeDictionary["TypeOfResuscitationOther"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>啟動999</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("ActivationOf999"))
+                                {
+                                    <div>是否啟動999: @BeforeDictionary["ActivationOf999"]</div>
+                                }
+                                if (BeforeDictionary.ContainsKey("DNRSigned"))
+                                {
+                                    <div>是否簽署DNR: @BeforeDictionary["DNRSigned"]</div>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>原意識狀況</th>
+                        <td>
+                            @{
+                                List<string> InitialLOC_Before = new List<string>();
+                                var InitialLOC_Before_String = "";
+                                if (BeforeDictionary.ContainsKey("InitialLOC_E"))
+                                {
+                                    InitialLOC_Before.Add("E: " + BeforeDictionary["InitialLOC_E"]);
+                                }
+                                if (BeforeDictionary.ContainsKey("InitialLOC_V"))
+                                {
+                                    InitialLOC_Before.Add("V: " + BeforeDictionary["InitialLOC_V"]);
+                                }
+                                if (BeforeDictionary.ContainsKey("InitialLOC_M"))
+                                {
+                                    InitialLOC_Before.Add("M: " + BeforeDictionary["InitialLOC_M"]);
+                                }
+                                InitialLOC_Before_String = string.Join(", ", InitialLOC_Before);
+                                <label>@InitialLOC_Before_String</label>
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>入院診斷</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("AdmissionDiagnosis"))
+                                {
+                                    <label>@BeforeDictionary["AdmissionDiagnosis"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>發生地點</th>
+                        <td colspan="3">
+                            @{
+                                if (BeforeDictionary.ContainsKey("Site"))
+                                {
+                                    <label>@BeforeDictionary["Site"]</label>
+                                }
+                                if (BeforeDictionary.ContainsKey("Site_Ward"))
+                                {
+                                    <label>(@BeforeDictionary["Site_Ward"])</label>
+                                }
+                                if (BeforeDictionary.ContainsKey("Site_Examination"))
+                                {
+                                    <label>(@BeforeDictionary["Site_Examination"])</label>
+                                }
+                                if (BeforeDictionary.ContainsKey("Site_Other"))
+                                {
+                                    <label>(@BeforeDictionary["Site_Other"])</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>發現者</th>
+                        <td colspan="3">
+                            @{
+                                if (BeforeDictionary.ContainsKey("Discoverer"))
+                                {
+                                    <label>@BeforeDictionary["Discoverer"]</label>
+                                }
+                                if (BeforeDictionary.ContainsKey("Discoverer_Other"))
+                                {
+                                    <label>(@BeforeDictionary["Discoverer_Other"])</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>急救原因</th>
+                        <td colspan="3">
+                            @{
+                                if (BeforeDictionary.ContainsKey("Reason"))
+                                {
+                                    <label>@BeforeDictionary["Reason"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr>
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">發生時狀況</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr>
+                        <th style="width:13%">生命徵象</th>
+                        <td colspan="2">
+                            @{
+                                List<string> vitalSign_Before = new List<string>();
+                                var vitalSign_Before_String = "";
+                                var BP_Systolic_Before = "";
+                                var BP_Diastolic_Before = "";
+                                if (BeforeDictionary.ContainsKey("VitalSign_BT"))
+                                {
+                                    vitalSign_Before.Add("體溫: " + BeforeDictionary["VitalSign_BT"] + " ℃");
+                                }
+                                if (BeforeDictionary.ContainsKey("VitalSign_HR"))
+                                {
+                                    vitalSign_Before.Add("心跳: " + BeforeDictionary["VitalSign_HR"] + " bpm");
+                                }
+                                if (BeforeDictionary.ContainsKey("VitalSign_Respiratory"))
+                                {
+                                    vitalSign_Before.Add("呼吸: " + BeforeDictionary["VitalSign_Respiratory"] + " bpm");
+                                }
+                                if (BeforeDictionary.ContainsKey("VitalSign_BP_Systolic"))
+                                {
+                                    BP_Systolic_Before = BeforeDictionary["VitalSign_BP_Systolic"];
+                                }
+                                if (BeforeDictionary.ContainsKey("VitalSign_BP_Diastolic"))
+                                {
+                                    BP_Diastolic_Before = BeforeDictionary["VitalSign_BP_Diastolic"];
+                                }
+                                if (!string.IsNullOrEmpty(BP_Systolic_Before) || !string.IsNullOrEmpty(BP_Diastolic_Before))
+                                {
+                                    vitalSign_Before.Add("血壓: " + BP_Systolic_Before + " / " + BP_Diastolic_Before + " bpm");
+                                }
+                                if (BeforeDictionary.ContainsKey("VitalSign_SPO2"))
+                                {
+                                    vitalSign_Before.Add("SPO2: " + BeforeDictionary["VitalSign_SPO2"] + " %");
+                                }
+                                vitalSign_Before_String = string.Join(", ", vitalSign_Before);
+                                <label>@vitalSign_Before_String</label>
+                            }
+                        </td>
+                    </tr>
+                    @*<tr>
+                        <th>意識狀況</th>
+                        <td>
+                            @{
+                                List<string> LOC_Before = new List<string>();
+                                var LOC_Before_String = "";
+                                if (BeforeDictionary.ContainsKey("LOC_E"))
+                                {
+                                    LOC_Before.Add("E: " + BeforeDictionary["LOC_E"]);
+                                }
+                                if (BeforeDictionary.ContainsKey("LOC_V"))
+                                {
+                                    LOC_Before.Add("V: " + BeforeDictionary["LOC_V"]);
+                                }
+                                if (BeforeDictionary.ContainsKey("LOC_M"))
+                                {
+                                    LOC_Before.Add("M: " + BeforeDictionary["LOC_M"]);
+                                }
+                                LOC_Before_String = string.Join(", ", LOC_Before);
+                                <label>@LOC_Before_String</label>
+                            }
+                        </td>
+                    </tr>*@
+                    <tr>
+                        <th rowspan="3">意識狀況</th>
+                        <th style="width:7%">GCS</th>
+                        <td>
+                            @{
+                                List<string> LOC_Before = new List<string>();
+                                var LOC_Before_String = "";
+                                if (BeforeDictionary.ContainsKey("LOC_E"))
+                                {
+                                    LOC_Before.Add("E: " + BeforeDictionary["LOC_E"]);
+                                }
+                                if (BeforeDictionary.ContainsKey("LOC_V"))
+                                {
+                                    LOC_Before.Add("V: " + BeforeDictionary["LOC_V"]);
+                                }
+                                if (BeforeDictionary.ContainsKey("LOC_M"))
+                                {
+                                    LOC_Before.Add("M: " + BeforeDictionary["LOC_M"]);
+                                }
+                                LOC_Before_String = string.Join(", ", LOC_Before);
+                                <label>@LOC_Before_String</label>
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width:5%">瞳孔-左</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("LOC_Eye_Left_Reflex"))
+                                {
+                                    var LOC_Eye_Left_Reflex_Before_String = BeforeDictionary["LOC_Eye_Left_Reflex"];
+
+                                    if (BeforeDictionary.ContainsKey("LOC_Eye_Left_Reflex_Other"))
+                                    {
+                                        LOC_Eye_Left_Reflex_Before_String = BeforeDictionary["LOC_Eye_Left_Reflex"].Replace("其他", BeforeDictionary["LOC_Eye_Left_Reflex_Other"]);
+                                    }
+                                    <div>反射 : @LOC_Eye_Left_Reflex_Before_String</div>
+                                }
+                                if (BeforeDictionary.ContainsKey("LOC_Eye_Left_Size"))
+                                {
+                                    <div>
+                                        大小 : @BeforeDictionary["LOC_Eye_Left_Size"]
+                                    </div>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width:5%">瞳孔-右</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("LOC_Eye_Right_Reflex"))
+                                {
+                                    var LOC_Eye_Right_Reflex_Before_String = BeforeDictionary["LOC_Eye_Right_Reflex"];
+
+                                    if (BeforeDictionary.ContainsKey("LOC_Eye_Right_Reflex_Other"))
+                                    {
+                                        LOC_Eye_Right_Reflex_Before_String = BeforeDictionary["LOC_Eye_Right_Reflex"].Replace("其他", BeforeDictionary["LOC_Eye_Right_Reflex_Other"]);
+                                    }
+                                    <div>反射 : @LOC_Eye_Right_Reflex_Before_String</div>
+                                }
+                                if (BeforeDictionary.ContainsKey("LOC_Eye_Right_Size"))
+                                {
+                                    <div>
+                                        大小 : @BeforeDictionary["LOC_Eye_Right_Size"]
+                                    </div>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>心電圖</th>
+                        <td colspan="2">
+                            <div>心電圖波型:</div>
+                            @{
+                                if (BeforeDictionary.ContainsKey("EKG_Waveform"))
+                                {
+                                    <label>@BeforeDictionary["EKG_Waveform"]</label>
+                                }
+                                if (BeforeDictionary.ContainsKey("EKG_Waveform_Other"))
+                                {
+                                    <label>(@BeforeDictionary["EKG_Waveform_Other"])</label>
+                                }
+                            }
+                            <div>心電圖圖片:</div>
+                            <label id="EKG_Picture_Before"></label>
+                            <label id="EKGPicture_Before"></label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>醫師到場前處置</th>
+                        <td colspan="2">
+                            @{
+                                if (BeforeDictionary.ContainsKey("InitialTreatment"))
+                                {
+                                    List<string> InitialTreatment_Before = BeforeDictionary["InitialTreatment"].Split(',').ToList();
+                                    var ChestCompressionsIndex = InitialTreatment_Before.IndexOf("心外按摩");
+                                    var DefibrillationIndex = InitialTreatment_Before.IndexOf("電擊");
+                                    var OtherIndex = InitialTreatment_Before.IndexOf("其他");
+                                    if (BeforeDictionary.ContainsKey("CPCRDate") && BeforeDictionary.ContainsKey("CPCRTime"))
+                                    {
+                                        if (ChestCompressionsIndex != -1)
+                                        {
+                                            InitialTreatment_Before[ChestCompressionsIndex] += "(CPCR開始時間: " + BeforeDictionary["CPCRDate"] + " " + BeforeDictionary["CPCRTime"] + ")";
+                                        }
+                                    }
+                                    if (BeforeDictionary.ContainsKey("DefibrillationDate") && BeforeDictionary.ContainsKey("DefibrillationTime"))
+                                    {
+                                        if (DefibrillationIndex != -1)
+                                        {
+                                            InitialTreatment_Before[DefibrillationIndex] += "(開始時間: " + BeforeDictionary["DefibrillationDate"] + " " + BeforeDictionary["DefibrillationTime"] + ")";
+                                        }
+                                    }
+                                    if (BeforeDictionary.ContainsKey("Defibrillation_Joule"))
+                                    {
+                                        InitialTreatment_Before[DefibrillationIndex] = InitialTreatment_Before[DefibrillationIndex].Remove(InitialTreatment_Before[DefibrillationIndex].Length - 1);
+                                        if (DefibrillationIndex != -1)
+                                        {
+                                            InitialTreatment_Before[DefibrillationIndex] += "，第一次電擊焦耳數: " + BeforeDictionary["Defibrillation_Joule"];
+                                            if (BeforeDictionary.ContainsKey("Defibrillation_Joule_Other"))
+                                            {
+                                                InitialTreatment_Before[DefibrillationIndex] = InitialTreatment_Before[DefibrillationIndex].Replace("其他", BeforeDictionary["Defibrillation_Joule_Other"]);
+                                            }
+                                        }
+                                        InitialTreatment_Before[DefibrillationIndex] += ")";
+                                    }
+                                    if (BeforeDictionary.ContainsKey("InitialTreatment_Other"))
+                                    {
+                                        if (OtherIndex != -1)
+                                        {
+                                            InitialTreatment_Before[OtherIndex] = BeforeDictionary["InitialTreatment_Other"];
+                                        }
+                                    }
+                                    <label>@string.Join(", ", InitialTreatment_Before)</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr>
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">急救人員</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr>
+                        <th style="width:13%">醫師到達時間</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("DoctorArrivalDate") && BeforeDictionary.ContainsKey("DoctorArrivalTime"))
+                                {
+                                    <label>@BeforeDictionary["DoctorArrivalDate"]</label> <label>@BeforeDictionary["DoctorArrivalTime"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width:10%">醫師</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("Emergency_Doctor"))
+                                {
+                                    <label>@BeforeDictionary["Emergency_Doctor"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>專科護理師</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("Emergency_SpecialistNurse"))
+                                {
+                                    <label>@BeforeDictionary["Emergency_SpecialistNurse"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>護理師</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("Emergency_Nurse"))
+                                {
+                                    <label>@BeforeDictionary["Emergency_Nurse"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>呼吸治療師</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("Emergency_RespiratoryTherapist"))
+                                {
+                                    <label>@BeforeDictionary["Emergency_RespiratoryTherapist"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>其他人員</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("Emergency_OtherStaff"))
+                                {
+                                    <label>@BeforeDictionary["Emergency_OtherStaff"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>備註</th>
+                        <td>
+                            @{
+                                if (BeforeDictionary.ContainsKey("Emergency_Note"))
+                                {
+                                    <label>@BeforeDictionary["Emergency_Note"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @*急救後資訊*@
+    <div style="width:100%;">
+        <div style="width: 100%">
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr onclick="ToggleContent('After')" style="cursor:pointer">
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">急救後資訊</div>
+                                <div class="funcArea" style="">
+                                    @{
+                                        if (TemplateAfter.Rows.Count == 0)
+                                        {
+                                            <input type="button" class="fun_btn add_btn" id="Add_After" value="新增" style="width:50px;" onclick="OpenEditView('After','@MasterID','')" />
+                                        }
+                                        else
+                                        {
+                                            if (TemplateAfter.Rows[0]["CREATE_USER"].ToString() == userInfo.EmployeesNo)
+                                            {
+                                                <input type="button" class="fun_btn modify_btn" id="Edit_After" value="編輯" style="width:50px;" onclick="OpenEditView('After','@MasterID','@TemplateAfterID')" />
+                                            }
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div id="AfterContent" style="width: 100%">
+            @{
+                var AfterDictionary = new Dictionary<string, string>();
+                if (DetailAfter.Rows.Count > 0)
+                {
+                    AfterDictionary = DetailAfter.AsEnumerable()
+                                .ToDictionary(
+                                    row => row.Field<string>("ITEM_ID"),
+                                    row => row.Field<string>("ITEM_VALUE")
+                                );
+                }
+            }
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr>
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">急救過程</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr>
+                        <th style="width:13%">執行措施</th>
+                        <td>
+                            @{
+                                if (AfterDictionary.ContainsKey("Treatment"))
+                                {
+                                    List<string> Treatment_After = AfterDictionary["Treatment"].Split(',').ToList();
+                                    var ChestCompressionsIndex = Treatment_After.IndexOf("心外按摩");
+                                    var DefibrillationIndex = Treatment_After.IndexOf("電擊");
+                                    var OtherIndex = Treatment_After.IndexOf("其他");
+                                    if (AfterDictionary.ContainsKey("CPCRDate") && AfterDictionary.ContainsKey("CPCRTime"))
+                                    {
+                                        if (ChestCompressionsIndex != -1)
+                                        {
+                                            Treatment_After[ChestCompressionsIndex] += "(CPCR開始時間: " + AfterDictionary["CPCRDate"] + " " + AfterDictionary["CPCRTime"] + ")";
+                                        }
+                                    }
+                                    if (AfterDictionary.ContainsKey("DefibrillationDate") && AfterDictionary.ContainsKey("DefibrillationTime"))
+                                    {
+                                        if (DefibrillationIndex != -1)
+                                        {
+                                            Treatment_After[DefibrillationIndex] += "(第一次電擊時間: " + AfterDictionary["DefibrillationDate"] + " " + AfterDictionary["DefibrillationTime"] + ")";
+                                        }
+                                    }
+                                    if (AfterDictionary.ContainsKey("Defibrillation_Joule"))
+                                    {
+                                        Treatment_After[DefibrillationIndex] = Treatment_After[DefibrillationIndex].Remove(Treatment_After[DefibrillationIndex].Length - 1);
+                                        if (DefibrillationIndex != -1)
+                                        {
+                                            Treatment_After[DefibrillationIndex] += "，第一次電擊焦耳數: " + AfterDictionary["Defibrillation_Joule"];
+                                            if (AfterDictionary.ContainsKey("Defibrillation_Joule_Other"))
+                                            {
+                                                Treatment_After[DefibrillationIndex] = Treatment_After[DefibrillationIndex].Replace("其他", AfterDictionary["Defibrillation_Joule_Other"]);
+                                            }
+                                        }
+                                        Treatment_After[DefibrillationIndex] += ")";
+                                    }
+                                    if (AfterDictionary.ContainsKey("InitialTreatment_Other"))
+                                    {
+                                        if (OtherIndex != -1)
+                                        {
+                                            Treatment_After[OtherIndex] = AfterDictionary["InitialTreatment_Other"];
+                                        }
+                                    }
+                                    <label>@string.Join(", ", Treatment_After)</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>使用藥物</th>
+                        <td>
+                            @{
+                                if (AfterDictionary.ContainsKey("DrugUse"))
+                                {
+                                    <label id="medicine">@AfterDictionary["DrugUse"]</label>
+                                }
+                                if (AfterDictionary.ContainsKey("DrugUse_Other"))
+                                {
+                                    <label id="medicine">(@AfterDictionary["DrugUse_Other"])</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr>
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">急救後病況</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 16px;">
+                    <tr>
+                        <th style="width:13%">生命徵象</th>
+                        <td colspan="2">
+                            @{
+                                List<string> vitalSign_After = new List<string>();
+                                var vitalSign_After_String = "";
+                                var BP_Systolic_After = "";
+                                var BP_Diastolic_After = "";
+                                if (AfterDictionary.ContainsKey("VitalSign_BT"))
+                                {
+                                    vitalSign_After.Add("體溫: " + AfterDictionary["VitalSign_BT"] + " ℃");
+                                }
+                                if (AfterDictionary.ContainsKey("VitalSign_HR"))
+                                {
+                                    vitalSign_After.Add("心跳: " + AfterDictionary["VitalSign_HR"] + " bpm");
+                                }
+                                if (AfterDictionary.ContainsKey("VitalSign_Respiratory"))
+                                {
+                                    vitalSign_After.Add("呼吸: " + AfterDictionary["VitalSign_Respiratory"] + " bpm");
+                                }
+                                if (AfterDictionary.ContainsKey("VitalSign_BP_Systolic"))
+                                {
+                                    BP_Systolic_After = AfterDictionary["VitalSign_BP_Systolic"];
+                                }
+                                if (AfterDictionary.ContainsKey("VitalSign_BP_Diastolic"))
+                                {
+                                    BP_Diastolic_After = AfterDictionary["VitalSign_BP_Diastolic"];
+                                }
+                                if (!string.IsNullOrEmpty(BP_Systolic_After) || !string.IsNullOrEmpty(BP_Diastolic_After))
+                                {
+                                    vitalSign_After.Add("血壓: " + BP_Systolic_After + " / " + BP_Diastolic_After + " bpm");
+                                }
+                                if (AfterDictionary.ContainsKey("VitalSign_SPO2"))
+                                {
+                                    vitalSign_After.Add("SPO2: " + AfterDictionary["VitalSign_SPO2"] + " %");
+                                }
+                                vitalSign_After_String = string.Join(", ", vitalSign_After);
+                                <label>@vitalSign_After_String</label>
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th rowspan="3">意識狀況</th>
+                        <th style="width:7%">GCS</th>
+                        <td>
+                            @{
+                                List<string> LOC_After = new List<string>();
+                                var LOC_After_String = "";
+                                if (AfterDictionary.ContainsKey("LOC_GCS_E"))
+                                {
+                                    LOC_After.Add("E: " + AfterDictionary["LOC_GCS_E"]);
+                                }
+                                if (AfterDictionary.ContainsKey("LOC_GCS_V"))
+                                {
+                                    LOC_After.Add("V: " + AfterDictionary["LOC_GCS_V"]);
+                                }
+                                if (AfterDictionary.ContainsKey("LOC_GCS_M"))
+                                {
+                                    LOC_After.Add("M: " + AfterDictionary["LOC_GCS_M"]);
+                                }
+                                LOC_After_String = string.Join(", ", LOC_After);
+                                <label>@LOC_After_String</label>
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width:5%">瞳孔-左</th>
+                        <td>
+                            @{
+                                if (AfterDictionary.ContainsKey("LOC_Eye_Left_Reflex"))
+                                {
+                                    var LOC_Eye_Left_Reflex_After_String = AfterDictionary["LOC_Eye_Left_Reflex"];
+
+                                    if (AfterDictionary.ContainsKey("LOC_Eye_Left_Reflex_Other"))
+                                    {
+                                        LOC_Eye_Left_Reflex_After_String = AfterDictionary["LOC_Eye_Left_Reflex"].Replace("其他", AfterDictionary["LOC_Eye_Left_Reflex_Other"]);
+                                    }
+                                    <div>反射 : @LOC_Eye_Left_Reflex_After_String</div>
+                                }
+                                if (AfterDictionary.ContainsKey("LOC_Eye_Left_Size"))
+                                {
+                                    <div>
+                                        大小 : @AfterDictionary["LOC_Eye_Left_Size"]
+                                    </div>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width:5%">瞳孔-右</th>
+                        <td>
+                            @{
+                                if (AfterDictionary.ContainsKey("LOC_Eye_Right_Reflex"))
+                                {
+                                    var LOC_Eye_Right_Reflex_After_String = AfterDictionary["LOC_Eye_Right_Reflex"];
+
+                                    if (AfterDictionary.ContainsKey("LOC_Eye_Right_Reflex_Other"))
+                                    {
+                                        LOC_Eye_Right_Reflex_After_String = AfterDictionary["LOC_Eye_Right_Reflex"].Replace("其他", AfterDictionary["LOC_Eye_Right_Reflex_Other"]);
+                                    }
+                                    <div>反射 : @LOC_Eye_Right_Reflex_After_String</div>
+                                }
+                                if (AfterDictionary.ContainsKey("LOC_Eye_Right_Size"))
+                                {
+                                    <div>
+                                        大小 : @AfterDictionary["LOC_Eye_Right_Size"]
+                                    </div>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>心電圖</th>
+                        <td colspan="2">
+                            <div>心電圖波型:</div>
+                            @{
+                                if (AfterDictionary.ContainsKey("EKG_Waveform"))
+                                {
+                                    if (AfterDictionary.ContainsKey("EKG_Waveform_Other"))
+                                    {
+                                        <label>@AfterDictionary["EKG_Waveform"].Replace("其他", @AfterDictionary["EKG_Waveform_Other"])</label>
+                                    }
+                                    else
+                                    {
+                                        <label>@AfterDictionary["EKG_Waveform"]</label>
+                                    }
+                                }
+
+                            }
+                            <div>心電圖圖片:</div>
+                            <label id="EKG_Picture_After"></label>
+                            <label id="EKGPicture_After"></label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>急救結果</th>
+                        <td colspan="2">
+                            @{
+                                if (AfterDictionary.ContainsKey("EmergencyTreatmentOutcome"))
+                                {
+                                    <label>@AfterDictionary["EmergencyTreatmentOutcome"]</label>
+                                }
+                                if (AfterDictionary.ContainsKey("EmergencyTreatmentOutcome_BedNumber"))
+                                {
+                                    <label>(@AfterDictionary["EmergencyTreatmentOutcome_BedNumber"])</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>急救結束時間</th>
+                        <td colspan="2">
+                            @{
+                                if (AfterDictionary.ContainsKey("EndEmergencyTreatmentDate") && AfterDictionary.ContainsKey("EndEmergencyTreatmentTime"))
+                                {
+                                    <label>@AfterDictionary["EndEmergencyTreatmentDate"]</label> <label>@AfterDictionary["EndEmergencyTreatmentTime"]</label>
+                                }
+                            }
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

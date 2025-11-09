@@ -1,0 +1,390 @@
+﻿@using System.Data;
+@using NIS.Data;
+@{
+    ViewBag.Title = "CheckTestButton";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    List<Lab> lablist = (List<Lab>)ViewData["lab"];
+
+    string msg = ViewBag.msg;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)ViewBag.ptinfo;
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        /*height:26px;*/
+    }
+
+    .lab_error {
+        color: #F00;
+    }
+
+    .hide {
+        display: none;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        @if (ViewBag.ER == "ER")
+        {
+            @:$('button').hide();
+            @:$('button[value="查詢"]').show();
+        }
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    //格行換色 with 參數
+    function setTableColor($tr) {
+        var tr = $tr;
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function able(id) {
+        document.getElementById(id).disabled = false;
+        document.getElementById(id).focus();
+    }
+    function enable(id) {
+        document.getElementById(id).disabled = true;
+        $('#' + id).val('');
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0 ; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if  (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    //螢幕鍵盤輸入_驗證
+    //function btn_write(word) {
+    //    window.opener.document.getElementById('record_com').value += word;
+    //    //window.opener.document.getElementById('record_com').value += word;
+    //}
+    function btn_write(date, name, id) {
+        var word =  name + " " + $('#' + id).text()+"、";
+        window.opener.document.getElementById('record_com').value += word;
+    }
+
+    function Search() {
+        window.location.href = 'LabButton?HasBtn=@(ViewBag.HasBtn)&stDate=' + $('#stDate').val() + '&edDate=' + $('#edDate').val() + '&feeno=@(pf.FeeNo)';
+    }
+</script>
+
+<form action="CheckTest" method="post">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+            <tr>
+                <td style="padding-bottom:5px;text-align:center;">
+                    @if (string.IsNullOrWhiteSpace(ViewBag.HasBtn))
+                    {
+                        <span style="color:blue;font-size:26px;">檢驗資料帶入護理紀錄</span>
+                    }
+                    else
+                    {
+                        <span style="color:blue;font-size:26px;">檢驗資料</span>
+                    }
+                    @(Html.TextBox("stDate", DateTime.Now.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                    ~
+                    @(Html.TextBox("edDate", DateTime.Now.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                    @*@WebTool.setDateTime("stDate")
+                    @WebTool.setDateTime("edDate")*@
+                    @WebTool.complementList_Status(complement_List.Status, "", @DateTime.Now.ToString("yyyy/MM/dd"), "stDate", "", false)
+                    @WebTool.complementList_Status(complement_List.Status, "", @DateTime.Now.ToString("yyyy/MM/dd"), "edDate", "", false)
+                    <input type="button" value="查詢" onclick="Search();" />
+                </td>
+
+            </tr>
+            <tr>
+                <td>
+                    床號：@(pf.BedNo)&nbsp;&nbsp;&nbsp;病歷號：@(pf.ChartNo)&nbsp;&nbsp;&nbsp;姓名：@(pf.PatientName)
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:5px 0 5px 0;">
+                    <div class="dataArea" style="height:100%;width:100%;overflow:auto;text-wrap:initial">
+                        @*//style="height:273px;width:700px;overflow:auto;"*@
+                        <table border="0" cellpadding="4" cellspacing="1">
+                            <tr><th>檢驗  <input id="toggle_d" type='button' value="看明細" onclick='toggle_detail();'></th></tr>
+                            <tr class="flip-scroll-old">
+                                <td>
+                                    @if (lablist != null && lablist.Count > 0)
+                                    {
+                                        <table id="2D_table" style="display:block;" class="table" border="1">
+                                            <thead>
+                                                <tr id="new_cols"></tr>
+                                            </thead>
+                                            <tbody id="new_rows" style="width:500px;"></tbody>
+
+                                        </table>
+                                        <table id="ori_lab" class="table" style="display:none;" border="1">
+                                            <thead>
+                                                <tr>
+                                                    @*<th style="background:#E1E6FA">帶紀錄</th>*@
+                                                    <th>檢驗日期</th>
+                                                    <th>組別</th>
+                                                    <th>檢體</th>
+                                                    <th>項目</th>
+                                                    <th>檢驗值</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody style="width:100%;">
+                                                @for (int i = 0; i < lablist.Count; i++)
+                                                {
+                                                    //異常值樣式
+                                                    string lab_error_class = "";
+                                                    if (lablist[i].LabErrorFlag == "Y")
+                                                    {
+                                                        lab_error_class = "lab_error";
+                                                    }
+                                                    <tr tag="ori_lab" rowid="ori_@i" LabDate="@lablist[i].LabDate" Specimen="@lablist[i].Specimen" LabName="@lablist[i].LabName.ToString().Trim()" report_value="@lablist[i].LabValue" report_unit="@lablist[i].LabValueUnit" color_red="@lablist[i].LabErrorFlag">
+                                                        <td>
+                                                            @lablist[i].LabDate
+                                                        </td>
+                                                        <td>@lablist[i].Group</td>
+                                                        <td>@lablist[i].Specimen</td>
+                                                        <td>
+                                                            @if (string.IsNullOrWhiteSpace(ViewBag.HasBtn))
+                                                            {
+                                                                @*<input type="button" name="btn_write" value="帶入" onclick="btn_write('@(lablist[i].LabDate.ToString("yyyy/MM/dd HH:mm")) @(lablist[i].LabName.ToString().Trim()) @(lablist[i].LabValue) @(lablist[i].LabValueUnit)');" />*@
+                                                                <input id="0" type="button" value="帶入" onclick="btn_write('@lablist[i].LabDate.ToString("yyyy/MM/dd HH:mm")','@(lablist[i].LabName.ToString().Trim())','report_@i');" />
+                                                            }
+                                                            @lablist[i].LabName.ToString().Trim()
+                                                        </td>
+                                                        <td id="report_@i" class="@lab_error_class">@lablist[i].LabValue.Replace('>','＞').Replace('<','＜') @lablist[i].LabValueUnit</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    }
+                                    else
+                                    {
+                                        @Html.Raw("目前無資料")
+                                    }
+                                </td>
+                            </tr>
+
+                        </table>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:5px 0 5px 0;text-align:center;">
+                    <div class="funcArea">
+                        @*<input type="button" value="儲存" style="width:60px;" onclick="submit();" />*@
+                        <input type="button" value="關閉" style="width:60px;" onclick="window.close();" />
+                    </div>
+                </td>
+            </tr>
+
+        </table>
+    </div>
+</form>
+
+<script>
+
+    $(document).ready(function () {
+        get_all_lab('@ViewBag.HasBtn'); //檢験報告 2維度  //1119 new
+        //$("#ori_lab").removeAttr("style");                  //1119 Old
+        setTableColor($("#2D_table tr")); ////檢験2維度 隔行變色
+    });
+
+    function toggle_detail() {
+        $("#ori_lab").toggle();
+        $("#2D_table").toggle();
+
+        var $tmp = $("#toggle_d");
+        $tmp.each(function () {
+            if ($(this).val() == "看明細")
+                $(this).val("看2維");
+            else
+                $(this).val("看明細");
+        });
+    }
+
+    //檢験報告 2維度
+    function get_all_lab(hasBtn) {
+        var $table = $("#ori_lab tbody");
+        var $tr = $table.find("tr");
+
+        var str_report = "";
+        var date_arr = [], labname_arr = [];
+        var LabName_Spe = "";
+
+        //讀取明細 : 建立新欄位/左邊項目清單 & 每筆明細
+        $tr.each(function () {
+            str_report += $(this).attr("LabName") + "도" + $(this).attr("Specimen").trim() + "도" + $(this).attr("report_unit").trim() + "도" + $(this).attr("color_red") + "도" + $(this).attr("LabDate") + "도" + $(this).attr("report_value") + "▇";
+
+            if (date_arr.indexOf($(this).attr("LabDate")) == -1) {
+                date_arr.push($(this).attr("LabDate"));
+            }
+            LabName_Spe = $(this).attr("LabName") + "と" + $(this).attr("Specimen").trim();
+            if (labname_arr.indexOf(LabName_Spe) == -1) {
+                labname_arr.push(LabName_Spe);
+            }
+
+        });
+
+        //2維陣列: init
+        var data_2D = new Array(date_arr.length), head_2D = new Array(labname_arr.length), str_tr = new Array(labname_arr.length);
+        for (var i = 0; i < date_arr.length; i++) {
+            data_2D[i] = new Array(labname_arr.length);
+            for (var j = 0; j < labname_arr.length; j++) {
+                data_2D[i][j] = "";
+            }
+        }
+        
+        labname_arr.sort();
+
+        //2維陣列: 讀取每筆明細, 並塞入2維陣列
+        var ori_lab = str_report.split('▇');
+
+        insert_data_2D(ori_lab, date_arr, labname_arr);
+
+        //2維陣列: 準備 資料的HTML
+        data_2D.reverse();  //資料要倒序呈現
+        str_html = prepare_HTML(date_arr, labname_arr);
+
+        //2維陣列: 準備 欄位的HTML
+        date_arr.reverse(); //日期最新的在最左邊
+        var title_labdate = "<th>項目</th><th>檢體</th><th>單位</th>"
+        for (var i = 0; i < date_arr.length; i++) {
+            title_labdate += "<th>" + date_arr[i] + "</th>";
+        }
+
+        //2維陣列: 全部就緒
+        $("#new_cols").html(title_labdate);
+        $("#new_rows").html(str_html);
+
+        //------------------
+
+        function insert_data_2D(ori_source, newCols, newLabItems) {
+            var str_labname = "", str_Specimen = "", str_report_unit = "", str_color_red = "", str_LabDate = "", str_report_value = "";
+            var split_items ="",split_labname = "", split_Specimen = "";
+            var ori_data = ori_source;
+            for (var j = 0; j < ori_data.length - 1; j++) {
+                var cols = ori_data[j].split('도');
+                if (cols.length ==6) {
+                    str_labname = (cols[0] == "NaN") ? "" : cols[0]; str_Specimen = (cols[1] == "NaN") ? "" : cols[1]; str_report_unit = (cols[2] == "NaN") ? "" : cols[2];
+                    str_color_red = (cols[3] == "NaN") ? "" : cols[3];
+                    str_LabDate = (cols[4] == "NaN") ? "" : cols[4];
+                    str_report_value = (cols[5] == "NaN") ? "" : cols[5].replace('>', '＞').replace('<', '＜');
+                    var hasReport = false; var tmp = [];
+                    for (var x = 0; x < newCols.length; x++) {
+                        if (newCols[x] == str_LabDate) {
+                            for (var i = 0; i < newLabItems.length; i++) {
+                                var split_items = newLabItems[i].split('と');
+                                split_labname = split_items[0]; split_Specimen = split_items[1];
+                                if ((newCols[x] == str_LabDate) && (split_labname == str_labname) && (split_Specimen == str_Specimen)) {
+                                    head_2D[i] = "<td>" + str_labname + "</td><td>" + str_Specimen + "</td>" + "<td>" + str_report_unit + "</td>";
+                                    str_tr[i] = "labname='" + newLabItems[i] + "' specimen='" + str_Specimen + "' unit='" + str_report_unit + "' ";
+                                    data_2D[x][i] = str_report_value == "" ? "" : str_color_red + str_report_value;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        function prepare_HTML(newCols, newLabItems) {
+            var tmp_data = "", rowdata = "", err_color = "", color = "", error_class = "", tmpi = "", tmpj = "", tmpji = "", tmp_html = "", showBtn="";
+                for (var j = 0; j < newLabItems.length; j++) {
+                    for (var i = 0; i < newCols.length; i++) {
+                        if (i == 0) {
+                            tmp_html += "<tr " + str_tr[j] + " >" + head_2D[j];
+                        }
+                        rowdata = data_2D[i][j];
+                        tmp_data = rowdata.substring(1, rowdata.length);
+                        err_color = rowdata.substr(0, 1);
+                        //異常值樣式
+                        color = "blue", error_class = "";
+                        if (err_color == "Y") {
+                            color = "red";
+                            error_class = "lab_error";
+                        }
+
+                        tmpj = j + 1, tmpi = i + 1;
+                        tmpji = tmpj + "_" + tmpi;
+                        showBtn = (hasBtn == "" && tmp_data != "") ? "<input id='0' type='button' value='帶入'  />  " : "";
+                        if (hasBtn =="") //護理記錄要顯示帶入
+                            tmp_html += "<td  id='report." + (j + 1) + "_" + (i + 1) + "' tag=" + tmpji + " class='" + error_class + "' " + str_tr[j] + " dataV=" + tmp_data + " onclick='bring_in(\"" + tmpji + "\");'>" + showBtn + tmp_data + "</td>";
+                        else
+                            tmp_html += "<td  id='report." + (j + 1) + "_" + (i + 1) + "' tag=" + tmpji + " class='" + error_class + "' " + str_tr[j] + " dataV=" + tmp_data + "  >" + showBtn + tmp_data + "</td>";
+                    }
+                    tmp_html += "</tr>";
+                }
+
+                return tmp_html
+        }
+    }
+
+    //2維陣列: 帶入
+    function bring_in(location) {
+        var $tr = $("#new_rows td");
+        var bring_data = ""; var data1 = "", data2 = "", data3 = "";
+        var split_items = "", split_labname = "", split_Specimen = "";
+        $tr.each(function (index, element) {
+            if ($(this).attr("tag") == location) {
+                data1 = ($(this).attr("labname") == "") ? "" : $(this).attr("labname");
+                data2 = ($(this).attr("datav") == "") ? "" : $(this).attr("datav");
+                data3 = ($(this).attr("unit") == "") ? "" : $(this).attr("unit");
+                var split_items = data1.split('と');
+                split_labname = split_items[0]; split_Specimen = split_items[1];
+                bring_data = split_labname + " " + data2 + " " + data3;
+
+                if (data1 != undefined && data2 != "NaN") {
+                    window.opener.document.getElementById('record_com').value += bring_data + "、";
+                }
+            }
+        });
+    }
+
+
+
+
+</script>

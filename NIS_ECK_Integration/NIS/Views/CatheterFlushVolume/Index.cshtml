@@ -1,0 +1,389 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "連續性沖洗尿管出入量";
+    List<Dictionary<string, string>> Dt = (List<Dictionary<string, string>>)ViewData["Dt"];
+    List<Dictionary<string, string>> Dt_I = Dt.FindAll(x => x["RECORD_CLASS"] == "0")
+        , Dt_O = Dt.FindAll(x => x["RECORD_CLASS"] == "1");
+    double I_Sum_Amount = Dt_I.Sum(x => Convert.ToInt32(x["AMOUNT"]))
+        , O_Sum_Amount = Dt_O.Sum(x => Convert.ToInt32(x["AMOUNT"]))
+        , time_difference = 8.0;
+    //bool alreadyPostOP = false;
+    if (Dt.Exists(x => x["POST_OP"] == "Y"))
+    {
+        //alreadyPostOP = true;
+        Dt = Dt.OrderByDescending(x => x["RECORD_TIME"]).ToList();
+        string rectime = Dt.Find(x => x["POST_OP"] == "Y")["RECORD_TIME"];
+        TimeSpan Total = (DateTime.Now - Convert.ToDateTime(rectime));
+        time_difference = Total.Hours + Math.Round(((double)Total.Minutes / 60), 1);
+    }
+
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if(complement_List.Status)
+    { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (pf.InDate > mindate)
+        { mindate = pf.InDate; }
+    }
+    string flag = Convert.ToString(ViewBag.flag);
+    }
+<style type="text/css">
+    .dataArea {
+        overflow-x: auto;
+        overflow-y: scroll;
+        border-top: 2px solid #666;
+    }
+        .dataArea td {
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        }
+
+    .header {
+        margin-right: 17px;
+        overflow: hidden;
+    }
+
+        .header td {
+            font-weight: bold;
+            margin: 1px 1px 1px 1px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    .funcArea legend {
+        margin-left: 5px;
+        background: #FFF;
+        padding: 3px 7px 2px 7px;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        font-size: 14px;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        setColor();
+        $("#txt_remark").keyup(function () {
+            if ($.trim($(this).val()) != '')
+                $("#cb_into_care").prop('checked', true);
+            else
+                $("#cb_into_care").prop('checked', false);
+        });
+        if ('@(flag)' == "True") {
+            $("#cb_into_io").prop('checked', true);
+        } else
+        {
+            $("#cb_into_io").prop('checked', false);
+        }
+    });
+
+    function setColor() {
+        //格行換色
+        $('#tb_inake tr:odd').css('background', '#ABC8E2');
+        $('#tb_inake tr:even').css('background', '#E1E6FA');
+        $('#tb_output tr:odd').css('background', '#E8D0D0');
+        $('#tb_output tr:even').css('background', '#F4E9E9');
+    }
+
+    //判斷是否選擇其他
+    function txt_fordrop(dropid, txtid) {
+        var list = $('#' + dropid).val()
+        if (list != '99') {
+            $('#' + txtid).attr('defaultvalue', $('#' + txtid).val());
+            document.getElementById(txtid).disabled = true;
+            $('#' + txtid).val('');
+            $('#' + txtid).hide();
+        }
+        else {
+            $('#' + txtid).val($('#' + txtid).attr('defaultvalue'));
+            document.getElementById(txtid).disabled = false;
+            $('#' + txtid).val('');//原沒這行
+            $('#' + txtid).show();
+        }
+    }
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        var success = true;
+        if (obj.value.indexOf('.') > -1)
+            var re = /^[0-9]+\.[0-9]*$/;
+        else
+            var re = /^[0-9]+$/;
+
+        if (!re.test(obj.value) && obj.value != "") {
+            alert("只能輸入數字");
+            $(obj).val('');
+            success = false;
+        }
+        return success;
+    }
+
+    //submit-確認1.數量  2.沖出有填時，顏色必填----未使用
+    function submit_check() {
+        var success = true;
+        if ($.trim($('#txt_i_amount').val()) == '' && $.trim($('#txt_o_amount').val()) == '') {
+            alert("請輸入沖入量或沖出量");
+            success = false;
+            return false;
+        }
+        if ($.trim($('#txt_o_amount').val()) != '') {
+            if ($("#urine_color :selected").val() != "-1") {
+                success = true;
+                if ($("#urine_color :selected").val() == "99") {
+                    if ($.trim($("#color_other").val()) == "") {
+                        alert("請輸入其他尿液顏色");
+                        success = false;
+                    } else {
+                        success = true;
+                    }
+                }
+                else {
+                    success = true;
+                }
+            }
+            else {
+                alert("請選擇尿液顏色");
+                success = false;
+            }
+        }
+        if ($.trim($('#txt_bit_last').val())!='')
+        {
+            if ($.trim($('#txt_i_amount').val()) == '')
+            {
+                alert("請輸入沖入量");
+                success = false;
+                return false;
+            }
+        }
+
+        return success;
+    }
+    function loading_change() {
+        if (submit_check()) {
+            loop_windows("open_cover");
+            $("#form1").submit();
+        }
+    }
+</script>
+
+<div class="funcArea">
+    <div id="module_define">@title</div>
+    <div style="margin-top:5px;">
+        <input type="button" value="範圍查詢" onclick="window.location.href='Range_Index';" />
+    </div>
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+            <td style="width:50%;height:134px;">
+                <fieldset>
+                    <legend>沖入</legend>
+                    <div style="padding:2px;">
+                        <div class="header">
+                            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                <tr style="background-color: #85A5CC;">
+                                    <td style="width: 28%; height:20px;">日期時間</td>
+                                    <td style="width: 24%;">量(ml)</td>
+                                    <td style="width: 24%;">沖洗液剩餘</td>
+                                    <td style="width: 24%;">執行者</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="dataArea" style="height:100px;">
+                            @if (Dt_I.Count > 0)
+                            {
+                            <table id="tb_inake" border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;text-align:center;">
+                                @foreach (var item in Dt_I)
+                                {
+                                <tr>
+                                    <td style="width:28%;">
+                                        <label>@(item["RECORD_TIME"])</label>
+                                    </td>
+                                    <td style="width:24%;">
+                                        <label>@(item["AMOUNT"])</label>
+                                    </td>
+                                    <td style="width:24%;">
+                                        @if(!string.IsNullOrWhiteSpace(item["BIT_SURPLUS"]))
+                                        {
+                                        <label>@(item["BIT_SURPLUS"])</label>
+                                        }
+                                        else
+                                        {
+                                        <label></label>
+                                        }
+                                    </td>
+                                    <td style="width:24%;">
+                                        <label>@(item["UPDNAME"])</label>
+                                    </td>
+                                </tr>
+                                }
+                            </table>
+                            }
+                        </div>
+                        <div style="padding: 2px 0 2px 0;">
+                            <span style="color:red;margin-left:10px;">合計：</span>
+                            <label>@(I_Sum_Amount) ml</label>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset style="white-space:normal;">
+                    <legend>沖出</legend>
+                    <div style="padding: 2px 2px 2px 2px;">
+                        <div class="header">
+                            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                <tr style="background-color: #C0504D;">
+                                    <td style="width:28%;height:20px;">日期時間</td>
+                                    <td style="width:24%;">量(ml)</td>
+                                    <td style="width:24%;">尿液顏色</td>
+                                    <td style="width:24%;">執行者</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="dataArea" style="height:100px;">
+                            @if (Dt_O != null)
+                            {
+                            <table id="tb_output" border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px; text-align: center;">
+                                @foreach (var item in Dt_O)
+                                {
+                                <tr>
+                                    <td style="width:28%;">
+                                        <label>@(item["RECORD_TIME"])</label>
+                                    </td>
+                                    <td style="width:24%;">
+                                        <label>@(item["AMOUNT"])</label>
+                                    </td>
+                                    <td style="width:24%; word-break: break-all;">
+                                        <label>@(item["COLORNAME"])</label>
+                                    </td>
+                                    <td style="width:24%; word-break: break-all;">
+                                        <label>@(item["UPDNAME"])</label>
+                                    </td>
+                                </tr>
+                                }
+                            </table>
+                            }
+                        </div>
+                        <div style="padding: 2px 0 2px 0;">
+                            <span style="color:red;margin-left:10px;">合計：</span>
+                            <label>@(O_Sum_Amount) ml</label>
+                        </div>
+                    </div>
+                </fieldset>
+            </td>
+            <td style="width:50%;height:264px;vertical-align:top;padding-top:10px;">
+                <fieldset>
+                    <legend style="display:none;"></legend>
+                    <form id="form1" action="Insert" method="post">
+                        <div style="padding:5px;background-color: #EEEFFF;">
+                            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;height:264px;">
+                                <tr>
+                                    <td style="width:15%;"><label>日期時間：</label></td>
+                                    <td colspan="3" style="width:85%;">
+                                        <input type="text" id="insert_day" name="insert_day" value="@DateTime.Now.ToString("yyyy/MM/dd")" />
+                                        <input type="text" id="insert_time" name="insert_time" value="@DateTime.Now.ToString("HH:mm")" />
+                                        @*@WebTool.setDateTime("insert_day", "insert_time", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "insert_day", "insert_time", true)
+                                       @* @if (!alreadyPostOP)
+                                        {
+                                        *@
+                                        <label><input type="checkbox" name="PostOp" value="Y" />POST OP</label>
+                                       @* }*@
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="width:15%;"><label>沖入量：</label></td>
+                                    <td style="width:25%;">
+                                        <input type="text" id="txt_i_amount" name="txt_i_amount" maxlength="10" style="width:80px;" onchange="numcheck(this);" />
+                                    </td>
+                                        <td style="width:15%;"><label>點滴剩餘量：</label></td>
+                                    <td style="width:45%;">
+                                        <input type="text" id="txt_bit_last" name="txt_bit_last" maxlength="10" style="width:80px;" onchange="numcheck(this);" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><label>沖出量：</label></td>
+                                    <td>
+                                        <input type="text" id="txt_o_amount" name="txt_o_amount" maxlength="10" style="width:80px;" onchange="numcheck(this);" />
+                                    </td>
+                                    <td><label>尿液顏色：</label></td>
+                                    <td>
+                                        @Html.DropDownList("urine_color", (List<SelectListItem>)ViewData["urine_color"], new { onchange = "txt_fordrop(this.id,'color_other');" })
+                                        @Html.TextBox("color_other", "", new { style = "width:60px;display:none;", defaultvalue = "", disabled = "disabled" ,maxlength = "50"})
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="vertical-align:top;padding-top:10px;"><label>備註：</label></td>
+                                    <td colspan="3">
+                                        <textarea id="txt_remark" name="txt_remark" style="width: 95%; height: 90px;" maxlength="4000"></textarea>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align:center;" colspan="4">
+                                        <label><input type="checkbox" id="cb_into_io" name="cb_into_io" value="Y" />帶入 I/O</label>
+                                        <label><input type="checkbox" id="cb_into_care" name="cb_into_care" value="Y" />帶入記錄</label>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align:center;" colspan="4">
+                                        <input type="button" value="存檔" style="width:60px;" onclick="loading_change()" />
+                                        <input type="button" value="取消" style="width:60px;" onclick="reset();" />
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </form>
+                </fieldset>
+                <fieldset>
+                    <legend style="display:none;"></legend>
+                    <div style="padding:5px;background-color: #EEEFFF;">
+                        <label>每小時尿量：</label>
+                        @Html.Raw("<label>")
+                        @if((O_Sum_Amount - I_Sum_Amount) > 0) 
+                        {
+                        @Html.Raw("+")
+                        }
+                        @(O_Sum_Amount - I_Sum_Amount) ml / @(time_difference) hr
+                         @Html.Raw("</label>")
+                    </div>
+                </fieldset>
+            </td>
+        </tr>
+    </table>
+</div>

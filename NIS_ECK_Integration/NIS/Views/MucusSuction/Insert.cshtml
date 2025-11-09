@@ -1,0 +1,385 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+
+    bool IsDischarged = false;
+    if (Convert.ToDateTime(pf.OutDate).ToString("yyyy").ToString() != "0001" && pf.OutDate < DateTime.Now)
+    {
+        IsDischarged = true;
+    }
+
+}
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: left;
+        background-color: #d5d5f7;
+        width: 100%;
+        border-radius: 5px;
+        font-size: 28px;
+        font-weight: 800
+    }
+    .dataArea {
+        border: 0 !important;
+        border-radius: 10px !important;
+        font-family: Arial, EUDC !important;
+        overflow-y: auto !important;
+    }
+    .dataArea td {
+        text-align: left;
+        height: 20px;
+    }
+    .count_btn {
+        border-radius: 60px;
+        border-width: 0;
+        color: white;
+        background-color: #3c7ec3;
+        height: 20px;
+    }
+    .fun_btn {
+        font-size: 18px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        margin: 0.5rem !important;
+        width: 70px !important;
+        color: white !important;
+    }
+    .dataHeader {
+        text-align: center !important;
+        border-radius: 6px !important;
+        font-size: 20px !important;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 160);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', 'rgb(231 238 245)');
+        $('.dataArea tr:even').css('background', 'rgb(176 216 235)');
+    }
+
+    //檢查
+    function check() {
+        var success = true;
+        var tr_list = $('p[must=Y]:visible,div[must=Y]:visible,td[must=Y]:visible');
+        for (var i = 0; i < tr_list.length; i++) {
+            var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                var input_name = '';
+                for (var j = 0; j < input_list.length; j++) {
+                    if (input_name != $(input_list[j]).attr('name')) {
+                        input_name = $(input_list[j]).attr('name');
+                        if (input_list[j].type == 'text' || input_list[j].type == 'textarea') {
+                            var input_val = $.trim(input_list[j].value);
+                        }
+                        else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                            var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+                        }
+                        if (input_val == undefined || input_val == '') {
+
+                            success = false;
+                            alert($(tr_list[i]).find('.subtitle').html() + ' 未填寫!');
+                            return success;
+                        }
+                    }
+                }
+            }
+        }
+        return success;
+    }
+
+    function loading_change() {
+        $("#save").prop('disabled', true);
+        loop_windows("open_cover");
+
+        if (check()) {
+            save();
+        }
+        else
+        {
+            $("#save").prop('disabled', false);
+            loop_windows("close_cover");
+        }
+    }
+
+    function times_change(counttype) {
+
+        var times = parseInt($("input[name='Sputum_Times']").val());
+
+        if (counttype == "plus") {
+            times += 1;
+        }
+        else {
+            if (times > 1) {
+                times -= 1;
+            }
+        }
+        $("input[name='Sputum_Times']").val(times.toString());
+
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+     function save()
+     {
+         var id = $("#id").val();
+
+         var setStr = "SET0410112627";
+
+            $.ajax({
+               type: "POST",
+               url: '@Url.Content("~/MucusSuction/Save")',
+               data: $("#form1").serialize(),
+               cache: false,
+               async: false,
+               success: function (response) {
+                   if (response == "新增" || response == "更新") {
+                       alert("新增成功");
+                       loop_windows("close_cover");
+
+                       if (response == "新增") {
+
+                           $.ajax({
+                               type: 'POST',
+                               cache: false,
+                               dataType: 'json',
+                               async: false,
+                               contentType: "application/json",
+                               url: '@Url.Content("~/MucusSuction/checkFirst")',
+                               success: function (data) {
+                                   if (data == 1) {
+                                       setStr = "SET0410112508";
+                                   }
+                               }
+                           });
+
+                           if ('@IsDischarged' == 'False') {
+                               window.open('../Billing/index?set=' + setStr, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=300,toolbar=no,width=1290,height=800');
+                           }
+                       }
+
+                       window.location.href = 'index'
+
+                   } else {
+                       alert("新增失敗");
+                       loop_windows("close_cover");
+                       window.location.href = 'index'
+                   }
+               }, complete: function () {
+               }
+           });
+
+ }
+
+
+
+
+</script>
+@{
+    string action = "Save", title = "新增";
+    string serial = "", color = "", times = "", volume = "", nature = "" , nature_other ="", color_other ="'";
+    DateTime now = DateTime.Now;
+    DateTime start = DateTime.Now;
+    DateTime end = DateTime.Now;
+
+    DataTable dt = ViewBag.dt;
+    if (dt != null && dt.Rows.Count > 0)
+    {
+        action = "Save"; title = "更新";
+        now = Convert.ToDateTime(dt.Rows[0]["RECORD_TIME"]);
+        start = Convert.ToDateTime(dt.Rows[0]["START_TIME"]);
+        end = Convert.ToDateTime(dt.Rows[0]["END_TIME"]);
+        serial = dt.Rows[0]["SERIAL"].ToString();
+        times = dt.Rows[0]["TIMES"].ToString();
+        volume = dt.Rows[0]["VOIUME"].ToString();
+        nature = dt.Rows[0]["NATURE"].ToString();
+        nature_other = dt.Rows[0]["NATURE_OTHER"].ToString();
+        color = dt.Rows[0]["COLOR"].ToString();
+        color_other = dt.Rows[0]["COLOR_OTHER"].ToString();
+
+
+    <script type="text/javascript">
+            $(function () {
+                set_val('Sputum_volume', '@volume', 'radio');
+                set_val('Sputum_color', '@color', 'radio');
+                if ('@color' == "其他") {
+                    set_val('param_color_other_txt', '@color_other', 'textbox');
+                    $("input[name='Sputum_color'][value='其他']").click();
+
+                }
+                set_val('Sputum_nature', '@nature', 'radio');
+                    if ('@nature' == "其他") {
+                        set_val('param_naturer_other_txt', '@nature_other', 'textbox');
+                        $("input[name='Sputum_nature'][value='其他']").click();
+                }
+                set_val('Sputum_Times', '@times', 'textbox');
+
+            });
+
+            function set_val(name, value, type) {
+                if (type == "radio") {
+                    $("input[name=" + name + "][value='" + value + "']").prop("checked", true);
+                }
+                else if (type == "textbox") {
+                    $("input[name=" + name + "]").val(value);
+                }
+            }
+    </script>
+    }
+
+}
+<form id="form1">
+    <input type="hidden" id="id" name="id" value="@serial" />
+    <input type="hidden" id="carerecord" name="carerecord" />
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+            <td style="width:100%;text-align:left;">
+                <div id="module_define"> <label style="margin-left:1rem">@title</label></div>
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align:center;">
+                <div class="funcArea">
+                    <input type="button" id="save" class="fun_btn" value="存檔" style="width: 60px; background-color: #5ab95a" onclick="loading_change()" />
+                    <input type="button" value="取消" class="fun_btn" style="width: 60px; background-color: #ed6f6f " onclick="if (confirm('確定取消?')) window.location.href = 'index'" />
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="dataHeader" style="margin-right: 0px; ">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 20px; background-color: #cfe1eb">
+                        <tr>
+                            <td style="width: 25%; background-color: #cfe1eb !important" colspan="6">
+                                   抽痰紀錄
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:auto; margin-top:1rem">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:18px;" height="45">
+                        <tr>
+                            <td style="width: 25%; text-align: center; font-weight: 600;" colspan="1">
+                                記錄時間
+                            </td>
+                            <td style="width:75%;text-align:left;" colspan="5" must=Y>
+                                <label class="subtitle" style="display:none">記錄時間</label>
+                                @Html.TextBox("record_day", now.ToString("yyyy/MM/dd"), new { style = "width:80px;", @readonly = "readonly" })
+                                @Html.TextBox("record_time", now.ToString("HH:mm"), new { style = "width:50px;", @readonly = "readonly" })
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "record_day", "record_time", true)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 25%; text-align: center; font-weight: 600;" colspan="1">
+                                抽痰時間
+                            </td>
+                            <td style="width: 75%; text-align: left;" colspan="5" must=Y>
+                                <label class="subtitle" style="display:none">抽痰時間</label>
+                                @{
+                                    string start_day = start.ToString("yyyy/MM/dd");
+                                    string start_time = start.ToString("HH:mm");
+                                    if (@serial == "")
+                                    {
+                                        start_day = now.ToString("yyyy/MM/dd");
+                                        start_time = now.ToString("HH:mm");
+                                    }
+                                }
+                                @Html.TextBox("start_day", start_day, new { style = "width:80px;", @readonly = "readonly" })
+                                @Html.TextBox("start_time", start_time, new { style = "width:50px;", @readonly = "readonly" })
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_day", "start_time", true)
+
+                                ~
+                                @{
+                                    string end_day = end.ToString("yyyy/MM/dd");
+                                    string end_time = end.ToString("HH:mm");
+                                    if (@serial == "")
+                                    {
+                                        end_day = now.ToString("yyyy/MM/dd");
+                                        end_time = now.ToString("HH:mm");
+                                    }
+                                }
+                                @Html.TextBox("end_day", end_day, new { style = "width:80px;", @readonly = "readonly" })
+                                @Html.TextBox("end_time", end_time, new { style = "width:50px;", @readonly = "readonly" })
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_day", "end_time", true)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 25%; text-align: center; font-weight: 600;" colspan="1">
+                                痰液量
+                            </td>
+                            <td style="width: 75%; text-align: left;" colspan="5" must=Y>
+                                <label class="subtitle" style="display:none">痰液量</label>
+                                @VitalSign_Helper.assess_radio("Sputum_volume", "少|中|多", "", "")
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 25%; text-align: center; font-weight: 600;" colspan="1">
+                                顏色
+                            </td>
+                            <td style="width: 75%; text-align: left;" colspan="5" must=Y>
+                                <label class="subtitle" style="display:none">顏色</label>
+                                @VitalSign_Helper.assess_radio("Sputum_color", "暗紅色|紅|鮮紅色|淡紅|粉紅|褐色|黃褐|黃綠|黃色|土黃|白|透明|其他", "其他", "span_param_color_other")
+                                <span class="span_param_color_other" style="display: none;">
+                                    @Html.TextBox("param_color_other_txt", "", new { style = "width:150px" })
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 25%; text-align: center; font-weight: 600;" colspan="1">
+                                性質
+                            </td>
+                            <td style="width: 75%; text-align: left;" colspan="5" must=Y>
+                                <label class="subtitle" style="display:none">性質</label>
+                                @VitalSign_Helper.assess_radio("Sputum_nature", "清澈|稀|稠|微稠|黏稠|泡沫|食糜|牛奶|血液|膽汁|其他", "其他", "span_param_naturer_other")
+                                <span class="span_param_naturer_other" style="display: none;">
+                                    @Html.TextBox("param_naturer_other_txt", "", new { style = "width:150px" })
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 25%; text-align: center; font-weight: 600;" colspan="1">
+                                次數
+                            </td>
+                            <td style="width: 75%; text-align: left;" colspan="5" must=Y>
+                                <label class="subtitle" style="display:none">次數</label>
+                                <input type="button" class="count_btn" value="-" style="width:30px;" onclick="times_change('loss')" />
+                                @Html.TextBox("Sputum_Times", "1", new { style = "width:30px;text-align:center;border-radius : 10px !important ; border:0", })
+                                <input type="button" class="count_btn" value="+" style="width:30px;" onclick="times_change('plus')" />
+
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</form>

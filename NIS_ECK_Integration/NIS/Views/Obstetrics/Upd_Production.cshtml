@@ -1,0 +1,814 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    BaByPatInfo_FeeNo PatInfo = (BaByPatInfo_FeeNo)ViewBag.PatInfo;
+}
+
+<style type="text/css">
+    .ui-tabs .ui-tabs-nav li a {
+        font-size: 14px;
+        padding: 3px 5px 3px 5px;
+    }
+
+    .ui-tabs {
+        font-size: 14px;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    .dataHeader td {
+        height: 10px;
+    }
+
+    .dataHeader {
+        margin-right: 17px !important;
+        overflow: hidden;
+    }
+
+    .ui-tabs .ui-tabs-nav li a {
+        font-size: 14px;
+        padding: 3px 5px 3px 5px;
+    }
+
+    .ui-tabs {
+        font-size: 14px;
+    }
+
+    .popup {
+        width: 80%;
+        height: 95%;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -20% 0 0 -40%;
+        display: none;
+        z-index: 99;
+    }
+
+    #CHECK1 td {
+        background-color: rgb(171, 200, 226) !important;
+    }
+</style>
+
+<style type="text/css">
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>
+
+<script type="text/javascript">
+    $(window).load(function () {
+		if ('@ViewBag.mode' == "1")
+			$('#ui-id-2').trigger('click');
+		@Html.Raw(ViewBag.PageJs);
+	});
+    $(".tabArea").tabs({ active: 0 });
+
+    $(function () {
+        close_pup_window();
+        setGridColor();
+        //設定高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 155);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        if (obj.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(obj.value) && obj.value != "") {
+            alert("只能輸入數字");
+            $(obj).val('');
+            return false;
+        }
+        else
+            return true;
+    }
+
+    function set_for_sel(sel_name, dvalue) {
+        if (dvalue != 'undefined') {
+            var sel = document.getElementsByName(sel_name);
+            if (sel.length > 0) {
+                for (var i = 0; i < sel[0].length; i++) {
+                    if (sel[0][i].value == dvalue)
+                        $(sel[0][i]).attr("selected", "true");
+                }
+            }
+        }
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue != '') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+            }
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = document.getElementsByName(ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+    function set_for_txt(txt_name, dvalue) {
+        if (dvalue != '') {
+            var default_val = dvalue.split(",");
+            var txt = document.getElementsByName(txt_name);
+            if (txt.length > 1) {
+                for (var i = 0; i < txt.length; i++) {
+                    $(txt[i]).val(default_val[i]);
+                }
+            }
+            else
+                $(txt[0]).val(dvalue);
+        }
+    }
+
+    // 改變[檢查項目]時改變[檢查結果]輸入內容
+    function Change_PP_CHECKITEM() {
+        if ($("#DDL_PP_CHECKITEM").val() === "1") {
+            // 胎心音檢視
+            $(".REP").show();
+            $(".REP1").show();
+            $(".REP2").hide();
+            $(".REP3").hide();
+        } else if ($("#DDL_PP_CHECKITEM").val() === "") {
+            // 沒有選擇
+            $(".REP").hide();
+            $(".REP1").hide();
+            $(".REP2").hide();
+            $(".REP3").hide();
+        } else if ($("#DDL_PP_CHECKITEM").val() !== "1" && $("#DDL_PP_CHECKITEM").val() !== "5") {
+            // 其餘選擇
+            $(".REP").show();
+            $(".REP1").hide();
+            $(".REP2").show();
+            $(".REP3").hide();
+        } else if ($("#DDL_PP_CHECKITEM").val() === "5") {
+            // 選擇其他
+            $(".REP").hide();
+            $(".REP1").hide();
+            $(".REP2").show();
+            $(".REP3").show();
+        }
+    }
+
+    // [病患動向]選擇[其他]時，[病患動向-其他]顯示，反之隱藏
+    function Show_PPTO_Other() {
+        if ($("#PP_TO").val() === "9")
+            $("#PP_TO_OTH").show();
+        else
+            $("#PP_TO_OTH").hide();
+    }
+
+
+    function GetPatInfo(obj) {
+        $.ajax({
+            url: "Get_PatInfo",
+            type: "GET",
+            data: { IID: $(obj).val() },
+            success: function (data, textStatus, jqXHR) {
+                if (data != "") {
+                    $("#TXT_PP_CHARTNO").val(data.CHARNO);
+                    $("#TXT_PP_NAME").val(data.PATName);
+                    $("#TXT_PP_BD").val(data.PATBirthday);
+                    $("#TXT_PP_ADD").val(data.PATAddress);
+                    $("#TXT_PP_TEL").val(data.PATHomeNo);
+                }
+            },
+            error: function (err) {
+            },
+            dataType: 'json'
+        });
+    }
+
+    function GetPatInfo1(obj) {
+        if ($(obj).val() != '' && $(obj).val() != undefined) {
+            $("#TXT_PP_CHARTNO").val(paddingLeft($(obj).val(), 10));
+            $.ajax({
+                url: "Get_PatInfo1",
+                type: "GET",
+                data: { ChartNo: $("#TXT_PP_CHARTNO").val() },
+                success: function (data, textStatus, jqXHR) {
+                    if (data != "") {
+                        $("#TXT_PP_ID").val(data.IID);
+                        $("#TXT_PP_NAME").val(data.PATName);
+                        $("#TXT_PP_BD").val(data.PATBirthday);
+                        $("#TXT_PP_ADD").val(data.PATAddress);
+                        $("#TXT_PP_TEL").val(data.PATHomeNo);
+                    }
+                },
+                error: function (err) {
+                },
+                dataType: 'json'
+            });
+        } else {
+            $("#TXT_PP_ID").val('');
+            $("#TXT_PP_NAME").val('');
+            $("#TXT_PP_BD").val('');
+            $("#TXT_PP_ADD").val('');
+            $("#TXT_PP_TEL").val('');
+        }
+    }
+
+    function paddingLeft(str, lenght) {
+        if (str.length >= lenght)
+            return str;
+        else
+            return paddingLeft("0" + str, lenght);
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+
+@if (dt != null && dt.Rows.Count > 0)
+{
+    foreach (DataRow r in dt.Rows)
+    {
+        <form name="na_form" method="post" action="Upd_Production">
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+                <tr>
+                    <td>
+                        <div class="dataHeader">
+                            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                <tr>
+                                    <td style="width:20%;">項目</td>
+                                    <td style="width:80%;">內容</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="dataArea" style="width:100%;">
+                            <input type="hidden" name="IID" value="@r["IID"]" />
+                            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                <tr>
+                                    <td class="head" style="width:20%;">病患來源</td>
+                                    <td colspan="2" style="width:80%;">
+                                        <select name="DDL_PP_FROM">
+                                            <option value="">請選擇</option>
+                                            <option value="1">急診</option>
+                                            <option value="2">自行來診</option>
+                                            <option value="3">會診</option>
+                                            <option value="4">住院</option>
+                                            <option value="5">門診</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">病歷號</td>
+                                    <td colspan="2">
+                                        @Html.TextBox("TXT_PP_CHARTNO", r["PP_CHARTNO"], new { style = "width:100px", onchange = "GetPatInfo1(this)" })
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">身分證字號</td>
+                                    <td colspan="2">
+                                        @Html.TextBox("TXT_PP_ID", r["PP_ID"], new { style = "width:150px", onchange = "GetPatInfo(this)" })
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">姓名</td>
+                                    <td colspan="2">
+                                        @Html.TextBox("TXT_PP_NAME", r["PP_NAME"], new { style = "width:100px" })
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">出生日期</td>
+                                    <td colspan="2">
+                                        @if (r["PP_BD"].ToString() == "")
+                                        {
+                                            @Html.TextBox("TXT_PP_BD", "", new { style = "width:80px", @readonly = "readonly" })
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("TXT_PP_BD", Convert.ToDateTime(r["PP_BD"].ToString()).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                        }
+                                        @WebTool.setDateTime("TXT_PP_BD", "", "", "30")
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">聯絡地址</td>
+                                    <td colspan="2">
+                                        @Html.TextBox("TXT_PP_ADD", r["PP_ADD"], new { style = "width:320px" })
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">電話</td>
+                                    <td colspan="2">
+                                        @Html.TextBox("TXT_PP_TEL", r["PP_TEL"], new { style = "width:150px" })
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">開始日期時間</td>
+                                    <td colspan="2">
+                                        @if (r["CHECKST"].ToString() == "")
+                                        {
+                                            @Html.TextBox("TXT_CHECKST_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_CHECKST_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("TXT_CHECKST_DAY", Convert.ToDateTime(r["CHECKST"].ToString()).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_CHECKST_TIME", Convert.ToDateTime(r["CHECKST"].ToString()).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                        }
+                                        @WebTool.setDateTime("TXT_CHECKST_DAY", "TXT_CHECKST_TIME", "", "30")
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">結束日期時間</td>
+                                    <td colspan="2">
+                                        @if (r["CHECKET"].ToString() == "")
+                                        {
+                                            @Html.TextBox("TXT_CHECKET_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_CHECKET_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("TXT_CHECKET_DAY", Convert.ToDateTime(r["CHECKET"].ToString()).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_CHECKET_TIME", Convert.ToDateTime(r["CHECKET"].ToString()).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                        }
+                                        @WebTool.setDateTime("TXT_CHECKET_DAY", "TXT_CHECKET_TIME", "", "30")
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">檢查項目</td>
+                                    <td colspan="2">
+                                        <select id="DDL_PP_CHECKITEM" name="DDL_PP_CHECKITEM" onchange="Change_PP_CHECKITEM()">
+                                            <option value="">請選擇</option>
+                                            <option value="1">胎心音檢視</option>
+                                            <option value="2">RU486</option>
+                                            <option value="3">羊水檢查</option>
+                                            <option value="4">超音波檢查</option>
+                                            <option value="5">其他</option>
+                                        </select>
+                                        <span class="REP3" style="display:none;">
+                                            @Html.TextBox("TXT_PP_CHECKOTH", r["PP_CHECKOTH"], new { style = "width:150px" })
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">檢查結果</td>
+                                    <td style="width:40%;">
+                                        <div class="REP1" style="display:none;">
+                                            第一次檢查結果：
+                                            <table class="REP1" id="CHECK1" border="0" cellpadding="4" cellspacing="0" style="width:100%">
+                                                <tr>
+                                                    <td style="width:10%">
+                                                        胎心音
+                                                    </td>
+                                                    <td style="width:90%" class="funcArea">
+                                                        @*<input type="button" name="btn" value="選擇" onclick="window.open('Pick_FHB', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />*@
+                                                        <br />
+                                                        @Html.TextBox("TXT_REP1_FH_FH1", r["REP1_FH_FH1"], new { style = "width:100px" })~
+                                                        @Html.TextBox("TXT_REP1_FH_FH2", r["REP1_FH_FH2"], new { style = "width:100px" })
+                                                        <input type="radio" name="RB_REP1_FH_FHT" value="0" />早期減速
+                                                        <input type="radio" name="RB_REP1_FH_FHT" value="1" />晚期減速
+                                                        <input type="radio" name="RB_REP1_FH_FHT" value="2" />變異性減速
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="width:10%">
+                                                        胎心音
+                                                    </td>
+                                                    <td style="width:90%" class="funcArea">
+                                                        @*<input type="button" name="btn" value="選擇" onclick="window.open('Pick_FHB', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />*@
+                                                        <br />
+                                                        @Html.TextBox("TXT_REP1_FH_FH1_2", r["REP1_FH_FH1_2"], new { style = "width:100px" })~
+                                                        @Html.TextBox("TXT_REP1_FH_FH2_2", r["REP1_FH_FH2_2"], new { style = "width:100px" })
+                                                        <input type="radio" name="RB_REP1_FH_FHT_2" value="0" />早期減速
+                                                        <input type="radio" name="RB_REP1_FH_FHT_2" value="1" />晚期減速
+                                                        <input type="radio" name="RB_REP1_FH_FHT_2" value="2" />變異性減速
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td rowspan="3">
+                                                        宮縮
+                                                    </td>
+                                                    <td>
+                                                        持續時間
+                                                        @Html.TextBox("TXT_REP1_FH_UCDU1", r["REP1_FH_UCDU1"], new { style = "width:100px", maxLength = "3" }) ~
+                                                        @Html.TextBox("TXT_REP1_FH_UCDU2", r["REP1_FH_UCDU2"], new { style = "width:100px" }) 秒
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        間隔時間
+                                                        @Html.TextBox("TXT_REP1_FH_UCINT1", r["REP1_FH_UCINT1"], new { style = "width:100px" }) ~
+                                                        @Html.TextBox("TXT_REP1_FH_UCINT2", r["REP1_FH_UCINT2"], new { style = "width:100px" }) 分
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        強度
+                                                        <input type="radio" name="RB_REP1_FH_UCSTR" value="0" />無
+                                                        <input type="radio" name="RB_REP1_FH_UCSTR" value="1" />弱
+                                                        <input type="radio" name="RB_REP1_FH_UCSTR" value="2" />中
+                                                        <input type="radio" name="RB_REP1_FH_UCSTR" value="3" />強
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td rowspan="3">子宮頸</td>
+                                                    <td>
+                                                        擴張程度(O.S)
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="0" />0
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="1" />1
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="2" />2
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="3" />3
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="4" />4
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="5" />5
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="6" />6
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="7" />7
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="8" />8
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="9" />9
+                                                        <input type="radio" name="RB_REP1_FH_UCE" value="10" />10
+                                                        (cm)
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        變薄程度（E.F.F）
+                                                        <input type="radio" name="RB_REP1_FH_UCT" value="1" />10
+                                                        <input type="radio" name="RB_REP1_FH_UCT" value="2" />20
+                                                        <input type="radio" name="RB_REP1_FH_UCT" value="3" />30
+                                                        <input type="radio" name="RB_REP1_FH_UCT" value="4" />40
+                                                        <input type="radio" name="RB_REP1_FH_UCT" value="5" />50
+                                                        <input type="radio" name="RB_REP1_FH_UCT" value="6" />60
+                                                        <input type="radio" name="RB_REP1_FH_UCT" value="7" />70
+                                                        <input type="radio" name="RB_REP1_FH_UCT" value="8" />80
+                                                        <input type="radio" name="RB_REP1_FH_UCT" value="9" />90
+                                                        <input type="radio" name="RB_REP1_FH_UCT" value="10" />100
+                                                        (%)
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        胎頭高度（ST）
+                                                        <input type="radio" name="RB_REP1_FH_UCH" value="1" />-3
+                                                        <input type="radio" name="RB_REP1_FH_UCH" value="2" />-2
+                                                        <input type="radio" name="RB_REP1_FH_UCH" value="3" />-1
+                                                        <input type="radio" name="RB_REP1_FH_UCH" value="4" />0
+                                                        <input type="radio" name="RB_REP1_FH_UCH" value="5" />+1
+                                                        <input type="radio" name="RB_REP1_FH_UCH" value="6" />+2
+                                                        <input type="radio" name="RB_REP1_FH_UCH" value="7" />+3
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>破水</td>
+                                                    <td>
+                                                        <input type="radio" name="RB_REP1_FH_ROM" value="1" />是
+                                                        <input type="radio" name="RB_REP1_FH_ROM" value="0" />否
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        <div class="REP2" style="display:none;">
+                                            第一次檢查結果： @Html.TextBox("TXT_CHECK_REP1", r["CHECK_REP1"], new { style = "width:150px;" })
+                                        </div>
+                                    </td>
+                                    <td style="width:40%;">
+                                        <div class="REP1" style="display:none;">
+                                            第二次檢查結果：
+                                            <table class="REP1" id="CHECK1" border="0" cellpadding="4" cellspacing="0" style="width:100%">
+                                                <tr>
+                                                    <td style="width:10%">
+                                                        胎心音
+                                                    </td>
+                                                    <td style="width:90%" class="funcArea">
+                                                        @*<input type="button" name="btn" value="選擇" onclick="window.open('Pick_FHB', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />*@
+                                                        <br />
+                                                        @Html.TextBox("TXT_REP2_FH_FH1", r["REP2_FH_FH1"], new { style = "width:100px" })~
+                                                        @Html.TextBox("TXT_REP2_FH_FH2", r["REP2_FH_FH2"], new { style = "width:100px" })
+                                                        <input type="radio" name="RB_REP2_FH_FHT" value="0" />早期減速
+                                                        <input type="radio" name="RB_REP2_FH_FHT" value="1" />晚期減速
+                                                        <input type="radio" name="RB_REP2_FH_FHT" value="2" />變異性減速
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="width:10%">
+                                                        胎心音
+                                                    </td>
+                                                    <td style="width:90%" class="funcArea">
+                                                        @*<input type="button" name="btn" value="選擇" onclick="window.open('Pick_FHB', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />*@
+                                                        <br />
+                                                        @Html.TextBox("TXT_REP2_FH_FH1_2", r["REP2_FH_FH1_2"], new { style = "width:100px" })~
+                                                        @Html.TextBox("TXT_REP2_FH_FH2_2", r["REP2_FH_FH2_2"], new { style = "width:100px" })
+                                                        <input type="radio" name="RB_REP2_FH_FHT_2" value="0" />早期減速
+                                                        <input type="radio" name="RB_REP2_FH_FHT_2" value="1" />晚期減速
+                                                        <input type="radio" name="RB_REP2_FH_FHT_2" value="2" />變異性減速
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td rowspan="3">
+                                                        宮縮
+                                                    </td>
+                                                    <td>
+                                                        持續時間
+                                                        @Html.TextBox("TXT_REP2_FH_UCDU1", r["REP2_FH_UCDU1"], new { style = "width:100px", maxLength = "3" }) ~
+                                                        @Html.TextBox("TXT_REP2_FH_UCDU2", r["REP2_FH_UCDU2"], new { style = "width:100px" }) 秒
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        間隔時間
+                                                        @Html.TextBox("TXT_REP2_FH_UCINT1", r["REP2_FH_UCINT1"], new { style = "width:100px" }) ~
+                                                        @Html.TextBox("TXT_REP2_FH_UCINT2", r["REP2_FH_UCINT2"], new { style = "width:100px" }) 分
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        強度
+                                                        <input type="radio" name="RB_REP2_FH_UCSTR" value="0" />無
+                                                        <input type="radio" name="RB_REP2_FH_UCSTR" value="1" />弱
+                                                        <input type="radio" name="RB_REP2_FH_UCSTR" value="2" />中
+                                                        <input type="radio" name="RB_REP2_FH_UCSTR" value="3" />強
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td rowspan="3">子宮頸</td>
+                                                    <td>
+                                                        擴張程度(O.S)
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="0" />0
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="1" />1
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="2" />2
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="3" />3
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="4" />4
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="5" />5
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="6" />6
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="7" />7
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="8" />8
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="9" />9
+                                                        <input type="radio" name="RB_REP2_FH_UCE" value="10" />10
+                                                        (cm)
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        變薄程度（E.F.F）
+                                                        <input type="radio" name="RB_REP2_FH_UCT" value="1" />10
+                                                        <input type="radio" name="RB_REP2_FH_UCT" value="2" />20
+                                                        <input type="radio" name="RB_REP2_FH_UCT" value="3" />30
+                                                        <input type="radio" name="RB_REP2_FH_UCT" value="4" />40
+                                                        <input type="radio" name="RB_REP2_FH_UCT" value="5" />50
+                                                        <input type="radio" name="RB_REP2_FH_UCT" value="6" />60
+                                                        <input type="radio" name="RB_REP2_FH_UCT" value="7" />70
+                                                        <input type="radio" name="RB_REP2_FH_UCT" value="8" />80
+                                                        <input type="radio" name="RB_REP2_FH_UCT" value="9" />90
+                                                        <input type="radio" name="RB_REP2_FH_UCT" value="10" />100
+                                                        (%)
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        胎頭高度（ST）
+                                                        <input type="radio" name="RB_REP2_FH_UCH" value="1" />-3
+                                                        <input type="radio" name="RB_REP2_FH_UCH" value="2" />-2
+                                                        <input type="radio" name="RB_REP2_FH_UCH" value="3" />-1
+                                                        <input type="radio" name="RB_REP2_FH_UCH" value="4" />0
+                                                        <input type="radio" name="RB_REP2_FH_UCH" value="5" />+1
+                                                        <input type="radio" name="RB_REP2_FH_UCH" value="6" />+2
+                                                        <input type="radio" name="RB_REP2_FH_UCH" value="7" />+3
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>破水</td>
+                                                    <td>
+                                                        <input type="radio" name="RB_REP2_FH_ROM" value="1" />是
+                                                        <input type="radio" name="RB_REP2_FH_ROM" value="0" />否
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        <div class="REP2" style="display:none;">
+                                            第二次檢查結果：@Html.TextBox("TXT_CHECK_REP2", r["CHECK_REP2"], new { style = "width:150px;" })
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">病患動向</td>
+                                    <td colspan="2">
+                                        <select id="PP_TO" name="DDL_PP_TO" onchange="Show_PPTO_Other()">
+                                            <option value="">請選擇</option>
+                                            <option value="1">門診</option>
+                                            <option value="2">住院</option>
+                                            <option value="3">自行返家</option>
+                                            <option value="4">院內活動</option>
+                                            <option value="5">留觀</option>
+                                            <option value="6">POR(恢復室)</option>
+                                            <option value="7">返急診</option>
+                                            <option value="8">MBD出院</option>
+                                            <option value="9">其他</option>
+                                        </select>
+                                        <div id="PP_TO_OTH" style="display:none;float:initial">
+                                            @Html.TextBox("TXT_PP_TO_OTH", r["PP_TO_OTH"], new { style = "width:200px;" })
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="head">病患動向備註</td>
+                                    <td colspan="2">
+                                        @Html.TextBox("TXT_PP_TO_MEMO", r["PP_TO_MEMO"], new { style = "width:200px" })
+                                    </td>
+                                </tr>
+                            </table>
+                            <script>
+                                 @if(r["PP_FROM"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_PP_FROM', '@r["PP_FROM"]');
+                                        }
+                                 @if(r["PP_CHECKITEM"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_PP_CHECKITEM', '@r["PP_CHECKITEM"]');
+                                            @:Change_PP_CHECKITEM();
+                                        }
+                                @if(r["REP1_FH_FHT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP1_FH_FHT', '@r["REP1_FH_FHT"]');
+                                        }
+                                 @if(r["REP1_FH_FHT_2"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP1_FH_FHT_2', '@r["REP1_FH_FHT_2"]');
+                                        }
+                                  @if(r["REP1_FH_UCSTR"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP1_FH_UCSTR', '@r["REP1_FH_UCSTR"]');
+                                        }
+                                   @if(r["REP1_FH_UCE"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP1_FH_UCE', '@r["REP1_FH_UCE"]');
+                                        }
+                                    @if(r["REP1_FH_UCT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP1_FH_UCT', '@r["REP1_FH_UCT"]');
+                                        }
+                                     @if(r["REP1_FH_UCH"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP1_FH_UCH', '@r["REP1_FH_UCH"]');
+                                        }
+                                      @if(r["REP1_FH_ROM"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP1_FH_ROM', '@r["REP1_FH_ROM"]');
+                                        }
+
+                                 @if(r["REP2_FH_FHT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP2_FH_FHT', '@r["REP2_FH_FHT"]');
+                                        }
+                                  @if(r["REP2_FH_FHT_2"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP2_FH_FHT_2', '@r["REP2_FH_FHT_2"]');
+                                        }
+                                  @if(r["REP2_FH_UCSTR"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP2_FH_UCSTR', '@r["REP2_FH_UCSTR"]');
+                                        }
+                                   @if(r["REP2_FH_UCE"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP2_FH_UCE', '@r["REP2_FH_UCE"]');
+                                        }
+                                    @if(r["REP2_FH_UCT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP2_FH_UCT', '@r["REP2_FH_UCT"]');
+                                        }
+                                     @if(r["REP2_FH_UCH"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP2_FH_UCH', '@r["REP2_FH_UCH"]');
+                                        }
+                                      @if(r["REP2_FH_ROM"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_REP2_FH_ROM', '@r["REP2_FH_ROM"]');
+                                        }
+
+
+
+                                @if(r["PP_TO"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_PP_TO', '@r["PP_TO"]');
+                                            @:Show_PPTO_Other();
+                                        }
+                            </script>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:0px 0 0px 0;text-align:center;">
+                        <div class="funcArea">
+                            <input type="submit" value="儲存" style="width:60px;" />
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    }
+}
+<script type="text/javascript">
+    $.fn.getType = function () { return this[0].tagName == "INPUT" ? this[0].type.toLowerCase() : this[0].tagName.toLowerCase(); };
+    $(document).ready(function () {
+
+        //自動調整頁面高度   //分頁選項高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+        }).trigger("resize");
+        // inital tooltip
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+    });
+
+    $(function () {
+        var param = window.location.search
+        if (param != null) {
+            var params = param.substring(1).split('=');
+            if (params.length > 1) {
+                var mode = params[1];
+            }
+        }
+    });
+
+
+    $('form').on('keyup keypress', function (e) {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode === 13) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>

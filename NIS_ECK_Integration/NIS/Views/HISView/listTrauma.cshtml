@@ -1,0 +1,178 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //Layout = "~/Views/Layout/Main.cshtml";
+    string RootDocument = ViewBag.RootDocument;
+    DataTable dt_wound_data = ViewBag.dt_wound_data;
+    DataTable dt_wound_record = ViewBag.dt_wound_record;
+    string feeno = ViewBag.feeno;
+}
+<style type="text/css">
+    .popup {
+        width: auto;
+        height: auto;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -150px 0 0 -300px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    .link:hover td {
+        cursor: pointer;
+        background-color: #9966FF;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        LoadWoundRecordPrompt('');
+        setGridColor();
+        var tr = $('.link');
+        for (var i = 0; i < tr.length; i++) {
+            var color = tr[i].style.backgroundColor;
+            tr[i].setAttribute("onmouseover", "this.style.cursor='pointer';this.style.backgroundColor='#9966FF';");
+            tr[i].setAttribute("onmouseout", "this.style.cursor='pointer';this.style.backgroundColor='" + color + "';");
+            tr[i].setAttribute("title", "點擊觀看紀錄");
+        }
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    function LoadWoundRecordPrompt(woundID) {
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/HISView/Partial_Record")',
+            data: { 'wound_id': woundID ,'feeno':'@(feeno)'},
+            success: function (data) {
+                $('#wound_record').empty().html(data);
+            }
+        });
+    }
+
+    function toPrint() {
+        window.open('@(RootDocument)/Print/GetPDF?url=@(RootDocument)/Wound/Record_List_PDF?LoginEmpNo=@("")&feeno=@(feeno)&filename=test');
+    }
+</script>
+<div>
+    <input type="button" value="列印" style="width:80px;" onclick="toPrint();" />
+</div>
+<div class="funcArea">
+    <div style="padding:2px;text-align:center;">
+    </div>
+    <table border="0" cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed">
+        <tr>
+            <td style="width:75%;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width:7%;">編號</td>
+                            <td style="width:8%;">發生日期</td>
+                            <td style="width:10%;">傷口種類</td>
+                            <td style="width:13%;">部位</td>
+                            <td style="width:15%;">發生地點</td>
+                            <td style="width:23%;">發生原因</td>
+                            <td style="width:14%;">結束時間</td>
+                            <td style="width:10%;">結束原因</td>
+                           @* <td style="width:14%;"></td>*@
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:190px;">
+                    @if (dt_wound_data != null)
+                    {
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        @foreach (DataRow r in dt_wound_data.Rows)
+                        {
+                            if (r["DELETED"].ToString() == "")
+                            {
+                        <tr class="link" title="點擊觀看紀錄" onclick="LoadWoundRecordPrompt('@(r["WOUND_ID"])');">
+                            <td style="width:7%;text-align:center;">
+                                <label>
+                                @r["NUM"]</label>
+                            </td>
+                            <td style="width:8%;white-space:nowrap;text-align:center;">
+                                @if(!string.IsNullOrWhiteSpace(r["CREATTIME"].ToString()))
+                                {
+                                <label>@Convert.ToDateTime(r["CREATTIME"]).ToString("yyyy/MM/dd")</label>
+                                }
+                                else
+                                {
+                                <label>不詳</label>
+                                }
+                            </td>
+                            <td style="width:10%;text-align:center;">@r["TYPE"]</td>
+                            <td style="width:13%;text-align:center;">@r["POSITION"]</td>
+                            <td style="width:15%;text-align:center;">@r["LOCATION"]</td>
+                            <td style="width:23%;text-align:center;">@r["REASON"]</td>
+                            <td style="width:14%;text-align:center;">
+                                @if(!string.IsNullOrWhiteSpace(r["ENDTIME"].ToString()))
+                                {
+                                <label>@Convert.ToDateTime(r["ENDTIME"]).ToString("yyyy/MM/dd HH:mm")</label>
+                                }
+                            </td>
+                            <td style="width:10%;">@r["ENDT_REASON"]</td>
+                          @*  <td style="width:7%;text-align:center;">
+                                <input type="button" num="@r["NUM"]" position="@r["POSITION"]" wound_type="@r["TYPE"]" wound_id="@r["WOUND_ID"]" value="刪除" style="width:40px;" onclick="del(this); showPopup('dv_del');" />
+                             
+                            </td>
+                             <td style="width:7%;text-align:center;">
+                                @if(!string.IsNullOrWhiteSpace(r["TYPE"].ToString()) && r["TYPE"].ToString() == "壓傷")
+                                {
+                                <input type="button" num="@r["NUM"]" position="@r["POSITION"]" wound_type="@r["TYPE"]" wound_id="@r["WOUND_ID"]" title="修改發生地點" value="修改" style="width:40px;" onclick="del(this); showPopup('dv_upd');" />
+                                }
+                            </td>*@
+                        </tr>
+                            }
+                        }
+                    </table>
+                    }
+                </div>
+            </td>
+        </tr>
+    </table>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:12px;">
+            <tr>
+               @* <td rowspan="2" style="width: 6%; padding: 0px; "></td>*@
+                <td rowspan="2" style="width: 3%; padding: 0px; ">編號</td>
+                <td rowspan="2" style="width: 7%; padding: 0px; ">紀錄日期</td>
+                <td rowspan="2" style="width: 7%; padding: 0px; ">壓傷<br />分級</td>
+                <td colspan="3" style="width: 12%;padding: 0px; ">範圍</td>
+                <td rowspan="2" style="width: 7%; padding: 0px; ">燙傷範圍</td>
+                <td rowspan="2" style="width: 7%; padding: 0px; ">傷口等級</td>
+                <td rowspan="2" style="width: 18%; padding: 0px; ">外觀</td>
+                <td colspan="4" style="width: 19%; padding: 0px; ">滲出液</td>
+                <td rowspan="2" style="width: 6%; padding: 0px; ">是否有縫線</td>
+                <td rowspan="2" style="width: 9%; padding: 0px; ">處置</td>
+                <td rowspan="2" style="width: 5%; padding: 0px; ">紀錄者</td>
+            </tr>
+            <tr>
+                <td style="width: 4%; padding: 0px;">長</td>
+                <td style="width: 4%; padding: 0px;">寬</td>
+                <td style="width: 4%; padding: 0px;">深</td>
+                <td style="width: 3%; padding: 0px;">量</td>
+                <td style="width: 5%; padding: 0px;">性質</td>
+                <td style="width: 5%; padding: 0px;">性狀</td>
+                <td style="width: 6%; padding: 0px;">顏色</td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea" id="wound_record" style="height:135px;">
+    </div>
+</div>

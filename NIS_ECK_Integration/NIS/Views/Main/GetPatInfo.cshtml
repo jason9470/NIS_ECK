@@ -1,0 +1,296 @@
+﻿@using NIS.Data;
+@using NIS.Controllers;
+@{
+    PatientInfo piInfo = (PatientInfo)ViewData["ptinfo"];
+    List<PatientInfo> allergy_list = (List<PatientInfo>)ViewData["Allergy"];
+    string Title;
+    var ICD9_code1 = piInfo.ICD9_code1;
+    var ICD9_code2 = piInfo.ICD9_code2;
+    var ICD9_code3 = piInfo.ICD9_code3;
+    var ICD9_code4 = piInfo.ICD9_code4;
+    var ICD9_code5 = piInfo.ICD9_code5;
+    List<SurgeryVisitItem> SurgeryVisitItems = (List<SurgeryVisitItem>)ViewData["SurgeryVisitItems"];
+}
+<style type="text/css">
+    .patientInfo_tooltip {
+        max-width: 300px;
+        white-space: pre-line;
+        border: thin #cacaca solid;
+        box-shadow: none;
+        border-radius: unset;
+        padding: 5px;
+    }
+
+    #patinfo .tooltip, #patinfo .tooltip:hover, #patinfo .tooltip:visited, #patinfo .tooltip:after {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    ul {
+        margin-top: 2px;
+        margin-bottom: 0px;
+        padding-left: 1rem;
+    }
+
+        ul > ul {
+            padding-left: 2rem;
+        }
+</style>
+
+<table class="patmain" feeno="@(piInfo.FeeNo)" title="@(piInfo.FeeNo)" border="0" cellspacing="4">
+    <tr>
+        <td class="info" width="17%">
+            @(LanguagePack.Menu.TitlePatName)：
+            @(piInfo.PatientName)
+        </td>
+        <td class="info" width="22%">
+            @(LanguagePack.Menu.TitleBirthDay)：
+            @WebTool.toRocDate(piInfo.Birthday)
+        </td>
+        <td class="info" width="10%">
+            @(LanguagePack.Menu.TitleAge)：
+            @if (@Convert.ToInt16(piInfo.Age.ToString()) < 1)
+            {
+                @(piInfo.Month.ToString());
+                @Html.Raw(" 個月");
+            }
+            else
+            {
+                @(piInfo.Age.ToString());
+                @Html.Raw(" 歲");
+            }
+        </td>
+        <td class="info" width="17%">
+            @(LanguagePack.Menu.TitleBedNo)：
+            @(piInfo.BedNo.ToString())
+            @if (!string.IsNullOrEmpty(piInfo.Condition))
+            {
+                @Html.Raw("<label title='" + piInfo.Condition + "' >◆</label>")
+            }
+        </td>
+        @{
+            string tooltip_text = "";
+            List<string> tags = new List<string>();
+
+            if (piInfo.DNR.ToString() == "Y")
+            {
+                tooltip_text += "<li>DNR</li>";
+                tags.Add("拒");
+            }
+
+            if (!string.IsNullOrEmpty(piInfo.IcnDiseaseStr))
+            {
+                tooltip_text += "<li>隔離項目：" + piInfo.IcnDiseaseStr.ToString() + "</li>";
+                tags.Add("隔");
+            }
+            else if (!string.IsNullOrEmpty(ViewBag.icndiseasestr))
+            {
+                tooltip_text += "<li>隔離</li>";
+                tags.Add("隔");
+            }
+
+            /*if (piInfo.Suicide.ToString() == "Y")
+            {
+                tooltip_text += "<li>自殺傷害</li>";
+                tags.Add("傷");
+            }*/
+
+            if (!string.IsNullOrEmpty(ViewBag.suicide))
+            {
+                tooltip_text += "<li>自殺傷害</li>";
+                tags.Add("傷");
+            }
+            if (piInfo.Hospice.ToString() == "Y")
+            {
+                tooltip_text += "<li>安寧</li>";
+                tags.Add("寧");
+            }
+            if (piInfo.OrganDonation.ToString() == "Y")
+            {
+                tooltip_text += "<li>器捐</li>";
+                tags.Add("捐");
+            }
+
+            if (piInfo.Allergy.ToString() == "Y")
+            {
+                if (allergy_list.Count > 0)
+                {
+                    tooltip_text += "<li>過敏清單：</li>";
+                    tooltip_text += "<ul>";
+                    for (int i = 0; i < allergy_list.Count; i++)
+                    {
+                        tooltip_text += "<li>項目" + (i + 1) + "：" + allergy_list[i].AllergyDesc + "</li>";
+                    }
+                    tooltip_text += "</ul>";
+                    tags.Add("敏");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(ViewBag.pressure))
+            {
+                tooltip_text += "<li>壓傷</li>";
+                tags.Add(ViewBag.pressure);
+            }
+            if (!string.IsNullOrEmpty(ViewBag.pain))
+            {
+                tooltip_text += "<li>疼痛</li>";
+                tags.Add(ViewBag.pain);
+            }
+            if (!string.IsNullOrEmpty(ViewBag.fall))
+            {
+                tooltip_text += "<li>跌倒高危</li>";
+                tags.Add(ViewBag.fall);
+            }
+            if (!string.IsNullOrEmpty(ViewBag.constraint))
+            {
+                tooltip_text += "<li>約束</li>";
+                tags.Add(ViewBag.constraint);
+            }
+            if (piInfo.Security.ToString() == "Y")
+            {
+                tooltip_text += "<li>保密</li>";
+                tags.Add("密");
+            }
+            if (!string.IsNullOrEmpty(ViewBag.discharge))
+            {
+                tooltip_text += "<li>出院準備服務</li>";
+                tags.Add(ViewBag.discharge);
+            }
+            if (!string.IsNullOrEmpty(ViewBag.FRIDs))
+            {
+                tooltip_text += "<li>藥(易跌藥)</li>";
+                tags.Add(ViewBag.FRIDs);
+            }
+            if (SurgeryVisitItems != null && SurgeryVisitItems.Count > 0)
+            {
+                tooltip_text += "<li>訪視時間</li>";
+                tags.Add("訪");
+                foreach (var SurgeryVisitItem in SurgeryVisitItems)
+                {
+                    var SurgeryDate = DateTime.Parse(SurgeryVisitItem.SurgeryDate ?? "").ToString("yyyy/MM/dd HH:mm");
+                    var ASV_LastVisitDate = "";
+                    var PSV_LastVisitDate = "";
+                    if (SurgeryVisitItem.PSV_LastVisitDate != null)
+                    {
+                        PSV_LastVisitDate = DateTime.Parse(SurgeryVisitItem.PSV_LastVisitDate ?? "").ToString("yyyy/MM/dd HH:mm");
+                    }
+                    if (SurgeryVisitItem.ASV_LastVisitDate != null)
+                    {
+                        ASV_LastVisitDate = DateTime.Parse(SurgeryVisitItem.ASV_LastVisitDate ?? "").ToString("yyyy/MM/dd HH:mm");
+                    }
+                    tooltip_text += "<ul>【手術時間:" + SurgeryDate + "】術前訪視時間:" + PSV_LastVisitDate + "﹑術後訪視時間:" + ASV_LastVisitDate + "</ul>";
+                }
+            }
+            tooltip_text = "<ul>" + tooltip_text + "</ul>";
+        }
+        <td id="alert_tag" class="war tooltip" title="@tooltip_text">
+            @(LanguagePack.Menu.TitleMemo)：
+            @Html.Raw(string.Join("&nbsp;&nbsp;", tags))
+
+            @*@if (piInfo.DNR.ToString() == "Y")
+                {
+                    <label title="DNR">@Html.Raw("拒&nbsp;&nbsp;")</label>
+                }
+                @{if (piInfo.IcnDiseaseStr != null)
+                    {
+                        string title = "隔離項目：\n";
+                        title += piInfo.IcnDiseaseStr.ToString();
+                    <label title="@title">@Html.Raw("隔&nbsp;&nbsp;")</label>
+                    }
+                    else if (ViewBag.icndiseasestr != "")
+                    {
+                        <label>@Html.Raw("隔&nbsp;&nbsp;")</label>
+                    }
+                }*@
+            @*@if (piInfo.Suicide.ToString() == "Y")
+                {
+                    <label title="自殺傷害">@Html.Raw("傷&nbsp;&nbsp;")</label>
+                }*@
+            @*@if (ViewBag.suicide != "" )
+                {
+                    <label title="自殺傷害">@Html.Raw("傷&nbsp;&nbsp;")</label>
+                }
+                @if (piInfo.Hospice.ToString() == "Y")
+                {
+                    <label title="安寧">@Html.Raw("寧&nbsp;&nbsp;")</label>
+                }
+                @if (piInfo.OrganDonation.ToString() == "Y")
+                {
+                    <label title="器捐">@Html.Raw("捐&nbsp;&nbsp;")</label>
+                }
+                @if (piInfo.Allergy.ToString() == "Y")
+                {
+                    if (allergy_list.Count > 0)
+                    {
+                        string title = "過敏清單：\n";
+                        for (int i = 0; i < allergy_list.Count; i++)
+                        {
+                            title += "項目" + (i + 1) + "：" + allergy_list[i].AllergyDesc + "\n";
+                        }
+                    <label title="@title">@Html.Raw("敏&nbsp;&nbsp;")</label>
+                    }
+                }
+
+                @if (ViewBag.pressure != "")
+                {
+                    tooltip_text += "<li>壓傷</li>";
+                    <label title="壓傷">@Html.Raw(ViewBag.pressure + "&nbsp;&nbsp;")</label>
+                }
+                @if (ViewBag.pain != "")
+                {
+                    <label title="疼痛">@Html.Raw(ViewBag.pain + "&nbsp;&nbsp;")</label>
+                }
+                @if (ViewBag.fall != null)
+                {
+                    <label title="跌倒高危">@Html.Raw(ViewBag.fall + "&nbsp;&nbsp;")</label>
+                }
+                @if (ViewBag.constraint != null)
+                {
+                    <label title="約束">@Html.Raw(ViewBag.constraint + "&nbsp;&nbsp;")</label>
+                }
+                @if (piInfo.Security.ToString() == "Y")
+                {
+                    <label title="保密">@Html.Raw("密")</label>
+                }
+                @if (ViewBag.discharge != null)
+                {
+                    <label title="出院準備服務">@Html.Raw(ViewBag.discharge + "&nbsp;&nbsp;")</label>
+                }*@
+        </td>
+    </tr>
+    <tr>
+        <td class="info">
+            @(LanguagePack.Menu.TitleVS)：
+            @if (piInfo.DocName != "")
+            {
+                @(piInfo.DocName.ToString())
+                <font size="2">(@(piInfo.DeptName.ToString()))</font>
+            }
+        </td>
+        @{
+            Title = (piInfo.Assessment == "ER") ? "掛號時間：" : "轉床日期：";
+            Title = Title + ((piInfo.TransDate.ToString("yyyy-MM-dd HH:mm:ss") != "0001-01-01 00:00:00") ? piInfo.TransDate.ToString("yyyy-MM-dd HH:mm:ss") : "");
+
+        }
+        <td class="info" title="@Title">
+            @(LanguagePack.Menu.TitleIpdDate)：
+            @if (piInfo.InDate.ToString("yyyy-MM-dd HH:mm:ss") != "0001-01-01 00:00:00")
+            {
+                @WebTool.toRocDate(piInfo.InDate)
+                <font size="2">(@(piInfo.InDay.ToString()))</font>
+            }
+        </td>
+        <td class="info">
+            @(LanguagePack.Menu.TitleGender)：
+            @(piInfo.PatientGender)
+        </td>
+        <td class="info">
+            @(LanguagePack.Menu.TitleChrNo)：
+            @(piInfo.ChartNo)
+        </td>
+        <td class="war" title="@ICD9_code1,@ICD9_code2,@ICD9_code3,@ICD9_code4,@ICD9_code5">
+            @(LanguagePack.Menu.TitleDiag)：
+            <font size="2">@(piInfo.ICD9_code1)</font>
+        </td>
+    </tr>
+</table>

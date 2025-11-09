@@ -1,0 +1,632 @@
+﻿@using NIS.Data;
+@using NIS.Controllers;
+@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+     DataTable dt_memo = ViewBag.dt_memo;
+}
+
+<style type="text/css">
+    .dataArea {
+        border-top: 1px solid #666;
+        border-bottom: 1px solid #666;
+        scrollbar-shadow-color: #1a1a1a;
+        scrollbar-3dlight-color: #666666;
+    }
+
+        .dataArea th {
+            background-color: #85A5CC;
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+            text-align: center;
+            min-height:30px;
+        }
+
+        .dataArea td {
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+            text-align: center;
+        }
+
+    .item {
+        color: blue;
+        font-weight: bold;
+    }
+</style>
+
+<script type="text/javascript">
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#E1E6FA');
+        $('.dataArea tr:even').css('background', '#ABC8E2');
+    }
+
+    $(document).ready(function () {
+        setGridColor();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 190);
+        }).trigger("resize");
+    });
+
+
+ 
+
+    @if (dt_memo != null && dt_memo.Rows.Count > 0)
+    {
+        foreach (DataRow r in dt_memo.Rows)
+        {                  
+           
+            if (@r["TRANS_MEMO"] != null) 
+            {    
+            @:set_for_txt('@r["TRANS_FLAG"]', '@r["TRANS_MEMO"].ToString().Replace("\r\n","").Replace("\n","").ToString()');           
+            }
+        }
+    }
+
+    function set_for_txt(txt_name, dvalue) {
+        if (dvalue != '') {
+            var default_val = dvalue.split(",");
+            var txt = document.getElementsByName(txt_name);
+            if (txt.length > 1) {
+                for (var i = 0; i < txt.length; i++) {
+                    $(txt[i]).val(default_val[i]);
+                }
+            }
+            else
+                $(txt[0]).val(dvalue);
+        }
+    }
+
+
+</script>
+
+<div class="dataArea" style="overflow:auto;">
+    @{
+        if (ViewData["speical_info"] != null && ((List<List<string>>)ViewData["speical_info"]).Count > 0)
+    {
+        //特殊交班
+        List<List<string>> spec_info = (List<List<string>>)ViewData["speical_info"];
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th style="width:80%">特殊交班</th>
+            <th style="width:10%">最後修改時間</th>
+            <th style="width:10%">最後修改人員</th>
+        </tr>
+        <tr>
+            <td style="text-align: left;width:80%">
+                <pre>
+                @Html.Raw(string.Join("/n", spec_info[0][0]))
+                </pre>
+            </td>
+            <td>@Html.Raw(spec_info[0][1])</td>
+            <td>@Html.Raw(spec_info[0][2])
+            </td>
+        </tr>
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "spec")
+    {
+    @Html.Raw("目前無資料")
+    }
+        
+    if (ViewData["VSData"] != null && ((List<VitalSignDataList>)ViewData["VSData"]).Count > 0)
+    {
+        //生命徵象
+        List<VitalSignDataList> vsDataList = (List<VitalSignDataList>)ViewData["VSData"];
+       // vsDataList = vsDataList.OrderByDescending(o => o.vsid).ToList();
+        vsDataList = vsDataList.OrderBy(o => o.vsid).ToList();
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th style="width:20%;">時間</th>
+            <th>體溫</th>
+            <th>心跳</th>
+            <th>呼吸</th>
+            <th>血壓</th>
+            <th style="width:15%;">血氧濃度(SPO2)</th>
+            <th style="width:15%;">中心靜脈壓(CVP)</th>
+        </tr>
+        @for (int i = 0; i <= vsDataList.Count - 1; i++)
+        {
+            List<VitalSignData> vsd = vsDataList[i].DataList;
+            <tr>
+                <td width="120" align="center">
+                    <!-- 維護時間 -->
+                    @vsd[0].modify_date
+                </td>
+                <td width="40" align="center">
+                    <!-- 體溫 -->
+                    @Html.Raw(VitalSignData.getItem(vsd, "bt", VitalSignDataField.Record))
+                    &nbsp;
+                </td>
+                <td width="40" align="center">
+                    <!-- 心跳 -->
+                    @Html.Raw(VitalSignData.getItem(vsd, "mp", VitalSignDataField.Record))
+                    &nbsp;
+                </td>
+                <td width="40" align="center">
+                    <!-- 呼吸 -->
+                    @Html.Raw(VitalSignData.getItem(vsd, "bf", VitalSignDataField.Record))
+                    &nbsp;
+                </td>
+                <td width="60" align="center">
+                    <!-- 血壓 -->
+                    @{
+                    string bp = VitalSignData.getItem(vsd, "bp", VitalSignDataField.Record);
+                    if (bp != "")
+                    {
+                        @:@bp.Replace("|", " / ")
+                    }
+                    }
+                    &nbsp;
+                </td>
+                <td width="40" align="center">
+                    <!-- SPO2 -->
+                    @Html.Raw(VitalSignData.getItem(vsd, "sp", VitalSignDataField.Record))
+                    &nbsp;
+                </td>
+                <td width="40" align="center">
+                    <!-- CVP -->
+                    @Html.Raw(VitalSignData.getItem(vsd, "cv", VitalSignDataField.Record))
+                    &nbsp;
+                </td>
+            </tr>
+        }
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "vital")
+    {
+    @Html.Raw("目前無資料")
+    }
+
+    if (ViewData["GCSList"] != null && ((List<VitalSignDataList>)ViewData["GCSList"]).Count > 0) 
+    {
+        //意識狀況
+        List<VitalSignDataList> GCSList = (List<VitalSignDataList>)ViewData["GCSList"];
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th>時間</th> 
+            <th>睜眼反射</th>
+            <th>語言反射</th>
+            <th>運動反射</th>
+            <th>瞳孔 左/右</th>
+            <th>左上臂</th>
+            <th>左前臂</th>
+            <th>右上臂</th>
+            <th>右前臂</th>
+            <th>左大腿</th>
+            <th>左小腿</th>
+            <th>右大腿</th>
+            <th>右小腿</th>
+        </tr>
+        @for (int i = 0; i <= GCSList.Count - 1; i++)
+        {
+            List<VitalSignData> vsd = GCSList[i].DataList;
+            string[] record = VitalSignData.getItem(vsd, "gc", VitalSignDataField.Record).ToString().Split('|');
+            string strE = "", strV = "", strM = "", strLR = "";
+            if (record.Length > 1)
+            {
+                if (record[0] != "")
+                { strE = record[0].Substring(1, 1); }
+                if (record[1] != "")
+                { strV = record[1].Substring(1, 1); }
+                if (record[2] != "")
+                { strM = record[2].Substring(1, 1); }
+                if (record[4] != "")
+                { strLR = record[4]; }
+                if (record[3] != "")
+                { strLR += record[3]; }
+                if (record[6] != "")
+                { strLR += " / " + record[6]; }
+                if (record[5] != "")
+                { strLR += record[5]; }
+            }
+        <tr>
+            <td align="center">
+                @vsd[0].modify_date
+            </td>
+            <td align="center">
+                @Html.Raw(strE)
+                &nbsp;
+            </td>
+            <td align="center">
+                @Html.Raw(strV)
+                &nbsp;
+            </td>
+            <td align="center">
+                @Html.Raw(strM)
+                &nbsp;
+            </td>
+            <td align="center">
+                @Html.Raw(strLR)
+                &nbsp;
+            </td>
+                @{ 
+            string[] ms = VitalSignData.getItem(vsd, "ms", VitalSignDataField.Record).Split('|');
+            if (ms.Length == 1)
+            {
+                ms = new string[] { "", "", "", "", "", "", "", "" };
+            }
+                }
+            <td align="center">
+                <!-- 左上臂 -->
+                @Html.Raw(ms[0])
+            </td>
+            <td align="center">
+                <!-- 左前臂 -->
+                @Html.Raw(ms[2])
+            </td>
+            <td align="center">
+                <!-- 右上臂 -->
+                @Html.Raw(ms[1])
+            </td>
+            <td align="center">
+                <!-- 右前臂 -->
+                @Html.Raw(ms[3])
+            </td>
+            <td align="center">
+                <!-- 左大腿 -->
+                @Html.Raw(ms[4])
+            </td>
+            <td align="center">
+                <!-- 左小腿 -->
+                @Html.Raw(ms[6])
+            </td>
+            <td align="center">
+                <!-- 右大腿 -->
+                @Html.Raw(ms[5])
+            </td>
+            <td align="center">
+                <!-- 右小腿 -->
+                @Html.Raw(ms[7])
+            </td>
+        </tr>
+        }
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "gcs")
+    {
+    @Html.Raw("目前無資料")
+    }
+    
+    if (ViewBag.io_data != null && ViewBag.io_data.Rows.Count > 0)
+    {
+        //輸入/輸出
+        DataTable dt_io = ViewBag.io_data;
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th style="width:20%;">時間</th> 
+            <th>項目</th> 
+            <th>輸入/出</th> 
+            <th>容量/次數</th> 
+            <th>單位</th> 
+        </tr>
+        @foreach (DataRow r in dt_io.Rows)
+        {
+        <tr>
+            <td>@Convert.ToDateTime(r["CREATTIME"]).ToString("yyyy/MM/dd HH:mm")</td>
+            <td>
+                @if (r["TYPEID"].ToString() == "9")
+                {
+                    string name = r["P_NAME"].ToString();
+                    if (r["NAME"].ToString() == "" && r["ITEMID"].ToString() != "")
+                    { name = ViewBag.tube_name(r["ITEMID"].ToString()); }
+                    @:@name
+                }
+                else
+                {
+                @r["P_NAME"] @r["NAME"]
+                }
+                @if (r["COLORID"].ToString() != "-1" && r["COLORID"].ToString() != "")
+                {
+                    @: 顏色:@r["COLORNAME"].ToString().Replace("其他", "")  @r["COLOROTHER"]
+                }
+                @if (r["TASTEID"].ToString() != "-1" && r["TASTEID"].ToString() != "")
+                {
+                    @: 氣味:@r["TASTENAME"].ToString().Replace("其他", "")  @r["TASTEOTHER"]
+                }
+                @if (r["NATUREID"].ToString() != "-1" && r["NATUREID"].ToString() != "")
+                {
+                    @: 性質:@r["NATURENAME"].ToString().Replace("其他", "")  @r["NATUREOTHER"]
+                }
+            </td>
+            <td>
+                @if (r["P_GROUP"].ToString() == "outputtype")
+                {
+                   @:[輸出]
+                }
+                else
+                {
+                   @:[輸入]
+                }
+            </td>
+            <td>
+                @if (r["AMOUNT"].ToString() == "" && r["REASON"].ToString() != "")
+                {
+                    @:Loss
+                }
+                else
+                {
+                    @:@r["AMOUNT"].ToString()
+                }
+            </td>
+            <td>
+                @if (r["AMOUNT_UNIT"].ToString() == "1")
+                {
+                @:mL
+                }
+                else
+                {
+                @:次
+                }
+            </td>
+        </tr>
+        }
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "io")
+    {
+        @Html.Raw("目前無資料")
+    }
+
+    if (ViewData["tube"] != null && ((List<List<string>>)ViewData["tube"]).Count > 0) 
+    {
+        //管路
+        List<List<string>> tube = (List<List<string>>)ViewData["tube"];
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th>種類</th>
+            <th>材料</th>
+            <th>型號</th>
+            <th>長度</th>
+            <th>插管日期</th>
+            <th>預計拔管日</th>
+        </tr>
+        @for (int v = 0; v <= tube.Count - 1; v++)
+        {
+        <tr>
+            @for (int u = 0; u < 6; u++)
+            {
+            <td>@Html.Raw(tube[v][u])</td>
+            }
+        </tr>
+        }
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "tube")
+    {
+    @Html.Raw("目前無資料")
+    }
+
+    if (ViewData["assess"] != null && ((List<List<string>>)ViewData["assess"]).Count > 0) 
+    {
+        //評估結果
+        List<List<string>> assess = (List<List<string>>)ViewData["assess"];
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th>評估時間</th>
+            <th>評估項目</th>
+            <th>結果</th>
+        </tr>
+        @for (int v = 0; v <= assess.Count - 1; v++)
+        {
+        <tr>
+            @for (int u = 0; u < 3; u++)
+            {
+            <td>@Html.Raw(assess[v][u])</td>
+            }
+        </tr>
+        }
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "assess")
+    {
+    @Html.Raw("目前無資料")
+    }
+
+    if (ViewData["lab"] != null && ((List<Lab>)ViewData["lab"]).Count > 0) 
+    {
+        //檢驗
+        List<Lab> lablist = (List<Lab>)ViewData["lab"];
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th>開單日期</th>
+            <th>檢驗日期</th>               
+            <th>組別</th>
+            <th>檢體</th>
+            <th>項目</th>
+            <th>狀態</th>
+            <th>備註</th>
+        </tr>
+        @for (int l = 0; l <= lablist.Count - 1; l++)
+        {
+        <tr>
+            <td>
+                @if (@Convert.ToDateTime(@lablist[l].OrderDate) != DateTime.MinValue)
+                {
+                @lablist[l].OrderDate.ToString("yyyy/MM/dd HH:mm")
+                }
+            </td>
+            <td>
+                @if (@Convert.ToDateTime(@lablist[l].LabDate) != DateTime.MinValue)
+                {
+                @lablist[l].LabDate.ToString("yyyy/MM/dd HH:mm")
+                }
+            </td>
+            <td>@lablist[l].Group.ToString().Trim()</td>
+            <td>@lablist[l].Specimen.ToString().Trim()</td>
+            <td>@lablist[l].LabName.ToString().Trim()</td>
+            <td><a href="@lablist[l].lab_page.ToString().Trim()" target="_blank">網址</a></td>
+            <td>
+                 <textarea name="lab_@lablist[l].LabNo" cols="50" rows="3" class="edit" style="width:97%" border="0"></textarea>
+            </td>
+        </tr>
+        }
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "lab")
+    {
+    @Html.Raw("目前無資料")
+    }
+
+    if (ViewData["exam"] != null && ((List<Exam>)ViewData["exam"]).Count > 0) 
+    {
+        //檢查
+        List<Exam> examlist = (List<Exam>)ViewData["exam"];
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th>開單日期</th>
+            <th style="width:20%">執行日期</th>
+            <th style="width:25%">檢查項目</th>
+            <th>檢查結果</th>
+            <th>備 註</th>
+        </tr>
+        @for (int e = 0; e <= examlist.Count - 1; e++)
+        {
+        <tr>
+            <td>
+                @if (@Convert.ToDateTime(@examlist[e].OrderDate) != DateTime.MinValue)
+                {
+                @examlist[e].OrderDate.ToString("yyyy/MM/dd HH:mm")
+                }
+            </td>
+            <td>
+                @if (@Convert.ToDateTime(@examlist[e].ExamDate) != DateTime.MinValue)
+                {
+                @examlist[e].ExamDate.ToString("yyyy/MM/dd HH:mm")
+                }
+            </td>
+            <td style="text-align:center">@examlist[e].ExamName.ToString().Trim()</td>
+            <td>@examlist[e].ExamReport</td>
+            <td>            
+                <textarea name="exam_@examlist[e].ExamNo" cols="50" rows="3" class="edit" style="width:97%" border="0"></textarea>
+            </td>
+        </tr>
+        }
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "exam")
+    {
+    @Html.Raw("目前無資料")
+    }
+    
+    if (ViewData["call"] != null && ((List<Consultation>)ViewData["call"]).Count > 0) 
+    {
+        //會診
+        List<Consultation> ConsultationList = (List<Consultation>)ViewData["call"];
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th style="width:15%">開單日期</th>
+            <th style="width:15%">會診醫師</th>
+			<th style="width:15%">會診科別</th>
+            <th style="width:40%">會診結果</th>
+            <th style="width:15%">備註</th>
+        </tr>    
+        @for (int e = 0; e < ConsultationList.Count; e++)
+        {              
+        <tr>
+			<td style="width: 15%">@ConsultationList[e].OrderDate.ToString("yyyy/MM/dd HH:mm")</td>
+			<td style="width: 15%">@ConsultationList[e].ConsDoc.ToString().Trim()</td>
+			<td style="width: 15%">@ConsultationList[e].ConsDept.ToString().Trim()</td>
+			<td style="width: 40%">@ConsultationList[e].ConsContent.ToString().Trim()</td>
+            <td style="width: 15%">
+                <textarea name="call_@(ConsultationList[e].OrderNo)" cols="50" rows="3" style="width:97%;height:100%" border="0"></textarea>
+            </td>
+        </tr>
+        }
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "call")
+    {
+    @Html.Raw("目前無資料")
+    }
+
+    if (ViewData["blood"] != null && ((List<BloodInfo>)ViewData["blood"]).Count > 0) 
+    {
+        //血庫
+        List<BloodInfo> blood = (List<BloodInfo>)ViewData["blood"];
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th>備血日期</th>
+            <th>血品名</th>
+            <th>備血量</th>
+            <th>餘血量</th>
+            <th>單位</th>
+              <th style="width:15%">備註</th>
+        </tr>
+        @for (int e = 0; e <= blood.Count - 1; e++)
+        {
+        <tr>
+            <td>@blood[e].Prepare_Date.ToString()</td>
+            <td>@blood[e].Code_Desc.ToString()</td>
+            <td>@blood[e].Ttl_Gty.ToString()</td>
+            <td>@blood[e].Unrece_Gty.ToString()</td>
+            <td></td>
+              <td>
+                            <textarea name="blood_@blood[e].Blood_NO" cols="50" rows="3" class="edit" style="width:97%" border="0"></textarea>
+             </td>
+        </tr>
+        }
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "blood")
+    {
+    @Html.Raw("目前無資料")
+    }
+
+    if (ViewData["op"] != null && ((List<Surgery>)ViewData["op"]).Count > 0) 
+    {
+        //手術
+        List<Surgery> SurgeryList = (List<Surgery>)ViewData["op"];
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th style="width:20%">手術日期</th>
+            <th style="width:40%">手術內容</th>
+            <th style="width:40%">備註</th>
+        </tr>
+        @for (int e = 0; e <= SurgeryList.Count - 1; e++)
+        {
+        <tr>
+            <td style="width:20%">@SurgeryList[e].SurgeryDate.ToString("yyyy/MM/dd")</td>
+            <td style="width:40%; text-align:left;">@SurgeryList[e].SurgeryContent.ToString().Trim()</td>
+            <td style="width:40%;">
+                <textarea name="oper_"@(SurgeryList[e].SurgeryNo.ToString()) cols="10" rows="9" class="edit"></textarea>
+            </td>
+        </tr>
+        }
+    </table >
+    }
+    else if (ViewData["flag"].ToString() == "op")
+    {
+    @Html.Raw("目前無資料")
+    }
+
+    if (ViewBag.nur != null && ViewBag.nur.Rows.Count > 0)
+    {
+        //護理問題
+        DataTable dt = ViewBag.nur;
+    <table border="0" cellpadding="4" cellspacing="1" width="100%">
+        <tr>
+            <th style="width:30%;">開始日期</th>
+            <th style="width:70%;">現有護理問題名稱</th>
+        </tr>
+        @foreach (DataRow r in dt.Rows)
+        {
+        <tr>
+            <td>
+                @Convert.ToDateTime(r["PLANSTARTDATE"]).ToString("yyyy/MM/dd HH:mm")
+            </td>
+            <td>
+                @r["TOPICDESC"]
+            </td>
+        </tr>
+        }
+    </table>
+    }
+    else if (ViewData["flag"].ToString() == "nur")
+    {
+    @Html.Raw("目前無資料")
+    }
+    }
+</div>

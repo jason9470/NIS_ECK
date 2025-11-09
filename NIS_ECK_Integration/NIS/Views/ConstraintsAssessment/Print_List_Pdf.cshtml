@@ -1,0 +1,378 @@
+﻿@{   
+    Layout = "~/Views/Layout/FormLayout.cshtml";  
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+}
+<style type="text/css">
+    .dataArea {
+        /*overflow-x: auto;
+        overflow-y: auto;*/   
+        border-top: 2px solid #666;
+        border-bottom: 2px solid #666;
+        border-left: 1px solid rgba(20%,20%,40%,0.5);
+    }
+       .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        white-space: pre-line;
+    }
+    .popup {
+    width:auto;
+    height:auto;
+    position:absolute;
+    background-color:#EFEFFF;
+    padding: 10px 15px 10px 15px;
+    border: 1px solid #999999;
+    box-shadow: 5px 5px 5px #666;
+    border-radius:15px 15px 15px 15px;
+    top:50%;
+    left:50%;
+    margin:-200px 0 0 -200px; /* [-(height/2)px 0 0 -(width/2)px] */
+    display:none;
+    z-index:99;
+  }
+  .pdf_list td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: center;
+        white-space: pre-line;
+    }
+      polygon.scald {
+        fill: red;
+        stroke: none; /* Replace with none if you like */
+        stroke-width: 4;
+        cursor: pointer;
+        opacity: 0.33;
+    }
+    polygon.pressure {
+        fill: blue;
+        stroke: none; /* Replace with none if you like */
+        stroke-width: 4;
+        cursor: pointer;
+        opacity: 0.33;
+    }
+    polygon.other {
+        fill: #9aff9d;
+        stroke: none; /* Replace with none if you like */
+        stroke-width: 4;
+        cursor: pointer;
+        opacity: 0.50;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        $('#start_date').datetimepicker({ showTimepicker: false, maxDateTime: 0});
+        $('#end_date').datetimepicker({ showTimepicker: false, maxDateTime: 0});
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.pdf_list tr:odd').css('background', '#ABC8E2');
+        $('.pdf_list tr:even').css('background', '#E1E6FA');
+    }
+    var newindex = 0;
+
+    //檢查資料是否有空白
+    function checkitemdata() {
+        var msg = "";
+        $("#item_body").find("tr").each(function () {
+            var text = Trim($(this).find("input[name=p_name]").val());
+            var value = Trim($(this).find("input[name=p_value]").val());
+            if (text == "" || value == "") {
+                msg += "編號" + $(this).attr("editid");
+                if (text == "")
+                    msg += "【顯示文字】";
+                if (value == "")
+                    msg += "【值】";
+                msg += "不可為空白\n";
+            }
+        });
+        return msg;
+    }
+    function check(num) {
+        if (num == 0)
+            return true;
+        else {
+            alert("已有評估 不可刪除");
+            return false;
+        }
+    }
+    function doing(id,bindid,saveid) {
+        $("#but").val(id);
+        if(bindid != null && bindid != "")
+        {
+            $("#bindid").val(bindid);
+            $("#saveid").val(saveid);
+        }
+        //delend刪除結束註記
+        //del刪除
+        //delFeq刪除評估記錄
+        return true;
+    }
+    //彈出div
+    function showPopup(id) {
+        // $('#'+ id).css("display", "inline");
+        var popup = document.getElementById(id);
+        popup.style.display = 'block';
+        // alert(id);
+
+    }
+    function addn(obj) {
+        document.getElementById('rowid').innerText = $(obj).attr('rowid');
+        document.getElementById('startdt').innerText = $(obj).attr('startdt');
+        //document.getElementById('status').innerText = $(obj).attr('wound_type'); 
+        //document.getElementById('wound_id').innerText = $(obj).attr('wound_id');
+    }
+    function going() {
+        rowid=$("#rowid").val();
+        startdt=$("#startdt").val();
+        feq=$("#select_feq").val();
+      //  alert(feq);
+        var goUrl = 'AssessNew?id='+rowid+'&start='+startdt+'&feq='+feq;
+        //if (id != '')
+        //{
+        //    goUrl+='?id='+id
+        //}        
+        window.location.href=goUrl;
+      //  $(".tabContent").load(goUrl).fadeIn(500);
+    }
+</script>
+@using System.Data;
+@{  
+    DataTable dt_a = ViewBag.dt_a;   
+    DataTable dt = ViewBag.dt;
+    DataTable dt_s = ViewBag.dt_s;
+    string bind_id = ViewBag.BINDTABLE_id;
+    string feq = ViewBag.feq;
+    string list = ViewBag.list;
+    var i = 0;
+    string lastStartDt = ViewBag.lastStartDt;
+    string feqdt = ViewBag.feqdt;
+    if (feqdt == null || feqdt =="")
+    { feqdt = DateTime.Now.ToString(); }
+    string val = "";
+    string lastmodid = ViewBag.lastmodid;
+    string lastmodname = ViewBag.lastmodname;    
+     <script type="text/javascript">              
+         $(document).ready(
+        function () {
+            $("#frequency").children().each(function () {                
+                if ($(this).text() == "@feq"+"分鐘") {                     
+                    //jQuery給法              
+                    $(this).attr("selected", "true"); //或是給"selected"也可
+                }
+            });}
+        );
+     </script>    
+ 
+}
+<div class="funcArea">
+<form id="form1" method="post" action="ListNew"> 
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+    <tr>
+            <td>
+                <table border="0" style="width:100%;">
+                    <tr>
+                        <td>病人姓名：@ptinof.PatientName</td>
+                        @if(ptinof.Birthday != null)
+                        {
+                        <td>生日：@Convert.ToDateTime(ptinof.Birthday).ToString("yyyy/MM/dd")</td>
+                        }
+                        else
+                        {
+                        <td>生日：</td>
+                        }
+                        <td>年齡：@ptinof.Age</td>
+                        <td>病床號：@ptinof.BedNo</td>
+                        <td>病歷號：@ptinof.ChartNo</td>
+                    </tr>
+                    <tr>
+                        <td>科別：@ptinof.DeptName</td>
+                        <td>主治醫師：@ptinof.DocName</td>
+                        @if (ptinof.InDate != null)
+                        {
+                        <td>住院日期：@Convert.ToDateTime(ptinof.InDate).ToString("yyyy/MM/dd HH:mm") (@ptinof.InDay)</td>
+                        }
+                        else
+                        {
+                        <td>住院日期：</td>
+                        }
+                        <td>性別：@ptinof.PatientGender</td>
+                        <td>診斷：@ptinof.ICD9_code1</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    
+    <tr>
+        <td align="center" style="padding:5px 0 5px 0;">            
+            <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tr>
+                <td>
+                    <div class="dataHeader"  style="margin-right:0px;">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+                            <tr>                           
+                                <td style="width: 20%;">次數</td>
+                                <td style="width: 40%;">開始日期</td>
+                                <td style="width: 40%;">結束日期</td>
+                               
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="pdf_list" >
+                      <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;align-content:center;">
+                              @if (dt_a != null && dt_a.Rows.Count > 0)
+                              {
+                                  for (int n = 0; n < dt_a.Rows.Count - 1; n++)
+                                  {
+                                      DataRow r = dt_a.Rows[n];
+                                         <tr>                              
+                                            <td style="width: 20%;align-content:center;">
+                                                @r["BOUT"]
+                                            </td>
+                                            <td style="width: 40%;align-content:center;">
+                                             @r["STARTDT"]
+                                            </td>
+                                            <td style="width: 40%;align-content:center;">
+                                                @r["ENDDT"]
+                                            </td>
+                                             @*<td style="width: 10%; text-align: center;">
+                                               <input type="button" value="刪除" onclick="confirm('確定刪除?');" />
+                                                <input id="del" type="button" value="刪除"  style="display: none;"/>
+                                            </td>*@
+                                        </tr>
+                                      i++;
+                                  }
+                                  {
+                                      DataRow r = dt_a.Rows[dt_a.Rows.Count - 1];
+                                         <tr>                              
+                                            <td style="width: 20%;align-content:center;">
+                                                @r["BOUT"]
+                                            </td>
+                                            <td style="width: 40%;align-content:center;">
+                                               @r["STARTDT"]
+                                            </td>
+                                            <td style="width: 40%;align-content:center;">
+                                                @r["ENDDT"]
+                                            </td>
+                                            
+                                        </tr>
+                                              i++;
+                                  }
+                              }                              
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:5px 0 5px 0;">
+            <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="box" style="width:100%;font-size:12px;">
+          
+           <tr>
+                <td>
+                    <div class="dataHeader"  style="margin-right:0px;">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+                            <tr>
+                            
+                                <td style="width:10%;">評估日期</td>
+                                <td style="width:6%;">約束原因</td>
+                                <td style="width:6%;">意識程度</td>
+                                <td style="width:10%;">病人反應</td>
+                                <td style="width:10%;">約束部位</td>
+                                <td style="width:17%;">約束用具</td>
+                                <td style="width:10px;">循環</td>
+                                <td style="width:5%;">短暫解除<br />約束時間</td>
+                                <td style="width:10%;">解除<br />約束活動</td>
+                                <td style="width:7%;">約束傷害</td>
+                                <td style="width:5%;">狀況說明</td>
+                                <td style="width:7%;">紀錄者</td>
+                          </tr>
+                        </table>
+                    </div>
+                    <div class="pdf_list">
+                        <table border="0" cellpadding="4" cellspacing="1"   style="width:100%;font-size:14px;vertical-align:middle; background-color: #FFFFFF;">
+                            @if (dt != null && dt.Rows.Count > 0)
+                            {
+                                foreach (DataRow r in dt.Rows)
+                                {
+                                    string[] other = { "", "", "", "", "", "", "", "" };
+                                    if (@r["OTHER"].ToString().Trim() != null && @r["OTHER"].ToString().Trim() != "")
+                                    {
+                                        other = @r["OTHER"].ToString().Split(',');
+                                    }
+                                <tr style="text-align: center;">                                                                   
+                          
+                                    <td style="width:10%;">@r["ASSESSDT"]</td>
+                                    <td style="width:6%;">@r["REASON"]
+                                      @if (other[0] != "")
+                                      {<a>:@other[0]</a>}                       
+                                    </td>
+                                    <td style="width:6%;">@r["CONSCIOUS"]
+                                    @if (other[1] != "")
+                                    {<a>:@other[1]</a>}
+                                    </td>
+                                    <td style="width:10%;">@r["REACTION"]
+                                    @if (other[2] != "")
+                                    {<a>:@other[2]</a>}
+                                    </td>
+                                    <td style="width:10%;">@r["POSITION"]
+                                    @if (other[3] != "")
+                                    {<a>:@other[3]</a>}
+                                    </td>
+                                    <td style="width:17%;">@r["TOOL"]
+                                    @if (other[4] != "")
+                                    {<a>:@other[4]</a>}
+                                    </td>
+                                    <td style="width:10px;">@r["CYCLE"]
+                                    @if (other[5] != "")
+                                    {<a>:@other[5]</a>}
+                                    </td>
+                                    <td style="width:5%;">
+                                        @r["PAUSE"]
+                                        @if (@r["PAUSE"].ToString().Trim() != null && @r["PAUSE"].ToString().Trim() != "")
+                                        {<a>分</a>}
+                                    </td>
+                                    <td style="width:10%;">@r["ENDING"]
+                                    @if (other[6] != "")
+                                    {<a>:@other[6]</a>}
+                                    </td>
+                                    <td style="width:7%;">@r["HARM"]
+                                    @if (other[7] != "")
+                                    {<a>:@other[7]</a>}
+                                    </td>
+                                    <td style="width:5%;">
+                                     @if (@r["EXPLAIN"].ToString().Trim()== "")
+                                     {<a>-</a>}
+                                     else
+                                     {@r["EXPLAIN"]}                                   
+                                    </td>
+                                    <td style="width:7%;">
+                                          @if (@r["MODNAME"].ToString().Trim() != null && @r["MODNAME"].ToString().Trim() != "")
+                                        {
+                                            @r["MODNAME"]
+                                        }
+                                        else
+                                        {
+                                        @r["INSNAME"]
+                                        }
+
+                                    </td>
+                                </tr>
+                                    i++;
+                                }
+                            }
+                        </table>
+                    </div>
+                </td>
+            </tr>               
+
+                
+
+            </table>
+        </td>
+    </tr>
+</table> 
+</form>
+    </div>

@@ -1,0 +1,346 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .ui-tabs .ui-tabs-nav li a {
+        font-size: 16px;
+        padding: 3px 5px 3px 5px;
+    }
+
+    .ui-tabs {
+        font-size: 16px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        //自動調整頁面高度   //分頁選項高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $("#unfilled").outerHeight(height - 115);
+            $(".tabArea").outerHeight(height - 115);
+            $(".tab").outerHeight($(".tabArea").outerHeight() - 100);
+        }).trigger("resize");
+
+        $(".tabArea").tabs({ active: 0 });
+
+        // inital tooltip
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+
+        var activePage = 0;
+        var tabCount = 0;
+        if ($(".tabArea").length > 0) {
+            $(".tab_control").click(function () {
+                activePage = $(".tabArea").tabs("option", "active");
+                tabCount = $(".tabArea").find("li").length - 1;
+                switch ($(this).attr("control_code")) {
+                    case "page_up":
+                        window.scrollTo(0, 0);
+                        if (activePage > 0)
+                            $(".tabArea").tabs("option", "active", activePage - 1);
+                        break;
+                    case "page_down":
+                        window.scrollTo(0, 0);
+                        if (activePage < tabCount)
+                            $(".tabArea").tabs("option", "active", activePage + 1);
+                        break;
+                    case "back":
+                        window.location.href = 'AssessmentList?natype=Z';
+                        break;
+                }
+            }).prop("disabled", false);
+        }
+    });
+
+    //驗證欄位_數字
+    function numcheck(id, time) {
+        if (time.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(time.value) && time.value != "") {
+            alert("只能輸入數字");
+            document.getElementById(id).value = "";
+            return false;
+        }
+        else
+            return true;
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue != '') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+            }
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = document.getElementsByName(ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+    function set_for_txt(txt_name, dvalue) {
+        if (dvalue != '') {
+            var default_val = dvalue.split(",");
+            var txt = document.getElementsByName(txt_name);
+            if (txt.length > 1) {
+                for (var i = 0; i < txt.length; i++) {
+                    $(txt[i]).val(default_val[i]);
+                }
+            }
+            else
+                $(txt[0]).val(dvalue);
+        }
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0 ; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    function check() {
+        var success = true;
+        var tr_list = $('p[must=Y]:visible');
+        for (var i = 0; i < tr_list.length; i++) {
+            var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                for (var j = 0; j < input_list.length; j++) {
+                    if (input_list[j].type == 'text' || input_list[j].type == 'textarea')
+                        var input_val = $.trim(input_list[j].value);
+                    else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox')
+                        var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+
+                    if (input_val == undefined || input_val == '') {
+                        success = false;
+                        if ($(tr_list[i]).find('.subtitle').html() != undefined)
+                            alert($(tr_list[i]).find('.subtitle').html() + ' 未填寫!');
+                        else
+                            alert($('p[fid=' + $(tr_list[i]).attr('fid') + ']').find('.subtitle').html() + ' 未填寫!');
+                        $(input_list[j]).focus();
+                        i = tr_list.length;
+                        j = input_list.length;
+                    }
+                }
+            }
+        }
+        if (success) {
+            save();
+        }
+    }
+
+    function save() {
+        var all_id = "";
+        var all_type = "";
+        var all_id_list = $('input, textarea');
+        for (var i = 0; i < all_id_list.length; i++) {
+            if (all_id.indexOf($(all_id_list[i]).attr('name') + ',') == -1) {
+                all_id += $(all_id_list[i]).attr('name') + ",";
+                if ($(all_id_list[i]).attr('type') != undefined)
+                    all_type += $(all_id_list[i]).attr('type') + ",";
+                else
+                    all_type += "textarea,";
+            }
+        }
+        $('#na_all_id').val(all_id.substring(0, all_id.length - 1));
+        $('#na_all_type').val(all_type.substring(0, all_type.length - 1));
+        $('input[type=text], textarea').each(function () { $(this).val($(this).val().replace(/,/g, "|")); });
+        $("form[name=na_form]").submit();
+    }
+
+    function set_disabled() {
+        $("#block,#loading").show();
+        alert('資料儲存中，請稍候!');
+    }
+
+    function set_abled() {
+        $("#block,#loading").hide();
+        alert('資料尚未填寫完成，請補填!');
+    }
+
+</script>
+
+@using System.Data;
+@{ 
+    DataTable dt = ViewBag.dt;
+}
+
+<form name="na_form" method="post" action="SaveAssessment">
+    @* 20140112 增加身評隱藏欄位 *@
+    <input type="hidden" id="R1TXT" name="R1TXT" />
+    <input type="hidden" id="rb1" name="rb1" />
+    <input type="hidden" id="rb2" name="rb2" />
+    <input type="hidden" id="rb3" name="rb3" />
+    <input type="hidden" id="rb4" name="rb4" />
+    <input type="hidden" id="rb5" name="rb5" />
+    <input type="hidden" id="rb6" name="rb6" />
+    @* 20140112 增加身評隱藏欄位 *@
+
+    <input type="hidden" name="na_type" value="Z" />
+    <input type="hidden" id="tableid" name="tableid" value="" />
+    <input type="hidden" id="na_all_id" name="na_all_id" value="" />
+    <input type="hidden" id="na_all_type" name="na_all_type" value="" />
+    <input type="hidden" id="maode" name="maode" value="insert" />
+
+    <input type="button" class="btn_save" value="儲存" onclick="check();" />
+    <input type="button" value="暫存" onclick="if ($('#maode').val() == 'insert') { $('#tableid').val(''); } $('#maode').val('temporary'); save();" />
+    <input type="button" class="tab_control" control_code="back" value="返回" />
+
+    <div class="tabArea" style="margin-bottom:5px;">
+        <ul>
+            <li><a href="#tabs-1">出院準備評估</a></li>
+        </ul>
+        <!-- 基本資料 -->
+        <div id="tabs-1" class="tab">
+            <p must="Y">
+                <span style="color:red">＊</span><label class = "subtitle">評估日期</label>
+                @Html.TextBox("param_tube_date", DateTime.Now.ToString("yyyy/MM/dd"))
+                @Html.TextBox("param_tube_time", DateTime.Now.ToString("HH:mm"))
+                @*@WebTool.setDateTime("param_tube_date", "param_tube_time")*@
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "param_tube_date", "param_tube_time", false)
+            </p>
+            <p>
+                <label class = "subtitle">出院方式</label>
+                @VitalSign_Helper.assess_radio("so_Type", "允許出院|自動出院|轉院|死亡", "", "")
+            </p>
+            <p must="Y">
+                <span style="color:red">＊</span><label class = "subtitle">患者情況病識感</label>
+                @VitalSign_Helper.assess_radio("so_Awareness", "無|部分|有", "", "")
+            </p>
+            <p>
+                <label class = "subtitle">病情</label>
+                @VitalSign_Helper.assess_radio("so_Condition", "穩定|不穩定", "", "")
+            </p>
+            <p must="Y">
+				<span style="color:red">＊</span><label class = "subtitle">照顧特質</label>
+				@VitalSign_Helper.assess_radio("so_CPDCare", "病人有自我照顧的知識技能|病人無自我照顧的知識技能，但家屬有|缺乏照護知識與技能，但能尋求資源|缺乏照護知識與技能，且主動尋求資源困難", "", "")
+            </p>
+            <p must="Y">
+				<span style="color:red">＊</span><label class = "subtitle">照顧資源</label>
+				@VitalSign_Helper.assess_radio("so_CPDResouce", "父母同住|夫妻同住|子女同住|子女輪住|獨自居住|養護機構|其他", "其他", "span_so_CPDResouce_Other")
+                <span class="span_so_CPDResouce_Other" style="display:none;">
+                    ，@Html.TextBox("so_CPDResouce_Other", "", new { style = "width:150px;" })
+                </span>
+            </p>
+            <p must="Y">
+				<span style="color:red">＊</span><label class = "subtitle">特殊照護</label>
+                @VitalSign_Helper.assess_radio("so_CPDSpecial", "無|有", "有", "span_so_CPDSpecial_Other")
+                <span class="span_so_CPDSpecial_Other" style="display:none;">
+                    ，@Html.TextBox("so_CPDSpecial_Other", "", new { style = "width:150px;" })
+                </span>
+            </p>
+            <p must="Y">
+				<span style="color:red">＊</span><label class = "subtitle">衛教指導</label>
+                @VitalSign_Helper.assess_checkbox("so_Education", "藥物指導|情緒處理|幻覺處理|失眠處理|家屬衛教|社會資源", "", "")
+            </p>
+            <p>
+				<label class = "subtitle">給予並說明</label>
+                @VitalSign_Helper.assess_checkbox("so_Explanation", "約診單|診斷說明|下次門診時間", "", "")
+            </p>
+            <p>
+				<label class = "subtitle">評值結果</label>
+                @VitalSign_Helper.assess_radio("so_Result", "須通報轉介社區健康服務中心|不需轉報", "", "")
+            </p>
+        </div>
+    </div>
+
+    <input type="button" class="btn_save" value="儲存" onclick="check();" />
+    <input type="button" value="暫存" onclick="if ($('#maode').val() == 'insert') { $('#tableid').val(''); } $('#maode').val('temporary'); save();" />
+    <input type="button" class="tab_control" control_code="back" value="返回" />
+</form>
+
+<script type="text/javascript">
+    @if (dt != null && dt.Rows.Count > 0)
+    {
+        @:$('#maode').val('@ViewBag.mode');
+        @:$('#tableid').val('@dt.Rows[0]["TABLEID"]');
+        foreach (DataRow r in dt.Rows)
+        {
+            if (r["ITEMTYPE"].ToString() == "radio")
+            {
+                @:set_for_rb('@r["ITEMID"]', '@r["ITEMVALUE"]');
+            }
+            else if (r["ITEMTYPE"].ToString() == "checkbox")
+            {
+                @:set_for_ck('@r["ITEMID"]', '@r["ITEMVALUE"]');
+            }
+            else if (r["ITEMTYPE"].ToString() == "text" || r["ITEMTYPE"].ToString() == "textarea")
+            {
+                @:$('#@r["ITEMID"]').val('@r["ITEMVALUE"].ToString()');
+            }
+        }
+        @:$('input[type=text], textarea').each(function () { $(this).val($(this).val().replace(/\|/g, ',')); });
+     }
+</script>
+
+<style type="text/css">
+        #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

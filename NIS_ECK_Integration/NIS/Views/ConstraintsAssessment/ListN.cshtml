@@ -1,0 +1,373 @@
+﻿@{
+    //Layout = "~/Views/Layout/Main.cshtml";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string loginempno = ViewBag.login;
+}
+<style type="text/css">
+    .dataArea {
+        /*overflow-x: auto;
+        overflow-y: auto;*/   
+        border-top: 2px solid #666;
+        border-bottom: 2px solid #666;
+        border-left: 1px solid rgba(20%,20%,40%,0.5);
+    }
+       .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        white-space: pre-line;
+    }
+    .popup {
+    width:auto;
+    height:auto;
+    position:absolute;
+    background-color:#EFEFFF;
+    padding: 10px 15px 10px 15px;
+    border: 1px solid #999999;
+    box-shadow: 5px 5px 5px #666;
+    border-radius:15px 15px 15px 15px;
+    top:50%;
+    left:50%;
+    margin:-250px 0 0 -200px; /* [-(height/2)px 0 0 -(width/2)px] */
+    display:none;
+    z-index:99;
+  }
+</style>
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+        $('#start_date').datetimepicker({ showTimepicker: false, maxDateTime: 0});
+        $('#end_date').datetimepicker({ showTimepicker: false, maxDateTime: 0});
+        setGridColor();
+//        var td = $('.link');
+//        for (var i = 0; i < td.length; i++) {
+//            var color = td[i].parentNode.getAttribute('style').replace('background:', '');
+//            td[i].setAttribute("onmouseover", "this.style.cursor='pointer';this.style.backgroundColor='#9966FF';");
+//            td[i].setAttribute("onmouseout", "this.style.cursor='pointer';this.style.backgroundColor='" + color + "';");
+//            td[i].setAttribute("title", "點擊觀看詳細資料");
+//        }
+//        $("#" + $("#listval").val()).css("display", "inline");
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+    var newindex = 0;
+
+    //檢查資料是否有空白
+    function checkitemdata() {
+        var msg = "";
+        $("#item_body").find("tr").each(function () {
+            var text = Trim($(this).find("input[name=p_name]").val());
+            var value = Trim($(this).find("input[name=p_value]").val());
+            if (text == "" || value == "") {
+                msg += "編號" + $(this).attr("editid");
+                if (text == "")
+                    msg += "【顯示文字】";
+                if (value == "")
+                    msg += "【值】";
+                msg += "不可為空白\n";
+            }
+        });
+        return msg;
+    }
+    function check(num) {
+        if (num == 0)
+            return true;
+        else {
+            alert("已有評估 不可刪除");
+            return false;
+        }
+    }
+    function doing(id,bindid,saveid) {
+        $("#but").val(id);
+        if(bindid != null && bindid != "")
+        {
+            $("#bindid").val(bindid);
+            $("#saveid").val(saveid);
+        }
+        //delend刪除結束註記
+        //del刪除
+        //delFeq刪除評估記錄
+        return true;
+    }
+    //彈出div
+    function showPopup(id) {
+        // $('#'+ id).css("display", "inline");
+        var popup = document.getElementById(id);
+        popup.style.display = 'block';
+        // alert(id);
+
+    }
+    function addn(obj) {
+        document.getElementById('rowid').innerText = $(obj).attr('rowid');
+        document.getElementById('startdt').innerText = $(obj).attr('startdt');
+        //document.getElementById('status').innerText = $(obj).attr('wound_type'); 
+        //document.getElementById('wound_id').innerText = $(obj).attr('wound_id');
+    }
+    function going() {
+        rowid=$("#rowid").val();
+        startdt=$("#startdt").val();
+        feq=$("#select_feq").val();
+      //  alert(feq);
+        var goUrl = 'AssessN?id='+rowid+'&start='+startdt+'&feq='+feq;
+        //if (id != '')
+        //{
+        //    goUrl+='?id='+id
+        //}
+        window.location.href=goUrl;
+      //  $(".tabContent").load(goUrl).fadeIn(500);
+    }
+</script>
+@using System.Data;
+@{  
+    DataTable dt_a = ViewBag.dt_a;
+    DataTable dt = ViewBag.dt;
+    DataTable dt_s = ViewBag.dt_s;
+    string list = ViewBag.list;
+    var i = 0;
+    String val = "";
+ 
+}
+<div class="funcArea">
+<form method="post" action="ListN"> 
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+    <tr>
+        <td style="width:100%;text-align:center;padding:0 0 5px 0;">
+         @*   <input type="button" value="new(測)" onclick="window.location.href='ListNew'" />*@
+          @* <input type="button" value="新增約束(測)" onclick="@Java_funcion.pup_window("InsertDate?ver=start", 400, 450, "")" />*@
+          @*  <input type="button" value="結束約束(測)" onclick="@Java_funcion.pup_window("InsertDate?ver=end&start=" + dt_a.Rows[dt_a.Rows.Count - 1]["STARTDT"] + "&id=" + dt_a.Rows[dt_a.Rows.Count - 1]["ID"], 400, 450, "")" />*@
+                <input id="but" type="hidden"  value="" name="but"/> 
+              <input id="saveid" type="hidden"  value="" name="saveid"/> 
+            <input id="bindid" type="hidden"  value="" name="bindid"/> 
+            @if (dt_a != null && dt_a.Rows.Count > 0)
+            {
+                DataRow r = dt_a.Rows[dt_a.Rows.Count - 1];
+                if (r["ENDDT"].ToString().Trim() != null && r["ENDDT"].ToString().Trim() != "")
+                {
+                <input type="button" value="新增約束" onclick="@Java_funcion.pup_window("InsertDate?ver=start", 400, 400, "")" />}
+                else
+                {                                                                                                                
+                <input type="button" value="結束約束" onclick="@Java_funcion.pup_window("InsertDate?ver=end&start=" + r["STARTDT"] + "&id=" + r["ID"], 400, 400, "")" />
+                @*<input type="button" value="新增評估紀錄" onclick="window.location.href='Assess?id=@r["ID"]&assess=@r["ASSESS"]&start=@r["STARTDT"]&bout=@r["BOUT"]'" />*@
+                 <input type="button" startdt="@r["STARTDT"]" rowid="@r["ID"]"  value="約束時間設定" onclick="addn(this);showPopup('dv_new')"; />
+                }
+
+            }
+            else
+            { 
+                <input type="button" value="新增約束" onclick="@Java_funcion.pup_window("InsertDate?ver=start", 400, 400, "")" />          
+            }           
+           @* <input type="button" value="列印約束評估紀錄表" onclick="window.location.href = 'Print'" />*@
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="padding:5px 0 5px 0;">            
+            <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tr>
+                <td>
+                    <div class="dataHeader">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+                            <tr>                           
+                                <td style="width: 10%;">次數</td>
+                                <td style="width: 40%;">開始日期</td>
+                                <td style="width: 40%;">結束日期</td>
+                                <td style="width: 10%;">刪除</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="dataArea" style="height: 100px;">
+                        <table id="table_io" border="0" cellpadding="4" cellspacing="1"    style="width:100%;font-size:14px;vertical-align:middle;background-color: #FFFFFF;overflow:scroll;">
+                              @if (dt_a != null && dt_a.Rows.Count > 0)
+                              {
+                                  for (int n = 0; n < dt_a.Rows.Count - 1; n++)
+                                  {
+                                      DataRow r = dt_a.Rows[n];
+                                         <tr>                              
+                                            <td style="width: 10%;">
+                                                @r["BOUT"]
+                                            </td>
+                                            <td style="width: 40%;">
+                                             @r["STARTDT"]
+                                            </td>
+                                            <td style="width: 40%;">
+                                                @r["ENDDT"]
+                                            </td>
+                                            <td style="width: 10%; text-align: center;">
+                                                @*<input type="button" value="刪除" onclick="confirm('確定刪除?');" />
+                                                <input id="del" type="button" value="刪除"  style="display: none;"/>*@
+                                            </td>
+                                        </tr>
+                                      i++;
+                                  }
+                                  {
+                                      DataRow r = dt_a.Rows[dt_a.Rows.Count - 1];
+                                         <tr>                              
+                                            <td style="width: 10%;">
+                                                @r["BOUT"]
+                                            </td>
+                                            <td style="width: 40%;">
+                                               @r["STARTDT"]
+                                            </td>
+                                            <td style="width: 40%;">
+                                                @r["ENDDT"]
+                                            </td>
+                                            <td style="width: 10%; text-align: center;">                                           
+                                              @if (@r["ASSESS"].ToString().Trim() != "0")
+                                              {
+                                                  val = "disabled";
+                                              }
+                                              @if (@r["ENDDT"].ToString().Trim() == null || @r["ENDDT"].ToString().Trim() == "")
+                                              {
+                                                <input type="button" value="刪除"   onclick="if(check('@r["ASSESS"]'))if(confirm('確定刪除?'))if(doing('del'))submit();"  "@val" />
+                                              }
+                                              else
+                                              {
+                                               <input type="button" value="刪除結束註記" onclick="if(confirm('確定刪除?'))if(doing('delend'))submit();" />
+                                              }
+                                                 <input type="hidden"  value="@r["ID"]" name="id"/> 
+                                            </td>
+                                        </tr>
+                                              i++;
+                                  }
+                              }                              
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:5px 0 5px 0;">
+            <table border="1" cellpadding="0" cellspacing="0" rules="all" frame="box" style="width:100%;font-size:12px;">
+          
+           <tr>
+                <td>
+                    <div class="dataHeader">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+                            <tr>
+                                <td style="width:8%;"></td>
+                                <td style="width:10%;">評估日期</td>
+                                <td style="width:6%;">約束原因</td>
+                                <td style="width:6%;">意識程度</td>
+                                <td style="width:10%;">病人反應</td>
+                                <td style="width:10%;">約束部位</td>
+                                <td style="width:17%;">約束用具</td>
+                                <td style="width:3%;">循環</td>
+                                <td style="width:5%;">短暫解除<br />約束時間</td>
+                                <td style="width:10%;">解除<br />約束活動</td>
+                                <td style="width:7%;">約束傷害</td>
+                               @* <td style="width:5%;">狀況說明</td>*@
+                                <td style="width:5%;">紀錄者</td>
+                          </tr>
+                        </table>
+                    </div>
+                    <div class="dataArea" style="height: 240px;">
+                        <table border="0" cellpadding="4" cellspacing="1"   style="width:100%;font-size:14px;vertical-align:middle; background-color: #FFFFFF;">
+                            @if (dt != null && dt.Rows.Count > 0)
+                            {
+                                foreach (DataRow r in dt.Rows)
+                                {
+                                    string[] other = { "", "", "", "", "", "", "", "" };
+                                    if (@r["OTHER"].ToString().Trim() != null && @r["OTHER"].ToString().Trim() != "")
+                                    {
+                                        other = @r["OTHER"].ToString().Split(',');
+                                    }
+                                <tr style="text-align: center;">                                                                   
+                                  <td style="width:8%;">
+                                       @if (loginempno.Trim() == @r["INSID"].ToString().Trim())
+                                       {
+                                        <input type="button" value="更改" onclick="window.location.href = 'AssessN?feq=1&bindid=@r["BINDID"]'" /> 
+                                        <input type="button" value="刪除" onclick="if(confirm('確定刪除?'))if(doing('delFeq','@r["BINDID"]','@r["ID"]'))submit();" />
+                                       }
+                                    </td>
+                                    <td style="width:10%;">@r["ASSESSDT"]</td>
+                                    <td style="width:6%;">@r["REASON"]
+                                      @if (other[0] != "")
+                                      {<a>:@other[0]</a>}                       
+                                    </td>
+                                    <td style="width:6%;">@r["CONSCIOUS"]
+                                    @if (other[1] != "")
+                                    {<a>:@other[1]</a>}
+                                    </td>
+                                    <td style="width:10%;">@r["REACTION"]
+                                    @if (other[2] != "")
+                                    {<a>:@other[2]</a>}
+                                    </td>
+                                    <td style="width:10%;">@r["POSITION"]
+                                    @if (other[3] != "")
+                                    {<a>:@other[3]</a>}
+                                    </td>
+                                    <td style="width:17%;">@r["TOOL"]
+                                    @if (other[4] != "")
+                                    {<a>:@other[4]</a>}
+                                    </td>
+                                    <td style="width:3%;">@r["CYCLE"]
+                                    @if (other[5] != "")
+                                    {<a>:@other[5]</a>}
+                                    </td>
+                                    <td style="width:5%;">
+                                        @r["PAUSE"]
+                                        @if (@r["PAUSE"].ToString().Trim() != null && @r["PAUSE"].ToString().Trim() != "")
+                                        {<a>分</a>}
+                                    </td>
+                                    <td style="width:10%;">@r["ENDING"]
+                                    @if (other[6] != "")
+                                    {<a>:@other[6]</a>}
+                                    </td>
+                                    <td style="width:7%;">@r["HARM"]
+                                    @if (other[7] != "")
+                                    {<a>:@other[7]</a>}
+                                    </td>
+                           @*         <td style="width:5%;">
+                                     @if (@r["EXPLAIN"].ToString().Trim()== "")
+                                     {<a>-</a>}
+                                     else
+                                     {@r["EXPLAIN"]}                                   
+                                    </td>*@
+                                    <td style="width:5%;">@r["INSNAME"]</td>
+                                </tr>
+                                    i++;
+                                }
+                            }
+                        </table>
+                    </div>
+                </td>
+            </tr>               
+
+                
+
+            </table>
+        </td>
+    </tr>
+</table>
+    <div id="dv_new" class="popup"  style="width:400px; height:200px; display:none;">
+    <span class="p_close"><img src="~/Images/Close.png" alt="關閉" onclick="$('#dv_new').fadeOut(500);"/></span>
+      <div class="funcArea" style="width:100%;text-align:center;">
+        <table style="width:100%;text-align:center;">        
+               <tr style="width:100%;text-align:center;">
+                  
+                    <td style="height:30px;padding:4px 7px 2px 4px;text-align:center;">     
+                        <br /><br /><br />
+                               <b>評估頻率:</b>      
+                        <select id="select_feq" name="feq">
+                            <option value="15">15分鐘</option>
+                            <option value="30">30分鐘</option>
+                            <option value="60">60分鐘</option>
+                        </select>                  
+                       
+                    </td>
+                </tr>            
+        </table>   
+                         <br />
+               <input type="hidden" name="startdt" id="startdt"  />
+              <input type="hidden" name="rowid" id="rowid"  />
+          <input type="button" value="確定" style="width:80px;" onclick="$('#dv_new').fadeOut(500);going();" />
+   @* window.location.href='AssessN?id=rowid&start=startdt&feq=0';"/>*@
+   @* '&$('#rowid').val() +'&start='&$('#startdt').val()+'&feq='&$('select_feq')+'';"  />*@
+        </div>
+    </div>
+</form>
+    </div>

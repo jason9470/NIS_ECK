@@ -1,0 +1,894 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "轉出照護摘要單";
+    DataTable dt_tube = ViewBag.dt_tube;
+    DataTable dt_wound = ViewBag.dt_wound;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .dataArea td
+    {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define
+    {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+    });
+
+    function setGridColor() {
+        //格行換色
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+        $('.due').css('background', '#FF6666');
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+<div class="funcArea">
+
+
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr>
+            <td align="center" style="padding: 5px 0 5px 0;">
+                <form id="form1" action="Insert" method="post">
+                    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; text-align: left;">
+                        <tr>
+                            <td>
+                                <div id="module_define">@title</div>
+                            </td>
+
+                        </tr>
+                        <tr>
+                            <td style="text-align:center;">
+                                <input type="button" value="存檔" style="width:80px;"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px 0 5px 0;">
+
+                                <div class="dataArea">
+                                    <table style="width: 100%">
+                                        <tr>
+                                            <td class="head" colspan="10"><B>轉出類別</B>
+                                            </td>
+                                        </tr>
+                                        @*<tr>
+                                            <td class="head" style="width: 20%;" colspan="2">病患來源
+                                            </td>
+                                            <td colspan="8" style="width: 80%;">
+                                                <label>
+                                                    <input name="rb_patients_sources" type="radio" />門診</label>
+                                                <label>
+                                                    <input name="rb_patients_sources" type="radio" />急診</label>
+                                                <label>
+                                                    <input name="rb_patients_sources" type="radio" />住院</label>
+                                            </td>
+                                        </tr>*@
+                                        <tr>
+                                            <td class="head" style="width: 20%;" colspan="2">轉出日期
+                                            </td>
+                                            <td colspan="8" style="width: 80%;">
+                                                @Html.TextBox("txt_day", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:140px;", @readonly = "readonly" })
+                                                @Html.TextBox("txt_time", DateTime.Now.ToString("HH:mm"), new { style = "width:80px;", @readonly = "readonly" })
+                                                @*@WebTool.setDateTime("txt_day", "txt_time", "", "", "", "")*@
+                                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", false, "")
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" style="width: 20%;" colspan="2">轉出時最後診斷
+                                            </td>
+                                            <td colspan="8" style="width: 80%;">
+                                                <input type="text" style="width: 200px;" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" style="width: 20%;" colspan="2">轉床狀態
+                                            </td>
+                                            <td colspan="8" style="width: 80%;">
+                                                <label>
+                                                    <input type="radio" name="rb_turn_bed_type" />Expired</label>
+                                                <label>
+                                                    <input type="radio" name="rb_turn_bed_type" />MBD</label>
+                                                <label>
+                                                    <input type="radio" name="rb_turn_bed_type" />AAD</label>
+                                                <label>
+                                                    <input type="radio" name="rb_turn_bed_type" />轉院=>轉往醫院:
+                   <input type="text" /></label>
+                                               <br /><label>
+                                                    <input type="radio" name="rb_turn_bed_type" />轉病房=>傳入單位:
+                    <input type="text" />床號:
+                         <input type="text" /></label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" style="width: 20%;" colspan="2">手術日期及名稱
+                                            </td>
+                                            <td colspan="8" style="width: 80%;">
+                                                <label>
+                                                    <input name="surgery_date_name" type="radio" />無</label>
+
+                                                <label>
+                                                    <input name="surgery_date_name" type="radio" />有=>日期:<input type="text" />
+
+                                                    名稱:<input type="text" /></label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" colspan="10"><B>身體評估</B>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" rowspan="9" style="width: 19%;">生命徵象
+                                            </td>
+                                            <td class="head" colspan="2" rowspan="2" style="width: 20%;">體溫
+                                            </td>
+                                            <td colspan="7" style="width: 59%;">測量部位
+                <label>
+                    <input type="radio" />部位選單
+                </label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="7" style="width: 29%;">溫度:
+                                                <input type="text" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" colspan="2" rowspan="2" style="width: 20%;">呼吸
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">呼吸次數:
+                                                <input type="text" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">血氧飽和度:
+                                                <input type="text" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" rowspan="2" style="width: 90.7pt;">心跳
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">測量部位:
+                @*&amp;nbsp;>*@
+                                                <label>
+                                                    <input type="radio" name="rb_measurement_site" />心尖脈</label>
+                                                <label>
+                                                    <input type="radio" name="rb_measurement_site" />左橈動脈</label>
+                                                <label>
+                                                    <input type="radio" name="rb_measurement_site" />又橈動脈</label>
+                                                <label>
+                                                    <input type="radio" name="rb_measurement_site" />左足背動脈</label>
+                                                <label>
+                                                    <input type="radio" name="rb_measurement_site" />右足背動脈</label>
+
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">速率:
+                                                <input type="text" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" rowspan="3" style="width: 90.7pt;">血壓
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">測量部位:
+                <label>
+                    <input type="radio" name="rb_blood_pressure_measurement_portion" />左手</label>
+                                                <label>
+                                                    <input type="radio" name="rb_blood_pressure_measurement_portion" />右手</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">姿勢:
+               <label>
+                   <input type="radio" name="rb_posture" />躺</label>
+                                                <label>
+                                                    <input type="radio" name="rb_posture" />坐</label>
+                                                <label>
+                                                    <input type="radio" name="rb_posture" />站</label>
+
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">收縮壓:
+                                                <input type="text" />
+                                                舒張壓:
+                                                <input type="text" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="163" rowspan="10" style="width: 81.45pt;">意識狀況
+                                            </td>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">型態
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">
+                                                <label>
+                                                    <input type="radio" name="rb_awareness" value="0" />清醒</label>
+                                                <label>
+                                                    <input type="radio" name="rb_awareness" value="1" />欠清</label>=>			
+               <label>
+                   <input type="checkbox" name="cb_awareness_patterns" value="" />嗜睡</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_awareness_patterns" value="" />混亂</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_awareness_patterns" value="" />呆滯</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_awareness_patterns" value="" />昏迷</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_awareness_patterns" value="" />麻醉未醒</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_awareness_patterns" value="" />其他:
+                <input type="text" /></label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">Coma Scale
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">
+                                                &nbsp; E:
+                                                <SELECT id=sel_e> <OPTION value=99 selected>請選擇</OPTION> <OPTION value=4>4</OPTION> <OPTION value=3>3</OPTION> <OPTION value=2>2</OPTION> <OPTION value=1>1</OPTION> <OPTION value=C>C</OPTION></SELECT>
+                                                &nbsp; V:
+                                                <SELECT id=sel_v> <OPTION value=99 selected>請選擇</OPTION> <OPTION value=5>5</OPTION> <OPTION value=4>4</OPTION> <OPTION value=3>3</OPTION> <OPTION value=2>2</OPTION> <OPTION value=1>1</OPTION> <OPTION value=E>E</OPTION> <OPTION value=T>T</OPTION> <OPTION value=A>A</OPTION></SELECT>
+                                                &nbsp; M:
+                                                <SELECT id=sel_m> <OPTION value=99 selected>請選擇</OPTION> <OPTION value=6>6</OPTION> <OPTION value=5>5</OPTION> <OPTION value=4>4</OPTION> <OPTION value=3>3</OPTION> <OPTION value=2>2</OPTION> <OPTION value=1>1</OPTION></SELECT>
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 9.3pt">
+                                            <td class="head" width="318" colspan="5" rowspan="4" style="width: 159.2pt; height: 9.3pt">Pupil size
+                                            </td>
+                                            <td class="head" width="56" colspan="2" rowspan="2" style="width: 28.05pt; height: 9.3pt">R:
+                                            </td>
+                                            <td width="315" colspan="2" style="width: 157.4pt; height: 9.3pt">大小:
+                                                 <SELECT id=sel_size_r_size> <OPTION value="99" selected>請選擇</OPTION> <OPTION value="0.5">0.5</OPTION><OPTION value="1">1</OPTION>
+                                                     <OPTION value="1.5">1.5</OPTION><OPTION value="2">2</OPTION><OPTION value="2.5">2.5</OPTION><OPTION value="3">3</OPTION><OPTION value="3.5">3.5</OPTION><OPTION value="4">4</OPTION>
+                                                     <OPTION value="4.5">4.5</OPTION><OPTION value="5">5</OPTION><OPTION value="5.5">5.5</OPTION><OPTION value="6">6</OPTION><OPTION value="6.5">6.5</OPTION><OPTION value="7">7</OPTION>
+                                                     <OPTION value="7.5">7.5</OPTION><OPTION value="8">8</OPTION><OPTION value="8.5">8.5</OPTION><OPTION value="9">9</OPTION><OPTION value="9.5">9.5</OPTION><OPTION value="10">10</OPTION><OPTION value="10.5">10.5</OPTION>
+                                                 </SELECT>
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 8.7pt">
+                                            <td width="315" colspan="2" style="width: 157.4pt; height: 8.7pt">反射:
+                                                <select>
+                                                    <option value="99">+</option>
+                                                    <option value="99">-</option>
+                                                    <option value="99">±</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 10.5pt">
+                                            <td class="head" width="56" colspan="2" rowspan="2" style="width: 28.05pt; height: 10.5pt">L:
+                                            </td>
+                                            <td width="315" colspan="2" style="width: 157.4pt; height: 10.5pt">大小:
+                                                <SELECT id=sel_size_l_size> <OPTION value="99" selected>請選擇</OPTION> <OPTION value="0.5">0.5</OPTION><OPTION value="1">1</OPTION>
+                                                     <OPTION value="1.5">1.5</OPTION><OPTION value="2">2</OPTION><OPTION value="2.5">2.5</OPTION><OPTION value="3">3</OPTION><OPTION value="3.5">3.5</OPTION><OPTION value="4">4</OPTION>
+                                                     <OPTION value="4.5">4.5</OPTION><OPTION value="5">5</OPTION><OPTION value="5.5">5.5</OPTION><OPTION value="6">6</OPTION><OPTION value="6.5">6.5</OPTION><OPTION value="7">7</OPTION>
+                                                     <OPTION value="7.5">7.5</OPTION><OPTION value="8">8</OPTION><OPTION value="8.5">8.5</OPTION><OPTION value="9">9</OPTION><OPTION value="9.5">9.5</OPTION><OPTION value="10">10</OPTION><OPTION value="10.5">10.5</OPTION>
+                                                 </SELECT>
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 7.5pt">
+                                            <td width="315" colspan="2" style="width: 157.4pt; height: 7.5pt">反射:
+                                                <select>
+                                                    <option value="99">+</option>
+                                                    <option value="99">-</option>
+                                                    <option value="99">±</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" rowspan="4" style="width: 90.7pt;">Muscle Power
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">右上肢:
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">左上肢:
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">右下肢:
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">左下肢:
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="163" rowspan="7" style="width: 81.45pt;">循環方面
+                                            </td>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">心跳
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">
+                                                <label>
+                                                    <input type="radio" name="rb_cycling_pulse" />規律</label>
+                                                <label>
+                                                    <input type="radio" name="rb_cycling_pulse" />不規律</label>
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 6.9pt">
+                                            <td class="head" width="256" colspan="3" rowspan="2" style="width: 127.75pt; height: 6.9pt">心跳強度
+                                            </td>
+                                            <td class="head" width="49" rowspan="2" style="width: 24.55pt; height: 6.9pt">足背動脈
+                                            </td>
+                                            <td width="46" colspan="2" style="width: 23.0pt; height: 6.9pt">左
+                                            </td>
+                                            <td width="339" colspan="3" style="width: 169.35pt; height: 6.9pt">
+                                                <label>
+                                                    <input type="radio" name="rb_dorsalis_pedis_artery_left" />4+</label>
+                                                <label>
+                                                    <input type="radio" name="rb_dorsalis_pedis_artery_left" />3+</label>
+                                                <label>
+                                                    <input type="radio" name="rb_dorsalis_pedis_artery_left" />2+</label>
+                                                <label>
+                                                    <input type="radio" name="rb_dorsalis_pedis_artery_left" />1+</label>
+                                                <label>
+                                                    <input type="radio" name="rb_dorsalis_pedis_artery_left" />0</label>
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 11.1pt">
+                                            <td width="46" colspan="2" style="width: 23.0pt; height: 11.1pt">右
+                                            </td>
+                                            <td width="339" colspan="3" style="width: 169.35pt; height: 11.1pt">
+                                                <label>
+                                                    <input type="radio" name="rb_dorsalis_pedis_artery_right" />4+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_dorsalis_pedis_artery_right" />3+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_dorsalis_pedis_artery_right" />2+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_dorsalis_pedis_artery_right" />1+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_dorsalis_pedis_artery_right" />0</label>
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 9.9pt">
+                                            <td class="head" width="256" colspan="3" rowspan="2" style="width: 127.75pt; height: 9.9pt">
+                                                @*<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                            </td>
+                                            <td class="head" width="49" rowspan="2" style="width: 24.55pt; height: 9.9pt">橈動脈
+                                            </td>
+                                            <td width="46" colspan="2" style="width: 23.0pt; height: 9.9pt">左
+                                            </td>
+                                            <td width="339" colspan="3" style="width: 169.35pt; height: 9.9pt">
+                                                <label>
+                                                    <input type="radio" name="rb_radial_artery_left" />4+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_radial_artery_left" />3+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_radial_artery_left" />2+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_radial_artery_left" />1+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_radial_artery_left" />0</label>
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 8.1pt">
+                                            <td width="46" colspan="2" style="width: 23.0pt; height: 8.1pt">右
+                                            </td>
+                                            <td width="339" colspan="3" style="width: 169.35pt; height: 8.1pt">
+                                                <label>
+                                                    <input type="radio" name="rb_radial_artery_right" />4+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_radial_artery_right" />3+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_radial_artery_right" />2+</label>
+                                                <label>
+                                                    <input type="radio" name="rb_radial_artery_right" />1+	</label>
+                                                <label>
+                                                    <input type="radio" name="rb_radial_artery_right" />0</label>
+                                            </td>
+                                        </tr>
+                                        <tr style="">
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">末梢
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">
+                                                <label>
+                                                    <input type="radio" name="rb_cycling_tip" />正常</label>
+                                                <label>
+                                                    <input type="radio" name="rb_cycling_tip" />異常</label>=>
+                                                <label>
+                                                    <input type="checkbox" name="cb_cycling_tip_abnormal" />水腫</label>=>
+
+
+                                                    <label>
+                                                    <input type="radio" name="rb_cycling_tip_abnormal_edema" />1+</label>
+                                                <label>
+                                                    <input type="radio" name="rb_cycling_tip_abnormal_edema" />2+</label>
+                                                <label>
+                                                    <input type="radio" name="rb_cycling_tip_abnormal_edema" />3+</label>
+                                                <label>
+                                                    <input type="radio" name="rb_cycling_tip_abnormal_edema" />4+</label>
+
+
+
+                                                <label>
+                                                    <input type="checkbox" name="cb_cycling_tip_abnormal" />冰冷</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">使用Dulplex
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">
+                                                <label>
+                                                    <input type="radio" name="rb_cycling_use_dulplex" />是</label>
+                                                <label>
+                                                    <input type="radio" name="rb_cycling_use_dulplex" />否</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="163" rowspan="2" style="width: 81.45pt;">呼吸系統
+                                            </td>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">呼吸型態
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">
+                                                <label>
+                                                    <input type="radio" name="rb_breathing_patterns" />正常</label>
+                                                <label>
+                                                    <input type="radio" name="rb_breathing_patterns" />異常</label>
+                                                =>	
+               <label><br />
+                   <input type="checkbox" name="cb_breathing_patterns_abnormal" />深</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_breathing_patterns_abnormal" />表淺</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_breathing_patterns_abnormal" />快速</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_breathing_patterns_abnormal" />慢</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_breathing_patterns_abnormal" />鼻翼煽動</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_breathing_patterns_abnormal" />胸骨或肋緣凹陷</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_breathing_patterns_abnormal" />端坐呼吸</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_breathing_patterns_abnormal" />其他:
+                                                <input type="text" /></label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">醫療輔助器
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">
+                                                <label>
+                                                    <input type="radio" name="rb_auxiliary_medical_devices" />無</label>
+                                                <label>
+                                                    <input type="radio" name="rb_auxiliary_medical_devices" />有</label>=>
+               <label>
+                   <input type="radio" name="rb_auxiliary_medical_devices_have" />氣管內管</label>
+                                                <label>
+                                                    <input type="radio" name="rb_auxiliary_medical_devices_have" />氣切:</label>
+                                                <input type="text" />fr.		@*<p class="MsoNormal">*@
+                                                @* <span lang="EN-US">
+                        <span style="mso-tab-count:1">
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        </span>*@&nbsp; Fix:
+                    <input type="text" />cm
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 9.6pt">
+                                            <td class="head" style="width: 32%;" colspan="2" @*rowspan="2"*@>氧氣治療
+
+                                            </td>
+                                            @*<td class="head" width="163" rowspan="2" style="width: 81.45pt; height: 9.6pt">氧氣治療
+                                            </td>*@
+                                            @*<td class="head" width="181" colspan="2" rowspan="2" style="width: 90.7pt; height: 9.6pt">*@
+                                                @* <p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                         @*   </td>*@
+                                            <td colspan="8" style="width: 67%;" @*rowspan="2"*@>
+
+
+
+                                            @*<td width="205" colspan="6" rowspan="2" style="width: 102.6pt; height: 9.6pt">*@
+                                                <label>
+                                                    <input type="radio" name="rb_oxygen_therapy" />無</label>
+                                                <label>
+                                                    <input type="radio" name="rb_oxygen_therapy" />有</label>=><br />
+                                            @*</td>
+                                            <td width="303" style="width: 151.35pt; height: 9.6pt">*@
+                                                氧氣濃度:
+                                                <input type="text" /> L/min <br />
+                                            @*</td>
+                                        </tr>
+                                        <tr style="height: 8.4pt">
+                                            <td width="303" style="width: 151.35pt; height: 8.4pt; padding: 1px 1px 1px 1px;">*@
+                                                面罩種類:
+                                                <label>
+                                                    <input type="radio" name="rb_oxygen_therapy_have_mask_category" />NasalCannula</label>
+                                                <label>
+                                                    <input type="radio" name="rb_oxygen_therapy_have_mask_category" />Simple mask</label>
+                                                <label>
+                                                    <input type="radio" name="rb_oxygen_therapy_have_mask_category" />Aerosol mask</label>
+                                                <label>
+                                                    <input type="radio" name="rb_oxygen_therapy_have_mask_category" />Non-rebreathingmask</label>
+                                                <label>
+                                                    <input type="radio" name="rb_oxygen_therapy_have_mask_category" />Ventilator</label>=>	<br />
+                @*<p class="MsoNormal"><span lang="EN-US">*@
+                                                <input type="text" />mode<br />
+                                                TV:<input type="text" /><br />
+                                                FiO2:<input type="text" /><br />
+                                                PEEP:<input type="text" /><br />
+                                                Rate:<input type="text" />
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 220.2pt">
+                                            <td class="head" width="163" rowspan="5" style="width: 81.45pt; height: 220.2pt">消化系統
+                                            </td>
+                                            <td class="head" width="181" colspan="2" rowspan="4" style="width: 90.7pt; height: 220.2pt">進食方式
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt; height: 220.2pt">
+                                                <label>
+                                                    <input type="radio" name="rb_digestive_system_eating_patterns" />由口進食</label>
+                                                <label>
+                                                    <input type="radio" name="rb_digestive_system_eating_patterns" />NG Feeding</label>
+                                                <label>
+                                                    <input type="radio" name="rb_digestive_system_eating_patterns" />OG tube</label>
+                                                <label>
+                                                    <input type="radio" name="rb_digestive_system_eating_patterns" />Jujunostomy</label>
+                                                <label>
+                                                    <input type="radio" name="rb_digestive_system_eating_patterns" />ND tube</label>
+                                                <label>
+                                                    <input type="radio" name="rb_digestive_system_eating_patterns" />PEG</label>
+                                                <label>
+                                                    <input type="radio" name="rb_digestive_system_eating_patterns" />其他:</label>
+                                                <input type="text" />
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 6.3pt">
+                                            <td width="508" colspan="7" style="width: 253.95pt; height: 6.3pt">
+                                                @* <p class="MsoNormal"><span lang="EN-US">*@
+                                                ( 
+                <input type="text" />fr.		@*<p class="MsoNormal"><span lang="EN-US">*@
+                                                Fix
+                <input type="text" />cm				輔助物:
+                        @*&amp;nbsp;>*@<label><input type="radio" name="rb_digestive_system_eating_patterns_auxiliary" />無</label>
+                                       <label><input type="radio" name="rb_digestive_system_eating_patterns_auxiliary" />灌食袋</label>
+                                       <label><input type="radio" name="rb_digestive_system_eating_patterns_auxiliarys" />灌食幫浦</label>
+                                                  												
+                <label>
+                    <input type="checkbox" /> 消化</label>
+                                                @*<p class="MsoNormal"><span lang="EN-US">*@)		@*<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 8.1pt">
+                                            <td width="508" colspan="7" style="width: 253.95pt; height: 8.1pt">
+                                                @* <p class="MsoNormal"><span lang="EN-US">*@
+                                                ( 
+                <input type="text" />fr.		@*<p class="MsoNormal"><span lang="EN-US"*@>Fix
+                <input type="text" />cm				
+                <label>
+                    <input type="checkbox" />消化 </label>
+                                                @*<p class="MsoNormal"><span lang="EN-US">*@
+                                                )		@*<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                            </td>
+                                        </tr>
+                                        <tr style="height: 9.6pt">
+                                            <td width="508" colspan="7" style="width: 253.95pt; height: 9.6pt">
+                                                <label>
+                                                    <input type="checkbox" /> 消化</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">飲食種類
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">
+                                                <label>
+                                                    <input type="radio" name="rb_diet_class" />正常飲食</label>
+                                                <label>
+                                                    <input type="radio" name="rb_diet_class" />特殊飲食</label>=><br />
+                                                <label>
+                                                    <input type="radio" name="rb_diet_class_special" />軟質飲食</label>
+                                                <label>
+                                                    <input type="radio" name="rb_diet_class_special" />流質飲食</label>
+                                                <label>
+                                                    <input type="radio" name="rb_diet_class_special" />半流質飲食</label>
+                                                <label>
+                                                    <input type="radio" name="rb_diet_class_special" />糖尿病飲食</label>
+                                                <label>
+                                                    <input type="radio" name="rb_diet_class_special" />Feeding Diet</label>=><br />
+                                                <input type="text" />卡/日
+                                                <label>
+                                                    <input type="radio" name="rb_diet_class_special_feeding_diet" />NPO</label>
+                                                <label>
+                                                    <input type="radio" name="rb_diet_class_special_feeding_diet" />NPO除藥物</label>
+                                                <label>
+                                                    <input type="radio" name="rb_diet_class_special_feeding_diet" />其他:</label>
+                                                <input type="text" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="163" style="width: 81.45pt;">皮膚狀況
+                                            </td>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">外觀
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">
+                                                <label>
+                                                    <input type="radio" name="rb_skin_condition" />正常</label>
+                                                <label>
+                                                    <input type="radio" name="rb_skin_condition" />異常</label>=> <br />
+                                                <label>
+                                                    <input type="checkbox" name="cb_skin_condition_abnormal" />蒼白</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_skin_condition_abnormal" />黃疸</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_skin_condition_abnormal"/>發紺</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_skin_condition_abnormal"/>潮紅</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_skin_condition_abnormal"/>乾燥</label>
+                                                <label>
+                                                    <input type="checkbox" name="cb_skin_condition_abnormal"/>水腫</label>=> <br />
+                                                部位嚴重度:
+                                                <label>
+                                                    <input type="radio" name="rb_skin_condition_abnormal_edema"/>+</label>
+                                                <label>
+                                                    <input type="radio" name="rb_skin_condition_abnormal_edema"/>++</label>
+                                                <label>
+                                                    <input type="radio" name="rb_skin_condition_abnormal_edema"/>+++</label>
+                                                <label>
+                                                    <input type="radio" name="rb_skin_condition_abnormal_edema"/>++++</label> <br />
+                                                <label>
+                                                    <input type="checkbox" name="cb_skin_condition_abnormal"/>紅疹
+                                                </label>=> <br />
+                                                    部位	
+                                                <label>
+                                                    <input type="checkbox" name="cb_skin_condition_abnormal"/>其他</label>
+                                                <input type="text" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="163" rowspan="2" style="width: 81.45pt;">傷口
+                                            </td>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">一般傷口
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;height:100px;vertical-align:top;">@*這邊不提供修改，但提供連結聯道傷口照護紀錄*@
+
+
+                                                @*<td colspan="2">*@
+                                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;margin:5px 0 5px 0; border-top: 1px solid rgba(20%,20%,40%,0.5);border-left: 1px solid rgba(20%,20%,40%,0.5);">
+                                       <tr>                                       
+                                          
+                                            <td  style="width:15%;">發生日期</td>
+                                            <td style="width:15%;">部位</td>
+                                            <td style="width:5%;">長</td>
+                                            <td style="width:5%;">寬</td>
+                                            <td style="width:5%;">深</td>                                         
+                                            <td style="width:15%;">傷口等級</td>
+                                            <td style="width:20%;">接觸隔離</td>
+                                            <td style="width:20%;">換藥方式</td>
+                                        </tr>
+                                    @if (dt_wound != null && dt_wound.Rows.Count > 0)
+                                    {
+                                        foreach (DataRow r in dt_wound.Rows)
+                                        {
+                                            {
+                                             <tr>
+                                                <td style="width:15%;white-space:nowrap;">@Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd HH:mm")</td>      
+                                                <td style="width:15%;word-break:break-all;">@r["POSITION"]</td>       
+                                                @if (r["SHAPE"].ToString() != ",,")
+                                                {
+                                                <td style="width:5%;word-break:break-all;">@r["SHAPE"].ToString().Split(',').GetValue(0)</td>
+                                                <td style="width:5%;word-break:break-all;">@r["SHAPE"].ToString().Split(',').GetValue(1)</td>
+                                                <td style="width:5%;word-break:break-all;">@r["SHAPE"].ToString().Split(',').GetValue(2)</td>
+                                                }
+                                                else
+                                                {
+                                                <td style="width:5%;word-break:break-all;">-</td>
+                                                <td style="width:5%;word-break:break-all;">-</td>
+                                                <td style="width:5%;word-break:break-all;">-</td>
+                                                }       
+                                                <td style="width:15%;word-break:break-all;">@r["CLASS"]</td>       
+                                                <td style="width:20%;word-break:break-all;">@r["ISOLATION"]</td>
+                                                <td style="width:20%;word-break:break-all;">@r["DRESSING"].ToString().Replace("|", ",")</td>
+                                              </tr>
+                                            }
+                                        }
+                                    }
+                                    </table>
+                                @*</td>*@
+
+
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">壓傷傷口
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;height:100px;vertical-align:top;">@*這邊不提供修改，但提供連結聯道傷口照護紀錄*@
+
+                                                 <table border="0" cellpadding="4" cellspacing="1" style="width:100%;margin:5px 0 5px 0; border-top: 1px solid rgba(20%,20%,40%,0.5);border-left: 1px solid rgba(20%,20%,40%,0.5);">
+                                       <tr>                                       
+                                          
+                                            <td  style="width:15%;">發生日期</td>
+                                            <td style="width:15%;">部位</td>
+                                            <td style="width:5%;">長</td>
+                                            <td style="width:5%;">寬</td>
+                                            <td style="width:5%;">深</td>                                         
+                                            <td style="width:15%;">傷口等級</td>
+                                            <td style="width:20%;">接觸隔離</td>
+                                            <td style="width:20%;">換藥方式</td>
+                                        </tr>
+                                    @if (dt_wound != null && dt_wound.Rows.Count > 0)
+                                    {
+                                        foreach (DataRow r in dt_wound.Rows)
+                                        {
+                                            {
+                                             <tr>
+                                                <td style="width:15%;white-space:nowrap;">@Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd HH:mm")</td>      
+                                                <td style="width:15%;word-break:break-all;">@r["POSITION"]</td>       
+                                                @if (r["SHAPE"].ToString() != ",,")
+                                                {
+                                                <td style="width:5%;word-break:break-all;">@r["SHAPE"].ToString().Split(',').GetValue(0)</td>
+                                                <td style="width:5%;word-break:break-all;">@r["SHAPE"].ToString().Split(',').GetValue(1)</td>
+                                                <td style="width:5%;word-break:break-all;">@r["SHAPE"].ToString().Split(',').GetValue(2)</td>
+                                                }
+                                                else
+                                                {
+                                                <td style="width:5%;word-break:break-all;">-</td>
+                                                <td style="width:5%;word-break:break-all;">-</td>
+                                                <td style="width:5%;word-break:break-all;">-</td>
+                                                }       
+                                                <td style="width:15%;word-break:break-all;">@r["CLASS"]</td>       
+                                                <td style="width:20%;word-break:break-all;">@r["ISOLATION"]</td>
+                                                <td style="width:20%;word-break:break-all;">@r["DRESSING"].ToString().Replace("|", ",")</td>
+                                              </tr>
+                                            }
+                                        }
+                                    }
+                                    </table>
+
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="163" @*rowspan="5"*@ style="width: 81.45pt;height:100px;">管路
+                                            </td>
+
+
+                                             <td colspan="9" @*rowspan="5"*@ style="height:100px;vertical-align:top;">
+                                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;margin:5px 0 5px 0; border-top: 1px solid rgba(20%,20%,40%,0.5);border-left: 1px solid rgba(20%,20%,40%,0.5);vertical-align:top;">
+                                        <tr>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">管路編號</td>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">放置日期</td>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">部位</td>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">管徑</td>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">材質</td>
+                                            @*<td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">預計拔管日期</td>*@
+                                        </tr>
+                                    @if (dt_tube != null && dt_tube.Rows.Count > 0)
+                                    {
+                                        foreach (DataRow r in dt_tube.Rows)
+                                        {
+                                        <tr>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">
+                                                @r["TYPE_NAME"]
+                                            </td>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">
+                                                @if (r["MATERIALID"].ToString() != "-1")
+                                                {
+                                                    if (@r["MATERIALID"].ToString() != "99")
+                                                    {
+                                                    @r["MATERIAL_NAME"]
+                                                    }
+                                                    else
+                                                    {
+                                                    @r["MATERIALOTHER"]
+                                                    }
+                                                }
+                                            </td>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">
+                                                @r["MODEL"]
+                                            </td>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">
+                                                    @r["LENGTH"]
+                                                @if (r["LENGTHUNIT"].ToString() != "-1")
+                                                {
+                                                    @r["LENGTHUNIT_NAME"]
+                                                }
+                                            </td>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">
+                                                @Convert.ToDateTime(r["STARTTIME"]).ToString("yyyy/MM/dd HH:mm")
+                                            </td>
+                                            <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">
+                                                @if (r["FORECAST"].ToString() != "")
+                                                {
+                                                @Convert.ToDateTime(r["FORECAST"]).ToString("d")
+                                                }
+                                            </td>
+                                        </tr>
+                                        }
+                                    }
+                                    </table>
+                                </td>
+                                            @*<td class="head" width="181" colspan="2" style="width: 90.7pt;">管路編號
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">*@
+                                                @*   <p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                          @*  </td>*@
+                                        </tr>
+                                       @* <tr>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">放置日期
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">*@
+                                                @*<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                            @*</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">部位
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">*@
+                                                @*  <p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                           @* </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">管徑
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">*@
+                                                @*<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                           @* </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="181" colspan="2" style="width: 90.7pt;">材質
+                                            </td>
+                                            <td width="508" colspan="7" style="width: 253.95pt;">*@
+                                                @*<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                            @*</td>
+                                        </tr>*@
+                                        <tr>
+                                            <td class="head" width="852" colspan="10" style="width: 426.1pt;"><B>最近一次異常生理檢驗報告待追蹤項目</B>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td width="852" colspan="10" style="width: 426.1pt;">
+                                                @*<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                                <textarea style="width:99%"></textarea>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="head" width="852" colspan="10" style="width: 426.1pt;"><B>特殊交班事項</B>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td width="852" colspan="10" style="width: 426.1pt;">
+                                                <textarea style="width:99%"></textarea>
+
+                                                @* <p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>*@
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </form>
+            </td>
+        </tr>
+    </table>
+</div>

@@ -1,0 +1,288 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+
+    NursingAssessmentMain na_main_infor = (NursingAssessmentMain)ViewData["na_main_info"];
+    List<NursingAssessmentTag> na_tag_info = (List<NursingAssessmentTag>)ViewData["na_tag_info"];
+    List<NA_View_Obj> na_view_obj = (List<NA_View_Obj>)ViewData["na_dtl_info"];
+}
+
+<!-- JS程式區段 -->
+<script type="text/javascript">
+
+    function setTabControl() {
+        var activePage = 0;
+        var tabCount = 0;
+        if ($(".tabs_area").length > 0) {
+            $(".tab_control").click(function () {
+                activePage = $(".tabs_area").tabs("option", "active");
+                tabCount = $(".tabs_area").find("li").length - 1;
+                switch ($(this).attr("control_code")) {
+                    case "page_up":
+                        window.scrollTo(0, 0);
+                        if (activePage > 0)
+                            $(".tabs_area").tabs("option", "active", activePage - 1);
+                        break;
+                    case "page_down":
+                        window.scrollTo(0, 0);
+                        if (activePage < tabCount)
+                            $(".tabs_area").tabs("option", "active", activePage + 1);
+                        break;
+                    case "save":
+                        var checkFlag = true;
+                        // 檢核必須寫在這裡
+                        if (checkFlag)
+                            $("form[name=na_form]").submit();
+                        break;
+                }
+            }).prop("disabled", false);
+        }
+
+
+    }
+
+    $(document).ready(function () {
+
+        setTabControl();
+
+        var ver = "@(na_main_infor.na_version)";
+        if (ver != "")
+            $(".ver").html("ver:" + ver);
+        else
+            $(".ver").html("");
+        //開始tabs
+
+        $(".tabs_area").tabs({
+            active: 0
+        });
+
+        $(".tooltip").tooltip({
+            content: function () {
+                return $(this).prop('title');
+            }
+        }).css({
+            "color": "#660000",
+            "font-weight": "bold",
+            "padding-left": "15px"
+        });
+
+        // 群組計分
+        $("[GroupID]").each(function () {
+            var CtObj = $(this);
+            var GroupList = $(this).attr("GroupID").split("|");
+            var divObj = $("div[BlockID=" + $(this).attr("name") + "]");
+            var iDependID = $(divObj).attr("DependID");
+            var iShowValue = $(divObj).attr("ShowValue");
+            $(CtObj).css({
+                "background-color": "#EEEEEE",
+                "width": 80
+            });
+
+            //幫目標Block加上DependID與ShowValue並修改樣式
+            for (var i = 0 ; i <= GroupList.length - 1 ; i++) {
+                $("div[BlockID=" + GroupList[i] + "]").attr("DependID", iDependID).attr("ShowValue", iShowValue);
+            }
+            var selectorStr = "div[BlockID=" + GroupList.join("], div[BlockID=") + "]";
+            $(selectorStr).click(function () {
+                var count = 0;
+                $(selectorStr).find("input[type=radio]:checked").each(function () {
+                    count += parseInt($(this).val().substring(1, 2));
+                });
+                $(CtObj).val(count.toString());
+            });
+
+        });
+
+        // 隱藏欄位function
+        $("[DependID]").each(function () {
+
+            var DependID = $(this).attr("DependID");
+            var ShowValue = $(this).attr("ShowValue");
+            var DependObj = $(this);
+            var TargetObj = $("[name=" + DependID + "]");
+
+            if (typeof $(TargetObj).get(0) != "undefined") {
+
+                switch ($(TargetObj).get(0).tagName.toLowerCase()) {
+                    case "input":
+                        switch ($(TargetObj).attr("type").toLowerCase()) {
+                            case "text":
+                                $(TargetObj).keypress(function () {
+                                    if ($("input[name=" + DependID + "]").val() == ShowValue) {
+                                        $(DependObj).show();
+                                    } else {
+                                        $(DependObj).hide();
+                                    };
+                                });
+                                break;
+                            case "radio":
+                                $(TargetObj).click(function () {
+                                    if ($("input[name=" + DependID + "]:checked").val() == ShowValue) {
+                                        $(DependObj).show();
+                                    } else {
+                                        $(DependObj).hide();
+                                    };
+                                });
+                                if ($("input[name=" + DependID + "]:checked").val() == ShowValue) {
+                                    $(DependObj).show();
+                                } else {
+                                    $(DependObj).hide();
+                                };
+                                break;
+                            case "checkbox":
+                                $(TargetObj).click(function () {
+                                    var ShowFlag = false;
+                                    $("input[name=" + DependID + "]:checked").each(function () {
+                                        if ($(this).val() == ShowValue) {
+                                            ShowFlag = true;
+                                        }
+                                    });
+                                    if (ShowFlag) {
+                                        $(DependObj).fadeIn(500);
+                                    } else {
+                                        $(DependObj).fadeOut(500);
+                                    };
+                                });
+                                var ShowFlag = false;
+                                $("input[name=" + DependID + "]:checked").each(function () {
+                                    if ($(this).val() == ShowValue) {
+                                        ShowFlag = true;
+                                    }
+                                });
+                                if (ShowFlag) {
+                                    $(DependObj).fadeIn(500);
+                                } else {
+                                    $(DependObj).fadeOut(500);
+                                };
+                                break;
+                        }
+                        break;
+                    case "textarea":
+                        $(TargetObj).keypress(function () {
+                            if (Trim($("input[name=" + DependID + "]").html()) == ShowValue) {
+                                $(DependObj).fadeIn(500);
+                            } else {
+                                $(DependObj).fadeOut(500);
+                            };
+                        });
+                        break;
+                }
+            }
+        });
+
+        @if (Request["message"] != null)
+        {
+            @Html.Raw("showHint(\"" + Request["message"].ToString() + "\");")
+        }
+
+    });
+</script>
+
+<!-- 樣式表 -->
+<style type="text/css">
+    .ItemBlock {
+        padding: 3px 5px 3px 5px;
+        border-bottom: 1px solid #666;
+        line-height: 32px;
+        display: table;
+        width: 100%;
+    }
+
+        .ItemBlock span, .ItemBlock div {
+            display: table-cell;
+            vertical-align: top;
+        }
+
+            .ItemBlock span label {
+                white-space: nowrap;
+            }
+
+        .ItemBlock:hover {
+            background-color: #D0E4F2;
+            background-image: url('../../Images/Form/NA_BG.png');
+            background-repeat: repeat-y;
+            background-position: left;
+        }
+
+    .ItemTitle {
+        display: inline-block;
+        text-align: center;
+        position: relative;
+        padding: 0px 5px 0px 5px;
+        top: 0px;
+        bottom: 0px;
+        left: 0px;
+        font-weight: bold;
+        width: 150px;
+        color: #0000AA;
+        background-image: url('../../Images/Form/NA_TITLE.png');
+        background-repeat: repeat;
+        overflow: hidden;
+        white-space: pre-line;
+    }
+
+    .ui-tabs .ui-tabs-nav li a{
+        font-size: 16px;
+        padding: 3px 5px 3px 5px;
+    }
+
+    .ui-tabs{
+        font-size: 16px;
+    }
+
+</style>
+
+@if (ViewData["na_info"] != null)
+{
+    @ViewData["na_info"].ToString()
+}
+else
+{
+    <div class="ver" style="position: absolute; right: 0px; top: 0px; width: 200px; text-align: right;"></div>
+    <!-- 表單開始 -->
+    <form name="na_form" method="post" action="AssessmentSave">
+        <!-- 功能清單 -->
+       <br />
+        <br />
+        <!-- 隱藏資訊區 -->
+        <span id="hidden_information">
+            <input type="hidden" name="na_type" value="@(ViewData["na_type"].ToString())" />
+            <input type="hidden" name="na_version" value="@(na_main_infor.na_version)" />
+            <input type="hidden" name="na_help" value="@(na_main_infor.na_desc)" />
+            <input type="hidden" name="na_id" value="@(na_main_infor.na_id)" />
+        </span>
+
+        <!-- 頁籤開始 -->
+        <table>
+            <!-- 頁籤清單 -->
+            <!-- 頁籤內容 -->
+            @for (int i = 0; i <= na_tag_info.Count - 1; i++)
+            {
+                
+                    if (na_view_obj != null)
+                    {
+                        <tr><td><h4>@na_tag_info[i].tag_name</h4></td></tr>
+                        for (int d = 0; d <= na_view_obj.Count - 1; d++)
+                        {
+                            if (na_view_obj[d].tag_id == na_tag_info[i].tag_id)
+                            {
+                                for (int j = 0; j < na_view_obj[d].del_list.Count; j++)
+                                {
+                                    <tr>
+                                    @if(na_view_obj[d].del_list[j].dtl_default_value != "")
+                                    {
+                                        <td>@na_view_obj[d].del_list[j].dtl_title ：@na_view_obj[d].del_list[j].dtl_default_value <br /></td>
+                                    }
+                                        </tr>
+                                }                  
+                            }
+                        }
+                    }
+                
+            }
+        </table>
+        <br />
+   
+    </form>
+
+}

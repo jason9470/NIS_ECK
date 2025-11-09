@@ -1,0 +1,140 @@
+﻿@using System.Data;
+@using NIS.Data;
+@using NIS.Controllers;
+@using Newtonsoft.Json;
+
+@{
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    PatientInfo ptInfo = (PatientInfo)Session["PatInfo"];
+    DataTable ConsentMaster = ViewBag.ConsentMaster;
+    DataTable ConsentDetail = ViewBag.ConsentDetail;
+}
+<style type="text/css" scoped>
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: center;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    .fun_btn {
+        font-size: 17px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 5px 5px 4px 4px !important;
+    }
+
+    .check_btn {
+        background-color: #3c7ec3 !important;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 250);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    // 開啟編輯畫面
+    function OpenEditView(Type, MasterID, TemplateID) {
+        var url = 'Edit_Information_' + Type + '?MasterID=' + MasterID + '&&TemplateID=' + TemplateID;
+        window.location.href = url;
+    }
+
+</script>
+<div class="dataArea">
+    @if (ConsentMaster != null && ConsentMaster.Rows.Count > 0)
+    {
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:18px;">
+            @foreach (DataRow r in ConsentMaster.Rows)
+            {
+                DataTable details = ConsentDetail.AsEnumerable().Where(x => x["CONSENT_ID"].ToString() == r["CONSENT_ID"].ToString()).Any() ?
+                    ConsentDetail.AsEnumerable().Where(x => x["CONSENT_ID"].ToString() == r["CONSENT_ID"].ToString()).CopyToDataTable() : ConsentDetail.Clone();
+                var generatedDate = "";
+                var generatedTime = "";
+                if (r["GENERATED_TIME"] != null && r["GENERATED_TIME"].ToString() != "")
+                {
+                    DateTime dateTryParse;
+                    if (DateTime.TryParse(r["GENERATED_TIME"].ToString(), out dateTryParse))
+                    {
+                        generatedDate = dateTryParse.ToString("yyyy/MM/dd");
+                        generatedTime = dateTryParse.ToString("HH:mm");
+                    }
+                }
+                <tr>
+                    <td style="width: 20%">@r["JOB_ID"]</td>
+                    <td style="width: 10%">@generatedDate<br>@generatedTime</td>
+                    <td style="width: 15%">@r["CREATE_NAME"]</td>
+                    <td style="width: 10%">
+                        @if (details != null && details.Rows.Count > 0)
+                        {
+                            var titleTXT = "";
+                            foreach (DataRow detail in details.Rows)
+                            {
+                                titleTXT += "名稱:" + detail["ITEM_NAME"].ToString() + "\n";
+                                titleTXT += "院內碼:" + detail["HO_ID"].ToString() + "\n";
+                                titleTXT += "單價:" + detail["SELF_PRICE"].ToString() + "\n";
+                                titleTXT += "數量:" + detail["COUNT"].ToString() + "\n";
+                                titleTXT += "金額:" + detail["ITEM_PRICE"].ToString() + "\n\n";
+                            }
+                            <u title="@titleTXT" style="color:dodgerblue;">詳細</u>
+                        }
+                    </td>
+                    <td style="width: 10%">
+                        @switch (r["JOB_STATUS"].ToString())
+                        {
+                            case "ONGOING":
+                                <div>未簽署</div>
+                                break;
+                            case "COMPLETE":
+                                <div>已簽署</div>
+                                break;
+                            case "CANCEL":
+                                <div>取消文件</div>
+                                break;
+                            case "EXPIRE":
+                                <div>文件逾期失效</div>
+                                break;
+                            case "INVALID":
+                                <div>作廢</div>
+                                break;
+                            case "DELETE":
+                                <div>刪除</div>
+                                break;
+                        }
+                    </td>
+                    <td style="width: 20%;text-align:start">
+                        @r["NOTE"]
+                    </td>
+                    <td style="width: 8%">
+                        <input type="button" class="fun_btn check_btn" value="編輯" onclick="window.open('ConsentNoteForm?consentId='+'@r["CONSENT_ID"]', 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,top=0,resizable=yes,left=200,toolbar=no,width=1024,height=768');" />
+                    </td>
+                    <td style="width: 7%">
+                        <input type="button" class="fun_btn check_btn" value="查詢" onclick="window.open('@r["CONSENT_URL"]', 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,top=0,resizable=yes,left=200,toolbar=no,width=1024,height=768');" />
+                    </td>
+                </tr>
+                <tr></tr>
+            }
+        </table>
+    }
+</div>

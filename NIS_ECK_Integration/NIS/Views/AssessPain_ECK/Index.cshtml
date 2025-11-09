@@ -1,0 +1,816 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string userno = ViewBag.userno;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .btn-sm {
+        width:80px;
+    }
+    .btn-l {
+        width:160px;
+    }
+
+    .dataArea td, .dataArea th  {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+    }
+
+    #EndData {
+        position: fixed;
+        width: 50%;
+        height: 40%;
+        display: none;
+        background-color: white;
+        border: 1px solid #666;
+        z-index: 98;
+    }
+
+    #sys_Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        width: 100vw;
+        height: 100vh;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #VTList {
+        position: fixed;
+        width: 70vw;
+        height: 60vh;
+        display: none;
+        background-color: white;
+        border: 1px solid #666;
+        z-index: 98;
+    }
+
+    .link:hover td {
+        cursor: pointer;
+        background-color: #9966FF;
+    }
+</style>
+
+<div class="funcArea" id="List">
+    <div style="text-align:center;margin-bottom:5px;">
+        <input type="button" value="新增初始疼痛" onclick="InitPainPosition();" class="btn-l" />
+    </div>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <tr>
+                <td style="width:5%;">編號</td>
+                <td style="width:12%;">記錄時間</td>
+                <td style="width:10%;">何時開始</td>
+                <td style="width:20%;">疼痛部位</td>
+                <td style="width:13%;">結束日期</td>
+                <td style="width:10%;">記錄者</td>
+                <td style="width:30%;">評估項目</td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea" id="div_PainPositionList">
+        <table id="PainPositionList" border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <thead>
+                <tr style="display:none;" class="link" onclick="ShowRecord(this);">
+                    <td style="text-align:center;width:5%;" data-rowid=""></td>
+                    <td style="width:12%;text-align:center;" data-target="PainRecordDate"></td>
+                    <td style="width:10%;text-align:center;" data-target="PainStart_TimeNum"></td>
+                    <td style="width:20%;" data-filed="PainPosition"></td>
+                    <td style="width:13%;" data-filed="EndDate"></td>
+                    <td style="width:10%;text-align:center;" data-filed="UserName"></td>
+                    <td style="width:30%;">                       
+                        <input type="button" value="修改" data-edit="edit" data-code="" user_no="" onclick="InitPainPosition($(this).attr('data-code'), $(this).attr('user_no'));" />
+                        <input type="button" value="新增持續疼痛記錄" data-code="" data-position="" onclick="InitPainRecord($(this).attr('data-code'), $(this).attr('data-position'));" />
+                        <input type="button" value="結案" data-code="" onclick="ShowEndData(this);" />
+                        <input type="button" value="刪除" data-del="del" data-code="" onclick="DelPainPosition(this);" />
+                    </td>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <tr>
+                <td style="width:5%;">編號</td>
+                <td style="width:12%;">日期時間</td>
+                <td style="width:7%;">部位</td>
+                <td style="width:9%;">疼痛性質</td>
+                <td style="width:8%;">評估工具</td>
+                <td style="width:5%;">疼痛<br/>強度</td>
+                <td style="width:7%;">意識</td>
+                <td style="width:9%;">藥物處置</td>
+                <td style="width:8%;">副作用</td>
+                <td style="width:11%;">非藥物處置</td>
+                <td style="width:5%;">靈性評估</td>
+                <td style="width:5%;">記錄者</td>
+                <td style="width:5%;"></td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea" id="div_PainPositionRecordList">
+        <table id="PainPositionRecordList" border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <thead>
+                <tr style="display:none;">
+                    <td style="text-align:center;width:5%;" data-rowid=""></td>
+                    <td style="width:12%;text-align:center;" data-filed="RecordDate"></td>
+                    <td style="width:7%;word-break: break-all;" data-filed="PainPosition"></td>
+                    <td style="width:9%;word-break: break-all;" data-target="PainNature"></td>
+                    <td style="width:8%;word-break: break-all;" data-target="PainLevel"></td>
+                    <td style="width:5%;text-align:center;" data-target="PainLevelNum"></td>
+                    <td style="width:7%;text-align:center;" data-target="ConsciosLevel"></td>
+                    <td style="width:9%;" data-target="PainKiller"></td>
+                    <td style="width:8%;word-break: break-all;" data-target="RelievePainSideEffectItem"></td>
+                    <td style="width:11%;word-break: break-all;" data-target="PainAbnormalItem"></td>
+                    <td style="width:5%;" data-target="Mood_Thermometer_Total"></td>
+                    <td style="width:5%;text-align:center;" data-filed="UserName"></td>
+                    <td style="width:5%;">
+                       <input type="button" value="修改" data-code="" data-recordcode="" data-position="" onclick="InitPainRecord(null, $(this).attr('data-position'), $(this).attr('data-recordcode'));" />
+                    </td>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    <div id="EndData" style="padding:5px;">
+        <table border="1" cellpadding="1" cellspacing="0"  style="width:100%;background-color:#EEEFFF;border:1px solid #CC88FF;">
+            <tr>
+                <td>結案時間</td>
+                <td>
+                    <input type="text" id="EndDate" value="@DateTime.Now.ToString("yyyy/MM/dd")" />
+                    <input type="text" id="EndTime" value="@DateTime.Now.ToString("HH:mm")" />
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "EndDate", "EndTime", true)
+                </td>
+            </tr>
+            <tr>
+                <td>結案原因</td>
+                <td>
+                    <textarea id="EndReason" rows="5" style="width:95%;"></textarea>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="text-align:center;">
+                    <input type="button" class="btn-sm" value="儲存" onclick="SaveEndData();" />
+                    <input type="button" class="btn-sm" value="取消" onclick="CloseEndData();" />
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+<!-- 疼痛部位表單頁面 -->
+<div class="funcArea" id="PainPosition"></div>
+<!-- 持續疼痛表單頁面 -->
+<div class="funcArea" id="PainRecord"></div>
+<!-- GCS搜尋結果 -->
+<div id="VTList">
+    <div style="padding:5px;text-align:center;">
+        <input type="button" class="btn-sm" value="取消" onclick="CloseGCS();" />
+    </div>
+    <div class="dataArea">
+        <table id="dt_Vtlist"border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th style="width:20%;">記錄時間</th>
+                    <th>檢查值</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+<!-- 頁面遮罩 -->
+<div id="sys_Block"></div>
+
+<script type="text/javascript">
+    var userno='@(userno)';
+    $(document).ready(function () {
+        @if (!string.IsNullOrWhiteSpace(ViewBag.Msg)) 
+        {
+            @:showHint("@(ViewBag.Msg)");
+        }
+
+        //綁定DateTimePicker
+        //SetDateTime($('#EndDate'), $('#EndTime'));
+        
+        //載入持續疼痛記錄列表
+        SelectPainPositionRecord(function () {
+            //載入疼痛部位列表
+            SelectPainPosition(function () {
+                //關閉遮罩
+                loop_windows("close_cover");
+                setGridColor();
+            });
+        });
+        //重設高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            //疼痛部位列表高度
+            $("#div_PainPositionList").outerHeight((height / 2) - 60);
+            //持續疼痛記錄列表高度
+            $("#div_PainPositionRecordList").outerHeight((height / 2) - 60);
+            //結案輸入框高度
+            $('#EndData').css({
+                right: ($(document).outerWidth() - $('#EndData').outerWidth()) / 2,
+                top: ($(document).outerHeight() - $('#EndData').outerHeight()) / 2
+            }).find('table').outerHeight($('#EndData').outerHeight() - 10);
+        }).trigger("resize");
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    //綁定DateTimePicker
+    function SetDateTime(DateObj, TimeObj) {
+        DateObj.prop('readonly', true).css({ 'width': '80px', 'font-size': '12px' });
+        TimeObj.prop('readonly', true).css({ 'width': '50px', 'font-size': '12px' });
+        DateObj.datetimepicker({
+            altField: TimeObj,
+            beforeShowDay: function (date) {
+                switch (date.getDay()) {
+                    case 6:
+                        return [true, 'satday'];
+                        break;
+                    case 0:
+                        return [true, 'sunday'];
+                        break;
+                    default:
+                        return [true, ''];
+                        break;
+                }
+            },
+            inline: true,
+            showAnim: "slideDown",
+            controlType: myControl,
+            maxDateTime: new Date(),
+        });
+    }
+
+    //載入疼痛部位列表
+    function SelectPainPosition(CallBack) {
+        //清空列表
+        $('#PainPositionList tbody').empty();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/AssessPain_ECK/SelectPainPosition")',
+            success: function (data) {
+                if (data != '') {
+                    var List = JSON.parse(data);
+                    
+                    if (List.length > 0) {
+                        //塞入列表頁上方的初始List
+                        var count = List.length + 1;
+                        $.each(List, function (i, item) {
+                            //複製基本樣式
+                            var Temp = $('#PainPositionList thead tr').clone().show();
+                            //疼痛部位編號
+                            $(Temp).find('td[data-rowid]').attr('data-rowid', item['PainCode']).text((count - 1));
+                            //持續疼痛_同樣疼痛部位_加入編號
+                            $('#PainPositionRecordList tbody td[data-rowid=' + item['PainCode'] + ']').text((count - 1));
+
+                            //塞入欄位值
+                            $.each($(Temp).find('td[data-filed]'), function (i, td) {
+                                $(td).text(item[$(td).attr('data-filed')]);                   
+                            });
+                            
+                            ///塞入記錄時間
+                            var record_date = item['RecordDate'];
+                            if (record_date != null && record_date != "")
+                            {
+                                $(Temp).find('td[data-target=PainRecordDate]').text(record_date);
+                            }
+
+                            //RecordData 轉JSON
+                            var DataObj = JSON.parse(item['RecordData']);
+
+                            if (DataObj.length > 0) {
+                                //何時開始
+                                var PainStart_Time = '';
+                                var r = $.grep(DataObj, function (obj) { return (obj.Name === 'PainStart_TimeNum') });
+                                if (r.length > 0)
+                                    PainStart_Time = r[0].Value + $.grep(DataObj, function (obj) { return (obj.Name === 'PainStart_TimeUnit') })[0].Value;
+                                else
+                                    PainStart_Time = $.grep(DataObj, function (obj) { return (obj.Name === 'PainStart') })[0].Value;
+                                $(Temp).find('td[data-target=PainStart_TimeNum]').text(PainStart_Time);
+                            }
+
+                            if (item['EndDate'] == '') {
+                                //綁定按鈕上的data-code
+                                $(Temp).find('input[type=button][data-code]').attr('data-code', item['PainCode']);
+                                $(Temp).find('input[type=button][data-position]').attr('data-position', item['PainPosition']);
+                            }
+                            else {
+                                $(Temp).find('input[type=button]').remove();
+                                //持續疼痛_同樣疼痛部位_已結案刪除按鈕
+                                $('#PainPositionRecordList tbody td[data-rowid=' + item['PainCode'] + ']').closest('tr').find('input[type=button]').remove();
+                            }
+
+                            if (item['UserNo'] != null) {
+                                if (item['UserNo'] != userno) {
+                                    $(Temp).find('input[type=button][data-del=del]').css('display', 'none');
+                                }
+                            }
+                            if (item["EditFlag"] != "Y") {
+                                $(Temp).find('input[type=button][data-edit=edit]').css('display', 'none');
+                            }
+
+                            //加入列表
+                            $('#PainPositionList tbody').append(Temp);
+                            count = count - 1;
+                        });
+                    }
+                    else
+                        $('#PainPositionList tbody').append('<tr><td colspan="6" style="text-align:center;">查無資料！</td></tr>');
+                }
+            },
+            complete: function () {
+                if (!!CallBack)
+                    CallBack();
+            }
+        });
+    }
+
+    //載入持續疼痛列表
+    function SelectPainPositionRecord(CallBack) {
+        $('#PainPositionRecordList tbody').empty();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/AssessPain_ECK/SelectPainPositionRecord")',
+            success: function (data) {
+                if (data != '') {
+                    var List = JSON.parse(data);
+                    if (List.length > 0) {
+                        $.each(List, function (i, item) {
+                            var Temp = $('#PainPositionRecordList thead tr').clone().show();
+                            $(Temp).find('td[data-rowid]').attr('data-rowid', item['PainCode']);
+                            $.each($(Temp).find('td[data-filed]'), function (i, td) {
+                                $(td).text(item[$(td).attr('data-filed')]);
+                            });
+                            var DataObj = JSON.parse(item['RecordData']);
+
+                            if (DataObj.length > 0) {
+                                //非藥物處置
+                                var PainAbnormalItemWord = $.grep(DataObj, function (obj) { return (obj.Name === 'PainAbnormalItem') })[0].Value;
+                                var r = $.grep(DataObj, function (obj) { return (obj.Name === 'PainAbnormalItem_Other') });
+                                if (r.length > 0)
+                                    PainAbnormalItemWord = PainAbnormalItemWord.substring(0, PainAbnormalItemWord.length - 2) + r[0].Value;
+                                $(Temp).find('td[data-target=PainAbnormalItem]').text(PainAbnormalItemWord);
+                                //疼痛性質
+                                var PainNatureWord = $.grep(DataObj, function (obj) { return (obj.Name === 'PainNature') })[0].Value;
+                                var PainLevel = $.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel') })[0].Value;
+                                r = $.grep(DataObj, function (obj) { return (obj.Name === 'PainNature_Other') });
+                                if (r.length > 0)
+                                    PainNatureWord = PainNatureWord.substring(0, PainNatureWord.length - 2) + r[0].Value;
+                                $(Temp).find('td[data-target=PainNature]').text(PainNatureWord);
+                                $(Temp).find('td[data-target=PainLevel]').text(PainLevel);
+                                //疼痛強度
+                                var ps_value = 0;
+                                switch ($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel') })[0].Value) {
+                                    case '數字量表':
+                                        ps_value = parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Number') })[0].Value.substring(1, 3));
+                                        break;
+                                    case '臉譜量表':
+                                        ps_value = parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Face') })[0].Value.substring(1, 3));
+                                        break;
+                                    case '困難評估(成人)':
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Adult_Breath') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Adult_NoLG') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Adult_Face') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Adult_Body') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Adult_Appease') })[0].Value.substring(1, 2));
+                                        break;
+                                    case '困難評估(兒童)':
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Child_Face') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Child_Legs') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Child_Activity') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Child_Crying') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Child_Consolability') })[0].Value.substring(1, 2));
+                                        break;
+                                    case '困難評估(新生兒)':
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Baby_Crying') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Baby_FiO2') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Baby_VT') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Baby_Expression') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_Baby_Sleepless') })[0].Value.substring(1, 2));
+                                        break;
+                                    case 'CPOT評估(加護單位)':
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_CPOT_Face') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_CPOT_Body') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_CPOT_Muscle') })[0].Value.substring(1, 2));
+                                        ps_value += parseInt($.grep(DataObj, function (obj) { return (obj.Name === 'PainLevel_CPOT_Breath') })[0].Value.substring(1, 2));
+                                        break;
+                                }
+                                $(Temp).find('td[data-target=PainLevelNum]').text(ps_value);
+                                //意識
+                                $(Temp).find('td[data-target=ConsciosLevel]').text('E' + $.grep(DataObj, function (obj) { return (obj.Name === 'GCS_E') })[0].Value + 'V' + $.grep(DataObj, function (obj) { return (obj.Name === 'GCS_V') })[0].Value + 'M' + $.grep(DataObj, function (obj) { return (obj.Name === 'GCS_M') })[0].Value);
+                                var TempPainKiller = $.grep(DataObj, function (obj) { return (obj.Name === 'PainKiller') })[0].Value;
+                                var TempMedItem = $.grep(DataObj, function (obj) { return (obj.Name === 'RelievePainMedItem') });
+                                var TempMedItemNew = $.grep(DataObj, function (obj) { return (obj.Name === 'PainMedItem') });
+
+                                var Str = "";
+                                var StrTitle = "";
+                                var g = $.grep(DataObj, function (obj) { return (obj.Name == 'Txt_RelievePainMedItem_other') });
+                                if(g.length>0)
+                                    var TempMedItemOther = g[0].Value;
+                                else
+                                    var TempMedItemOther = "";
+                                if (TempPainKiller != "是") {
+                                    $(Temp).find('td[data-target=PainKiller]').text(TempPainKiller == '否' ? '無' : '給藥後評估');
+                                } else {
+                                    if (TempMedItem.length > 0) {
+                                        var TempMedItemWord = TempMedItem[0].Value.split(',');//ARR
+
+                                        for (var q = 0 ; q < TempMedItemWord.length; q++)
+                                        {
+                                            var TempMedName = $.grep(DataObj, function (obj) { return (obj.Name === 'RelievePainMedItem_Name_' + TempMedItemWord[q]) });
+                                            var TempMedAmount = $.grep(DataObj, function (obj) { return (obj.Name === 'RelievePainMedItem_Amount_' + TempMedItemWord[q]) });
+                                            var TempMedWay = $.grep(DataObj, function (obj) { return (obj.Name === 'RelievePainMedItem_Way_' + TempMedItemWord[q]) });
+                                            if (TempMedName.length>0){
+                                                Str += (q + 1) + ". ";
+                                                Str += TempMedName[0].Value;
+                                                StrTitle += (q + 1) + ". ";
+                                                StrTitle += TempMedName[0].Value;
+                                            }
+                                            if (TempMedAmount.length > 0) {
+                                                Str += "<br />劑量：" + TempMedAmount[0].Value;
+                                                StrTitle += "\n劑量：" + TempMedAmount[0].Value;
+                                            }
+                                            if (TempMedWay.length > 0) {
+                                                Str += " 途徑：" + TempMedWay[0].Value;
+                                                Str += "<br />";
+                                                StrTitle += " 途徑：" + TempMedWay[0].Value;
+                                                StrTitle += "\n";
+                                            }
+
+                                        }
+                                    }
+                                    if (TempMedItemNew.length > 0) {
+
+                                        for (var q = 0; q < TempMedItemNew.length; q++) {
+                                            var TempMedItemWord = TempMedItemNew[q].Value.split('|');//ARR
+                                            if (TempMedItemWord.length > 0) {
+                                                Str += (q + 1) + ". ";
+                                                Str += TempMedItemWord[1];
+                                                StrTitle += (q + 1) + ". ";
+                                                StrTitle += TempMedItemWord[1];
+
+                                                Str += "<br />劑量：" + TempMedItemWord[2];
+                                                StrTitle += "\n劑量：" + TempMedItemWord[2];
+
+                                                Str += " 途徑：" + TempMedItemWord[3];
+                                                Str += "<br />";
+                                                StrTitle += " 途徑：" + TempMedItemWord[3];
+                                                StrTitle += "\n";
+                                            }                                    
+                                        }
+                                    }
+                                    if (TempMedItemOther != '') {
+                                        Str += "其他：<label style='word-break: break-all;'>" + TempMedItemOther + "</label><br />";
+                                    }
+                                    if (Str.length > 10) {
+                                        $(Temp).find('td[data-target=PainKiller]').html(Str.substr(0, 10)+"...");//(Str=='')?'無':Str
+                                    } else {
+                                        $(Temp).find('td[data-target=PainKiller]').html(Str.substr(0, 10));//(Str=='')?'無':Str
+                                    }
+                                    $(Temp).find('td[data-target=PainKiller]').attr('title', StrTitle);
+                                }
+
+                                //副作用
+                                r = $.grep(DataObj, function (obj) { return (obj.Name === 'RelievePainSideEffectItem') });
+                                if (r.length > 0) {
+                                    var RelievePainSideEffectItemWord = r[0].Value;
+                                    r = $.grep(DataObj, function (obj) { return (obj.Name === 'RelievePainSideEffectItem_Other') });
+                                    if (r.length > 0)
+                                        RelievePainSideEffectItemWord = RelievePainSideEffectItemWord.substring(0, RelievePainSideEffectItemWord.length - 2) + r[0].Value;
+                                    $(Temp).find('td[data-target=RelievePainSideEffectItem]').text(RelievePainSideEffectItemWord);
+                                }
+                                else
+                                    $(Temp).find('td[data-target=RelievePainSideEffectItem]').text('-');
+                                //靈性評估
+                                r = $.grep(DataObj, function (obj) { return (obj.Name === 'Mood_Thermometer_Total') });
+                                if (r.length > 0)
+                                    $(Temp).find('td[data-target=Mood_Thermometer_Total]').text(r[0].Value);
+                                else
+                                    $(Temp).find('td[data-target=Mood_Thermometer_Total]').text($.grep(DataObj, function (obj) { return (obj.Name === 'SpiritualityAssess') })[0].Value);
+                            }
+
+                            if (item['UserNO'] != null) {
+                                if (item['UserNO'] != userno) {
+                                    $(Temp).find('input[type=button]').remove();
+                                }
+                            }
+                            $(Temp).find('input[type=button][data-code]').attr('data-code', item['PainCode']);
+                            $(Temp).find('input[type=button][data-position]').attr('data-position', item['PainPosition']);
+                            $(Temp).find('input[type=button][data-recordcode]').attr('data-recordcode', item['PainRecordCode']);
+                            $('#PainPositionRecordList tbody').append(Temp);
+                        });
+                    }
+                    else
+                        $('#PainPositionRecordList tbody').append('<tr><td colspan="6" style="text-align:center;">查無資料！</td></tr>');
+                }
+            },
+            complete: function () {
+                if (!!CallBack)
+                    CallBack();
+            }
+        });
+    }
+
+    //顯示點選的部位所屬的持續疼痛
+    function ShowRecord(obj) {
+        $('#PainPositionRecordList tbody tr').hide();
+        $('#PainPositionRecordList tbody tr td[data-rowid=' + $(obj).find('td[data-rowid]').attr('data-rowid') + ']').parent().show();
+    }
+
+    //顯示結案輸入畫面
+    function ShowEndData(obj) {
+        $('#EndData').attr('data-code', $(obj).attr('data-code'));
+        $('#EndData, #sys_Block').show();//.show('fast');//
+    }
+
+    //關閉結案輸入畫面
+    function CloseEndData() {
+        $('#EndData').attr('data-code', '').find('textarea').val('');
+        $('#EndData, #sys_Block').hide();
+    }
+
+    //儲存結案
+    function SaveEndData() {
+        if ($.trim($('#EndData #EndReason').val()) != '') {
+            loop_windows("open_cover");
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/AssessPain_ECK/SaveEndData")',
+                data: {
+                    'PainCode': $('#EndData').attr('data-code'),
+                    'EndDate': $('#EndData #EndDate').val() + ' ' + $('#EndData #EndTime').val(),
+                    'EndReason': $.trim($('#EndData #EndReason').val())
+                },
+                success: function (data) {
+                    if (data == 'Y') {
+                        alert('儲存成功！');
+                        location.reload();
+                    }
+                    else {
+                        alert('儲存失敗！');
+                        loop_windows("close_cover");
+                    }
+                }
+            });
+        }
+        else {
+            alert('請輸入結案原因！');
+            $('#EndData #EndReason').focus()
+        }
+    }
+
+    //載入初始疼痛頁面
+    function InitPainPosition(PainCode, checker) {
+        loop_windows("open_cover");
+        $('#List').hide();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/AssessPain_ECK/PainPosition")',
+            success: function (data) {
+                $('#PainPosition').html(data).show();
+            },
+            complete: function () {
+                if (!!PainCode && PainCode != '') {
+                    SetPainPositionDate(PainCode, function () {
+                        $('#PainPositinoContent').scrollTop(0);
+                        loop_windows("close_cover");
+                    });
+                }
+                else
+                    loop_windows("close_cover");
+
+            }
+        });
+    }
+
+    //載入初始疼痛資料
+    function SetPainPositionDate(PainCode, CallBack) {
+        $('#PainPositino .btn-Edit').show();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/AssessPain_ECK/SelectPainPosition")',
+            data: { 'PainCode': PainCode },
+            success: function (data) {
+                if (data != '') {
+                    var List = JSON.parse(data);
+                    if (List.length > 0) {
+                        var DataList;
+                        var Input;
+                        $.each(List, function (i, item) {
+                            $('#PainPositinoContent #PainCode').val(item.PainCode);
+                            $('#PainPositinoContent #ReocordDate').val(item.RecordDate.split(" ")[0]);
+                            $('#PainPositinoContent #ReocordTime').val(item.RecordDate.split(" ")[1]);
+                            $.each(item.PainPosition.split(","), function (i, item) {
+                                $('#PainPositinoContent input[type=checkbox][name=PositionItem]').filter("[value='" + item + "']").prop('checked', true).trigger('onclick');
+                            });
+                            DataList = JSON.parse(item.RecordData);
+                            BindData('PainPositinoContent', DataList);
+                            if (item["EditFlag"] != "Y")
+                                $('#PainPosition .btn-Edit').hide();
+                        });
+                    }
+                    else {
+                    }
+                }
+            },
+            complete: function () {
+                if (!!CallBack)
+                    CallBack();
+            }
+        });
+    }
+
+    //刪除初始疼痛
+    function DelPainPosition(obj) {
+        if (confirm('確認刪除?')) {
+            loop_windows("open_cover");
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/AssessPain_ECK/DeletePainPosition")',
+                data: { 'PainCode': $(obj).attr('data-code') },
+                success: function (data) {
+                    if (data == 'Y') {
+                        alert('刪除成功！');
+                        location.reload();
+                    }
+                    else {
+                        alert('刪除失敗！');
+                        loop_windows("close_cover");
+                    }
+                }
+            });
+        }
+    }
+
+    //載入持續疼痛頁面
+    function InitPainRecord(PainCode, PainPosition, RecordCode) {
+        loop_windows("open_cover");
+        $('#List').hide();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/AssessPain_ECK/PainPositionRecord")',
+            data: { 'PainPosition': PainPosition },
+            success: function (data) {
+                $('#PainRecord').html(data).show();
+            },
+            complete: function () {
+                SetPainPositionRecordDate(PainCode, RecordCode, function () {
+                    $('#PainRecordContent').scrollTop(0);
+                    loop_windows("close_cover");
+                });
+            }
+        });
+    }
+
+    //載入持續疼痛資料
+    function SetPainPositionRecordDate(PainCode, RecordCode, CallBack) {
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/AssessPain_ECK/SelectPainPositionRecord")',
+            data: { 'PainCode': PainCode, 'PainRecordCode': RecordCode },
+            success: function (data) {
+                if (data != '') {
+                    var List = JSON.parse(data);
+
+                    if (List.length > 0) {
+                        var DataList;
+                        var item = List[0];
+                        DataList = JSON.parse(item.RecordData);
+                        var TempMedItemNew = $.grep(DataList, function (obj) { return (obj.Name === 'PainMedItem') });
+
+                        $('#PainRecordContent #PainCode').val(item.PainCode);
+                        if (!!RecordCode && RecordCode != '') {
+                            $('#PainRecordContent #PainRecordCode').val(item.PainRecordCode);
+                            $('#PainRecordContent #ReocordDate').val(item.RecordDate.split(" ")[0]);
+                            $('#PainRecordContent #ReocordTime').val(item.RecordDate.split(" ")[1]);
+                            $.each(item.PainPosition.split(","), function (i, item) {
+                                $('#PainRecordContent input[type=checkbox][name=PositionItem]').filter("[value='" + item + "']").prop('checked', true).trigger('onclick');
+                            });
+                            BindData('PainRecordContent', DataList);
+                        }
+                        else {
+                            BindSpiritualityAssessData(DataList, item.PainPosition);
+
+                        }
+                        if (TempMedItemNew.length > 0) {
+
+                            for (var q = 0; q < TempMedItemNew.length; q++) {
+                                var TempMedItemWord = TempMedItemNew[q].Value.split('|');//ARR
+
+                                var seq = TempMedItemWord[0];
+                                var desc = TempMedItemWord[1];
+                                var dose = TempMedItemWord[2];
+                                var way = TempMedItemWord[3];
+                                insertMed(seq, desc, dose, way);
+                            }
+                        }
+                        if (RecordCode == null || RecordCode == undefined || RecordCode == '') {
+                            $(".medInfo").remove();
+                        }
+                    }
+                    else
+                        $('#PainRecordContent #PainCode').val(PainCode);
+                }
+
+            },
+            complete: function () {
+                if (!!CallBack)
+                    CallBack();
+            }
+        });
+
+    }
+
+    //綁定資料
+    function BindData(ContainerID, DataList) {
+        $.each(DataList, function (i, data) {
+            Input = $('#' + ContainerID + ' [name=' + data["Name"] + ']');
+            switch (Input.prop("tagName")) {
+                case 'INPUT':
+                    switch (Input.attr("type").toUpperCase()) {
+                        case 'TEXT':
+                            Input.val(data["Value"]);
+                            break;
+                        case 'RADIO':
+                            Input.filter("[value='" + data["Value"] + "']").prop('checked', true).trigger('onclick');
+                            break;
+                        case 'CHECKBOX':
+                            $.each(data["Value"].split(","), function (i, item) {
+                                Input.filter("[value='" + item + "']").prop('checked', true).trigger('onclick');
+                            });
+                    }
+                    break;
+                case 'SELECT':
+                    Input.val(data["Value"]);
+                    PainStart_TimeUnit_change();
+                    break;
+            }
+        });
+    }
+
+    //初始疼痛的 何時開始--下拉選單--的手術後，需隱藏前面textbox的功能
+    function PainStart_TimeUnit_change() {
+        if ($("#PainStart_TimeUnit option:selected").val() == "手術後") {
+            $("#PainStart_TimeNum").hide();
+        } else {
+            $("#PainStart_TimeNum").show();
+        }
+    };
+
+    //顯示搜尋GCS畫面
+    function SelectGCS() {
+        loop_windows("open_cover");
+        $('#VTList #dt_Vtlist tbody').empty();
+        var temp;
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/AssessPain_ECK/SelectGCS")',
+            success: function (data) {
+                if (data != "") {
+                    var JsonObj = JSON.parse(data);
+                    if (JsonObj.length > 0) {
+                        $.each(JsonObj, function (i, item) {
+                            temp = '<tr><td><input type="button" value="帶入" data-E="' + item.E + '" data-V="' + item.V + '" data-M="' + item.M + '" onclick="BindGCS(this);" /></td>'
+                            + '<td>' + item.Date + '</td>'
+                            + '<td>' + item.Value + '</td></tr>';
+                            $('#VTList #dt_Vtlist tbody').append(temp);
+                        });
+                    }
+                    else
+                        $('#VTList #dt_Vtlist tbody').append('<tr><td colspan="3" style="text-align:center;">查無資料！</td></tr>');
+                }
+            },
+            complete: function () {
+                loop_windows("close_cover");
+                $('#VTList, #sys_Block').show();
+                setGridColor();
+            }
+        });
+    }
+
+    //關閉搜尋GCS畫面
+    function CloseGCS() {
+        $('#VTList, #sys_Block').hide();
+        $('#VTList dt_Vtlist tbody').empty();
+    }
+
+</script>

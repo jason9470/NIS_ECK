@@ -1,0 +1,187 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if (complement_List.Status) { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (@pf != null)
+        {
+            if (pf.InDate > mindate)
+            { mindate = pf.InDate; }
+        }
+    }
+    DataTable DT = ViewBag.DT;
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    function SaveEndPositionReason() {
+        var BoolVal = true;
+
+        $('input[name=TxtENDTREASON]').each(function () {
+            if($(this).val() == "")
+            {
+                alert("請輸入結束原因");
+                BoolVal = false;
+                return;
+            }
+        });
+
+        if (BoolVal) {
+            $.ajax({
+                url: '../DigitFlapTemperature/SaveTemperatureSatusPrompt',
+                type: 'POST',
+                data: $('form[name=FormSetTemperatureStatusPrompt]').serialize(),
+                success: function (data) {
+                    if (data == "Y") {
+                        alert('儲存成功');
+                    }
+                    else if (data == "N") {
+                        alert('儲存失敗');
+                    }
+                    else if (data == "O") {
+                        alert('請重新選擇病患');
+                    }
+                }, complete: function () {
+                    window.opener.location.href = 'listTemperature';
+                    window.close();
+                }
+            });
+        }
+    }
+</script>
+
+<form id="FormSetTemperatureStatusPrompt" name="FormSetTemperatureStatusPrompt">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+            <tr>
+                <td style="text-align:center;">
+                    <span style="font-size:18px;color:blue;">部位記錄結案</span>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="dataHeader">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                            <tr>
+                                <td style="width: 10%;">編號</td>
+                                <td style="width: 16%;">類別</td>
+                                <td style="width: 16%;">部位</td>
+                                <td style="width: 15%;">開始日期</td>
+                                <td style="width: 21%;">結束日期</td>
+                                <td style="width: 22%;">結束原因</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="dataArea" style="height:440px;">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                            @foreach (DataRow r in DT.Rows)
+                            {
+                                string DFTempType = "";
+                                switch (r["DFTEMP_TYPE"].ToString())
+                                {
+                                    case "1":
+                                        DFTempType = "對照肢";
+                                        break;
+                                    case "2":
+                                        DFTempType = "患肢";
+                                        break;
+                                    case "3":
+                                        DFTempType = "皮瓣";
+                                        break;
+                                    default:
+                                        DFTempType = "類別錯誤";
+                                        break;
+                                }
+                                string DFTEMPPOSITION = r["DFTEMP_POSITION"].ToString();
+                                if (r["DFTEMP_POSITION"].ToString() == "99")
+                                {
+                                    DFTEMPPOSITION = r["DFTEMP_POSITION_CONT"].ToString();
+                                }
+
+                                if (r["ENDTIME"].ToString() == "")
+                                {
+                                    <tr class="link" onclick="$('#temperature_record').load('../DigitFlapTemperature/Partial_Record?DFTempID=' + '@r["DFTEMP_ID"].ToString()');">
+                                        <td style="width: 10%; text-align:center">
+                                            @*<input name="row" id="ck@(r["DFTEMP_ROW"])" type="checkbox" value="@r["DFTEMP_ID"]" />*@
+                                            <label for="ck@(r["DFTEMP_ROW"])">@r["DFTEMP_NUM"]</label>
+                                            <input type="hidden" name="HidID[]" value="@r["DFTEMP_ID"]" />
+                                        </td>
+                                        <td style="width: 16%;">@DFTempType</td>
+                                        <td style="width: 16%;">@DFTEMPPOSITION</td>
+                                        <td style="width: 15%; white-space: nowrap;">@Convert.ToDateTime(r["DFTEMP_CREATE_DTM"]).ToString("yyyy/MM/dd")</td>
+                                        <td style="width: 21%;">
+                                            <input type="text" id="TxtEndPositionDate_@(r["DFTEMP_ID"])" name="TxtEndPositionDate[]" style="width:80px;" value="@DateTime.Now.ToString("yyyy/MM/dd")" readonly="readonly" />
+                                            <input type="text" id="TxtEndPositionTime_@(r["DFTEMP_ID"])" name="TxtEndPositionTime[]" style="width:50px;" value="@DateTime.Now.ToString("HH:mm")" readonly="readonly" />
+                                            @*@WebTool.setDateTime("TxtEndPositionDate_" + r["DFTEMP_ID"], "TxtEndPositionTime_" + r["DFTEMP_ID"], "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                                            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "TxtEndPositionDate_" + r["DFTEMP_ID"], "TxtEndPositionTime_" + r["DFTEMP_ID"], true)
+                                        </td>
+                                        <td style="width: 22%;">
+                                            <input type="hidden" id="HidENDTREASON_@(r["DFTEMP_ID"])" name="HidENDTREASON[]" value="" />
+                                            <textarea id="TxtENDTREASON_@(r["DFTEMP_ID"])" name="TxtENDTREASON[]" rows="3" cols="22" maxlength="900" onchange="this.value=this.value.replace(/,/g, '，')"></textarea>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </table>
+                    </div>
+                </td>
+            </tr>
+            <tr style="padding:5px 0 5px 0;text-align:center;">
+                <td>
+                    <input id="save" type="button" value="儲存" onclick="SaveEndPositionReason();" />
+                    <input id="cancle" type="button" value="取消" onclick="if (confirm('確認放棄?')) window.close();" />
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>

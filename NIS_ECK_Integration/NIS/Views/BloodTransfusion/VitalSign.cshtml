@@ -1,0 +1,686 @@
+﻿@using System.Data;
+@using Newtonsoft.Json;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    NIS.Data.PatientInfo patientInfo = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.UserInfo userInfo = (NIS.Data.UserInfo)Session["UserInfo"];
+    DataTable BloodVitalSignData = ViewBag.BloodVitalSignData;
+    string JsonBloodVitalSignData = JsonConvert.SerializeObject(BloodVitalSignData);
+    string BloodTransfusionSerial = ViewBag.BloodTransfusionSerial;
+    string Period = ViewBag.Period;
+    string PeriodTitle = "";
+    switch (Period)
+    {
+        case "15minBefore":
+            PeriodTitle = "輸血前15分鐘";
+            break;
+        //case "Start":
+        //    PeriodTitle = "輸血開始";
+        //    break;
+        case "15minAfter":
+            PeriodTitle = "輸血後15分鐘";
+            break;
+        case "End":
+            PeriodTitle = "輸血結束";
+            break;
+    }
+    string Serial = "";
+    if (BloodVitalSignData != null && BloodVitalSignData.Rows.Count > 0)
+    {
+        Serial = BloodVitalSignData.Rows[0]["SERIAL"].ToString();
+    }
+    string title = "";
+    if (Serial != null)
+    {
+        title = "編輯生命徵象";
+    }
+    else
+    {
+        title = "新增生命徵象";
+    }
+
+    DateTime Now = DateTime.Now;
+}
+
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: left;
+        background-color: #d5d5f7;
+        width: 100%;
+        border-radius: 5px;
+        font-size: 28px;
+        font-weight: 800
+    }
+
+    .dataArea {
+        border: 0 !important;
+        border-radius: 10px !important;
+        font-family: Arial, EUDC !important;
+        overflow-y: auto !important;
+    }
+
+        .dataArea td {
+            text-align: left;
+            height: 20px;
+        }
+
+    .count_btn {
+        border-radius: 60px;
+        border-width: 0;
+        color: white;
+        background-color: #3c7ec3;
+        height: 20px;
+    }
+
+    .fun_btn {
+        font-size: 18px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        margin: 0.5rem !important;
+        width: 70px !important;
+        color: white !important;
+        cursor: pointer;
+    }
+
+    .dataHeader {
+        text-align: center !important;
+        border-radius: 6px !important;
+        font-size: 20px !important;
+        margin-right: 0 !important
+    }
+
+    .funcArea legend {
+        margin-left: 5px;
+        font-size: 14px;
+        font-family: "微軟正黑體";
+        background: #E1E6FA;
+        padding: 3px 7px 2px 7px;
+        border-top: 0 !important;
+        border-left: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        border-radius: 10px;
+    }
+
+    .card {
+        background-color: #FAFAFA;
+        color: #3D3D3D;
+        margin: 0.2rem;
+        min-width: 140px;
+        height: 130px;
+        border-radius: 15px;
+        border-style: solid;
+        border-color: #cfe1eb;
+        border-width: 3px;
+        flex: 1;
+    }
+
+    .card-out {
+        background-color: #FAFAFA;
+        color: #3D3D3D;
+        /*margin: 0.2rem;*/
+        /*width: 750px;*/
+        height: 200px;
+        border-radius: 15px;
+        border-style: solid;
+        border-color: #cfe1eb;
+        border-width: 3px;
+    }
+
+    .title-card {
+        background-color: #FAFAFA;
+        color: #3D3D3D;
+        margin: 0.1rem;
+        width: 430px;
+        height: 80px;
+        border-radius: 15px;
+        border-style: solid;
+        border-color: #d5d5f7;
+        border-width: 3px;
+    }
+
+    .title {
+        margin: 0.3rem;
+        font-size: 18px;
+        color: #136286;
+    }
+
+    .value-div {
+        height: 40%;
+        display: flex;
+        justify-content: center;
+        margin-top: 0.5rem;
+    }
+
+    .value {
+        font-size: 36px;
+    }
+
+    .unit {
+        width: 100%;
+        text-align: end;
+        font-size: 30px;
+    }
+
+    .Timevalue {
+        margin: 1rem;
+        font-size: 24px;
+    }
+
+    .vs_value {
+        font-size: 30px;
+        caret-color: #FAFAFA;
+        outline: none;
+        border: none;
+        background-color: #FAFAFA;
+        text-align: center;
+    }
+
+    #cover {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1001;
+    }
+
+    #divrecord {
+        display: none;
+        position: fixed;
+        top: 20%;
+        left: 25%;
+        background: white;
+        z-index: 2000;
+        padding: 20px;
+        border: 1px solid #333;
+    }
+</style>
+<script type="text/javascript">
+    var BloodVitalSignData = @Html.Raw(JsonBloodVitalSignData);
+
+    $(document).ready(function () {
+        //輸血紀錄單Serial
+        $('input[name=BloodTransfusionSerial]').val('@BloodTransfusionSerial');
+        $('input[name=VS_Period]').val('@Period');
+        $('input[name=VS_Serial]').val('@Serial');
+        setGridColor();
+        LoadBloodVitalSignData();
+        ImportVitalSign();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', 'rgb(211 237 249)');
+        $('.dataArea tr:even').css('background', 'rgb(231, 238, 245)');
+    }
+
+    //載入生命徵象資料
+    function LoadBloodVitalSignData() {
+        if (BloodVitalSignData.length > 0) {
+            let Data = BloodVitalSignData[0];
+            let Period = Data.PERIOD;
+            let AssessTime = "";
+            if (Data.ASSESS_TIME != null && Data.ASSESS_TIME != "") {
+                AssessTime = moment(Data.ASSESS_TIME).format("YYYY/MM/DD HH:mm");
+            }
+            $('input[name=VS_Id]').val(Data.VS_ID);
+
+            SetValue('Assess_Time', AssessTime);
+            SetValue('BT', Data.BT);
+            SetValue('HR', Data.HR);
+            SetValue('Respiratory', Data.RESPIRATORY);
+            SetValue('BP_Systolic', Data.BP_SYSTOLIC);
+            SetValue('BP_Diastolic', Data.BP_DIASTOLIC);
+            SetValue('SPO2', Data.SPO2);
+            if (Data.IS_ALLERGIC != null && Data.IS_ALLERGIC != '') {
+                set_for_rb('IsAllergic', Data.IS_ALLERGIC);
+            }
+        }
+    }
+
+    // 儲存
+    function loading_change() {
+        $("#save").prop('disabled', true);
+        loop_windows("open_cover");
+        let IsAllergic = $('input[name=IsAllergic]:checked').val();
+        $('#CareRecordContent').val($('#text_content').val());
+        if (dtl_check()) {
+            $.ajax({
+                url: $('#form1').attr('action'),
+                type: 'post',
+                data: $('#form1').serialize(),
+                success: function (data) {
+                    let alert_message = "";
+                    switch (data.status) {
+                        case 0:
+                            if (data.message) {
+                                alert_message = data.message;
+                            }
+                            alert(alert_message);
+                            window.close();
+                            window.opener.location.href = 'Insert?BloodTransfusionSerial=' + '@BloodTransfusionSerial';
+                            if (IsAllergic == '是') {
+                                window.opener.document.getElementById('Edit_TransfusionReaction').click();
+                            }
+                            break;
+                        default:
+                            if (data.message) {
+                                alert_message = data.message;
+                            }
+                            alert(alert_message);
+                            $("#save").prop('disabled', false);
+                            loop_windows("close_cover");
+                            break;
+                    }
+                },
+                error: function (result) {
+                }
+            });
+        }
+        else {
+            $("#save").prop('disabled', false);
+            loop_windows("close_cover");
+        }
+    }
+
+    //設定input值
+    function SetValue(id, val) {
+        $("#" + id).val(val);
+    }
+
+    //設定radio值
+    function set_for_rb(rb_name, dvalue) {
+        dvalue = dvalue.replace('&lt;', '<').replace('&gt;', '>');//過濾特殊字元
+        if (dvalue != '') {
+            $("input:radio[name=" + rb_name + "]").each(function () {
+                if ($(this).val() == dvalue) {
+                    $(this).trigger('click');
+                }
+            });
+        }
+    }
+
+    // 驗證儲存資料
+    function dtl_check() {
+        let success = true;
+
+        //檢查有沒有帶入生命徵象
+        let VS_Id = document.querySelector('input[name=VS_Id]').value;
+        if (VS_Id == null || VS_Id == '') {
+            success = false;
+            alert('未帶入任何生命徵象!');
+        }
+
+        let tr_list = $('p[must=Y]:visible,div[must=Y]:visible,td[must=Y]:visible');
+        for (let i = 0; i < tr_list.length; i++) {
+            let input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                let input_name = '';
+                for (let j = 0; j < input_list.length; j++) {
+                    //檢查input的name是否為空
+                    if (input_name != $(input_list[j]).attr('name')) {
+                        input_name = $(input_list[j]).attr('name');
+                        //判斷input類型
+                        if (input_list[j].type == 'text' || input_list[j].type == 'textarea') {
+                            var input_val = $.trim(input_list[j].value);
+                        }
+                        else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                            var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+                        }
+                        //input值為空時停止驗證並提示
+                        if (input_val == undefined || input_val == '') {
+                            success = false;
+                            if (input_name == 'Assess_Time') {
+                                alert('未帶入資料!');
+                            }
+                            else {
+                                alert($(tr_list[i]).find('.subtitle').html() + ' 未填寫!')
+                            }
+                            i = tr_list.length;
+                            j = input_list.length;
+                        }
+                    }
+                }
+            }
+        }
+        return success;
+    }
+
+    //載入VitalSign資料帶入畫面
+    function ImportVitalSign() {
+        loop_windows("open_cover");
+
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/BloodTransfusion/VitalSign_Interfacing")',
+            dataType: 'html',
+            data: { starttime: $('#startDate').val() + ' ' + $('#startTime').val(), endtime: $('#edDate').val() + ' ' + $('#edTime').val(), feeno: '@patientInfo.FeeNo', BloodTransfusionSerial:'@BloodTransfusionSerial'},
+            cache: false,
+            success: function (response) {
+                $('.dataAreaX').html();
+                $('.dataAreaX').html(response);
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    //儲存護理紀錄
+    function CheckCareRecord() {
+        buildCareRecordStr();
+        $("#divrecord").show();
+        $("#cover").show();
+    }
+
+    function buildCareRecordStr() {
+        // 共用取值函式
+        const f = (name) => {
+            const els = document.querySelectorAll(`[name="${name}"]`);
+            if (!els.length) return "";
+            const type = els[0].type;
+            if (type === "radio") {
+                const checked = [...els].find((el) => el.checked);
+                return checked ? checked.value.trim() : "";
+            }
+            return els[0].value.trim();
+        };
+
+        // 取得欄位值
+        const period = f("VS_Period");
+        const recordTime = f("Assess_Time") || "";
+        const bt = f("BT");
+        const hr = f("HR");
+        const resp = f("Respiratory");
+        const bpSys = f("BP_Systolic");
+        const bpDia = f("BP_Diastolic");
+        const spo2 = f("SPO2");
+        const isAllergic = f("IsAllergic");
+
+        // 組內容
+        let content = "";
+        let title = "";
+
+        content += `${recordTime}病人生命徵象：體溫：${bt}℃、心跳：${hr}次/分鐘、呼吸：${resp}次/分鐘、血壓：${bpSys}/${bpDia}mmHg、血氧：${spo2}%。`;
+
+        if (period === "15minBefore") {
+            content +=
+                "給予輸血衛教，輸血過程中若有胸悶、皮膚起疹發癢、呼吸困難等症狀，需立即告知醫護人員，病人、家屬：_________、看護，表示明白，持續觀察生命徵象及輸血反應變化。";
+            title = "輸血前15分鐘內";
+        } else if (period === "15minAfter") {
+            if (isAllergic === "否") {
+                content += "暫無輸血反應，持續觀察生命徵象及輸血反應等變化。";
+                title = "輸血後15分鐘內_穩定";
+            } else if (isAllergic === "是") {
+                content += "有輸血反應，進行輸血反應評估。";
+                title = "輸血後15分鐘內_異常";
+            }
+        } else if (period === "End") {
+            if (isAllergic === "否") {
+                content += "輸血結束，病人不適之主訴，續觀察。";
+                title = "輸血結束_穩定";
+            } else if (isAllergic === "是") {
+                content += "有輸血反應，進行輸血反應評估。";
+                title = "輸血結束_異常";
+            }
+        }
+        $('#CareRecordTitle').val(title);
+        $('#text_content').val(content);
+        console.log({ title, content });
+        return { title, content };
+    }
+
+</script>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+    <tr>
+        <td style="width:100%;text-align:center;">
+            <div id="module_define"><label style="margin-left:1rem">@title - @PeriodTitle</label></div>
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 5px 0 5px 0;">
+            @*<div class="funcArea">
+                    <input type="button" id="save" value="存檔" style="width:50px;" onclick="loading_change()" />
+                    <input type="button" value="取消" style="width:50px;" onclick="if (confirm('確定取消?')) window.close()" />
+                </div>*@
+            @*<div class="funcArea">
+                    <input type="button" id="save" class="fun_btn" value="存檔" style="width: 60px; background-color: #5ab95a" onclick="loading_change()" />
+                    <input type="button" value="取消" class="fun_btn" style="width: 60px; background-color: #ed6f6f " onclick="if (confirm('確定取消?'))window.close()" />
+                </div>*@
+        </td>
+    </tr>
+</table>
+
+@*生命徵象*@
+<div style="width:100%;display:flex;justify-content:center">
+    <div style="width: 100%">
+        <div class="dataHeader">
+            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:18px;">
+                <tr>
+                    <td style="width: 25%; background-color: rgb(231, 238, 245)">床號:@patientInfo.BedNo</td>
+                    <td style="width: 25%; background-color: rgb(231, 238, 245)">病歷號:@patientInfo.ChartNo</td>
+                    <td style="width: 25%; background-color: rgb(231, 238, 245)">姓名:@patientInfo.PatientName</td>
+                    <td style="width: 25%; background-color: rgb(231, 238, 245)">性別:@patientInfo.PatientGender</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="funcArea">
+    <table style="width:100%;">
+        <tr>
+            <td>
+                <fieldset>
+                    <legend>查詢區間</legend>
+                    @(Html.TextBox("startDate", DateTime.Now.AddDays(-3).ToString("yyyy/MM/dd")))
+                    @(Html.TextBox("startTime", DateTime.Now.AddDays(-3).ToString("HH:mm")))
+                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "startDate", "startTime", false)
+                    ~
+                    @(Html.TextBox("edDate", DateTime.Now.ToString("yyyy/MM/dd")))
+                    @(Html.TextBox("edTime", DateTime.Now.ToString("HH:mm")))
+                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "edDate", "edTime", false)
+                    <input type="button" class="fun_btn" value="查詢" style="font-size:18px !important;width :60px" onclick="ImportVitalSign()" />
+
+                    @*(紅色數值表過高，藍色數值表過低)*@
+                </fieldset>
+            </td>
+        </tr>
+    </table>
+</div>
+<div class="dataAreaX" style="height: auto;">
+</div>
+
+@*生命徵象*@
+<form id="form1" method="post" action="VitalSignSave">
+    <input type="hidden" name="BloodTransfusionSerial" />
+    <input type="hidden" name="VS_Period" />
+    <input type="hidden" name="VS_Serial" />
+    <input type="hidden" name="VS_Id" />
+    <div style="width: 100%; display: flex; justify-content: center; margin-top: 5px; font-size: 18px;">
+        <div style="width: 100%">
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:18px;">
+                    <tr>
+                        <td style="width: 25%; background-color: #cfe1eb !important">
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">生命徵象</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;">
+                <div class="card-out" style="width: 99%">
+                    <label class="title" style="color:#9F4D95">測量時間</label>
+                    @Html.TextBox("Assess_Time", "-", new { style = "width:180px;font-size: 20px", @readonly = "readonly", @class = "vs_value" })
+
+                    <div style="display: flex; margin: 0.7rem; justify-content: space-between; gap: 10px; overflow-x: auto ">
+                        <div class="card" style="">
+                            <div class="title" style="color:#136286">體溫</div>
+                            <div class="value-div">
+                                <div style="width: 90%; display: flex; justify-content: center">
+                                    @Html.TextBox("BT", "-", new { style = "width:100%;", @readonly = "readonly", @class = "vs_value" })
+                                </div>
+                            </div>
+                            <div class="unit"><label style="padding-right:5px">℃</label></div>
+                        </div>
+                        <div class="card" style="">
+                            @*<label class="title" style="color:#136286">心跳</label>
+                                <br>
+                                <div class="value-div">
+                                    @Html.TextBox("HR", "-", new { style = "width:50px;", @readonly = "readonly", @class = "vs_value" })
+                                    <label class="unit">bpm</label>
+                                </div>*@
+                            <div class="title" style="color:#136286">心跳</div>
+                            <div class="value-div">
+                                <div style="width: 90%; display: flex; justify-content: center">
+                                    @Html.TextBox("HR", "-", new { style = "width:100%;", @readonly = "readonly", @class = "vs_value" })
+                                </div>
+                            </div>
+                            <div class="unit"><label style="padding-right:5px">bpm</label></div>
+                        </div>
+                        <div class="card" style="">
+                            @*<label class="title">呼吸</label>
+                                <br>
+                                <div class="value-div">
+                                    @Html.TextBox("Respiratory", "-", new { style = "width:50px;", @readonly = "readonly", @class = "vs_value" })
+                                    <label class="unit">bpm</label>
+                                </div>*@
+                            <div class="title" style="color:#136286">呼吸</div>
+                            <div class="value-div">
+                                <div style="width: 90%; display: flex; justify-content: center">
+                                    @Html.TextBox("Respiratory", "-", new { style = "width:100%;", @readonly = "readonly", @class = "vs_value" })
+                                </div>
+                            </div>
+                            <div class="unit"><label style="padding-right:5px">bpm</label></div>
+                        </div>
+                        <div class="card" style="min-width:250px">
+                            @*<label class="title">血壓</label>
+                                <br>
+                                <div style="text-align:center;margin-top:1rem">
+                                    @Html.TextBox("BP_Systolic", "-", new { style = "width:45px;font-size:26px", @readonly = "readonly", @class = "vs_value" })
+                                    <lable style="font-size: 26px">/</lable>
+                                    @Html.TextBox("BP_Diastolic", "-", new { style = "width:40px;font-size:26px", @readonly = "readonly", @class = "vs_value" })
+                                    <label style="font-size: 26px" class="unit">mmHg</label>
+                                </div>*@
+                            <div class="title" style="color:#136286">血壓</div>
+                            <div class="value-div">
+                                <div style="width: 95%;display:flex;justify-content:center">
+                                    @Html.TextBox("BP_Systolic", "-", new { style = "width:40%", @readonly = "readonly", @class = "vs_value" })
+                                    <div style="font-size: 30px;align-self:center">/</div>
+                                    @Html.TextBox("BP_Diastolic", "-", new { style = "width:40%", @readonly = "readonly", @class = "vs_value" })
+                                </div>
+                            </div>
+                            <div class="unit"><label style="padding-right:5px">mmHg</label></div>
+                        </div>
+                        <div class="card" style="">
+                            @*<label class="title">SPO2</label>
+                                <br>
+                                <div class="value-div">
+                                    @Html.TextBox("SPO2", "-", new { style = "width:60px;", @readonly = "readonly", @class = "vs_value" })
+                                    <label class="unit">%</label>
+                                </div>*@
+                            <div class="title" style="color:#136286">SPO2</div>
+                            <div class="value-div">
+                                <div style="width: 90%; display: flex; justify-content: center">
+                                    @Html.TextBox("SPO2", "-", new { style = "width:100%;", @readonly = "readonly", @class = "vs_value" })
+                                </div>
+                            </div>
+                            <div class="unit"><label style="padding-right:5px">%</label></div>
+                        </div>
+                    </div>
+                </div>
+                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:18px;">
+                    @if (Period != "15minBefore")
+                    {
+                        <tr>
+                            <th style="width:20%"><span style="color: red">＊</span>輸血反應評估</th>
+                            <td must="Y">
+                                <label class="subtitle" style="display:none">輸血反應評估</label>
+                                <label><input type="radio" name="IsAllergic" value="是" />是</label>
+                                <label><input type="radio" name="IsAllergic" value="否" />否</label>
+                            </td>
+                        </tr>
+                    }
+                    <tr style="display:none">
+                        <th>備註</th>
+                        <td>
+                            <textarea id="CareRecordTitle" type="text" name="CareRecordTitle" style="width:200px;height:80px"></textarea>
+                        </td>
+                    </tr>
+                    <tr style="display:none">
+                        <th>備註</th>
+                        <td>
+                            <textarea id="CareRecordContent" type="text" name="CareRecordContent" style="width:200px;height:80px"></textarea>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="funcArea" style="text-align: center; ">
+        <input type="button" id="save" class="fun_btn" value="存檔" style="width: 60px; background-color: #5ab95a" onclick="CheckCareRecord()" />
+        <input type="button" value="取消" class="fun_btn" style="width: 60px; background-color: #ed6f6f " onclick="if (confirm('確定取消?'))window.close()" />
+    </div>
+</form>
+
+<style type="text/css">
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size: 16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>
+
+<div id="cover" class="dialog"></div>
+<div id="divrecord" class="dialog" style="width:700px;height:330px;">
+    <table width="100%" align="center">
+        <tr>
+            <td style="text-align:center;">
+                <textarea id="text_content" style="width:95%; height:280px; font-size:17px;"></textarea>
+                <input type="button" value="存檔" tempstatus="N" onclick="loading_change();" />
+                <input type="button" value="取消" onclick="$('#divrecord').hide(); $('#cover').hide();" />
+            </td>
+        </tr>
+    </table>
+</div>

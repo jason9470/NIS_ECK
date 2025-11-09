@@ -1,0 +1,134 @@
+﻿@using System.Data;
+@using NIS.Data
+@using NIS.Controllers;
+@using Newtonsoft.Json;
+
+@{
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    PatientInfo ptInfo = (PatientInfo)Session["PatInfo"];
+    string BloodTransfusionSerial = ViewBag.BloodTransfusionSerial;
+    DataTable TransfusionReactionList = ViewBag.TransfusionReactionList;
+    string JsonTransfusionReactionList = JsonConvert.SerializeObject(TransfusionReactionList);
+}
+@*<style type="text/css">
+        .dataArea td {
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+            text-align: left;
+        }
+
+        #module_define {
+            padding: 5px 0px 3px 0px;
+            text-align: center;
+            background-color: #9999FF;
+            width: 100%;
+            border: 1px solid #BBBBBB;
+            border-right: 2px solid #999999;
+            border-bottom: 2px solid #999999;
+        }
+    </style>*@
+<script type="text/javascript">
+    var TransfusionReaction = @Html.Raw(JsonTransfusionReactionList);
+
+    $(document).ready(function () {
+        loadVitalSign();
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', 'rgb(211 237 249)');
+        $('.dataArea tr:even').css('background', 'rgb(231, 238, 245)');
+        $('.dtl_VS tr:odd').css('background', 'rgb(211 237 249)');
+        $('.dtl_VS tr:even').css('background', 'rgb(231, 238, 245)');
+    }
+
+    //生命徵象資料顯示於對應欄位
+    function loadVitalSign() {
+        if (TransfusionReaction != null && TransfusionReaction.length > 0) {
+            for (let i = 0; i < TransfusionReaction.length; i++) {
+                let Data = TransfusionReaction[i];
+                let dataTXT = '';
+                let Serial = Data.SERIAL;
+                let dataTXTArray = [];
+                if (Data.ASSESS_TIME != null && Data.ASSESS_TIME != '') {
+                    let assessTime = moment(Data.ASSESS_TIME).format('YYYY/MM/DD HH:mm');
+                    dataTXTArray.push(assessTime);
+                }
+                if (Data.BT != null && Data.BT != '') {
+                    dataTXTArray.push('體溫: ' + Data.BT + ' °C');
+                }
+                if (Data.HR != null && Data.HR != '') {
+                    dataTXTArray.push('心跳: ' + Data.HR + ' bpm');
+                }
+                if (Data.RESPIRATORY != null && Data.RESPIRATORY != '') {
+                    dataTXTArray.push('呼吸: ' + Data.RESPIRATORY + ' bpm');
+                }
+                if ((Data.BP_SYSTOLIC != null && Data.BP_SYSTOLIC != '') || (Data.BP_DIASTOLIC != null && Data.BP_DIASTOLIC != '')) {
+                    dataTXTArray.push('血壓: ' + Data.BP_SYSTOLIC + '/' + Data.BP_DIASTOLIC + ' mmHg');
+                }
+                if (Data.SPO2 != null && Data.SPO2 != '') {
+                    dataTXTArray.push('SPO2: ' + Data.SPO2 + ' %');
+                }
+
+                if (dataTXTArray.length > 0) {
+                    dataTXT = dataTXTArray.join('<br>');
+                }
+                $('#VitalSign_' + Serial).html(dataTXT);
+            }
+        }
+    }
+</script>
+<div class="dataArea" style="height:20vh;overflow-y:scroll !important">
+    @if (TransfusionReactionList != null && TransfusionReactionList.Rows.Count > 0)
+    {
+        <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px">
+            @foreach (DataRow r in TransfusionReactionList.Rows)
+            {
+                string Serial = r["SERIAL"].ToString();
+                string ReactSymptomTXT = "";
+                string ReactSymptom = r["REACT_SYMPTOM"].ToString();
+                string ReactSymptomOther = r["TXT_REACT_SYMPTOM_OTHER"].ToString();
+                string recordTime = r["RECORD_TIME"].ToString();
+                if (!string.IsNullOrEmpty(recordTime))
+                {
+                    DateTime parseRecordTime;
+                    if (DateTime.TryParse(recordTime, out parseRecordTime))
+                    {
+                        recordTime = parseRecordTime.ToString("yyyy/MM/dd HH:mm");
+                    }
+                }
+                if (ReactSymptom.Contains("其他"))
+                {
+                    ReactSymptomTXT = ReactSymptom.Replace("其他", ReactSymptomOther);
+                }
+                else
+                {
+                    ReactSymptomTXT = ReactSymptom;
+                }
+                <tr>
+                    <td style="width:8%;">
+                        <div class="funcArea" style="overflow: hidden; width: 100%; text-align: center;">
+                            <input type="button" class="fun_btn" style="width: 50px !important; font-size: 16px !important; background-color: #5ab95a; margin: 0.1rem" value="修改" onclick="OpenTransfusionReaction('@Serial')" />
+                            <input type="button" class="fun_btn" style="width: 50px !important; font-size: 16px !important; background-color: #ed6f6f;margin:0.1rem" onclick="if(confirm('確定刪除?')) { TransfusionReactionDelete('@Serial') }" value="刪除" />
+                        </div>
+                    </td>
+                    <td style="width: 10%;text-align:center">@recordTime</td>
+                    <td id="VitalSign_@Serial" style="width: 18%;"></td>
+                    <td style="width: 12%;">
+                        @ReactSymptomTXT
+                        @if (r["TRANSFUSION_REACT"].ToString() == "無")
+                        {
+                            <div>無</div>
+                        }
+                    </td>
+                    <td style="width: 12%; text-align: center">@r["MD_TRA"]</td>
+                    <td style="width: 20%;">@r["REACT_PROCEDURE"]</td>
+                    <td style="width: 10%; text-align: center">@r["DC_BLOODTRANSFUSION"]</td>
+                    <td style="width: 10%; text-align: center">@r["EDIT_NAME"]</td>
+                </tr>
+                <tr></tr>
+            }
+        </table>
+    }
+</div>

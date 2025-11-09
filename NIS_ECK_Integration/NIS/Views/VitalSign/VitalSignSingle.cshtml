@@ -1,0 +1,2846 @@
+﻿@using NIS.Models;
+@using NIS.Controllers;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+
+    DateTime start = ViewBag.start;
+    string end = ViewBag.end;
+    string discharge_time = ViewBag.discharge_time;
+    int end_date = ViewBag.discharge_day;
+    if (discharge_time != "" && Convert.ToDateTime(discharge_time) < Convert.ToDateTime(end))
+    {
+        end = Convert.ToDateTime(discharge_time).ToString("yyyy/MM/dd");
+    }
+    else
+    {
+        end_date = 0;
+    }
+    if (discharge_time != "" && Convert.ToDateTime(discharge_time) < start)
+    {
+        start = Convert.ToDateTime(discharge_time);
+    }
+
+    ParamsData pd = (ParamsData)ViewData["dropdownitem"];
+    string[] func_list = (string[])ViewData["func_list"];
+    int age = ViewBag.age;
+    //比照controller 寫法 --> string type = get_check_type(ptinfo);
+    string type = "a";
+    if (age < 19)
+    {
+        type = "y";
+    }
+
+    if (age < 12)
+    {
+        type = "c";
+    }
+
+    if (age < 5)
+    {
+        type = "t";
+        DateTime Birthday = pf.Birthday;
+        int totalMonth = DateTime.Now.Year * 12 + DateTime.Now.Month - Birthday.Year * 12 - Birthday.Month;
+        if (totalMonth < 18)
+        {
+
+            type = "b";
+        }
+        if (totalMonth < 1)
+        {
+            type = "n";
+        }
+
+    }
+}
+
+<script type="text/javascript">
+    @if (Request["message"] != null)
+    {
+        @:showHint("@(Request["message"].ToString())");
+    }
+
+    function SetReason(obj) { //值過低或過高按enter時，"帶護理紀錄"會自動打勾
+        var type = $(obj).closest('tr').find('input[name=vs_item]').val();
+        if ($(obj).prop('checked')) {
+            $('input[type=text][name=' + type + '_record]').val('').hide();
+            $('#VS_plan_' + type).attr("checked", true);
+        }
+        else
+            $('input[type=text][name=' + type + '_record]').show();
+    }
+
+
+    function com_SDM_bph() {
+
+        if ($("#bph_text").val() != '' && $("#bpl_text").val != '') {
+            var result = ($("#bph_text").val() / 3 + ($("#bpl_text").val() / 3 * 2));
+            resultFixed = result.toFixed(2)
+            document.getElementById('bpm').innerText = "(" + resultFixed + ") mmHg";
+        }
+    }
+
+    function com_SDM_abp() {
+        if ($("#abph_text").val() != '' && $("#abpl_text").val != '') {
+            var result = ($("#abph_text").val() / 3 + ($("#abpl_text").val() / 3 * 2));
+            resultFixed = result.toFixed(2)
+            document.getElementById('abpm').innerText = "(" + resultFixed + ") mmHg";
+        }
+    }
+
+    function com_SDM_pa() {
+        if ($("#pah_text").val() != '' && $("#pal_text").val != '') {
+            var result = ($("#pah_text").val() / 3 + ($("#pal_text").val() / 3 * 2));
+            resultFixed = result.toFixed(2)
+            document.getElementById('pam').innerText = "(" + resultFixed + ") mmHg";
+        }
+    }
+
+    function startClose(value) {  //痰液 dropDownList 欄位驗證
+
+        //var inputs = document.getElementsByClassName("disableit");
+        //for (var i = 0; i < inputs.length; i++) {
+        //    inputs[i].disabled = true;
+        //}
+        //if (value == '無') {
+        //    document.getElementById('sir').disabled = true;　// 變更欄位為禁用
+        //    document.getElementById('sid').disabled = true;　// 變更欄位為禁用
+        //}
+        //else
+        //{
+        //    document.getElementById('sir').disabled = false;　// 變更欄位為可用
+        //    document.getElementById('sid').disabled = false;　// 變更欄位為可用
+        //}
+        var result = $(value).val()
+
+        if (result == '無') {
+            $(value).next().prop("disabled", true);
+            $(value).next().next().prop("disabled", true);
+
+        } else if (result == "") {
+            $(value).next().prop("disabled", true);
+            $(value).next().next().prop("disabled", true);
+        }
+        else {
+            $(value).next().prop("disabled", false);
+            $(value).next().next().prop("disabled", false);
+        }
+    }
+    //痰液 預設一載入時若沒有選欄位則其他欄位disabled
+    $(document).ready(function () {
+        if ($('#sis').val() == "" || $('#sis').val() == "無") {
+            $('#sir').prop("disabled", true);
+            $('#sid').prop("disabled", true);
+        } else {
+            $('#sir').prop("disabled", false);
+            $('#sid').prop("disabled", false);
+        }
+
+        $('#sis').change(function () {
+            if ($('#sis').val() == "" || $('#sis').val() == "無") {
+                $('#sir').prop("disabled", true);
+                $('#sid').prop("disabled", true);
+                $('#sir option[value=' + "" + ']').attr('selected', true);
+                $('#sid option[value=' + "" + ']').attr('selected', true);
+            }
+            $('#sir option').attr('selected', false);
+            $('#sid option').attr('selected', false);
+        })
+
+        $('#stoolType').prop("disabled", true);
+        $('#stoolColor').prop("disabled", true);
+
+        //排便 dropdownList 預設一載入時若沒有選欄位則顏色欄位disabled且回歸預設值
+        if ($('#stoolType').val() == "請選擇") {
+            $('#stoolColor').prop("disabled", true);
+            $('#stoolColor option[value=' + "請選擇" + ']').attr('selected', true);
+        }
+        else {
+            $('#stoolColor').prop("disabled", false);
+        }
+        //排便 dropDownList 驗證事件 若選擇請選擇則其他欄位跳回空值
+        $('#stoolType').change(function () {
+            if ($('#stoolType').val() == "請選擇") {
+                $('#stoolColor').prop("disabled", true);
+                $('#stoolColor option').attr('selected', false);
+                $('#stoolColor option[value=' + "請選擇" + ']').attr('selected', true);
+                $('#st_other input[name=' + 'st_record' + ']').val('');
+                $('#st_other').hide().find('input[type=text]').val();
+            } else {
+                $('#st_other input[name=' + 'st_record' + ']').val('');
+                $('#stoolColor').prop("disabled", false);
+            }
+        })
+        //排便 如果顏色為其他則新增補述欄位 20171024 add by AlanHuang
+        $('#stoolColor').change(function () {
+            if ($('#stoolColor').val() == "其他")
+            {
+                $('#st_other').show().find('input[type=text]').val();
+                $('#st_other input[name=' + 'st_record' + ']').val('');
+            } else {
+                $('#st_other').hide().find('input[type=text]').val();
+                $('#st_other input[name=' + 'st_record' + ']').val('');
+            }
+
+            if ($('#stoolColor').val() != "其他") {
+                $('#st_other').hide();
+            }
+
+        })
+        //排便 如果性狀為其他則新增補述欄位 20180115 add by Bill
+        $('#stoolType').change(function () {
+            if ($('#stoolType').val() == "其他") {
+                $('#st_other2').show().find('input[type=text]').val();
+                $('#st_other2 input[name=' + 'st_record' + ']').val('');
+            } else {
+                $('#st_other2').hide().find('input[type=text]').val();
+                $('#st_other2 input[name=' + 'st_record' + ']').val('');
+            }
+
+            if ($('#stoolType').val() != "其他") {
+                $('#st_other2').hide();
+            }
+
+        })
+        //排便 如果次數為0或空值則防呆 20180115
+        $('#st_value').blur(function () {
+            if ($('#st_value').val() == '0' || $('#st_value').val() == '') {
+                $('#stoolType').prop('disabled', true);
+                $('#stoolColor').prop('disabled', true);
+                $('#stoolType option').attr('selected', false);
+                $('#stoolType option[value=' + "請選擇" + ']').attr('selected', true);
+                $('#stoolColor option').attr('selected', false);
+                $('#stoolColor option[value=' + "請選擇" + ']').attr('selected', true);
+                $('#st_other').hide().find('input[type=text]').val();
+                $('#st_other input[name=' + 'st_record' + ']').val('');
+                $('#st_other input[name=' + 'st_record' + ']').prop('disabled', true);
+                $('#st_other2').hide().find('input[type=text]').val();
+                $('#st_other2 input[name=' + 'st_record' + ']').val('');
+                $('#st_other2 input[name=' + 'st_record' + ']').prop('disabled', true);
+            } else {
+                $('#stoolType').prop('disabled', false);
+                $('#st_other input[name=' + 'st_record' + ']').val('');
+                $('#st_other input[name=' + 'st_record' + ']').prop('disabled', false);
+                $('#st_other2 input[name=' + 'st_record' + ']').val('');
+                $('#st_other2 input[name=' + 'st_record' + ']').prop('disabled', false);
+            }
+        })
+
+        //$('#celBtn').click(function () {
+        //    $('input[name=gi_u_record]').attr('checked', false);
+        //})
+
+        //20170804 "前臂" "上臂" "大腿" "小腿" "足踝" 精簡為一個按鈕觸發兩個按鈕 add by AlanHuang
+        $('#gtfid').click(function () {
+            $('#gtlfid').click();
+            $('#gtrfid').click();
+        })
+
+        $('#gtuaid').click(function () {
+            $('#gtluaid').click();
+            $('#gtruaid').click();
+        })
+
+        $('#gttid').click(function () {
+            $('#gtltid').click();
+            $('#gtrtid').click();
+        })
+        $('#gtlid').click(function () {
+            $('#gtllid').click();
+            $('#gtrlid').click();
+        })
+        $('#gtaid').click(function () {
+            $('#gtlaid').click();
+            $('#gtraid').click();
+        })
+
+        //20170815 不論何值，只要有輸入就預帶理記錄打勾。另CPP、PA、PCWP亦是有輸入時即強制帶護理紀錄.  add by AlanHuang
+        $('#etco_text').change(function () {
+            $('#VS_plan_etco').attr("checked", true);
+        })
+        $('#cpp_text').change(function () {
+            $('#VS_plan_cpp').attr("checked", true);
+        })
+        $('#pal_text').change(function () {
+            $('#VS_plan_pa').attr("checked", true);
+        })
+        $('#pah_text').change(function () {
+            $('#VS_plan_pa').attr("checked", true);
+        })
+        $('#pcwp_text').change(function () {
+            $('#VS_plan_pcwp').attr("checked", true);
+        })
+
+
+        //PICCO血流動力
+        var picco_group = ['picco_co', 'picco_ci', 'picco_sv', 'picco_svi', 'picco_svr', 'picco_svri', 'picco_svv', 'picco_scvo2']; //血流動力
+        var picco_len = picco_group.length;
+        for (var i = 0; i <= picco_len - 1; i++) {
+            var tmp = picco_group[i];
+            check_if_input(tmp);
+        }
+
+        //評估時機切換
+        $('select[name=ps_occasion]').unbind().bind("change", function () {
+            if ($(this).val() != "請選擇" && $('input[name=ps_assess]:checked').val() == undefined) {
+                $("input[name=ps_assess][value= 數字量表]").trigger("click");
+            }
+            update_ps_data_field();
+        });
+    });
+
+    //只要填值,護理記錄就打勾
+    function check_if_input(item){
+        $("#"+ item +"_text").change(function(){
+            $("#VS_plan_" + item).attr("checked",true);
+        });
+    }
+
+    //更新ps_data_field
+    function update_ps_data_field() {
+        $("#ps input[data-relate_field]").each(function (index, element) {
+            var rel_list = $(this).attr("data-relate_field").split('|');
+            var c_value = new Array();
+            for (var i = 0; i <= rel_list.length - 1; i++) {
+                var dom_type = $("[name='" + rel_list[i] + "']").getType();
+                switch (dom_type) {
+                    case 'select':
+                        c_value[i] = $("select[name='" + rel_list[i] + "']").val();
+                        break;
+                    default:
+                        c_value[i] = $("input[name='" + rel_list[i] + "']:checked").val();
+                        break;
+                }
+            }
+            $(this).val(c_value.join('|'));
+            //console.log($(this).val());
+        });
+    }
+
+    //飲食防呆
+    function diet(obj) {
+        switch (obj) {
+            case "other":
+                $('#eat_part_other').show().find('input[type=text]').val();
+                $('#eat_part_other input[type=text][name=eat_record]').prop('disabled', false);
+                break;
+            default:
+                $('#eat_part_other').hide();
+                $('#eat_part_other input[type=text][name=eat_record]').val('');
+                break;
+
+        }
+    }
+    function gasPart(obj)
+    {
+       
+        var other = $("#gas_position").val();
+        var part = $('input[name="gas_posture"]:checked').val();
+        switch (obj) {
+            case "other":
+                $('#gas_posture_part_other').show().find('input[type=text]').val();
+                $('#gas_posture_part_other input[type=text][name=gas_posture_record]').prop('disabled', false);
+                $("#gas_part").val(part +"|" + other);
+                break;
+            default:
+                $('#gas_posture_part_other').hide();
+                $('#gas_posture_part_other input[type=text][name=gas_posture_record]').val('');
+                $("#gas_part").val(part + "|" + part);
+                break;
+
+        }
+    }
+
+    //GAS
+    function gas(obj) {
+        switch (obj) {
+            case "other":
+                $('#gas_part_other').show().find('input[type=text]').val();
+                $('#gas_part_other input[type=text][name=gas_record]').prop('disabled', false);
+                break;
+            default:
+                $('#gas_part_other').hide();
+                $('#gas_part_other input[type=text][name=gas_record]').val('');
+                break;
+
+        }
+    }
+
+    //尿液性質顯示問題
+    function noPee(obj) {
+        switch (obj) {
+            case "Nopee":
+                $('#gi_u_value').val('0');
+                //無解尿不顯示0次  $('#gi_u_value').prop("disabled", true);
+                break;
+            default:
+                //   $('#gi_u_value').prop("disabled", false);
+        }
+    }
+
+    //臍帶脫落顯示
+    function Umbilical(obj) {
+        switch (obj) {
+            case "Y":
+                $('#gi_c_type').prop('disabled', true);
+                $('#gi_c_type option[value=' + '' + ']').attr('selected', true);
+                break;
+            case "N":
+                $('#gi_c_type').prop('disabled', false);
+                $('#gi_c_type option').attr('selected', false);
+                break;
+            default:
+        }
+    }
+
+    //呼吸性質防呆
+    function Breathe(obj) {
+        switch (obj) {
+            case "self":
+                $('#si_b_part_other').hide();
+                $('#si_b_part_other input[type=text][name=si_b_record]').prop('disabled', true);
+                break;
+            case "CPAP":
+                $('#si_b_part_other').hide();
+                $('#si_b_part_other input[type=text][name=si_b_record]').prop('disabled', true);
+                break;
+            case "Hood":
+                $('#si_b_part_other').hide();
+                $('#si_b_part_other input[type=text][name=si_b_record]').prop('disabled', true);
+                break;
+            case "spray":
+                $('#si_b_part_other').hide();
+                $('#si_b_part_other input[type=text][name=si_b_record]').prop('disabled', true);
+                break;
+            case "H":
+                $('#si_b_part_other').hide();
+                $('#si_b_part_other input[type=text][name=si_b_record]').prop('disabled', true);
+                break;
+            case "Respirator":
+                $('#si_b_part_other').hide();
+                $('#si_b_part_other input[type=text][name=si_b_record]').prop('disabled', true);
+                break;
+            default:
+                $('#si_b_part_other').show().find('input[type=text]').val();
+                $('#si_b_part_other input[type=text][name=si_b_record]').prop('disabled', false);
+        }
+    }
+
+    //總膽紅素防呆
+    function TBiltype(obj) {
+        switch (obj) {
+            case "check":
+                $('#gi #giMemo').val('');
+                $('#gi #gisearch').show();
+                $('#gi #gisearch_m').hide();
+                break;
+            case "machine":
+                $('#gi #giMemo').val('');
+                $('#gi #gisearch').hide();
+                $('#gi #gisearch_m').show();
+                break;
+            default:
+                $('#gi #giMemo').val('');
+                $('#gi #gisearch').hide();
+                $('#gi #gisearch_m').show();
+        }
+    }
+
+    //總膽紅素、大便潛血查詢按鍵功能
+    function WS_Search(source, obj) {
+        if (source == 'date_search') {
+            source = $('#source').val();
+        }
+        if (source == 'TBil') {
+            var url = "VitalSign_TBil";
+        }
+        else if (source == 'OccBlood') {
+            var url = "VitalSign_OccBlood";
+        }
+
+        var range = obj;
+        var feeno = $(".func_box #feeno").val();
+        var start_date = $("#win_content #start_date").val();
+        var end_date = $("#win_content #end_date").val();
+        if (source == 'Gas')
+        {
+            var url = "VitalSign_Gas";
+            start_date = $("#win_content #start_date_gas").val();
+            end_date = $("#win_content #end_date_gas").val();
+            $('#gasGrid').trigger('reloadGrid');
+            showmodalGas(source);
+        }
+        $.ajax({
+            url: url,
+            type: 'POST',
+            async: false,
+            data: {
+                range: range,
+                feeno: feeno,
+                start_date: start_date,
+                end_date: end_date
+            },
+            success: function (data) {
+                if (data.returnStr != "" && data.list != "") {
+                    if (source == 'TBil') {
+                        $('#giMemo').val(data.returnStr);
+                    } else if (source == 'OccBlood') {
+                        $('#gi_st_value').val(data.returnStr);
+                    }
+                    return false;
+                }
+                if (data.returnStr == "" && data.list == "" && data.search_type == "second") {
+                    alert(data.msg);
+                    $("#Dt tbody").html('')//清空
+                    showmodal(source);
+                    return false;
+                }
+                if (data.returnStr == "" && data.list == "" && data.search_type == "date_range") {
+                    alert(data.msg);
+                    $("#Dt tbody").html('')//清空
+                    return false;
+                }
+                if (data.returnStr == "" && data.list != "") {
+                    $("#Dt tbody").html('')//清空
+                    var tr_str = "";
+                    var item_tmp_html = $("#item_tmp");//取得樣板
+                    $.each(data.list, function (i, obj) {
+                        if (source == 'TBil') {
+                            item_tmp_html.find('td[name=Date]').html(obj.UseDate);
+                            item_tmp_html.find('td[name=Num_Value]').html(obj.T_Bilirubin);
+                        } else if (source == 'OccBlood') {
+                            item_tmp_html.find('td[name=Date]').html(obj.INSPTDT);
+                            item_tmp_html.find('td[name=Num_Value]').html(obj.LabValue);
+                        }
+                        tr_str += item_tmp_html.html();
+                    });
+                    $('#Dt tbody').html(tr_str);
+                    return false;
+                }
+            },
+            error: function (jqXHR) {
+                log(jqXHR);
+                msg = '程式發生錯誤!';
+            },
+        });
+    }
+    //日期範圍選取後代入數值
+    function WS_insert(type) {
+        var check_type = false; //檢查是否執行帶入動作狀態
+        if (type == 'date_search') {
+            var source = $('#source').val();
+        }
+        if (source == 'TBil') {
+            var target = 'giMemo';
+            var alert_msg = '請選擇總膽紅素數值！';
+        }
+        else if (source == 'OccBlood') {
+            var target = 'gi_st_value';
+            var alert_msg = '請選擇大便潛血數值！';
+        }
+        else if (source == 'Gas') {
+            var target = 'gi_st_value';
+            var alert_msg = '請選擇寫血液氣體數值！';
+        }
+
+        $('#Dt tbody tr').each(function () {
+            if ($(this).find("input[name='vs_id'] ").prop('checked')) {
+                var NumValue = $(this).find("td[name='Num_Value'] ").text();
+                $('#' + target).val(NumValue);
+                check_type = true;
+            }
+        })
+        if (check_type) {
+            $.unblockUI();
+        } else {
+            alert(alert_msg);
+        }
+    }
+
+    function showmodal(source) {
+        
+        if (source == 'Gas')
+        {
+            var div_view = $('#gas_modal');
+        }
+        else
+        {
+            var div_view = $('#drainage_modal');
+        }
+        if (source == 'TBil') {
+            $('#win_header').html('總膽紅素查詢');
+            $('#source').val('TBil');
+        } else if (source == 'OccBlood') {
+            $('#win_header').html('大便潛血查詢');
+            $('#source').val('OccBlood');
+        }
+        else if (source == 'Gas') {
+            $('#win_gas_header').html('血液氣體查詢');
+            $('#source').val('Gas');
+
+        }
+
+        $.blockUI({
+            message: div_view,
+            onOverlayClick: $.unblockUI(),
+            overlayCSS: {
+                border: 'none',
+                cursor: 'default'
+            },
+            css: {
+                top: ($(window).height() - div_view.height()) / 2 + 'px',
+                left: ($(window).width() - div_view.width()) / 2 + 'px',
+                width: 'min-content',
+                border: 'none',
+                cursor: 'default'
+            },
+            onBlock: function () {
+            }
+        });
+    }
+
+    function showmodalGas(source) {
+
+            var div_view = $('#gas_modal');
+            $('#win_gas_header').html('血液氣體查詢');
+            $('#source').val('Gas');   
+
+        $.blockUI({
+            message: div_view,
+            onOverlayClick: $.unblockUI(),
+            focusInput: false,
+            overlayCSS: {
+                border: 'none',
+                cursor: 'default'
+            },
+            css: {
+                top: ($(window).height() - div_view.height()) / 2 + 'px',
+                left: ($(window).width() - div_view.width()) / 2 + 'px',
+                width: 'min-content',
+                border: 'none',
+                cursor: 'default'
+            },
+            onBlock: function () {
+            }
+        });
+    }
+
+</script>
+
+<link rel="stylesheet" type="text/css" href="~/Content/StyleSheet/VitalSignStyle.css?@(DateTime.Now.ToString("yyyyMMddHHmmssfff"))" />
+<style>
+    #win_content{
+            margin: 0px auto;
+            *margin: 0px auto; /* ie7 */
+            _margin: 0px auto; /* ie6 */
+    }
+
+    #win_footer {
+        height: 22px;
+        position: relative;
+        text-align: right;
+        padding: 10px 10px 10px 0px;
+    }
+</style>
+<script type="text/javascript" src="~/Scripts/VitalSign/VitalSignSingle.js?@(DateTime.Now.ToString("yyyyMMddHHmmssfff"))"></script>
+<form name="vs_form" method="post" action="@Url.Content("~/VitalSign/VitalSignSave")">
+    <!-- 功能列表 -->
+    <div class="func_box">
+        <input type="hidden" id="feeno" value="@(pf.FeeNo)" />
+        <button type="button" class="vsfunc111" f_id="B01">儲存</button>
+        <button type="button">放棄</button>
+        <button type="button">批次<br />輸入</button>
+        <button type="button" class="vsfunc111"  f_id="B02" >TPR</button>
+        @*<button type="button" class="vsfunc111"  f_id="B04">TPR 圖表</button>*@
+        <button type="button" class="vsfunc111"  f_id="B03">查詢</button>
+        <button type="button" id="set" class="vsfunc111" f_id="B04">設定</button>
+        <button type="button">往上<br />移動</button>
+        <button type="button">往下<br />移動</button>
+        <button type="button">儀器<br />資料</button>
+        <button type="button">ICU<br />帶入</button>
+        <button type="button">VIP<br />資料修改</button>
+
+
+        <span>
+            輸入時間：<br />
+            <input type="text" id="vs_date" name="vs_date" value="@(DateTime.Now.ToString("yyyy/MM/dd"))" />
+            <input type="text" id="vs_time" name="vs_time" value="@(DateTime.Now.ToString("HH:mm"))" />
+            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "vs_date", "vs_time", true)
+        </span>
+    </div>
+
+    <!-- 設定列表 -->
+    <div class="func_setting">
+        <div>
+            <label>一般生理量測</label>
+            <hr />
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                    <td>
+                        <button type="button" value="gc" class="@VitalSign_Helper.vs_setting_class("gc", func_list)">昏迷<br />指數</button>
+                        <button type="button" value="pupils" class="@VitalSign_Helper.vs_setting_class("pupils", func_list)">瞳孔<br />反應</button>
+                        <button type="button" value="msPower" class="@VitalSign_Helper.vs_setting_class("msPower", func_list)">肌肉<br />強度</button>
+                        <button type="button" value="bh" class="@VitalSign_Helper.vs_setting_class("bh", func_list)">身高</button>
+                        <button type="button" value="bw" class="@VitalSign_Helper.vs_setting_class("bw", func_list)">體重</button>
+                    </td>
+                    <td style="text-align:center;">
+                        <input type="button" style="height:50px;width:50px;" value="儲存" onclick="$('#set').click();" />
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div>
+            <label>圍長</label>
+            <hr />
+            <button type="button" value="gtwl" style="width:45px" class="@VitalSign_Helper.vs_setting_class("gtwl", func_list)">腰圍</button>
+            <button type="button" value="gthr" style="width:45px" class="@VitalSign_Helper.vs_setting_class("gthr", func_list)">頭圍</button>
+            <button type="button" value="gtbu" style="width:45px" class="@VitalSign_Helper.vs_setting_class("gtbu", func_list)">胸圍</button>
+            <button type="button" value="gtbl" style="width:45px" class="@VitalSign_Helper.vs_setting_class("gtbl", func_list)">腹圍</button>
+            <button type="button" value="gthl" style="width:45px" class="@VitalSign_Helper.vs_setting_class("gthl", func_list)">臀圍</button>
+
+            <button type="button" value="gtf" id="gtfid" style="width:45px" class="@VitalSign_Helper.vs_setting_class("gtf", func_list)"> 前臂</button>
+            <button type="button" value="gtlf" id="gtlfid"  class="@VitalSign_Helper.vs_setting_class("gtlf", func_list)" style="display:none;">左<br />前臂</button>
+            <button type="button" value="gtrf" id="gtrfid" class="@VitalSign_Helper.vs_setting_class("gtrf", func_list)" style="display:none;">右<br />前臂</button>
+
+            <button type="button" value="gtua" id="gtuaid" style="width:45px" class="@VitalSign_Helper.vs_setting_class("gtua", func_list)"> 上臂</button>
+            <button type="button" value="gtlua" id="gtluaid" class="@VitalSign_Helper.vs_setting_class("gtlua", func_list)" style="display:none;">左<br />上臂</button>
+            <button type="button" value="gtrua" id="gtruaid" class="@VitalSign_Helper.vs_setting_class("gtrua", func_list)" style="display:none;">右<br />上臂</button>
+
+            <button type="button" value="gtt" id="gttid" style="width:45px" class="@VitalSign_Helper.vs_setting_class("gtt", func_list)"> 大腿</button>
+            <button type="button" value="gtlt" id="gtltid" class="@VitalSign_Helper.vs_setting_class("gtlt", func_list)" style="display:none;">左<br />大腿</button>
+            <button type="button" value="gtrt" id="gtrtid" class="@VitalSign_Helper.vs_setting_class("gtrt", func_list)" style="display:none;">右<br />大腿</button>
+
+            <button type="button" value="gtl" id="gtlid" style="width:45px" class="@VitalSign_Helper.vs_setting_class("gtl", func_list)"> 小腿</button>
+            <button type="button" value="gtll" id="gtllid" class="@VitalSign_Helper.vs_setting_class("gtll", func_list)" style="display:none;">左<br />小腿</button>
+            <button type="button" value="gtrl" id="gtrlid" class="@VitalSign_Helper.vs_setting_class("gtrl", func_list)" style="display:none;">右<br />小腿</button>
+
+            <button type="button" value="gta" id="gtaid" style="width:45px" class="@VitalSign_Helper.vs_setting_class("gta", func_list)"> 足踝</button>
+            <button type="button" value="gtla" id="gtlaid" class="@VitalSign_Helper.vs_setting_class("gtla", func_list)" style="display:none;">左<br />足踝</button>
+            <button type="button" value="gtra" id="gtraid" class="@VitalSign_Helper.vs_setting_class("gtra", func_list)" style="display:none;">右<br />足踝</button>
+
+
+        </div>
+        <!-- 新增:CPP 按鈕 -->
+        <div>
+            <label>血液動力學</label>
+            <hr />
+            <button type="button" value="cv1" class="@VitalSign_Helper.vs_setting_class("cv1", func_list)" style="width:60px;">中心靜<br />脈壓<br />mmHg</button>
+            <button type="button" value="cv2" class="@VitalSign_Helper.vs_setting_class("cv2", func_list)" style="width:60px;">中心靜<br />脈壓<br />cmH2O</button>
+            <button type="button" value="ic1" class="@VitalSign_Helper.vs_setting_class("ic1", func_list)" style="width:60px;">顱內壓<br />mmHg</button>
+            <button type="button" value="ic2" class="@VitalSign_Helper.vs_setting_class("ic2", func_list)" style="width:60px;">顱內壓<br />cmH2O</button>
+            <button type="button" value="cpp" class="@VitalSign_Helper.vs_setting_class("cpp",func_list)" style="width:60px;">CPP</button>
+        </div>
+        <!-- 新增:ICU/嬰幼兒特殊 按鈕 -->
+        <div>
+            <label>ICU</label>
+            <hr />
+            <button type="button" value="cm" class="@VitalSign_Helper.vs_setting_class("cm",func_list)" style="width:60px;">心血管監測</button>
+            <button type="button" value="etco" class="@VitalSign_Helper.vs_setting_class("etco",func_list)" style="width:60px;">ETCO2</button>
+            <button type="button" value="picco" class="@VitalSign_Helper.vs_setting_class("picco",func_list)" style="width:60px;">血流動力</button>
+            <button type="button" value="gas" class="@VitalSign_Helper.vs_setting_class("gas",func_list)" style="width:60px;">血液氣體分析</button>
+        </div>
+        <div>
+            <label>嬰幼兒特殊</label>
+            <hr />
+            <button type="button" value="gi" class="@VitalSign_Helper.vs_setting_class("gi",func_list)" style="width:60px;">一般嬰幼兒</button>
+            <button type="button" value="si" class="@VitalSign_Helper.vs_setting_class("si",func_list)" style="width:60px;">重症嬰幼兒</button>
+        </div>
+    </div>
+
+    <!-- 首欄固定 -->
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" width="100%">
+            <tr>
+                <td width="100">項目</td>
+                <td width="200">部位</td>
+                <td>紀錄值</td>
+                <td width="160">處置</td>
+                <td width="110">帶護理紀錄</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 資料編輯區 -->
+    <div class="dataArea">
+        <table border="0" cellpadding="4" cellspacing="1" width="100%" id="vs_table">
+            <tbody id="bt">
+                <tr>
+                    <td width="100">
+                        <label>體溫</label>
+                        <input type="hidden" name="vs_item" value="bt" />
+                        <label><input type="checkbox" name="bt_reason" value="測不到" onclick="SetReason(this);" />測不到</label>
+                    </td>
+                    <td width="200">
+                        <label><input type="radio" name="bt_part" value="額溫" onclick="set_bt_f();" />額溫</label>
+                        <label><input type="radio" name="bt_part" value="耳溫" checked="checked" onclick="set_bt_e();" />耳溫</label>
+                        <label style="display:none;"><input type="radio" name="bt_part" value="口溫" onclick="set_bt_m();" />口溫</label>
+                        <label><input type="radio" name="bt_part" value="腋溫" onclick="set_bt_a();" />腋溫</label>
+                        <label><input type="radio" name="bt_part" value="肛溫" onclick="set_bt_r();" />肛溫</label>
+                    </td>
+                    <td>
+                        測量值:
+                        <input id="bt_text" type="text" name="bt_record" value="" setindex="Y"
+                               va_check="true" lo_check="btl_e" hi_check="bth_e" cr_model="bt" class="check" max_num="" min_num="" />
+                        ℃
+                        <br /><br />
+                        <input type="checkbox" value="Y" id="bt_hi_record" name="bt_hi_record" /><label for="bt_hi_record">因前次體溫異常處置後的紀錄</label>
+                    </td>
+                    <td width="160">
+                        <select id="bt_drug" style="display:none" onchange="if($(this).val() == '99'){ $('#bt_drug_other_span').fadeIn(0); }else{ $('#bt_drug_other_span').fadeOut(0); $('#bt_drug_other').val('');}">
+                            <option value="-1">藥物/途徑</option>
+                            <option value="Tinten po">Tinten po</option>
+                            <option value="Cataflam po">Cataflam po</option>
+                            <option value="Anti-phen po">Anti-phen po</option>
+                            <option value="Idefen po">Idefen po</option>
+                            <option value="keto IM">keto IM</option>
+                            <option value="keto IV">keto IV</option>
+                            <option value="99">其他</option>
+                        </select>
+                        <span id="bt_drug_other_span" style="display:none;">
+                            <br />藥名:@Html.TextBox("bt_drug_other", "", new { style = "width:100px;display:none", @class = "word" })<br />
+                            數量
+                        </span>
+                        @Html.TextBox("bt_drug_amount", "", new { style = "width:50px;display:none" })
+                        <select id="bt_drug_unit" style="display:none">
+                            <option value="-1">單位</option>
+                            <option value="mL">mL</option>
+                            <option value="g">g</option>
+                            <option value="mg">mg</option>
+                        </select>
+                        <input type="button" value="給藥" onclick="@Java_funcion.pup_window("../CommonMedication/Medication_NurseExecute", 900, 600, "0")">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=bt_memo&pType=bt", 500, 600, "0")">
+                        <br />
+                        @Html.TextArea("bt_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="bt_other_memo" name="bt_other_memo" value="" />
+                        <input type="hidden" id="bt_need_memo" name="bt_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_bt" type="checkbox" name="VS_plan" value="bt" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <tbody id="mp">
+                <tr>
+                    <td width="100">
+                        <label>心跳</label>
+                        <input type="hidden" name="vs_item" value="mp" />
+                        <label><input type="checkbox" name="mp_reason" value="測不到" onclick="SetReason(this);" />測不到</label>
+                    </td>
+                    <td width="200">
+                        <label><input type="radio" name="mp_posture" value="橈動脈" onclick="$('#div_mp').show();" checked="checked" />橈動脈</label>
+                        <label><input type="radio" name="mp_posture" value="心尖脈" onclick="$('#div_mp').hide();" />心尖脈</label>
+                        <label><input type="radio" name="mp_posture" value="肱動脈" onclick="$('#div_mp').show();" />肱動脈</label>
+                        <label><input type="radio" name="mp_posture" value="足背動脈" onclick="$('#div_mp').show();" />足背動脈</label>
+                        <label><input type="radio" name="mp_posture" value="顳動脈" onclick="$('#div_mp').show();" />顳動脈</label>
+                        <label><input type="radio" name="mp_posture" value="頸動脈" onclick="$('#div_mp').show();" />頸動脈</label>
+                        <label><input type="radio" name="mp_posture" value="股動脈" onclick="$('#div_mp').show();" />股動脈</label>
+                        <div id="div_mp">
+                            <hr />
+                            @VitalSign_Helper.vs_part_radio("mp_position", "左側|右側", "")
+                        </div>
+                        <input type="hidden" name="mp_part" relate_field="mp_position" value="" />
+                    </td>
+                    <td>
+                        心跳速率:
+                        <input id="mp_text" type="text" name="mp_record" value="" setindex="Y"
+                               va_check="true" lo_check="mpl_@(type)" hi_check="mph_@(type)" cr_model="mp" class="check" max_num="" min_num="" />
+                        次/分
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=mp_memo&pType=mp", 500, 600, "0")">
+                        @Html.TextArea("mp_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="mp_need_memo" name="mp_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input id="VS_plan_mp" type="checkbox" name="VS_plan" value="mp" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <tbody id="bf">
+                <tr>
+                    <td width="100">
+                        <label>呼吸</label>
+                        <input type="hidden" name="vs_item" value="bf" />
+                        <label><input type="checkbox" name="bf_reason" value="測不到" onclick="SetReason(this);" />測不到</label>
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        呼吸速率:
+                        <input id="bf_text" type="text" name="bf_record" value="" setindex="Y"
+                               va_check="true" lo_check="bfl_@(type)" hi_check="bfh_@(type)" cr_model="bf" class="check" max_num="" min_num="" />
+                        次/分
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=bf_memo&pType=bf", 500, 600, "0")">
+                        @Html.TextArea("bf_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="bf_need_memo" name="bf_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input id="VS_plan_bf" type="checkbox" name="VS_plan" value="bf" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="bp">
+                <tr>
+                    <td width="100">
+                        <label>血壓</label>
+                        <input type="hidden" name="vs_item" value="bp" />
+                        <label><input type="checkbox" name="bp_reason" value="測不到" onclick="SetReason(this);" />測不到</label>
+                    </td>
+                    <td width="200">
+                        @VitalSign_Helper.vs_part_radio("bp_posture", "躺|坐|站", "躺")
+                        <hr />
+                        @VitalSign_Helper.vs_part_radio("bp_position", "左手|右手|左腳|右腳", "左手")
+                        <input type="hidden" name="bp_part" relate_field="bp_posture|bp_position" value="躺|左手" />
+                    </td>
+                    <td>
+                        <input id="bph_text" type="text" name="bp_record" value="" setindex="Y"
+                               va_check="true" lo_check="bpls_@(type)" hi_check="bphs_@(type)" cr_model="bp" class="check" onblur="com_SDM_bph()" max_num="" min_num="" /> /
+
+                        <input id="bpl_text" type="text" name="bp_record" value="" setindex="Y"
+                               va_check="true" lo_check="bpld_@(type)" hi_check="bphs_@(type)" cr_model="bp" class="check" onblur="com_SDM_bph()" max_num="" min_num="" /> /
+
+                        <label id="bpm" name="bp_record" value="">  @*mmHg*@ </label>
+
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=bp_memo&pType=bp", 500, 600, "0")">
+                        @Html.TextArea("bp_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="bp_need_memo" name="bp_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input id="VS_plan_bp" type="checkbox" name="VS_plan" value="bp" />
+                    </td>
+                </tr>
+            </tbody>
+            <!--血氧-->
+            <tbody id="sp">
+                <tr>
+                    <td width="100">
+                        <label>血氧</label>
+                        <input type="hidden" name="vs_item" value="sp" />
+                        <label><input type="checkbox" name="sp_reason" value="測不到" onclick="SetReason(this);" />測不到</label>
+                    </td>
+                    <td width="200">
+                        @VitalSign_Helper.vs_part_radio("sp_part", "Room air|Nasal Cannula|Simple mask|Aerosol mask|Ventri mask|Non-rebreathing mask|Ventilator|Bipap|氧氣帳(tent)|氧氣帳(hood)", "")
+                    </td>
+                    <td>
+                        <input id="sp_text" type="text" name="sp_record" value="" setindex="Y"
+                               va_check="true" lo_check="spl" hi_check="sph" cr_model="sp" class="check" max_num="100" min_num="" />
+                        %
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=sp_memo&pType=sp", 500, 600, "0")">
+                        @Html.TextArea("sp_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="sp_need_memo" name="sp_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input id="VS_plan_sp" type="checkbox" name="VS_plan" value="sp" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="st">
+                <tr>
+                    <td width="100">
+                        <label>排便(前一日)</label>
+                        <input type="hidden" name="vs_item" value="st" />
+                    </td>
+                    <td width="200">
+
+                        @*@VitalSign_Helper.vs_part_radio("st_part", "自解|灌腸|Colostomy|Ileostomy|指挖|塞劑", "自解")*@
+                        @VitalSign_Helper.vs_part_radio("st_part", "自解|灌腸", "自解")
+                        <label><input type="radio" name="st_part" value="Colostomy" onclick="$('#st_value').val('99')" />Colostomy</label>
+                        <label><input type="radio" name="st_part" value="Ileostomy" onclick="$('#st_value').val('99')" />Ileostomy</label>
+                        @VitalSign_Helper.vs_part_radio("st_part", "指挖|塞劑", "自解")
+                    </td>
+                    <td>
+                        <input type="text" id="st_value" name="st_record" value="" setindex="Y"
+                               max_num="" min_num="" onfocus="ch_all_numcheck();" onblur="if ($('#st_value').val() == '0') { $('#stoolType').prop('disabled', true); $('#stoolColor').prop('disabled', true); } else { $('#stoolType').prop('disabled', false);};" />
+                        次
+
+                        @Html.DropDownList("st_record", new SelectList(pd.getGroupData("stoolType"), "Value", "Key"), new { id = "stoolType" })
+                        <span id="st_other2" style="display:none;">
+                            <input type="text" name="st_record" style="width:70px;" />
+                        </span>
+                        @Html.DropDownList("st_record", new SelectList(pd.getGroupData("stoolColor"), "Value", "Key"), new { id = "stoolColor"  })
+                        <span id="st_other" style="display:none;">
+                            <input type="text" name="st_record" style="width:70px;" />
+                        </span>
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=TxtStMemo&pType=stool", 500, 600, "0")">
+                        @Html.TextArea("st_memo", new { @id = "TxtStMemo", style = "width:150px;height:50px;" })
+                        <input type="hidden" id="st_need_memo" name="st_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input type="checkbox" name="VS_plan" value="st" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="eat">
+                <tr>
+                    <td width="100">
+                        <label>飲食</label>
+                        <input type="hidden" name="vs_item" value="eat" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <label><input type="radio" name="eat_part" value="正常飲食" onclick="diet('normal')" />正常飲食</label>
+                        <label><input type="radio" name="eat_part" value="軟質飲食" onclick="diet('Soft')" />軟質飲食</label>
+                        <label><input type="radio" name="eat_part" value="流質飲食" onclick="diet('Fluid')" />流質飲食</label>
+                        <label><input type="radio" name="eat_part" value="半流質飲食" onclick="diet('Semi_liquid')" />半流質飲食</label>
+                        <label><input type="radio" name="eat_part" value="糖尿病飲食" onclick="diet('diabetes')" />糖尿病飲食</label>
+                        <label><input type="radio" name="eat_part" value="管灌飲食" onclick="diet('Tube')" />管灌飲食</label>
+                        <label><input type="radio" name="eat_part" value="NPO" onclick="diet('NPO')" />NPO</label>
+                        <label><input type="radio" name="eat_part" value="NPO除藥" onclick="diet('non_NPO')" />NPO除藥</label>
+                        <label><input type="radio" name="eat_part" value="" onclick="diet('other')" />其他</label>
+
+                        <input type="hidden" name="eat_record" relate_field="eat_part" value="" />
+                        <span id="eat_part_other" style="display:none;">
+                            <input type="text" name="eat_record" style="width:150px;" />
+                        </span>
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_eat" type="checkbox" name="VS_plan" value="eat" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="ps">
+                <tr>
+                    <td width="100">
+                        <label>疼痛</label>
+                        <input type="hidden" name="vs_item" value="ps" />
+                    </td>
+                    <td width="200">
+                        @*評估時機
+                        @VitalSign_Helper.vs_dropdown("ps_occasion", "請選擇|新病人|轉入|病情變化|手術後|生產後|疼痛處理30分鐘後|常規評估", "請選擇")
+                        <hr>*@
+                        @VitalSign_Helper.vs_part_radio("ps_assess", "數字量表|臉譜量表|困難評估(成人)|困難評估(兒童)|困難評估(新生兒)|CPOT評估(加護單位)", "數字量表")
+                        @*<input type="hidden" name="ps_part" data-relate_field="ps_occasion|ps_assess" value="請選擇|數字量表" />*@
+                        @*@VitalSign_Helper.vs_part_radio("ps_assess", "數字量表|臉譜量表|困難評估(成人)|困難評估(兒童)|困難評估(新生兒)", "數字量表")*@
+                        <input type="hidden" name="ps_part" data-relate_field="ps_assess" value="數字量表" />
+                    </td>
+                    <td class="psData"></td>
+                    <td width="160">
+                        <select id="ps_drug" style="display:none" onchange="if($(this).val() == '99'){ $('#ps_drug_other_span').fadeIn(0); }else{ $('#ps_drug_other_span').fadeOut(0); $('#ps_drug_other').val('');}">
+                            <option value="-1">藥物/途徑</option>
+                            <option value="Tinten po">Tinten po</option>
+                            <option value="Cataflam po">Cataflam po</option>
+                            <option value="Anti-phen po">Anti-phen po</option>
+                            <option value="Idefen po">Idefen po</option>
+                            <option value="keto IM">keto IM</option>
+                            <option value="keto IV">keto IV</option>
+                            <option value="99">其他</option>
+                        </select>
+                        <span id="ps_drug_other_span" style="display:none;">
+                            <br />藥名:@Html.TextBox("ps_drug_other", "", new { style = "width:100px;display:none", @class = "word" })<br />
+                            數量
+                        </span>
+                        @Html.TextBox("ps_drug_amount", "", new { style = "width:50px;display:none" })
+                        <select id="ps_drug_unit" style="display:none">
+                            <option value="-1">單位</option>
+                            <option value="mL">mL</option>
+                            <option value="g">g</option>
+                            <option value="mg">mg</option>
+                        </select>
+                        <input type="button" value="給藥" onclick="@Java_funcion.pup_window("../CommonMedication/Medication_NurseExecute", 900, 600, "0")">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=ps_memo&pType=ps", 500, 600, "0")">
+                        <br />
+                        @Html.TextArea("ps_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="ps_other_memo" name="ps_other_memo" value="" />
+                        <input type="hidden" id="ps_need_memo" name="ps_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input type="checkbox" name="VS_plan" id="VS_plan_ps" value="ps" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gc" hide="@VitalSign_Helper.vs_tbody_ishide("gc", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>昏迷指數</label>
+                        <input type="hidden" name="vs_item" value="gc" />
+                    </td>
+                    <td width="200">
+                        @VitalSign_Helper.vs_part_radio("gc_part", "成人(5歲以上)|兒童(2歲-不足5歲)|幼兒(1歲-不足兩歲)|嬰兒(7個月-不足12個月)|嬰兒(出生-不足6個月)", "成人(5歲以上)")
+                    </td>
+                    <td class="gcsData"></td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=TxtGcMemo&pType=coma", 500, 600, "0")">
+                        @Html.TextArea("gc_memo", new { @id = "TxtGcMemo", style = "width:150px;height:50px;" })
+                        <input type="hidden" id="gc_need_memo" name="gc_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input id="VS_plan_gc" type="checkbox" name="VS_plan" value="gc" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="pupils" hide="@VitalSign_Helper.vs_tbody_ishide("pupils", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>瞳孔反應</label>
+                        <input type="hidden" name="vs_item" value="pupils" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input type="hidden" name="pupils_record" relate_field="pupils_l|pupils_l_num|pupils_r|pupils_r_num" value="" />
+                        <div>
+                            <label>(L)左眼</label>
+                            <label><input type="radio" name="pupils_l" value="+" onclick="pupils('L1')" />+</label>
+                            <label><input type="radio" name="pupils_l" value="-" onclick="pupils('L2')" />-</label>
+                            <label><input type="radio" name="pupils_l" value="±" onclick="pupils('L3')" />±</label>
+                            <label><input type="radio" name="pupils_l" value="(C)無法睜眼" onclick="pupils('L4')" />(C)無法睜眼</label>
+                            <label><input type="radio" name="pupils_l" value="無法評估" onclick="pupils('L4')" />無法評估</label>
+                            <label><input type="radio" name="pupils_l" value="其他" onclick="pupils('L5')" />其他</label>
+                            <label><input type="text" name="pupils_record" maxlength="10" id="pupils_l_record" style="width:150px;display: none;"  /></label>
+                        </div>
+                        <div id="pupils_l_num" style="margin-top:5px;">
+                            @foreach (string num in "1|1.5|2|2.5|3|3.5|4|4.5|5|5.5|6|6.5|7|7.5|8|8.5".Split('|'))
+                            {
+                                <label><input type="radio" name="pupils_l_num" value="@num" />@num</label>
+                            }
+                        </div>
+                        <hr />
+                        <div>
+                            <label>(R)右眼</label>
+                            <label><input type="radio" name="pupils_r" value="+" onclick="pupils('R1')" />+</label>
+                            <label><input type="radio" name="pupils_r" value="-" onclick="pupils('R2')" />-</label>
+                            <label><input type="radio" name="pupils_r" value="±" onclick="pupils('R3')" />±</label>
+                            <label><input type="radio" name="pupils_r" value="(C)無法睜眼" onclick="pupils('R4')" />(C)無法睜眼</label>
+                            <label><input type="radio" name="pupils_r" value="無法評估" onclick="pupils('R4')" />無法評估</label>
+                            <label><input type="radio" name="pupils_r" value="其他" onclick="pupils('R5')" />其他</label>
+                            <label><input type="text" name="pupils_record" maxlength="10" id="pupils_r_record" style="width:150px;display: none;" /></label>
+                        </div>
+                        <div id="pupils_r_num" style="margin-top:5px;">
+                            @foreach (string num in "1|1.5|2|2.5|3|3.5|4|4.5|5|5.5|6|6.5|7|7.5|8|8.5".Split('|'))
+                            {
+                                <label><input type="radio" name="pupils_r_num" value="@num" />@num</label>
+                            }
+                        </div>
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=TxtPupilsMemo&pType=coma", 500, 600, "0")">
+                        @Html.TextArea("pupils_memo", new { @id = "TxtPupilsMemo", style = "width:150px;height:50px;" })
+                        <input type="hidden" id="pupils_need_memo" name="pupils_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input type="checkbox" name="VS_plan" id="VS_plan_pupils" value="pupils" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="msPower" hide="@VitalSign_Helper.vs_tbody_ishide("msPower", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>肌肉強度</label>
+                        <input type="hidden" name="vs_item" value="msPower" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input type="hidden" name="msPower_record" relate_field="msPower_upper_l|msPower_upper_r|msPower_lower_l|msPower_lower_r" value="" />
+                        <fieldset>
+                            <legend>Muscle Power-上肢</legend>
+                            <label style="margin-right:5px;">左</label>
+                            @foreach (string num in "0|1|2|3|4|5|無法評估".Split('|'))
+                            {
+                                <label><input type="radio" name="msPower_upper_l" value="@num" />@num</label>
+                            }
+                            <hr />
+                            <label style="margin-right:5px;">右</label>
+                            @foreach (string num in "0|1|2|3|4|5|無法評估".Split('|'))
+                            {
+                                <label><input type="radio" name="msPower_upper_r" value="@num" />@num</label>
+                            }
+
+                        </fieldset>
+                        <fieldset>
+                            <legend>Muscle Power-下肢</legend>
+                            <label style="margin-right:5px;">左</label>
+                            @foreach (string num in "0|1|2|3|4|5|無法評估".Split('|'))
+                            {
+                                <label><input type="radio" name="msPower_lower_l" value="@num" />@num</label>
+                            }
+                            <hr />
+                            <label style="margin-right:5px;">右</label>
+                            @foreach (string num in "0|1|2|3|4|5|無法評估".Split('|'))
+                            {
+                                <label><input type="radio" name="msPower_lower_r" value="@num" />@num</label>
+                            }
+
+                        </fieldset>
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=TxtmsPowerMemo&pType=coma", 500, 600, "0")">
+                        @Html.TextArea("msPower_memo", new { @id = "TxtmsPowerMemo", style = "width:150px;height:50px;" })
+                        <input type="hidden" id="msPower_need_memo" name="msPower_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input type="checkbox" name="VS_plan" id="VS_plan_msPower" value="msPower" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="ra">
+                <tr>
+                    <td width="100">
+                        <label>RASS鎮靜程度評估</label>
+                        <input type="hidden" name="vs_item" value="ra" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        @VitalSign_Helper.vs_part_radio("ra_part", "4分，有攻擊性|3分，非常躁動|2分，躁動焦慮|1分，不安焦慮|0分，清醒平靜|-1分，昏昏欲睡|-2分，輕度鎮靜|-3分，中度鎮靜|-4分，重度鎮靜|-5分，昏迷", "")
+                        <input type="hidden" name="ra_record" relate_field="ra_part" value="" />
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=TxtRaMemo&pType=rass", 500, 600, "0")">
+                        @Html.TextArea("ra_memo", new { @id = "TxtRaMemo", style = "width:150px;height:50px;" })
+                        <input type="hidden" id="ra_need_memo" name="ra_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input id="VS_plan_ra" type="checkbox" name="VS_plan" value="ra" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="bh" hide="@VitalSign_Helper.vs_tbody_ishide("bh", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>身高</label>
+                        <input type="hidden" name="vs_item" value="bh" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input type="text" name="bh_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_bh" type="checkbox" name="VS_plan" value="bh" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="bw" hide="@VitalSign_Helper.vs_tbody_ishide("bw", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>體重</label>
+                        <input type="hidden" name="vs_item" value="bw" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                       <input type="text" id="bw_val" name="bw_record" setindex="Y" value="" />
+                        <select name="bw_record" id="bw_record" onchange="" default="Kg">
+                            <option value="請選擇">請選擇</option>
+                            <option value="Kg">Kg</option>
+                            <option value="g">g</option>
+                        </select>                        
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_bw" type="checkbox" name="VS_plan" value="bw" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtwl" hide="@VitalSign_Helper.vs_tbody_ishide("gtwl", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>腰圍</label>
+                        <input type="hidden" name="vs_item" value="gtwl" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtwl_part" value="Waistline" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtwl_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtwl" type="checkbox" name="VS_plan" value="gtwl" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gthr" hide="@VitalSign_Helper.vs_tbody_ishide("gthr", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>頭圍</label>
+                        <input type="hidden" name="vs_item" value="gthr" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gthr_part" value="Head round about" />
+                    </td>
+                    <td>
+                        <input type="text" name="gthr_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gthr" type="checkbox" name="VS_plan" value="gthr" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtbu" hide="@VitalSign_Helper.vs_tbody_ishide("gtbu", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>胸圍</label>
+                        <input type="hidden" name="vs_item" value="gtbu" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtbu_part" value="Bust" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtbu_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtbu" type="checkbox" name="VS_plan" value="gtbu" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtbl" hide="@VitalSign_Helper.vs_tbody_ishide("gtbl", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>腹圍</label>
+                        <input type="hidden" name="vs_item" value="gtbl" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtbl_part" value="Bust" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtbl_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtbl" type="checkbox" name="VS_plan" value="gtbl" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gthl" hide="@VitalSign_Helper.vs_tbody_ishide("gthl", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>臀圍</label>
+                        <input type="hidden" name="vs_item" value="gthl" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gthl_part" value="Bust" />
+                    </td>
+                    <td>
+                        <input type="text" name="gthl_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gthl" type="checkbox" name="VS_plan" value="gthl" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtlf" hide="@VitalSign_Helper.vs_tbody_ishide("gtlf", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>左前臂</label>
+                        <input type="hidden" name="vs_item" value="gtlf" />
+                    </td>
+                    <td width="200"><input type="hidden" name="gtlf_part" value="Left forearm" /></td>
+                    <td>
+                        <input type="text" name="gtlf_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtlf" type="checkbox" name="VS_plan" value="gtlf" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtrf" hide="@VitalSign_Helper.vs_tbody_ishide("gtrf", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>右前臂</label>
+                        <input type="hidden" name="vs_item" value="gtrf" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtrf_part" value="Right forearm" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtrf_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtrf" type="checkbox" name="VS_plan" value="gtrf" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtlua" hide="@VitalSign_Helper.vs_tbody_ishide("gtlua", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>左上臂</label>
+                        <input type="hidden" name="vs_item" value="gtlua" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtlua_part" value="Left upper arm" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtlua_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtlua" type="checkbox" name="VS_plan" value="gtlua" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtrua" hide="@VitalSign_Helper.vs_tbody_ishide("gtrua", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>右上臂</label>
+                        <input type="hidden" name="vs_item" value="gtrua" />
+                    </td>
+                    <td width="200"><input type="hidden" name="gtrua_part" value="Right upper arm" /></td>
+                    <td>
+                        <input type="text" name="gtrua_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtrua" type="checkbox" name="VS_plan" value="gtrua" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtlt" hide="@VitalSign_Helper.vs_tbody_ishide("gtlt", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>左大腿</label>
+                        <input type="hidden" name="vs_item" value="gtlt" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtlt_part" value="Left thigh" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtlt_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtlt" type="checkbox" name="VS_plan" value="gtlt" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtrt" hide="@VitalSign_Helper.vs_tbody_ishide("gtrt", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>右大腿</label>
+                        <input type="hidden" name="vs_item" value="gtrt" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtrt_part" value="Right thigh" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtrt_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtrt" type="checkbox" name="VS_plan" value="gtrt" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtll" hide="@VitalSign_Helper.vs_tbody_ishide("gtll", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>左小腿</label>
+                        <input type="hidden" name="vs_item" value="gtll" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtll_part" value="Left leg" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtll_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtll" type="checkbox" name="VS_plan" value="gtll" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtrl" hide="@VitalSign_Helper.vs_tbody_ishide("gtrl", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>右小腿</label>
+                        <input type="hidden" name="vs_item" value="gtrl" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtrl_part" value="Left leg" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtrl_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtrl" type="checkbox" name="VS_plan" value="gtrl" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtla" hide="@VitalSign_Helper.vs_tbody_ishide("gtla", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>左足踝</label>
+                        <input type="hidden" name="vs_item" value="gtla" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtla_part" value="Left ankle" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtla_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtla" type="checkbox" name="VS_plan" value="gtla" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="gtra" hide="@VitalSign_Helper.vs_tbody_ishide("gtra", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>右足踝</label>
+                        <input type="hidden" name="vs_item" value="gtra" />
+                    </td>
+                    <td width="200">
+                        <input type="hidden" name="gtra_part" value="Right ankle" />
+                    </td>
+                    <td>
+                        <input type="text" name="gtra_record" setindex="Y" /> cm
+                    </td>
+                    <td width="50"></td>
+                    <td width="150">
+                        <input id="VS_plan_gtra" type="checkbox" name="VS_plan" value="gtra" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="cv1" hide="@VitalSign_Helper.vs_tbody_ishide("cv1", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>中心靜脈壓(mmHg)</label>
+                        <input type="hidden" name="vs_item" value="cv1" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input type="text" name="cv1_record" value="" setindex="Y"
+                               lo_check="cv1_l" hi_check="cv1_h" va_check="true" cr_model="cv1" />
+                        mmHg
+                    </td>
+                    <td width="50">
+                        @Html.TextArea("cv1_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="cv1_need_memo" name="cv1_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input id="VS_plan_cv1" type="checkbox" name="VS_plan" value="cv1" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="cv2" hide="@VitalSign_Helper.vs_tbody_ishide("cv2", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>中心靜脈壓(cmH2O)</label>
+                        <input type="hidden" name="vs_item" value="cv2" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input type="text" name="cv2_record" value="" setindex="Y"
+                               lo_check="cv2_l" hi_check="cv2_h" va_check="true" cr_model="cv2" />
+                        cmH2O
+                    </td>
+                    <td width="50">
+                        @Html.TextArea("cv2_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="cv2_need_memo" name="cv2_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input id="VS_plan_cv2" type="checkbox" name="VS_plan" value="cv2" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="ic1" hide="@VitalSign_Helper.vs_tbody_ishide("ic1", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>顱內壓(mmHg)</label>
+                        <input type="hidden" name="vs_item" value="ic1" />
+                    </td>
+                    <td width="200">&nbsp;</td>
+                    <td>
+                        <input type="text" name="ic1_record" setindex="Y"
+                               lo_check="ic1_l" hi_check="ic1_h" va_check="true" cr_model="ic1" />
+                        mmHg
+                    </td>
+                    <td width="50">
+                        @Html.TextArea("ic1_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="ic1_need_memo" name="ic1_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input id="VS_plan_ic1" type="checkbox" name="VS_plan" value="ic1" />
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="ic2" hide="@VitalSign_Helper.vs_tbody_ishide("ic2", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>顱內壓(cmH2O)</label>
+                        <input type="hidden" name="vs_item" value="ic2" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input type="text" name="ic2_record" setindex="Y"
+                               lo_check="ic2_l" hi_check="ic2_h" va_check="true" cr_model="ic2" />
+                        cmH2O
+                    </td>
+                    <td width="50">
+                        @Html.TextArea("ic2_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="ic2_need_memo" name="ic2_need_memo" value="" />
+                    </td>
+                    <td width="150">
+                        <input id="VS_plan_ic2" type="checkbox" name="VS_plan" value="ic2" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- CPP -->
+            <tbody id="cpp" hide="@VitalSign_Helper.vs_tbody_ishide("cpp", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>CPP</label>
+                        <input type="hidden" name="vs_item" value="cpp" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+
+                        <input id="cpp_text" type="text" name="cpp_record" setindex="Y"
+                               lo_check="cpp" hi_check="cpp" cr_model="cpp" class="check" va_check="true" max_num="" min_num="" />
+                        mmHg
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=cpp_memo&pType=cpp", 500, 600, "0")">
+                        @Html.TextArea("cpp_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="cpp_need_memo" name="cpp_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_cpp" type="checkbox" name="VS_plan" value="cpp" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- ABP -->
+            <tbody id="cm" hide="@VitalSign_Helper.vs_tbody_ishide("cm", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>ABP</label>
+                        <input type="hidden" name="vs_item" value="abp" />
+                        <label><input type="checkbox" name="abp_reason" value="測不到" onclick="SetReason(this);" />測不到</label>
+                    </td>
+                    <td width="200"></td>
+                    <td width="50">
+                        <input id="abph_text" type="text" name="abp_record" value="" setindex="Y"
+                               va_check="true" lo_check="abpld_@(type)" hi_check="abphd_@(type)" cr_model="abp" onblur="com_SDM_abp()" class="check" max_num="" min_num="" /> @*ABP-D*@ /
+
+                        <input id="abpl_text" type="text" name="abp_record" value="" setindex="Y"
+                               va_check="true" lo_check="abpls_@(type)" hi_check="abphs_@(type)" cr_model="abp" onblur="com_SDM_abp()" class="check" max_num="" min_num="" /> @*ABP-S*@ /
+                     
+                        <label id="abpm" name="abp_record" value=""> @*(ABP-M_)mmHg*@ </label>
+
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=abp_memo&pType=abp", 500, 600, "0")">
+                        @Html.TextArea("abp_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="abp_need_memo" name="abp_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_abp" type="checkbox" name="VS_plan" value="abp" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- 心血管監測 -->
+            <tbody id="cm" hide="@VitalSign_Helper.vs_tbody_ishide("cm", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>PA</label>
+                        <input type="hidden" name="vs_item" value="pa" />
+                    </td>
+                    <td width="200"></td>
+
+                    <td>          
+                        <input id="pah_text" type="text" name="pa_record" value="" setindex="Y"
+                               va_check="true" lo_check="pal_d" hi_check="pah_d" cr_model="pa" onblur="com_SDM_pa()" class="check" max_num="" min_num="" /> /
+
+                        <input id="pal_text" type="text" name="pa_record" value="" setindex="Y"
+                               va_check="true" lo_check="pal_s" hi_check="pah_s" cr_model="pa" onblur="com_SDM_pa()" class="check" max_num="" min_num="" /> /
+
+                        <label id="pam" name="pa_record" value=""> @*mmHg*@ </label>
+
+
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=pa_memo&pType=pa", 500, 600, "0")">
+                        @Html.TextArea("pa_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="pa_need_memo" name="pa_need_memo" value="" />
+
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_pa" type="checkbox" name="VS_plan" value="pa" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- PCWP -->
+            <tbody id="cm" hide="@VitalSign_Helper.vs_tbody_ishide("cm", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>PCWP</label>
+                        <input type="hidden" name="vs_item" value="pcwp" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input id="pcwp_text" type="text" name="pcwp_record" value="" setindex="Y"
+                               va_check="true" lo_check="pcwpl" hi_check="pcwph" cr_model="pcwp" class="check" max_num="" min_num="" /> mmHg
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=pcwp_memo&pType=pcwp", 500, 600, "0")">
+                        @Html.TextArea("pcwp_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="pcwp_need_memo" name="pcwp_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_pcwp" type="checkbox" name="VS_plan" value="pcwp" />
+                    </td>
+                </tr>
+            </tbody>
+
+
+            <!-- ETCO2 -->
+            <tbody id="etco" hide="@VitalSign_Helper.vs_tbody_ishide("etco",func_list)">
+                <tr>
+                    <td width="100">
+                        <label>ETCO2</label>
+                        <input type="hidden" name="vs_item" value="etco" />
+                    </td>
+                    <td width="200"></td>
+                    <td width="50">
+                        <input id="etco_text" type="text" name="etco_record" value="" setindex="Y"
+                               va_check="true" lo_check="etcol" hi_check="etcoh" cr_model="etco" class="check" max_num="" min_num="" /> mmHg
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=etco_memo&pType=etco", 500, 600, "0")">
+                        @Html.TextArea("etco_memo", new { style = "width:150px;height:50px;" })
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_etco" type="checkbox" name="VS_plan" value="etco" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- 血流動力 -->
+            <!-- CO -->
+            <tbody id="picco" hide="@VitalSign_Helper.vs_tbody_ishide("picco", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>CO</label>
+                        <input type="hidden" name="vs_item" value="picco_co" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input id="picco_co_text" type="text" name="picco_co_record" value="" setindex="Y"
+                               va_check="true" lo_check="picco_col" hi_check="picco_coh" cr_model="picco_co" class="check" max_num="" min_num="" />
+                        <label id="picco_co_unit">L/min</label>
+
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=picco_co_memo&pType=picco", 500, 600, "0")">
+                        @Html.TextArea("picco_co_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="picco_co_need_memo" name="picco_co_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_picco_co" type="checkbox" name="VS_plan" value="picco_co" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- CI -->
+            <tbody id="picco" hide="@VitalSign_Helper.vs_tbody_ishide("picco", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>CI</label>
+                        <input type="hidden" name="vs_item" value="picco_ci" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input id="picco_ci_text" type="text" name="picco_ci_record" value="" setindex="Y"
+                               va_check="true" lo_check="picco_cil" hi_check="picco_cih" cr_model="picco_ci" class="check" max_num="" min_num="" />
+                        <label id="picco_ci_unit"> L/min.m<sup>2</sup></label>
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=picco_ci_memo&pType=picco", 500, 600, "0")">
+                        @Html.TextArea("picco_ci_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="picco_ci_need_memo" name="picco_ci_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_picco_ci" type="checkbox" name="VS_plan" value="picco_ci" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- SV -->
+            <tbody id="picco" hide="@VitalSign_Helper.vs_tbody_ishide("picco", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>SV</label>
+                        <input type="hidden" name="vs_item" value="picco_sv" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input id="picco_sv_text" type="text" name="picco_sv_record" value="" setindex="Y"
+                               va_check="true" lo_check="picco_svl" hi_check="picco_svh" cr_model="picco_sv" class="check" max_num="" min_num="" />
+                        <label id="picco_sv_unit"> mL/beat</label>
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=picco_sv_memo&pType=picco", 500, 600, "0")">
+                        @Html.TextArea("picco_sv_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="picco_sv_need_memo" name="picco_sv_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_picco_sv" type="checkbox" name="VS_plan" value="picco_sv" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- SVI -->
+            <tbody id="picco" hide="@VitalSign_Helper.vs_tbody_ishide("picco", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>SVI</label>
+                        <input type="hidden" name="vs_item" value="picco_svi" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input id="picco_svi_text" type="text" name="picco_svi_record" value="" setindex="Y"
+                               va_check="true" lo_check="picco_svil" hi_check="picco_svih" cr_model="picco_svi" class="check" max_num="" min_num="" />
+                        <label id="picco_svi_unit"> mL/beat/m<sup>2</sup></label>
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=picco_svi_memo&pType=picco", 500, 600, "0")">
+                        @Html.TextArea("picco_svi_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="picco_svi_need_memo" name="picco_svi_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_picco_svi" type="checkbox" name="VS_plan" value="picco_svi" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- SVR -->
+            <tbody id="picco" hide="@VitalSign_Helper.vs_tbody_ishide("picco", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>SVR</label>
+                        <input type="hidden" name="vs_item" value="picco_svr" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input id="picco_svr_text" type="text" name="picco_svr_record" value="" setindex="Y"
+                               va_check="true" lo_check="picco_svrl" hi_check="picco_svrh" cr_model="picco_svr" class="check" max_num="" min_num="" />
+                        <label id="picco_svr_unit"> dynes-sec/cm<sup>-5</sup></label>
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=picco_svr_memo&pType=picco", 500, 600, "0")">
+                        @Html.TextArea("picco_svr_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="picco_svr_need_memo" name="picco_svr_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_picco_svr" type="checkbox" name="VS_plan" value="picco_svr" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- SVRI -->
+            <tbody id="picco" hide="@VitalSign_Helper.vs_tbody_ishide("picco", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>SVRI</label>
+                        <input type="hidden" name="vs_item" value="picco_svri" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input id="picco_svri_text" type="text" name="picco_svri_record" value="" setindex="Y"
+                               va_check="true" lo_check="picco_svril" hi_check="picco_svrih" cr_model="picco_svri" class="check" max_num="" min_num="" />
+                        <label id="picco_svri_unit">dynes-sec/cm<sup>-5</sup>/m<sup>2</sup></label>
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=picco_svri_memo&pType=picco", 500, 600, "0")">
+                        @Html.TextArea("picco_svri_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="picco_svri_need_memo" name="picco_svri_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_picco_svri" type="checkbox" name="VS_plan" value="picco_svri" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- SVV -->
+            <tbody id="picco" hide="@VitalSign_Helper.vs_tbody_ishide("picco", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>SVV</label>
+                        <input type="hidden" name="vs_item" value="picco_svv" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input id="picco_svv_text" type="text" name="picco_svv_record" value="" setindex="Y"
+                               va_check="true" lo_check="picco_svvl" hi_check="picco_svvh" cr_model="picco_svv" class="check" max_num="" min_num="" />
+                        <label id="picco_svv_unit">%</label>
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=picco_svv_memo&pType=picco", 500, 600, "0")">
+                        @Html.TextArea("picco_svv_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="picco_svv_need_memo" name="picco_svv_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_picco_svv" type="checkbox" name="VS_plan" value="picco_svv" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- ScvO2 -->
+            <tbody id="picco" hide="@VitalSign_Helper.vs_tbody_ishide("picco", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>ScvO2</label>
+                        <input type="hidden" name="vs_item" value="picco_scvo2" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <input id="picco_scvo2_text" type="text" name="picco_scvo2_record" value="" setindex="Y"
+                               va_check="true" lo_check="picco_scvo2l" hi_check="picco_scvo2h" cr_model="picco_scvo2" class="check" max_num="" min_num="" />
+                        <label id="picco_scvo2_unit">%</label>
+                    </td>
+                    <td width="50">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=picco_scvo2_memo&pType=picco", 500, 600, "0")">
+                        @Html.TextArea("picco_scvo2_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="picco_scvo2_need_memo" name="picco_scvo2_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_picco_scvo2" type="checkbox" name="VS_plan" value="picco_scvo2" />
+                    </td>
+                </tr>
+            </tbody>
+
+
+            <!-- 血液氣體 -->
+            <tbody id="gas" hide="@VitalSign_Helper.vs_tbody_ishide("gas", func_list)" >
+                <tr>
+                    <td width="100">
+                        <label>血液氣體分析</label>
+                        <input type="hidden" name="vs_item" value="gas" />
+                    </td>
+          
+                    <td width="200">
+                        <label><input type="radio" name="gas_posture" value="右手橈動脈" onclick="gasPart('N')"  />右手橈動脈</label>
+                        <label><input type="radio" name="gas_posture" value="左手橈動脈" onclick="gasPart('N')" />左手橈動脈</label>
+                        <label><input type="radio" name="gas_posture" value="右手肱動脈" onclick="gasPart('N')"  />右手肱動脈</label>
+                        <label><input type="radio" name="gas_posture" value="左手肱動脈" onclick="gasPart('N')" />左手肱動脈</label>
+                        <label><input type="radio" name="gas_posture" value="右側股動脈" onclick="gasPart('N')"  />右側股動脈</label>  
+                        <label><input type="radio" name="gas_posture" value="左側股動脈" onclick="gasPart('N')" />左側股動脈</label>
+                        <label><input type="radio" name="gas_posture" value="右足背動脈" onclick="gasPart('N')" />右足背動脈</label>
+                        <label><input type="radio" name="gas_posture" value="左足背動脈" onclick="gasPart('N')" />左足背動脈</label>
+                        <br>
+                        <label><input type="radio" name="gas_posture" value="其他" onclick="gasPart('other')" />其他</label>
+
+                        @*<div id="div_mp">
+                            <hr />
+                            @VitalSign_Helper.vs_part_radio("gas_position", "左側|右側", "")
+                        </div>*@
+                        <span id="gas_posture_part_other" style="display:none;">
+                            <input type="text" id="gas_position" name="gas_position" style="width:150px;" onChange="gasPart('other')" />
+                        </span>
+                        <input type="hidden" id="gas_part" name="gas_part" value="" />
+                    </td>
+
+                    <td >            
+                        <input id="gassearch" type="button" value="查詢數據" style="color:white;background-color:red" onclick="WS_Search('Gas','second')">   
+                        <br>  
+                        <div style="display:flex; flex-wrap:wrap" >
+                            <div style="display:inline-table;width:32%; min-width:130px">
+                                <table  id="acid" style="border: 5px solid #FF00FF !important; width:100%; display:inline-table">
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="2"><label style="font-size:14px"l><b>ACID/BASE</b></label></td>
+                                        </tr>
+                                        @*<tr>
+                                            <td><label>溫度</label></td>
+                                            <td style="text-align:left">
+                                                <input id="gas_tp" type="text" name="gas_record" value="" setindex="Y" style="width:50%"
+                                                       va_check="true" lo_check="picco_scvo2l" hi_check="picco_scvo2h" cr_model="picco_scvo2" class="check" max_num="" min_num="" />
+                                                °C
+                                            </td>
+                                        </tr>*@
+                                        <tr>
+                                            <td><label style="font-size:14px"> pH</label></td>
+                                            <td>
+                                                <input id="pH" type="text" name="gas_record" value=""style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                                &emsp;
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><label style="font-size:14px"> pCO<sub>2</sub></label></td>
+                                            <td>
+                                                <input id="pCO2" type="text" name="gas_record" value="" style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                                <label style="font-size:12px">mmHg</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><label style="font-size:14px"> pO<sub>2</sub></label></td>
+                                            <td>
+                                                <input id="pO2" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                                <label style="font-size:12px">mmHg</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><label style="font-size:14px"> HCO<sub>3</sub><sup>-</sup>act</label></td>
+                                            <td>
+                                                <input id="HCO3_act" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                                <label style="font-size:12px">mmol/L</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><label style="font-size:14px">HCO<sub>3</sub><sup>-</sup>std</label></td>
+                                            <td>
+                                                <input id="HCO3_std" type="text" name="gas_record" value="" style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                                <label style="font-size:12px">mmol/L</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><label style="font-size:14px">BE(B)</label></td>
+                                            <td>
+                                                <input id="BE_B" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                                <label style="font-size:12px">mmol/L</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><label style="font-size:14px"> BE(ecf)</label></td>
+                                            <td> 
+                                                <input id="BE_ecf" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                                <label style="font-size:12px">mmol/L</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><label style="font-size:14px">ctO<sub>2</sub></label></td>
+                                            <td>
+                                                <input id="ctO2" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                                <label style="font-size:12px">mmol/L</label>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+ 
+                        <div style="display:inline-table; margin-left: 0.3rem;width:32%; min-width:130px">
+                            <table style="border: 5px solid #FFFF37!important;  width:100%; display:inline-table">
+                                <tbody>
+                                    <tr>
+                                        <td colspan="2"><label style="font-size:14px"><b>CO-OXIMETRY</b></label></td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px">tHb</label></td>
+                                        <td>
+                                            <input id="tHb" type="text" name="gas_record" value="" style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>                                        
+                                            <label style="font-size:12px">g/dL</label>
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px"> sO<sub>2</sub></label></td>
+                                        <td>
+                                            <input id="SO2" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                            <label style="font-size:12px">%</label>
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px"> <I>F</I>O<sub>2</sub>Hb</label></td>
+                                        <td>
+                                            <input id="FO2Hb" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                            <label style="font-size:12px">%</label>
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px"> <I>F</I>COHb</label></td>
+                                        <td>
+                                            <input id="FCOHb" type="text" name="gas_record" value="" style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                            <label style="font-size:12px">%</label>
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px"> <I>F</I>MetHb</label></td>
+                                        <td>
+                                            <input id="FMetHb" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                            <label style="font-size:12px">%</label>
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px"><I>F</I>HHb</label></td>
+                                        <td>
+                                            <input id="FHHB" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                            <label style="font-size:12px">%</label>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div style="display:inline-table; margin-left: 0.3rem ;width:32%; min-width:130px">
+                            <table style="border: 5px solid #9AFF02 !important;  width:100%; display:inline-table">
+                                <tbody>
+                                    <tr>
+                                        <td colspan="2"><label style="font-size:14px"><b>ELECTROLYTES</b></label></td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px">Na<sup>+</sup></label></td>
+                                        <td>
+                                            <input id="Na" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                            <label style="font-size:12px">mmol/L</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px"> K<sup>+</sup></label></td>
+                                        <td>
+                                            <input id="K" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                            <label style="font-size:12px">mmol/L</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px"> Ca<sup>++</sup></label></td>
+                                        <td>
+                                            <input id="Ca" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                            <label style="font-size:12px">mmol/L</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px"> Ca<sup>++</sup>(7.4)</label></td>
+                                        <td>
+                                            <input id="Ca_7" type="text" name="gas_record" value="" style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                            <label style="font-size:12px">mmol/L</label>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><label style="font-size:14px"> Cl<sup>-</sup></label></td>
+                                        <td>
+                                            <input id="CI" type="text" name="gas_record" value=""  style="width:50%" oninput="this.value=this.value.replace(/\D*(\d*)(\.?)(\d{0,3})\d*/,'$1$2$3')"/>
+                                            <label style="font-size:12px">mmol/L</label>
+                                            <input type="hidden" id="gas_select" name="gas_select" value="" />
+                                            <input type="hidden" id="CREATE_DATE" name="gas_time" value="" />
+                                            <input type="hidden" id="source" name="gas_source" value="" />
+                                        </td>
+                                    </tr>
+                                    @*換顏色卡位用*@
+                                    <tr></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                     </div>
+
+                    </td>
+                    <td width="50">
+                        <input type="button" value="給藥" onclick="@Java_funcion.pup_window("../CommonMedication/Medication_NurseExecute", 900, 600, "0")">
+                        <input type="button" value="處置" onclick="@Java_funcion.pup_window("../VitalSign/SharedVitalSign?pCtrl=gas_memo&pType=gas", 500, 600, "0")">
+                        @Html.TextArea("gas_memo", new { style = "width:150px;height:50px;" })
+                        <input type="hidden" id="gas_need_memo" name="gas_need_memo" value="" />
+                    </td>
+                    <td width="110">
+                        <input id="VS_plan_gas" type="checkbox" name="VS_plan" value="gas" />
+                    </td>
+                </tr>
+            </tbody>
+            <!-- 一般嬰兒-->
+            <tbody id="gi" hide="@VitalSign_Helper.vs_tbody_ishide("gi", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>保溫箱溫度</label>
+                        <input type="hidden" name="vs_item" value="gi" />
+
+                    </td>
+                    <td width="200"></td>
+                    <td width="50">
+                        <input id="gi_text" type="text" name="gi_record" value="" setindex="Y" /> ℃
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_gi" type="checkbox" name="VS_plan" value="gi" />
+                    </td>
+                </tr>
+            </tbody>
+            <!--總膽紅素:gi_j //20171029黃疸改為總膽紅素 alanHuang-->
+            <tbody id="gi" hide="@VitalSign_Helper.vs_tbody_ishide("gi", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>總膽紅素</label>
+                        <input type="hidden" name="vs_item" value="gi_j" />
+                    </td>
+                    <td width="200">
+                    <label><input id="gi_j_text" type="radio" name="gi_j_part" value="檢驗科" onclick="TBiltype('check')"/> 檢驗科 </label>
+                    <label><input id="gi_j_text" type="radio" name="gi_j_part" value="儀器設備" onclick="TBiltype('machine')" /> 儀器設備 </label>
+                    </td>
+                    <td width="50">
+                        <input id="giMemo" type="text" name="gi_j_record" />
+                        <input type="hidden" id="gi_j_need_memo" name="gi_j_record" value="" />
+                        mg/dl
+                        <input id="gisearch" type="button" value="查詢" onclick="WS_Search('TBil','second')">
+                        <input id="gisearch_m" type="button" value="查詢" onclick="" style="display:none;">
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_gi_j" type="checkbox" name="VS_plan" value="gi_j" />
+                    </td>
+                </tr>
+            </tbody>
+            <!--臍帶 : gi_c-->
+            <tbody id="gi" hide="@VitalSign_Helper.vs_tbody_ishide("gi", func_list)">
+                <tr>
+                    <td width="100">
+                        <label>臍帶脫落</label>
+                        <input type="hidden" name="vs_item" value="gi_c" />
+
+                    </td>
+                    <td width="200"></td>
+                    <td width="50">
+                        <label><input id="gi_c_text" type="radio" onclick="Umbilical('Y')" name="gi_c_record" value="有脫落" /> 有 </label>
+                        <label><input id="gi_c_text" type="radio" onclick="Umbilical('N')" name="gi_c_record" value="無脫落" /> 無 </label>
+                        <span id="gi_c_text_here">
+                            <select id="gi_c_type" name="gi_c_record" disabled="disabled">
+                                <option value="">請選擇</option>
+                                <option value="乾">乾</option>
+                                <option value="濕">濕</option>
+                            </select>
+                        </span>
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_gi_c" type="checkbox" name="VS_plan" value="gi_c" />
+                    </td>
+                </tr>
+            </tbody>
+            <!--尿液性質:gi_u-->
+            <tbody id="gi" hide="@VitalSign_Helper.vs_tbody_ishide("gi",func_list)">
+                <tr>
+                    <td id="gi_u_td" width="100">
+                        <label>尿液性質</label>
+                        <input type="hidden" name="vs_item" value="gi_u" />
+                    </td>
+                    <td width="200"></td>
+                    <td width="50">
+
+                        <input type="text" id="gi_u_value" name="gi_u_record" value="" setindex="Y"
+                               max_num="" min_num="" onfocus="ch_all_numcheck();"  />
+                        <label id="u_times" >次</label>
+                        <label><input type="radio" id="gi_u_radio" name="gi_u_record" value="黃" onclick="noPee('Yellow')" /> 黃 </label>
+                        <label><input type="radio" id="gi_u_radio" name="gi_u_record" value="結晶尿" onclick="noPee('crystallize')" /> 結晶尿 </label>
+                        <label><input type="radio" id="gi_u_radio" name="gi_u_record" value="無解尿" onclick="noPee('Nopee')" /> 無解尿 </label>
+
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_gi_u" type="checkbox" name="VS_plan" value="gi_u" />
+                    </td>
+                </tr>
+            </tbody>
+            <!--大便潛血:gi_st-->
+            <tbody id="gi" hide="@VitalSign_Helper.vs_tbody_ishide("gi",func_list)">
+                <tr>
+                    <td id="gi_st_td" width="100">
+                        <label>大便潛血</label>
+                        <input type="hidden" name="vs_item" value="gi_st" />
+                    </td>
+                    <td width="200"></td>
+                    <td width="50">
+                        <input type="text" id="gi_st_value" name="gi_st_record" value=""/>
+                        <input id="gi_st_search" type="button" value="查詢" onclick="WS_Search('OccBlood', 'second')">
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_gi_st" type="checkbox" name="VS_plan" value="gi_st" />
+                    </td>
+                </tr>
+            </tbody>
+            <!--新生兒週數:gi_new-->
+            <tbody id="gi" hide="@VitalSign_Helper.vs_tbody_ishide("gi",func_list)">
+                <tr>
+                    <td id="gi_new_td" width="100">
+                        <label>新生兒週數</label>
+                        <input type="hidden" name="vs_item" value="gi_new" />
+                    </td>
+                    <td width="200"></td>
+                    <td width="50">
+                        <input type="text" id="gi_new_value" name="gi_new_record" value="" setindex="Y"
+                               max_num="" min_num="" onfocus="ch_all_numcheck();" />
+                        <label id="new_weeks">週</label>
+                        <input type="text" id="gi_new_value" name="gi_new_record" value="" setindex="Y"
+                               max_num="" min_num="" onfocus="ch_all_numcheck();" />
+                        <label id="new_days">天</label>
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_gi_new" type="checkbox" name="VS_plan" value="gi_new" />
+                    </td>
+                </tr>
+            </tbody>
+            <!-- 重症嬰幼兒 -->
+
+            <tbody id="si" hide="@VitalSign_Helper.vs_tbody_ishide("si",func_list)">
+                <tr>
+                    <td width="100">
+                        <label>保溫箱溫度</label>
+                        <input type="hidden" name="vs_item" value="si" />
+                    </td>
+                    <td width="200"></td>
+                    <td width="50">
+                        <input id="si_text" type="text" name="si_record" value="" setindex="Y" /> ℃
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                       <input id="VS_plan_si" type="checkbox" name="VS_plan" value="si" />
+                    </td>
+                </tr>
+            </tbody>
+            <!--膚色:si_n-->
+            <tbody id="si" hide="@VitalSign_Helper.vs_tbody_ishide("si",func_list)">
+                <tr>
+                    <td width="100">
+                        <label>膚色</label>
+                        <input type="hidden" name="vs_item" value="si_n" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <label><input type="radio" name="si_n_record" value="蒼白" /> 蒼白</label>
+                        <label><input type="radio" name="si_n_record" value="棕" /> 棕</label>
+                        <label><input type="radio" name="si_n_record" value="紫" /> 紫</label>
+                        <label><input type="radio" name="si_n_record" value="黃" /> 黃</label>
+                        <label><input type="radio" name="si_n_record" value="斑" /> 斑</label>
+                        <label><input type="radio" name="si_n_record" value="粉紅" /> 粉紅</label>
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_si_n" type="checkbox" name="VS_plan" value="si_n" />
+                    </td>
+                </tr>
+            </tbody>
+            <!--呼吸型態:si_b-->
+            <tbody id="si" hide="@VitalSign_Helper.vs_tbody_ishide("si",func_list)">
+                <tr>
+                    <td width="100">
+                        <label>呼吸型態</label>
+                        <input type="hidden" name="vs_item" value="si_b" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+                        <label><input type="radio" name="si_b_part" value="自呼吸" onclick="Breathe('self')"/> 自呼吸</label>
+                        <label><input type="radio" name="si_b_part" value="CPAP" onclick="Breathe('CPAP')"/> CPAP</label>
+                        <label><input type="radio" name="si_b_part" value="Hood" onclick="Breathe('Hood')"/> Hood</label>
+                        <label><input type="radio" name="si_b_part" value="噴霧" onclick="Breathe('spray')"/> 噴霧</label>
+                        <label><input type="radio" name="si_b_part" value="吸氧氣" onclick="Breathe('H')"/> 吸氧氣</label>
+                        <label><input type="radio" name="si_b_part" value="呼吸器" onclick="Breathe('Respirator')"/> 呼吸器</label>
+                        <label><input type="radio" name="si_b_part" value="" onclick="Breathe('other')" />其他</label>
+
+                        <input type="hidden" name="si_b_record" relate_field="si_b_part" value="" />
+                        <span id="si_b_part_other" style="display:none;">
+                            <input type="text" name="si_b_record" style="width:150px;" />
+                        </span>
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_si_b" type="checkbox" name="VS_plan" value="si_b" />
+                    </td>
+                </tr>
+            </tbody>
+            <!--呼吸品質:si_r-->
+            <tbody id="si" hide="@VitalSign_Helper.vs_tbody_ishide("si",func_list)">
+                <tr>
+                    <td width="100">
+                        <label>呼吸品質</label>
+                        <input type="hidden" name="vs_item" value="si_r" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+
+                        <label><input type="radio" name="si_r_record" value="正常" /> 正常 </label>
+                        <label><input type="radio" name="si_r_record" value="輔助" /> 輔助 </label>
+                        <label><input type="radio" name="si_r_record" value="呻吟" /> 呻吟 </label>
+                        <label><input type="radio" name="si_r_record" value="凹陷" /> 凹陷 </label>
+
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_si_r" type="checkbox" name="VS_plan" value="si_r" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!--痰液:si_s-->
+            <tbody id="si" hide="@VitalSign_Helper.vs_tbody_ishide("si",func_list)">
+                <tr>
+                    <td width="100">
+                        <label>痰液</label>
+                        <input type="hidden" name="vs_item" value="si_s" />
+                    </td>
+                    <td width="200"></td>
+
+                    <td>
+                        <select id="sis" name="si_s_record" onchange="startClose(this)">
+                            <option value="">請選擇量</option>
+                            <option value="無">無</option>
+                            <option value="少">少</option>
+                            <option value="中">中</option>
+                            <option value="多">多</option>
+                        </select>
+                        <select id="sir" name="si_s_record">
+                            <option value="">請選擇性質</option>
+                            <option value="稠">稠</option>
+                            <option value="稀">稀</option>
+                            <option value="黏">黏</option>
+                        </select>
+                        <select id="sid" name="si_s_record">
+                            <option value="">請選擇顏色</option>
+                            <option value="黃">黃</option>
+                            <option value="白">白</option>
+                            <option value="粉紅">粉紅</option>
+                        </select>
+
+                        @*<div id="sio">
+                                @VitalSign_Helper.vs_dropdown("si_s_record", "量|無|少|中|多", "請選擇")
+
+                                @VitalSign_Helper.vs_dropdown("si_s_record", "性質|稠|稀|黏", "請選擇")
+
+                                @VitalSign_Helper.vs_dropdown("si_s_record", "顏色|黃|白|粉紅", "請選擇")
+                            </div>*@
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_si_s" type="checkbox" name="VS_plan" value="si_s" />
+                    </td>
+                </tr>
+            </tbody>
+
+            <!--翻身:si_o-->
+            <tbody id="si" hide="@VitalSign_Helper.vs_tbody_ishide("si",func_list)">
+                <tr>
+                    <td width="100">
+                        <label>翻身</label>
+                        <input type="hidden" name="vs_item" value="si_o" />
+                    </td>
+                    <td width="200"></td>
+                    <td>
+
+                        <label><input type="radio" name="si_o_record" value="左側臥"  /> 左側臥</label>
+                        <label><input type="radio" name="si_o_record" value="右側臥" /> 右側臥</label>
+                        <label><input type="radio" name="si_o_record" value="平躺" /> 平躺  </label>
+                        <label><input type="radio" name="si_o_record" value="趴睡" /> 趴睡  </label>
+
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_si_o" type="checkbox" name="VS_plan" value="si_o" />
+                    </td>
+                </tr>
+            </tbody>
+            <!--尿液檢驗項目:si_inspect-->
+            <tbody id="si" hide="@VitalSign_Helper.vs_tbody_ishide("si",func_list)">
+                <tr>
+                    <td width="100">
+                        <label>尿液檢驗項目</label>
+                        <input type="hidden" name="vs_item" value="si_inspect" />
+                    </td>
+                    <td width="200"></td>
+                    <td width="50">
+                        <label id="urine_protein">尿蛋白</label>
+                        <input type="text" id="si_inspect_value" name="si_inspect_record" value="" />
+
+                        <label id="urine_sugar">尿糖</label>
+                        <input type="text" id="si_inspect_value" name="si_inspect_record" value="" />
+
+                        <label id="urine_ph">ph值</label>
+                        <input type="text" id="si_inspect_value" name="si_inspect_record" value="" />
+                    </td>
+                    <td width="50"></td>
+                    <td width="110">
+                        <input id="VS_plan_si_inspect" type="checkbox" name="VS_plan" value="si_inspect" />
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</form>
+
+<!-- 小鍵盤 -->
+<div id="keybord">
+    <table cellpadding="0" cellspacing="5">
+        <tr>
+            <td><button>1</button></td>
+            <td><button>2</button></td>
+            <td><button>3</button></td>
+            <td><button>0</button></td>
+            <td>
+                <button style="width:60px;">&times;</button>
+            </td>
+        </tr>
+        <tr>
+            <td><button>4</button></td>
+            <td><button>5</button></td>
+            <td><button>6</button></td>
+            <td><button>&larr;</button></td>
+            <td rowspan="2"><button style="width: 60px; height: 75px">&crarr;</button></td>
+        </tr>
+        <tr>
+            <td><button>7</button></td>
+            <td><button>8</button></td>
+            <td><button>9</button></td>
+            <td><button>.</button></td>
+        </tr>
+    </table>
+</div>
+
+<!-- 遮罩 -->
+<div id="mask" class="mask"></div>
+<div id="info" class="mask">
+    <img src="@Url.Content("~/Images/System/saving.gif")" alt="儲存中" />
+</div>
+
+<!-- 處置選項資料放置處 -->
+<div id="vs_prompt" style="overflow-y: scroll;"></div>
+
+<!--總膽紅素、大便潛血隱藏視窗-->
+<div id="drainage_modal" style="width:800px;height:500px;display:none;">
+    <div style="height:500px;width:100%;">
+        <div id="win_header">
+            
+        </div>
+        <div id="win_content">
+            @Html.TextBox("start_date", start.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+            @Html.Label("lab", " ~ ")
+            @Html.TextBox("end_date", end, new { style = "width:80px", @readonly = "readonly" })
+            @WebTool.setDateTime("start_date", "", "", (end_date).ToString(), (ViewBag.inday).ToString(), "", "", "1020")
+            @WebTool.setDateTime("end_date", "", "", (end_date).ToString(), (ViewBag.inday).ToString(), "", "", "1020")
+            @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "", false, "", "1020")
+            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "", false, "", "1020")*@
+            <input type="hidden" id="source" value="">
+            <input type="button" value="查詢" style="width:60px;" onclick="WS_Search('date_search', 'range');" />
+        </div>
+        <table id="Dt" style="margin-top:67px;border: 1px solid;width:100%;border-collapse: collapse;">
+            <thead>
+                <tr class="" style="border: 1px solid;">
+                    <th style="border: 1px solid;">帶入</th>
+                    <th style="border: 1px solid;">時間</th>
+                    <th style="border: 1px solid;">數值</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <table style="display:none;">
+            <tbody id="item_tmp">
+                <tr style="background-color:honeydew;border: 1px solid;" data-json="">
+                    <td style="border: 1px solid;text-align:center;">
+                        <input type="radio" name="vs_id" id="" value="" data-feq="" />
+                    </td>
+                    <td name="Date" style="border: 1px solid;"></td>
+                    <td name="Num_Value" style="border: 1px solid;"></td>
+                </tr>
+            </tbody>
+        </table>
+        <div id="win_footer">
+            <input type="button" value="帶入" onclick="WS_insert('date_search');" />
+            <input type="button" value="關閉" onclick="$.unblockUI();" />
+        </div>
+    </div>
+</div>
+
+<!--血液氣體隱藏視窗-->
+<div id="gas_modal" style="width:900px;height:500px;display:none;">
+    <div style="height:500px;width:100%;">
+        <div id="win_gas_header" style="margin-top:0.3rem">
+
+        </div>
+        <div id="win_content">
+            <br>
+            <label>範圍區間</label>   
+
+            @Html.TextBox("start_date_gas", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+            @Html.Label("lab", " ~ ")
+            @Html.TextBox("end_date_gas", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+
+            @WebTool.setDateTime("start_date_gas", "", "true", (0).ToString(), (ViewBag.inday).ToString(), "", "", "1020")
+            @WebTool.setDateTime("end_date_gas", "", "", (0).ToString(), (ViewBag.inday).ToString(), "", "", "1020")
+
+            <input type="hidden" id="source" value="">
+            <input type="button" value="查詢" style="width:60px;" onclick="reloadGas();" />
+        </div>
+        <br>
+        <div style="overflow-x:auto">
+                <table id="gasGrid"></table>
+                <div id="pager"></div>
+        </div>
+        <div id="win_footer">
+
+            <label>條件篩選</label>
+            <input type="checkbox" id="acidbase" name="group" value="group1" checked>
+            <label for="acidbase">ACID/BASE</label>
+            <input type="checkbox" id="co" name="group" value="group2" checked>
+            <label for="co">CO-OXIMETRY</label>
+            <input type="checkbox" id="ele" name="group" value="group3" checked>
+            <label for="ele">ELECTROLYTES</label>
+            <br>
+            <input type="button" value="帶入" onclick="getSelecteds();" />
+            <input type="button" value="關閉" onclick="$.unblockUI();" />
+        </div>
+    </div>
+</div>
+
+
+
+<script type="text/javascript">
+
+    $("#gasGrid").jqGrid({                 
+        url: 'GasQueryRanger',  
+        datatype: 'json',                 
+        mtype: 'GET',                   
+        colModel: [                  
+           { name: 'CREATE_DATE', label: '測量時間'},
+           { name: 'pH', label: 'pH' },
+           { name: 'pCO2', label: 'pCO<sub>2</sub>'},
+           { name: 'pO2', label: 'pO<sub>2</sub>' },
+           { name: 'HCO3_act', label: 'HCO<sub>3</sub><sup>-</sup>act' },
+           { name: 'HCO3_std', label: 'HCO<sub>3</sub><sup>-</sup>std' },
+           { name: 'BE_B', label: 'BE(B)' },
+           { name: 'BE_ecf', label: 'BE(ecf)' },
+           { name: 'ctO2', label: 'ctO<sub>2</sub>' },
+           { name: 'tHb', label: 'tHb' },
+           { name: 'SO2', label: 'sO<sub>2</sub>' },
+           { name: 'FO2Hb', label: '<I>F</I>O2Hb' },
+           { name: 'FCOHb', label: '<I>F</I>COHb' },
+           { name: 'FMetHb', label: '<I>F</I>MetHb' },
+           { name: 'FHHB', label: '<I>F</I>HHb' },
+           { name: 'Na', label: 'Na<sup>+</sup>' },
+           { name: 'K', label: 'K<sup>+</sup>' },
+           { name: 'Ca', label: 'Ca<sup>++</sup>' },
+           { name: 'Ca_7', label: 'Ca<sup>++</sup>(7.4)' },
+           { name: 'CI', label: 'Cl<sup>-</sup>' },
+           { name: 'source', label: 'TYPE' },
+        ],
+        width: 'auto',
+        height: 'auto',
+        rowNum: 10,                    
+        rowList: [5, 10, 20, 50],
+        rownumbers: true,
+        sortname: 'Name',             
+        sortorder: "asc",            
+        viewrecords: false                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           ,               //是否要顯示總筆數
+        caption: 'Blood Gas',          
+        loadonce: true,                
+        multiselect: false,
+        autoScroll: false,
+        loadComplete: function (data) {
+            var allRows = $('#gasGrid').jqGrid('getDataIDs');
+            for (var i=0; i < allRows.length; i++)
+            {
+                var rowid = allRows[i];
+                if ($('#gasGrid').jqGrid('getCell', rowid, 'pH') < 7.35 || $('#gasGrid').jqGrid('getCell', rowid, 'pH') > 7.45)
+                {
+                    $('#gasGrid').jqGrid('setCell', rowid, 'pH', '', { color: 'red' });
+                }
+
+                if ($('#gasGrid').jqGrid('getCell', rowid, 'pCO2') < 35 || $('#gasGrid').jqGrid('getCell', rowid, 'pH') > 45) {
+                    $('#gasGrid').jqGrid('setCell', rowid, 'pCO2', '', { color: 'red' });
+                }
+
+                if ($('#gasGrid').jqGrid('getCell', rowid, 'pO2') <= 75 || $('#gasGrid').jqGrid('getCell', rowid, 'pO2') > 100) {
+                    $('#gasGrid').jqGrid('setCell', rowid, 'pO2', '', { color: 'red' });
+                }
+
+            }
+        }
+    });
+
+    $("#gasGrid").jqGrid("setGroupHeaders", {
+        useColSpanStyle: true,
+        groupHeaders: [
+            { startColumnName: "pH", numberOfColumns: 8, titleText: "ACID/BASE", className: "acid" },
+            { startColumnName: "tHb", numberOfColumns: 6, titleText: "CO-OXIMETRY", className: "co" },
+            { startColumnName: "Na", numberOfColumns: 5, titleText: "ELECTROLYTES", className: "ele" },
+
+        ]
+    });
+
+    function valuerange(rowId, cellValue, rowObject, cm, rdata) {
+            return ' style="background:red"';      
+    }
+
+    //BloodGas 帶入 VitalSign編輯畫面
+    function getSelecteds() {
+        //清空上一次帶入的資料
+        $('input[name="gas_record"]').val('')
+        //取得資料
+        var id = $("#gasGrid").jqGrid("getGridParam", "selrow");
+        if (id != null) {
+            var row = $("#gasGrid").jqGrid('getRowData', id);
+            var time = ['CREATE_DATE'];
+            var source = ['source'];
+            var group1 = ['pH', 'pCO2', 'pO2', 'HCO3_act', 'HCO3_std', 'BE_B', 'BE_ecf', 'ctO2'];
+            var group2 = ['tHb', 'SO2', 'FO2Hb', 'FCOHb', 'FMetHb', 'FHHB'];
+            var group3 = ['Na', 'K', 'Ca', 'Ca_7', 'CI'];
+            var select = [];
+            var temp = [];
+
+            var gpArr = new Array();
+            $('input:checkbox:checked[name="group"]').each(function (i) { gpArr[i] = this.value; });
+
+            var select_group = "";
+            for (i = 0 ; i < gpArr.length; i++) {
+                if (i == gpArr.length-1) {
+                    select_group += gpArr[i];
+                }
+                else
+                {
+                    select_group += gpArr[i] + "|";
+                }
+            }
+
+            $("#gas_select").val(select_group);
+
+            for (i = 0 ; i < gpArr.length; i++) {
+                var type = gpArr[i];
+                switch (type) {
+                    case 'group1':
+                        select.push(group1);
+                        break;
+                    case 'group2':
+                        select.push(group2);
+                        break;
+                    case 'group3':
+                        select.push(group3);
+                        break;
+                }
+            }
+            select.push(time);
+            select.push(source);
+            var all = temp.concat(time);
+
+            for (var k in row) {
+                for (i = 0 ; i < select.length ; i++) {
+                    if (select[i].indexOf(k) != -1) {
+                        $("#" + k + "").val(row[k]);
+                        //$("#" + k + "").prop("readonly", true)
+                    }
+                }
+            }
+            alert("帶入成功");
+            $("#VS_plan_gas").prop("checked", true)
+
+            $.unblockUI();
+        }
+        else {
+            alert("請先勾選紀錄");
+        }
+
+        }
+        
+    //重新載入BloodGas 資料
+    function reloadGas()
+    {
+        var start_date = $("#win_content #start_date_gas").val();
+        var end_date = $("#win_content #end_date_gas").val();
+
+        $.ajax({
+             type:"POST",
+             url: 'GasQueryRanger',
+             datatype: 'json',
+             data: {
+                 start: start_date,
+                 end: end_date,
+             },
+             async:false,
+             success : function(result) {
+                 if (result == "" || result == null)
+                 {
+                     alert("此區間範圍查無資料")
+                 }
+                $('#gasGrid').jqGrid('clearGridData');
+                $("#gasGrid").jqGrid('setGridParam', { data: result }).trigger("reloadGrid"); 
+              }
+            });
+    }
+</script>
+<style>
+    .ui-jqgrid .ui-jqgrid-bdiv {
+        border-top: 1px solid #E1E1E1;
+        overflow-x: hidden;
+    }
+    .ui-widget-header {
+        background: #85A5CC;
+    }
+    .ui-state-highlight
+    {
+         background: #f6e6b4 !important;
+    }
+    sub {
+          vertical-align: sub;
+          font-size: x-small;
+        }
+    sup {
+        vertical-align: super;
+        font-size: x-small;
+    }
+    .acid{
+       border: 3px solid #FF00FF !important;
+       border-bottom: 0px solid !important;
+       font-weight: bolder !important;
+    }
+    .co{
+       border: 3px solid #FFFF37!important;
+       border-bottom: 0px solid !important;
+       font-weight: bolder !important;
+    }
+    .ele{
+       border: 3px solid #9AFF02 !important;
+       border-bottom: 0px solid !important;
+       font-weight: bolder !important;
+    }
+      .ui-jqgrid-htable
+    {
+        height:25px !important
+    }
+    .ui-th-div
+    {
+      height:25px !important
+    }
+    #gasGrid_pH{
+       border-left: 3px solid #FF00FF !important;
+       border-bottom: 3px solid #FF00FF !important;
+    }
+     #gasGrid_pCO2 , #gasGrid_pO2, #gasGrid_HCO3_act, #gasGrid_HCO3_std, #gasGrid_BE_B, #gasGrid_BE_ecf
+    {
+       border-bottom: 3px solid #FF00FF !important;
+    }
+    #gasGrid_ctO2{
+       border-right: 3px solid #FF00FF !important;
+       border-bottom: 3px solid #FF00FF !important;
+    }
+
+     #gasGrid_tHb{
+       border-left: 3px solid #FFFF37 !important;
+       border-bottom: 3px solid #FFFF37 !important;
+    }
+     #gasGrid_SO2 , #gasGrid_FO2Hb, #gasGrid_FCOHb, #gasGrid_FMetHb
+    {
+       border-bottom: 3px solid #FFFF37 !important;
+    }
+    #gasGrid_FHHB{
+       border-right: 3px solid #FFFF37 !important;
+       border-bottom: 3px solid #FFFF37 !important;
+    }
+
+    #gasGrid_Na{
+       border-left: 3px solid #9AFF02 !important;
+       border-bottom: 3px solid #9AFF02 !important;
+    }
+     #gasGrid_K , #gasGrid_Ca, #gasGrid_Ca_7
+    {
+       border-bottom: 3px solid #9AFF02 !important;
+    }
+    #gasGrid_CI{
+       border-right: 3px solid #9AFF02 !important;
+       border-bottom: 3px solid #9AFF02 !important;
+    }
+</style>

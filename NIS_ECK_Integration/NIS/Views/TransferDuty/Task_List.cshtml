@@ -1,0 +1,670 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+
+<!-- 工作清單 -->
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid #666;
+        text-align: left;
+        height: 30px;
+    }
+
+    .lable {
+        padding: 5px 10px 5px 10px;
+        font-size: 14px;
+        font-family: "微軟正黑體";
+        background: #E1E6FA;
+        border: 1px solid #CCCCCC;
+        border-right: 2px solid #AAAAAA;
+        border-bottom: 2px solid #AAAAAA;
+    }
+
+    table {
+        table-layout: fixed;
+        white-space: nowrap;
+    }
+
+    #prompt input[type=text] {
+        background-color: transparent;
+        border: none;
+        width: 100%;
+    }
+
+    #prompt_ud input[type=text] {
+        background-color: transparent;
+        border: none;
+        width: 100%;
+    }
+
+    .pointer {
+        cursor: pointer;
+    }
+
+    #prompt_ud {
+        z-index: 1000;
+        background-color: #FFFFFF;
+        padding: 15px 15px 15px 15px;
+        border-radius: 5px;
+        position: fixed; /*固定位置定位*/
+        top: 50%; /*距離上方的位置*/
+        left: 50%; /*距離左方的位置*/
+        margin-top: -100px; /*上方邊界*/
+        margin-left: -200px; /*左方邊界*/
+        _position: absolute; /* position fixed for IE6 */
+        _top: expression(documentElement.scrollTop+(documentElement.clientHeight-this.clientHeight)/2);
+        _margin-top: 0;
+        display: none;
+    }
+
+    #PatientNo {
+        border: 1px solid #848484;
+        -webkit-border-radius: 5px;
+        -moz-border-radius: 5px;
+        border-radius: 5px;
+        outline: 0;
+        height: 22px;
+        width: 120px;
+        padding-left: 10px;
+        padding-right: 10px;
+        background-color: pink;
+        position: relative;
+        bottom: 2px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    function setDataAreaSize() {
+        var height = $(document).height() - 170;
+        if (height <= 380)
+            height = 380;
+        $(".dataArea").height(height);
+    }
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+
+        $('#prompt tr:even').css('background', '#ABC8E2');
+        $('#prompt tr:odd').css('background', '#E1E6FA');
+        $('#prompt_ud tr:even').css('background', '#ABC8E2');
+        $('#prompt_ud tr:odd').css('background', '#E1E6FA');
+    }
+
+    function hreflink(feeno) {
+        $.ajax({
+            url: "../Main/SetPatient", timeout: 5000, type: "post",
+            data: "fee_no=" + feeno,
+            success: function () {
+                window.parent.GetPtInfoArea('1');
+                window.parent.readMqList();
+                window.parent.hasPat = "Y";
+            },
+            complete: function () {
+                window.parent.ReloadModule();
+            }
+        });
+    }
+
+    function hreflink_med(feeno) {
+        $.ajax({
+            url: "../Main/SetPatient", timeout: 5000, type: "post",
+            data: "fee_no=" + feeno,
+            success: function () {
+                window.parent.GetPtInfoArea();
+                window.parent.readMqList();
+                window.parent.hasPat = "Y";
+            },
+            complete: function () {
+                window.parent.ReloadModule('M01');
+            }
+        });
+    }
+
+    $(document).ready(function () {
+        setGridColor();
+        setDataAreaSize();
+
+        $(window).resize(function () { setDataAreaSize(); }).trigger('resize');
+        var type = "";
+        if ("@ViewBag.shiftcate" != "") {
+            type = "@ViewBag.shiftcate";
+        }
+        // 展開收合資料
+        $("input[name=shiftcate]").click(function () {
+            var shiftcate = "";
+            if (type != "") {
+                shiftcate = type;
+            } else {
+                shiftcate = $(this).val();
+            }
+            $("td[id]").hide();
+            $("td#" + shiftcate).show();
+            $("tr[id]").hide();
+            $("tr#" + shiftcate).show();
+            type = "";
+        });
+
+        $("input[type=checkbox]").click(function () {
+            if ($(this).is(":visible")) {
+                // 清空內容
+                $("#prompt input[type=text],#prompt input[type=hidden]").each(function () {
+                    $(this).val("");
+                });
+                $("#prompt textarea").html("");
+
+                $("input[name=checkresult]").each(function () {
+                    if ($(this).val() == "Y") {
+                        $(this).prop("checked", true);
+                    } else {
+                        $(this).prop("checked", false);
+                    }
+                });
+                $("#hideinfo").hide();
+                if ($(this).attr("sheet_no") == "UD") {
+                    $("#prompt_ud,#cover").show();
+                    $("#chkeckid_ud").val($(this).attr("id"));
+                    $("#checktime_ud").val($(this).attr("time_priod"));
+                    $("#chkeckfeeno_ud").val($(this).attr("fee_no"));
+                    $("#chkeckcost_ud").val($(this).attr("cost"));
+                    $("#checkaction_ud").val($(this).attr("action"));
+                }
+                else {
+                    $("#prompt,#cover").show();
+                    $("#chkecksheetno").val($(this).attr("sheet_no"));
+                    $("#chkeckfeeno").val($(this).attr("fee_no"));
+                    $("#chkeckid").val($(this).attr("id"));
+                    $("#checktime").val($(this).attr("time_priod"));
+                    $("#checkaction").val($(this).attr("action"));
+                    $("#checkorder").val($(this).attr("order").toString().replace(/#br#/g, "\r\n"));
+
+
+                }
+            }
+        });
+
+        // 未執行原因
+        $("input[name=checkresult]").click(function () {
+            if ($(this).val() != "Y") {
+                $("#hideinfo").show();
+            } else {
+                $("#hideinfo").hide();
+            }
+        });
+
+        // 取消選取
+        $("#but_cancel").click(function () {
+            $("input[id='" + $("#chkeckid").val() + "']").prop("checked", false);
+            $("#prompt,#cover").hide();
+        });
+
+        // UD取消選取
+        $("#but_cancel_ud").click(function () {
+            $("input[id='" + $("#chkeckid_ud").val() + "']").prop("checked", false);
+            $("#prompt_ud,#cover").hide();
+        });
+
+        // 確認後的動作
+        $("#but_confirm").click(function () {
+
+            if ($("input[name=checkresult]:checked").val() != "Y") {
+                //if ($("textarea[name=checkreason]").html().length <= 0) {
+                if ($("#checkreason").val() == "") {
+                    showHint("請填寫未完成原因");
+                    return false;
+                }
+            }
+
+            //var ckreason = $("textarea[name=checkreason]").html();
+            var ckreason = $("#checkreason").val();
+            switch ($("input[name=checkresult]:checked").val()) {
+                case "Y":
+                    $("input[id='" + $("#chkeckid").val() + "']").hide(200);
+                    $("label[for='" + $("#chkeckid").val() + "']")
+                        .css("color", "blue")
+                        .attr("title", $("label[for='" + $("#chkeckid").val() + "']").attr("title") + ":已處理");;
+                    break;
+                case "C":
+                    $("input[id='" + $("#chkeckid").val() + "']").hide(200);
+                    $("label[for='" + $("#chkeckid").val() + "']")
+                        .css("color", "green")
+                        .attr("title", $("label[for='" + $("#chkeckid").val() + "']").attr("title") + ":已取消[" + ckreason + "]");
+                    break;
+                case "N":
+                    $("input[id='" + $("#chkeckid").val() + "']").hide(200);
+                    $("label[for='" + $("#chkeckid").val() + "']")
+                        .css("color", "red")
+                        .attr("title", $("label[for='" + $("#chkeckid").val() + "']").attr("title") + ":未處理[" + ckreason + "]");
+                    break;
+                case "D":
+                    $("input[id='" + $("#chkeckid").val() + "']").hide(200);
+                    $("label[for='" + $("#chkeckid").val() + "']")
+                        .css("color", "green")
+                        .attr("title", $("label[for='" + $("#chkeckid").val() + "']").attr("title") + ":已取消[" + ckreason + "]");
+                    break;
+                default:
+                    showHint("發生錯誤");
+                    $("#prompt,#cover").hide();
+                    return;
+            }
+
+            var poststr = "feeno=" + $("#chkeckfeeno").val();
+            poststr += "&order=" + encodeURIComponent($("#checkorder").val());
+            poststr += "&action=" + encodeURIComponent($("#checkaction").val());
+            poststr += "&timepriod=" + encodeURIComponent($("#checktime").val());
+            poststr += "&setaction=" + encodeURIComponent($("#checkaction").val());
+            poststr += "&sheetno=" + encodeURIComponent($("#chkecksheetno").val());
+            poststr += "&result=" + $("input[name=checkresult]:checked").val();
+            poststr += "&reason=" + encodeURIComponent($("#prompt textarea").val());
+            var chresult = $("input[name=checkresult]:checked").val();
+            var types = $("input[name=shiftcate]:checked").val();
+            $.ajax({
+                url: "../TransferDuty/TaskSave",
+                type: "post",
+                data: poststr,
+                success: function (data) {
+                    showHint(data);
+                    if (chresult == "D") {
+                        alert(data);
+                        window.location.href = "Task_List?types=" + types;
+                    }
+                }
+            });
+            $("#prompt,#cover").hide();
+        });
+
+        // UD給藥執行後的動作
+        $("#but_confirm_ud").click(function () {
+            $.ajax({
+                type: 'POST',
+                url: "WebS_ChangPtInfo",
+                data: "strFeeNo=" + $("#chkeckfeeno_ud").val(),
+                success: function (data) {
+                    if (data == "Error")
+                        alert("執行失敗，請重新確認。");
+                    else
+                        hreflink_med($("#chkeckfeeno_ud").val());
+                },
+                error: function (data) {
+                    alert("執行失敗，請重新確認。");
+                }
+            });
+        });
+
+        //病歷號 ENTER
+        $("#PatientNo").keypress(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) { //Enter keycode
+                if (Trim($("#PatientNo").val().toString()) == "") {
+                    alert("查無此病歷號，請重新確認。");
+                    return false;
+                }
+                else {
+                    if (Trim($("#PatientNo").val().toString()) != null) {
+                        $.ajax({
+                            type: 'POST',
+                            url: "../Main/WebS_InHistory",
+                            data: "str_Barcode=" + Trim($("#PatientNo").val().toString()),
+                            success: function (data) {
+                                if (data == "Error")
+                                    alert("查無此病歷號，請重新確認。");
+                                else if (data != "NotInIpd") {
+                                    hreflink_med(data);
+                                }
+                            },
+                            error: function (data) {
+                                alert("查無此病歷號，請重新確認。");
+                            }
+                        });
+                    }
+                }
+            }
+        });
+
+        TriggerShiftcate(type);
+    });
+    function TriggerShiftcate(type) {       
+        var now_class = "";
+        var now_hours = moment().format("HH");
+        if (!!type) {
+            now_class = type;
+        } else if (now_hours >= 8 && now_hours < 16) {
+            now_class = "D";
+        } else if (now_hours >= 16) {
+            now_class = "E";
+        } else {
+            now_class = "N";
+        }
+        $("#" + now_class).trigger("click")
+    }
+</script>
+
+<p id="intorduce">
+    <span class="lable">工作日期：@DateTime.Now.ToString("yyyy/MM/dd")</span>
+    @{
+        int time_desc = int.Parse(DateTime.Now.ToString("HHmm"));
+        string cate_desc = "班別：";
+        string shift_cate = string.Empty;
+        if (time_desc >= 800 && time_desc <= 1559)
+        {
+            cate_desc += "早班";
+            shift_cate = "D";
+        }
+        else if (time_desc >= 1600 && time_desc <= 2359)
+        {
+            cate_desc += "小夜";
+            shift_cate = "E";
+        }
+        else
+        {
+            cate_desc += "大夜";
+            shift_cate = "N";
+        }
+        @Html.Raw("<span class=\"lable\">" + cate_desc + "</span>")
+
+    }
+    <span class="lable">執行者：@(ViewData["transuser"].ToString())</span>
+    <span class="lable">
+        病人手圈：
+        @Html.TextBox("PatientNo", "", new { @id = "PatientNo", placeholder = "請刷入病人手圈條碼" })
+    </span>
+
+</p>
+<p>
+    <label><input type="radio" id="D" value="D" name="shiftcate" />早班</label>
+    <label><input type="radio" id="E" value="E" name="shiftcate" />小夜</label>
+    <label><input type="radio" id="N" value="N" name="shiftcate" />大夜</label>
+
+</p>
+<p>
+    顏色說明:
+    <a style="color:blue">確實執行:藍字</a>、
+    <a style="color:red">尚未執行:紅字</a>、
+    <a style="color:green">取消執行:綠字</a>、
+    <a style="color:brown">DC醫囑:咖啡字</a>
+</p>
+<div class="dataHeader" id="dataHeader">
+    <table border="0" cellpadding="4" cellspacing="1" width="1020">
+        <tr>
+            <td width="60">床號</td>
+            <td width="100">姓名</td>
+            @{
+                for (int i = 0; i <= 23; i++)
+                {
+                    string cid = string.Empty;
+                    if (i <= 7)
+                    {
+                        cid = "N";
+                    }
+                    else if (i <= 15)
+                    {
+                        cid = "D";
+                    }
+                    else
+                    {
+                        cid = "E";
+                    }
+
+                    @Html.Raw("<td id=\"" + cid + "\" width=\"100\">" + i.ToString().PadLeft(2, '0') + ":00</td>\n")
+                }
+            }
+        </tr>
+    </table>
+</div>
+<div class="dataArea" onscroll="document.getElementById('dataHeader').scrollLeft = this.scrollLeft;">
+    <table border="0" cellpadding="4" cellspacing="1" width="1020">
+        @{
+            List<TaskList> tklist = (List<TaskList>)ViewData["tkList"];
+            for (int i = 0; i <= tklist.Count - 1; i++)
+            {
+                <tr id="@tklist[i].ptinfo.DeptNo">
+                    <td width="60" class="pointer" style="text-align: center;" onclick="hreflink('@tklist[i].ptinfo.FeeNo')">@(tklist[i].ptinfo.BedNo)</td>
+                    <td width="100" class="pointer" style="text-align: center;" onclick="hreflink('@tklist[i].ptinfo.FeeNo')">@(tklist[i].ptinfo.PatientName)</td>
+                    @{
+                        for (int j = 0; j <= 23; j++)
+                        {
+                            string did = string.Empty;
+                            if (j <= 7)
+                            {
+                                did = "N";
+                            }
+                            else if (j <= 15)
+                            {
+                                did = "D";
+                            }
+                            else
+                            {
+                                did = "E";
+                            }
+
+                            @Html.Raw("\t<td id=\"" + did + "\" width=\"100\">\n")
+                            string time = j.ToString().PadLeft(2, '0') + ":00";
+                            List<OrderList> olist = tklist[i].orderList;
+                            List<string> temp_olist = new List<string>();
+                            bool repeat_data = false;
+                            for (int r = 0; r <= olist.Count - 1; r++)
+                            {
+                                string[] tmp_priod = olist[r].set_priod;
+                                string tmp_action = olist[r].set_action;
+                                string tmp_action_show = (tmp_action.Length > 5) ? tmp_action.Substring(0, 5) + "..." : tmp_action;
+                                string tmp_ordertype = olist[r].order_type;
+                                DateTime tmp_dcdate = Convert.ToDateTime(olist[r].Dc_date);
+                                DateTime? chcancel = null;
+                                if (!string.IsNullOrEmpty(olist[r].canceltime.ToString()))
+                                {
+                                    chcancel = olist[r].canceltime;
+                                }
+                                for (int k = 0; k <= tmp_priod.Length - 1; k++)
+                                {
+                                    if (tmp_priod[k] == time)
+                                    {
+                                        if (temp_olist.Exists(x => x == tmp_action+tmp_priod[k]))
+                                        {
+                                            repeat_data = true;
+                                        }else
+                                        {
+                                            repeat_data = false;
+                                            temp_olist.Add(tmp_action+tmp_priod[k]);
+                                        }
+                                        if (!repeat_data)
+                                        {
+                                            List<ExecResultList> elist = tklist[i].execList;
+
+                                            string chkExecResult = string.Empty;
+                                            string chktime = string.Empty;
+                                            string chkname = string.Empty;
+
+                                            DateTime dateline = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd") + " " + tmp_priod[k]);
+                                            for (int z = 0; z <= elist.Count - 1; z++)
+                                            {
+                                                if (elist[z].action == tmp_action &&
+                                                    elist[z].exec_priod == tmp_priod[k] &&
+                                                    elist[z].sheet_no == olist[r].sheet_no &&
+                                                    elist[z].order_content == olist[r].order_content &&
+                                                    elist[z].fee_no == tklist[i].ptinfo.FeeNo
+                                                )
+                                                {
+                                                    chkExecResult = elist[z].exec_result + "|" + elist[z].exec_reason;
+                                                    chktime = elist[z].exec_time.ToString();
+                                                    chkname = elist[z].exec_name.ToString();
+                                                    break;
+                                                }
+                                            }
+                                            //if (dateline > tmp_dcdate)
+                                            //{
+                                            //    chkExecResult = "DC" + "|" +"";
+                                            //}
+                                            string ccode = string.Empty;
+                                            string titleStr = olist[r].order_content;
+
+                                            if (chkExecResult != string.Empty && (dateline <= chcancel || string.IsNullOrEmpty(chcancel.ToString())))
+                                            {
+                                                string[] re = chkExecResult.Split('|');
+                                                string input_type = "";
+                                                string old_val = "";
+                                                switch (re[0].ToString())
+                                                {
+                                                    case "Y":
+                                                        titleStr += ":已處理";
+                                                        ccode = "blue";
+                                                        break;
+                                                    case "C":
+                                                        titleStr += ":已取消[" + re[1] + "]";
+                                                        ccode = "green";
+                                                        break;
+                                                    case "N":
+                                                        titleStr += ":未處理[" + re[1] + "]";
+                                                        ccode = "red";
+                                                        break;
+                                                    case "D":
+                                                        titleStr += ":已取消[" + re[1] + "]";
+                                                        ccode = "green";
+                                                        input_type = "hidden";
+                                                        break;
+                                                }
+                                                if (!string.IsNullOrEmpty(chkname))
+                                                {
+                                                    titleStr += "，" + chkname;
+                                                }
+                                                if (!string.IsNullOrEmpty(chktime))
+                                                {
+                                                    titleStr += "，at:" + chktime;
+                                                }
+                                                if (string.IsNullOrEmpty(tmp_ordertype) )
+                                                {
+                                                    input_type = "hidden";
+                                                    old_val = "(old)";
+                                                }
+                                                else
+                                                {
+                                                    input_type = "checkbox";
+                                                }
+                                                string id = Com.Mayaminer.SecurityTool.EncodeMD5(k.ToString() + time + tmp_action + olist[r].order_content);
+                                                string htmlStr = "\t\t<input type=\""+input_type+"\" fee_no=\"" + tklist[i].ptinfo.FeeNo + "\"";
+                                                htmlStr += " action=\"" + tmp_action + "\" order=\"" + olist[r].order_content + "\" ";
+                                                htmlStr += " sheet_no=\"" + olist[r].sheet_no + "\" cost=\"" + tklist[i].ptinfo.CostCenterNo + "\" ";
+                                                htmlStr += " time_priod=\"" + tmp_priod[k] + "\" id=\"" + id + "\" ";
+                                                htmlStr += " />\n";
+                                            @Html.Raw(htmlStr)
+
+                                            @Html.Raw("\t\t<label for=\"" + id + "\" title=\"" + titleStr.Replace("#br#", " ") + old_val + "\" style=\"color:" + ccode + ";\">" + tmp_action_show + "</label>")
+                                            @Html.Raw("<br />\n")
+                                        }
+                                        else if (!string.IsNullOrEmpty(olist[r].DELETED) && dateline >= tmp_dcdate)
+                                        {
+                                            if (dateline == tmp_dcdate)
+                                            {
+                                                titleStr += ":DC醫囑，" + olist[r].del_username + "，at:" + olist[r].Dc_date;
+                                                ccode = "brown";
+                                                @Html.Raw("\t\t<label title=\"" + titleStr.Replace("#br#", " ") + "\" style=\"color:" + ccode + ";\">" + tmp_action_show + "</label>")
+                                                @Html.Raw("<br />\n")
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (string.IsNullOrEmpty(chcancel.ToString()) || dateline <= chcancel)
+                                            {
+                                                string id = Com.Mayaminer.SecurityTool.EncodeMD5(k.ToString() + time + tmp_action + olist[r].order_content);
+
+                                                string htmlStr = "\t\t<input type=\"checkbox\" fee_no=\"" + tklist[i].ptinfo.FeeNo + "\"";
+                                                htmlStr += " action=\"" + tmp_action + "\" order=\"" + olist[r].order_content + "\" ";
+                                                htmlStr += " sheet_no=\"" + olist[r].sheet_no + "\" cost=\"" + tklist[i].ptinfo.CostCenterNo + "\" ";
+                                                htmlStr += " time_priod=\"" + tmp_priod[k] + "\" id=\"" + id + "\" ";
+                                                htmlStr += " />\n";
+
+                                                //  if (did == shift_cate) {
+                                                @Html.Raw(htmlStr)
+                                                //  }
+                                            @Html.Raw("\t\t<label for=\"" + id + "\" title=\"" + olist[r].order_content.Replace("#br#", " ") + "\" >" + tmp_action_show + "</label>")
+                                            @Html.Raw("<br />\n")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                            @Html.Raw("\t</td>\n")
+                        }
+                    }
+                </tr>
+                        }
+        }
+    </table>
+</div>
+
+
+<div id="cover"></div>
+<div id="prompt">
+    <input type="button" id="but_confirm" value="確認" />
+    <input type="button" id="but_cancel" value="返回" />
+    <hr />
+    <table border="0" cellpadding="4" cellspacing="1">
+        <tr>
+            <td>執行時間</td>
+            <td>
+                <label id="checktime" ></label>
+                <input type="hidden" id="chkeckid" value="" />
+                <input type="hidden" id="chkeckfeeno" value="" />
+                <input type="hidden" id="chkecksheetno" value="" />
+            </td>
+        </tr>
+        <tr>
+            <td>工作項目</td>
+            <td>
+                <label id="checkaction"></label>
+            </td>
+        </tr>
+        <tr>
+            <td>醫囑內容</td>
+            <td>
+                <label id="checkorder"></label>
+            </td>
+        </tr>
+        <tr>
+            <td>執行進度</td>
+            <td width="400px">
+                <input type="radio" id="cr1" name="checkresult" value="Y" checked="checked" />
+                <label for="cr1">已確實執行</label>
+                @*<input type="radio" id="cr2" name="checkresult" value="N" />
+                <label for="cr2">尚未執行</label>*@
+                <input type="radio" id="cr3" name="checkresult" value="C" />
+                <label for="cr3">取消執行</label>
+                <input type="radio" id="cr4" name="checkresult" value="D" />
+                <label for="cr4">取消所有執行</label>
+            </td>
+        </tr>
+        <tbody id="hideinfo" style="display: none;">
+            <tr>
+                <td colspan="2">
+                    未執行原因：<br />
+                    <textarea id="checkreason" name="checkreason" cols="40" rows="3"></textarea>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<div id="prompt_ud">
+    <input type="button" id="but_confirm_ud" value="執行" />
+    <input type="button" id="but_cancel_ud" value="返回" />
+    <hr />
+    <table border="0" cellpadding="4" cellspacing="1">
+        <tr>
+            <td>執行時間</td>
+            <td>
+                <input type="text" id="checktime_ud" readonly="readonly" />
+                <input type="hidden" id="chkeckid_ud" value="" />
+                <input type="hidden" id="chkeckfeeno_ud" value="" />
+                <input type="hidden" id="chkeckcost_ud" value="" />
+            </td>
+        </tr>
+        <tr>
+            <td>工作項目</td>
+            <td>
+                <input type="text" id="checkaction_ud" readonly="readonly" />
+            </td>
+        </tr>
+    </table>
+</div>

@@ -1,0 +1,148 @@
+﻿@using NIS.Data;
+@using System.Data;
+@{
+    ViewBag.Title = "兒童發展評估";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string flag = ViewBag.flag;
+    string child_title = ViewBag.child_title;
+    string c_version = ViewBag.seq_no;
+    string imgname = c_version + ".jpg";
+    string birthday = ViewBag.birthday;
+    DataTable dt_child = ViewBag.dt_child; 
+    PatientInfo piInfo = (PatientInfo)Session["PatInfo"];
+}
+<script type="text/javascript">
+    $(document).ready(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    });
+    function ChildAssess() {
+        var li_check = 0;
+        var ls_value = "";
+        var li_check_flag = 0;
+        var li_check_star = 0;
+        $(".dataArea").find("input[type=radio]:checked").each(function (i) {
+            li_check++;
+            ls_value += $(this).val();
+            //判斷帶正常 或 疑似異常（若有2題以上答案圈選在網底欄內或1題有★的答案是圈選在網底欄內）
+            //CHECK_FLAG > 2,CHECK_STAR >0
+            if (($("#rdcheck_" + i).val() == "Y" && $(this).val() == "Y") || ($("#rdcheck_" + i).val() == "N" && $(this).val() == "N"))
+            { li_check_flag++; }
+            if (($("#rdstar_" + i).val() == "Y" && $("#rdcheck_" + i).val() == "Y" && $(this).val() == "Y") ||
+                ($("#rdstar_" + i).val() == "Y" && $("#rdcheck_" + i).val() == "N" && $(this).val() == "N"))
+            { li_check_star++; }
+            if (li_check_flag >= 2 || li_check_star > 0)
+            { $("#child_status").val("Abnormal"); }
+            else
+            { $("#child_status").val(""); }
+        });
+        if ($("#maxid").val() == li_check)
+        {
+            $("#child_value").val(ls_value);
+            if ($("#child_status").val() == "Abnormal") {
+                if (confirm("評估結果：疑似異常。是否確定送出？")) {
+                    $("form[name=form_child]").submit();
+                }
+            }
+            else
+            { $("form[name=form_child]").submit(); }
+        }
+        else
+        { alert("項目未勾選完整"); }
+    }
+    function windowclose()
+    {
+        alert("評估完成。");
+        window.close()
+    }
+</script>
+<style type="text/css">
+    form {
+        font-size:12pt;
+    }
+</style>
+@if (@flag == "ok")
+{
+    <script type="text/javascript">
+        $(function () {
+            alert("評估完成。");
+            window.close()
+        });
+    </script>
+}
+
+@if (@flag == "Yes")
+{
+    <script type="text/javascript">
+        $(function () {
+            turn_pdf();
+        });
+
+        function turn_pdf() {
+            var url = '/AssessmentChild_PDF?feeno=@(piInfo.FeeNo)&';
+            $.ajax({
+                type: "POST",
+                url: 'Html_To_Pdf',
+                data: { "url": window.location.href.replace('/AssessmentChild?', url) },
+                success: function (reslut) { document.write(reslut); }
+            });
+        }
+    </script>
+}
+
+<form method="post" action="AssessmentChild_Save" name="form_child" >
+    <table style="width:700px">
+        <tr>
+            <td>
+                @(LanguagePack.Menu.TitlePatName)：@(piInfo.PatientName)
+                    &emsp;&emsp;&emsp;
+                @(LanguagePack.Menu.TitleAge)：@(piInfo.Age) 歲 (@birthday)
+            </td>
+        </tr>
+    </table>
+    @if(dt_child != null )
+    {
+    <table border="1" class="dataArea">
+        <tr><td colspan="2" style="text-align:center"><p style="font-size:16pt">@child_title</p></td></tr>
+        <tr>
+            <th style="width:600px">項&emsp;&emsp;目</th>
+            <th style="width:100px">是 / 否</th>
+        </tr>
+        @{int i = 0;}
+        @foreach (DataRow r in dt_child.Rows)
+        { 
+            <tr>
+                <td>@r["ASSESS_ITEM"]</td>
+                <td style="text-align:center">
+                    <input type="radio" id="rd_@i" name="rdn_@i" value="Y"/> 是
+                    <input type="radio" id="rd_@i" name="rdn_@i" value="N"/> 否
+                    <input type="hidden" id="item_@i" value="@r["ITEM_NO"]" />
+                    <input type="hidden" id="rdcheck_@i" value="@r["CHECK_FLAG"]"/>
+                    <input type="hidden" id="rdstar_@i" value="@r["CHECK_STAR"]"/>
+                </td>
+            </tr>
+            i++;
+        }
+        <tr>
+            <td colspan="2" style="text-align:center">
+                <input type="hidden" id="maxid" value="@i"/>
+                <input type="hidden" id="c_version" name="c_version" value="@c_version"/>
+                <input type="hidden" id="child_title" name="child_title" value="@child_title"/>
+                <input type="hidden" id="child_value" name="child_value" value=""/>
+                <input type="hidden" id="child_status" name="child_status" value=""/>
+                <input type="button" value="確定" onclick="ChildAssess()"/>
+            </td>
+        </tr>
+    </table>
+        if (@c_version == "A08" || @c_version == "A09" || @c_version == "A10" || @c_version == "A11" || @c_version == "A12" || @c_version == "A13" || @c_version == "A14")
+        {
+        <div style="text-align:center">            
+        <img alt=""  src="~/Images/AssessmentChild/@imgname" /></div>
+        }
+    }
+</form>

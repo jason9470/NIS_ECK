@@ -1,0 +1,291 @@
+﻿@using System.Data;
+@using NIS.Data;
+@using Newtonsoft.Json;
+@using NIS.Models.DBModel;
+
+@{
+    ViewBag.Title = "CheckTestButton";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    List<TALK_TABLE> voicelist = (List<TALK_TABLE>)ViewData["voiceMemo"];
+
+
+string msg = ViewBag.msg;
+//日期選擇器，鎖定時間
+NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        /*height:26px;*/
+    }
+
+    .lab_error {
+        color: #F00;
+    }
+
+    .hide {
+        display: none;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        @if (ViewBag.ER == "ER")
+        {
+            @:$('button').hide();
+            @:$('button[value="查詢"]').show();
+        }
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    //格行換色 with 參數
+    function setTableColor($tr) {
+        var tr = $tr;
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function able(id) {
+        document.getElementById(id).disabled = false;
+        document.getElementById(id).focus();
+    }
+    function enable(id) {
+        document.getElementById(id).disabled = true;
+        $('#' + id).val('');
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0 ; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if  (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    function btn_write(date, name, ids)
+    {  // 由於片語用特殊符號串接, 因此須作另外處理
+        //if (name.indexOf("と") == -1) {
+        //    var word =  name + " " + "、";
+        //}
+        //else
+        //{
+        //    var items = name.split('と');
+        //    var title =  items[0] ;
+        //    var item_c = items[1] ;
+        //    var item_s = items[2] ;
+        //    var item_o = items[3] ;
+        //    var item_i = items[4] ;
+        //    var word = items[1] + " " + "、";
+
+        //    window.opener.document.getElementById('title').value = title ;
+        //    window.opener.document.getElementById('record_s').value += item_s;
+        //    window.opener.document.getElementById('record_o').value += item_o;
+        //    window.opener.document.getElementById('record_i').value += item_i;
+        //}
+        var word = name + " " + "、";
+        window.opener.document.getElementById('record_com').value += word;
+    }
+
+    function Search() {
+        window.location.href = 'VoiceEducation?HasBtn=@(ViewBag.HasBtn)&stDate=' + $('#stDate').val() + '&edDate=' + $('#edDate').val();
+    }
+    function del_btn(pkid) {
+        if (confirm('確認刪除?')) {
+            $("#block,#loading").show();
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/CareRecord/DeleteVoiceEdu")',
+                data: {
+                    'pkid': pkid
+                },
+                success: function (data) {
+                    switch (data.status) {
+                        case 0:
+                            alert('刪除成功！');
+                            window.location.href = 'VoiceEducation?HasBtn=@(ViewBag.HasBtn)&stDate=' + $('#stDate').val() + '&edDate=' + $('#edDate').val();
+                            break;
+                        default:
+                            alert('刪除失敗！');
+                            $("#block,#loading").hide();
+                            break;
+                    }
+                }
+            });
+        }
+    }
+
+</script>
+
+<form action="CheckTest" method="post">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+            <tr>
+                <td style="padding-bottom:5px;text-align:center;">
+                    @if (string.IsNullOrWhiteSpace(ViewBag.HasBtn))
+                    {
+                        <span style="color:blue;font-size:26px;">語音執行項目</span>
+                    }
+                    else
+                    {
+                        <span style="color:blue;font-size:26px;">語音資料帶入</span>
+                    }
+                    @*@(Html.TextBox("stDate", DateTime.Now.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                    ~
+                    @(Html.TextBox("edDate", DateTime.Now.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                   
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "stDate", "", false)
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "edDate", "", false)
+                    <input type="button" value="查詢" onclick="Search();" />*@
+                </td>
+
+            </tr>
+            <tr>
+                <td style="padding:5px 0 5px 0;">
+                    <div class="dataArea" style="height:100%;width:100%;overflow:auto;text-wrap:initial">
+                        <table border="0" cellpadding="4" cellspacing="1">
+                            <tr><th>執行項目  </tr>
+                            <tr class="flip-scroll-old">
+                                <td>                                    
+
+                                    @if (voicelist != null && voicelist.Count > 0)
+                                    {
+                                        <table id="table_memo" class="table"   border="1">
+                                            <thead>
+                                                <tr>
+                                                    <th>衛教日期</th>
+                                                    <th>語音內容</th>
+                                                    <th>衛教類別</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody style="width:100%;">
+                                                @for (int i = 0; i < voicelist.Count; i++)
+                                                {
+                                                    string Parameter = string.Empty, parameter_cmd = string.Empty, voice_path = string.Empty
+                                                        , content = string.Empty, voice_type = string.Empty, file_name = string.Empty;
+                                                    voice_path = voicelist[i].VOICE_PATH;
+                                                    Parameter = voicelist[i].Parameter;
+                                                    parameter_cmd = voicelist[i].Parameter_CMD;
+
+                                                    if (!string.IsNullOrEmpty(Parameter))
+                                                    {
+                                                        try
+                                                        {
+                                                            var result = JsonConvert.DeserializeObject<dynamic>(Parameter);
+                                                            content = result.Content;
+                                                            voice_type = result.VoiceType;
+                                                        }
+                                                        catch (Exception)//Parameter result非JSON字串
+                                                        {
+                                                            content = Parameter;
+                                                        }
+
+                                                        try
+                                                        {
+                                                            var result_cmd = JsonConvert.DeserializeObject<dynamic>(parameter_cmd);
+                                                            file_name = result_cmd.File_Name;
+                                                        }
+                                                        catch (Exception)//parameter_cmd result非JSON字串
+                                                        {
+                                                            file_name = parameter_cmd;
+                                                        }
+                                                    }
+                                                    <tr>
+                                                        <td>@voicelist[i].CREATE_TIME</td>
+                                                        <td>
+                                                            <!--ECK要求隱藏-->
+                                                            <input type="button" id="voice_@i" style="display:none" value="帶入" onclick="btn_write('@voicelist[i].Start_Datetime','@content','voice_@i');" />
+                                                            <input type="button" id="voice_@i" value="刪除" onclick="del_btn('@voicelist[i].PK_ID');" />
+                                                            @*@content*@
+                                                            <div id="content">
+                                                        @if (voice_type != "")
+                                                                    {
+                                                                    <audio controls>
+                                                                        Your browser does not support the audio element.
+                                                                        <source src="@voice_path">
+                                                                    </audio> @file_name
+                                                                }else
+                                                                {
+                                                            Html.Raw("---無實體音檔----");
+                                                        }
+
+
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            @voice_type
+                                                        </td>
+                                                    </tr>
+                                                                    }
+
+
+                                            </tbody>
+                                        </table>
+                                                                }
+                                                                else
+                                                                {
+                                       @Html.Raw("無內容")
+                                    }
+                                </td>
+                            </tr>
+
+                        </table>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:5px 0 5px 0;text-align:center;">
+                    <div class="funcArea">
+                        <input type="button" value="關閉" style="width:60px;" onclick="window.close();" />
+                    </div>
+                </td>
+            </tr>
+
+        </table>
+    </div>
+</form>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

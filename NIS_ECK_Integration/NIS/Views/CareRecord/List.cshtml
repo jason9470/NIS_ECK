@@ -1,0 +1,219 @@
+﻿@using NIS.Data;
+@using System.Data;
+@{
+    //Layout = "~/Views/Layout/Main.cshtml";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string feeno = ViewBag.feeno;
+    string Category = ViewBag.Category;
+    string RootDocument = ViewBag.RootDocument;
+
+    DataTable dt = ViewBag.dt;
+    DateTime start_date = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00"));
+    DateTime end_date = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd HH:mm"));
+    if (ViewBag.start_date != null)
+    { start_date = ViewBag.start_date; }
+    if (ViewBag.end_date != null)
+    { end_date = ViewBag.end_date; }
+
+    //日期選擇
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    .EKGBtn {
+        background-color: #FFC000 !important;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 80);
+        }).trigger("resize");
+        setGridColor();
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');}
+
+    function pup_window(url, width, height) {
+        new_window.push(window.open(url, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,resizable=yes,left=200,toolbar=no,width=' + width + ',height=' + height));
+    }
+
+    function turn_pdf() {
+        var url = '/List_PDF?starttime=' + $('#start_date').val() + '|' + $('#start_time').val() + '&endtime=' + $('#end_date').val() + '|' + $('#end_time').val() + '&feeno=@(ViewBag.feeno)';
+        $.ajax({
+            type: "POST",
+            url: 'Html_To_Pdf',
+            data: { "url": window.location.href.replace('/List', url) },
+            success: function (reslut) { document.write(reslut); }
+        });
+    }
+
+    @*function turn_pdf_tmuh() {
+        var startdate = $('#start_date').val() + " " + $('#start_time').val();
+        var enddate = $('#end_date').val() + " " + $('#end_time').val();
+        window.open('exportPDF?startdate=' + startdate + '&enddate=' + enddate + '&feeno=@(feeno)');
+    }*@
+
+    function toDelete(obj) {
+        if(confirm('確定刪除?')) {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Content("~/CareRecord/Delete")',
+                data: { "id": $(obj).attr('data-id'), "self": $(obj).attr('data-self') },
+                success: function (reslut) {
+                    alert(reslut);
+                    $('#btnSearch').click();
+                }
+            });
+        }
+    }
+    function ShowImg(obj) {
+        var src = $(obj).attr('src');
+        var newwindow = window.open('', 'top_dialog', 'menubar=yes,status=yes,scrollbars=yes,top=0,resizable=yes,left=0');
+        var t = newwindow.document.createElement('img');
+        $(t).prop('src', src);
+        $(newwindow.document.body).html(t);
+
+    }
+    function loading_change() {
+        $("#form1").submit();
+        loop_windows("open_cover");
+    }
+</script>
+
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+            <td style="padding-bottom:5px;">
+                <form id="form1" action="List" method="post">
+                    <input type="hidden" id="CP" name="CP" />
+                    @Html.TextBox("start_date", start_date.ToString("yyyy/MM/dd"))
+                    @Html.TextBox("start_time", start_date.ToString("HH:mm"))
+                    @Html.Label("lab", " ~ ")
+                    @Html.TextBox("end_date", end_date.ToString("yyyy/MM/dd"))
+                    @Html.TextBox("end_time", end_date.ToString("HH:mm"))
+                    @*@WebTool.setDateTime("start_date", "start_time")
+                        @WebTool.setDateTime("end_date", "end_time")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "start_time", false)
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "end_time", false)
+                    <input type="button" id="btnSearch" value="查詢" style="width:60px;" onclick="loading_change();" />
+                    @*11/19 護理計畫  護理計畫歷程功能顯示*@
+                    <input type="button" value="護理計畫歷程" style="width:100px;" onclick="$('#CP').val('Y'); loading_change();" />
+                    @*<input type="button" value="查詢護理計畫" style="width:60px;" onclick="$('#subtype').val('CAREPLANMASTER'); submit();" />*@
+                    <input type="button" value="新增紀錄" style="width:80px;" onclick="window.location.href = 'Insert?id=0';" />
+                    @*<input type="button" value="出院通知" style="width:100px;" onclick="pup_window('Leaving_Hospital', '600', '400');" />*@
+                    <input type="button" value="列印" style="width:80px;" onclick="window.open('@(RootDocument)/Print/GetPDF?HeaderVal=@(Server.UrlEncode("護理記錄單"))&FooterVal=@(Server.UrlEncode("(102_Q4)恩主公醫院BAIA000-040-01"))&url=@(RootDocument)/CareRecord/List_PDF?1=1&starttime='+$('#start_date').val()+'|'+$('#start_time').val()+'&endtime='+$('#end_date').val()+'|'+$('#end_time').val()+'&filename=test&feeno=@(feeno)');" />
+                    @*<input type="button" value="範圍列印" onclick="window.open('@(RootDocument)/CareRecord/List_PDF?1=1&starttime='+$('#start_date').val()+'|'+$('#start_time').val()+'&endtime='+$('#end_date').val()+'|'+$('#end_time').val()+'&filename=test&feeno=@(feeno)');" />*@
+                    @*<input type="button" value="檢驗檢查" style="width:100px;" onclick="pup_window('CheckTest', '600', '400');" />*@
+                    @*<input type="button" value="匯出 PDF" style="width:100px;" onclick="turn_pdf_tmuh();" />*@
+                    <input type="button" id="voice_type" class="voiceBtn" data-voice_type="CareRecord_Insert" value="衛教音檔" style="width: 80px;" onclick="pup_window('VoiceEducation', '700', '700');" />
+                    <input type="hidden" name="type" id="subtype" value="" />
+                    <input type="button" class="EKGBtn" value="電擊器EKG(上傳)" style="width:150px;" onclick="window.open('http://172.20.100.151:8805/main/#/system/eck/@(ui.EmployeesNo.Trim())/@ui.EmployeesName/@pf.ChartNo.ToString().Trim()/@pf.PatientName.ToString().Trim()/@DateTime.Now.ToString("yyyyMMdd0000")/@DateTime.Now.ToString("yyyyMMdd2359")?nur_code=@ui.CostCenterCode')" />
+                    @*<input type="button" class="EKGBtn" value="電擊器EKG(帶入)" style="width:150px;" onclick="window.open('@(RootDocument)/CareRecord/EKGList', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=60,resizable=yes,left=350,toolbar=no,width=1200,height=600');" />*@
+                </form>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:5px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;table-layout:fixed;">
+                        <tr>
+                            <td style="width:15%;">日期時間</td>
+                            <td style="width:59%;">紀錄</td>
+                            <td style="width:10%;">輸入者</td>
+                            <td style="width:16%;"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:350px;">
+                    @if (dt != null)
+                    {
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                            @foreach (DataRow r in dt.Rows)
+                            {
+                                <tr>
+                                    <td style="width:15%;vertical-align:text-top;">
+                                        <div>@Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd HH:mm")</div>
+                                    </td>
+                                    @*<td style="max-width:19%;vertical-align:text-top;">*@
+                                    <td style="width:13%;vertical-align:top;">
+                                        @if (r["TITLE"].ToString() != "")
+                                        {
+                                            <div>@r["TITLE"]</div>
+                                        }
+                                    </td>
+                                    <td style="vertical-align:top;line-height: 24px;">
+                                        @if (r["C"].ToString() != "" || r["C_OTHER"].ToString() != "")
+                                        {
+                                            <div><span style="width:10px;color:blue;"></span><span style="color:red;">@r["C_OTHER"]</span>&nbsp;@r["C"]</div>
+                                        }
+                                        @if (r["S"].ToString() != "" || r["S_OTHER"].ToString() != "")
+                                        {
+                                            <div><span style="width:10px;color:blue;">S：</span><span style="color:red;">@r["S_OTHER"]</span>&nbsp;@r["S"]</div>
+                                        }
+                                        @if (r["O"].ToString() != "" || r["O_OTHER"].ToString() != "")
+                                        {
+                                            <div><span style="width:10px;color:blue;">O：</span><span style="color:red;">@r["O_OTHER"]</span>&nbsp;@r["O"]</div>
+                                        }
+                                        @if (r["I"].ToString() != "" || r["I_OTHER"].ToString() != "")
+                                        {
+                                            <div><span style="width:10px;color:blue;">I：</span><span style="color:red;">@r["I_OTHER"]</span>&nbsp;@r["I"]</div>
+                                        }
+                                        @if (r["E"].ToString() != "" || r["E_OTHER"].ToString() != "")
+                                        {
+                                            <div><span style="width:10px;color:blue;">E：</span><span style="color:red;">@r["E_OTHER"]</span>&nbsp;@r["E"]</div>
+                                        }
+                                        @if (r["EKG"].ToString() != "")
+                                        {
+
+                                            byte[] imageBytes = (byte[])r["EKG"];
+                                            string base64String = Convert.ToBase64String(imageBytes);
+                                            <img data-name="sourceImage" src="@String.Format("data:image/png;base64,{0}", base64String)" style="display:inline;" height="150px" onclick="ShowImg(this);" />
+                                        }
+                                    </td>
+                                    <td style="width:10%;text-align:center;vertical-align:top;">
+                                        <div>@r["username"]</div>
+                                    </td>
+                                    <td style="width:8%;vertical-align:top;">
+                                        @if ((r["UPDNO"].ToString() == ViewBag.userno) || (r["CREATNO"].ToString() == ViewBag.userno && r["UPDNO"].ToString() == ""))
+                                        {
+                                            string upd_func = "window.location.href = 'Insert?id=" + r["CARERECORD_ID"].ToString() + r["SELF"].ToString() + "';";
+                                            <input type="button" value="更改" style="width:60px;" onclick="@upd_func" />
+                                        }
+                                    </td>
+                                    <td style="width:8%;vertical-align:top;">
+                                        @if (((r["C_OTHER"] != null && r["C_OTHER"].ToString().Trim() == "") &&
+                                             (r["S_OTHER"] != null && r["S_OTHER"].ToString().Trim() == "") &&
+                                              (r["O_OTHER"] != null && r["O_OTHER"].ToString().Trim() == "") &&
+                                               (r["I_OTHER"] != null && r["I_OTHER"].ToString().Trim() == "") &&
+                                                (r["E_OTHER"] != null && r["E_OTHER"].ToString().Trim() == "") &&
+                                             (r["CREATNO"].ToString() == ViewBag.userno)) || Category == "ND")
+                                        {
+                                            <input type="button" value="刪除" style="width:60px;" data-id="@r["CARERECORD_ID"]" data-self="@r["self"]" onclick="toDelete(this);" />
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </table>
+                    }
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>

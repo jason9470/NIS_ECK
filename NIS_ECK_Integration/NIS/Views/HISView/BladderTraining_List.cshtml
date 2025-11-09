@@ -1,0 +1,162 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string StartDate = ViewBag.StartDate;
+    string EndDate = ViewBag.EndDate;
+    string feeno = ViewBag.FeeNo;
+    string RootDocument = ViewBag.RootDocument;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: center;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        //重設高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 120);
+        }).trigger("resize");
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    function editData(obj) {
+        var id = $(obj).attr("tempid");
+        window.location.href = "@(Url.Content("~/BladderTraining/Insert"))"
+            + "?StartDate=" + $("#StartDate").val() + "&EndDate=" + $("#EndDate").val() + "&id=" + id + "";
+    }
+
+    function DelData(obj) {
+        if (confirm("確定刪除?")) {
+            loop_windows("open_cover");
+            $.ajax({
+                type: 'post',
+                url: '@Url.Content("~/BladderTraining/DelData")',
+                data: { "ID": $(obj).attr("tempid") },
+                success: function (data) {
+                    if (data == "Y") 
+                        alert('刪除成功!');
+                    else 
+                        alert('刪除失敗!');
+                    window.location.href = "@(Url.Content("~/BladderTraining/BladderTraining_List"))"
+                        + "?StartDate=" + $("#StartDate").val() + "&EndDate=" + $("#EndDate").val();
+                },
+                complete: function () {
+                    loop_windows("close_cover");
+                }
+            });
+        }
+    }
+
+    function AddData() {
+        window.location.href = "@Url.Content("~/BladderTraining/Insert")"
+            + "?StartDate=" + $("#StartDate").val() + "&EndDate=" + $("#EndDate").val();
+    }
+
+    function PrintPDF() {
+        window.open("@(RootDocument)/Print/GetPDF?url=@(RootDocument)/BladderTraining/Print_List?feeno=@(feeno)&StartDate=" + $("#StartDate").val() + "&EndDate=" + $("#EndDate").val() + "&filename=test");
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+<div class="funcArea">
+    <div style="text-align:center;margin-bottom:10px;">
+        <form action="BladderTraining_List" method="post">
+            <div class="funcArea">
+                <input name="feeno" type="hidden" value="@feeno" />
+                <label>日期：</label>
+                @Html.TextBox("StartDate", StartDate)
+                <label>~</label>
+                @Html.TextBox("EndDate", EndDate)
+                @*@WebTool.setDateTime("StartDate")
+                @WebTool.setDateTime("EndDate")*@
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "StartDate", "", false)
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "EndDate", "", false)
+                <input type="button" style="width: 80px;" value="查詢" onclick="submit();" />
+                @*<input type="button" style="width: 80px;" value="新增記錄" onclick="AddData();" />*@
+                <input type="button" style="width: 80px;" value="列印" onclick="PrintPDF();" />
+            </div>
+        </form>
+    </div>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="font-size:14px;">
+            <tr>
+                @*<td style="width: 4%; text-align: center;">
+                    <div style="width: 40px; overflow: hidden;"></div>
+                </td>*@
+                <td style="width:100px;">日期時間</td>
+                <td style="width:100px;;">尿管類別</td>
+                <td style="width:80px">訓練狀態</td>
+                <td style="width:70px;">尿液感</td>
+                <td style="width: 100px;">攝水量(ml)</td>
+                <td style="width: 100px;">餘尿量(ml)</td>
+                <td style="width: 100px;">自解排尿量(ml)</td>
+                <td style="width: 100px;">執行者</td>
+                <td style="width: 20%;">備註</td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea">
+        <table border="0" cellpadding="4" cellspacing="1" style="font-size:14px;">
+        @if(dt != null && dt.Rows.Count > 0)
+        {
+            foreach(DataRow r in dt.Rows)
+            {
+            <tr>
+                @*<td style="width:4%;">
+                    <div style='width: 40px; overflow: hidden;'>
+                        <input type="button"  value="修改" tempid="@(r["RECORD_ID"].ToString())" onclick="editData(this);"/>
+                        <br />
+                        <input type="button"  value="刪除" tempid="@(r["RECORD_ID"].ToString())" onclick="DelData(this);"/>
+                    </div>
+                </td>*@
+                <td style="width:100px;">
+                    <label>@Convert.ToDateTime(r["RECORD_TIME"]).ToString("yyyy/MM/dd HH:mm")</label>
+                </td>
+                <td style="width:100px">
+                    <label>@(r["CATHETER_SORT"].ToString().Replace("0", "尿管").Replace("1", "膀胱造廔"))</label>
+                </td>
+                <td style="width:80px">
+                    <label>@(r["TRAINING_STATUS"].ToString().Replace("0", "關閉").Replace("1", "開啟"))</label>
+                </td>
+                <td style="width:70px">
+                    <label>@(@r["URINE_FEEL"].ToString().Replace("0", "無").Replace("1", "有"))</label>
+                </td>
+                <td style="width:100px;word-break:break-all;">
+                    <label>@((string.IsNullOrWhiteSpace(r["INTAKE_WATER"].ToString())) ? "" : r["INTAKE_WATER"].ToString())</label>
+                </td>
+                <td style="width:100px;word-break:break-all;">
+                    <label>@((string.IsNullOrWhiteSpace(r["RESIDUAL_UNINE"].ToString())) ? "" : r["RESIDUAL_UNINE"].ToString())</label>
+                </td>
+                <td style="width:100px;word-break:break-all;">
+                    <label>@((string.IsNullOrWhiteSpace(r["SELF_SITUATION"].ToString())) ? "" : r["SELF_SITUATION"].ToString())</label>
+                </td>
+                <td style="width:100px;">
+                    <label>@(r["CREATNAME"].ToString())</label>
+                </td>
+                <td style="width:20%;" word-break:break-all;">
+                    <label>@(r["REMARK"].ToString())</label>
+                </td>
+            </tr>
+            }
+        }
+        </table>
+    </div>
+</div>

@@ -1,0 +1,885 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string cls = string.Empty;
+    string dcType = string.Empty;
+    string day3 = string.Empty;
+    string OverStatus = string.Empty;
+    List<OrderItem> TextList = (List<OrderItem>)ViewData["TextList"];
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    input[type=checkbox] {
+        width: 20px;
+        height: 20px;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid #666;
+        text-align: center;
+        word-wrap: break-word;
+    }
+
+    #unsign, #sign {
+        display: none;
+    }
+
+    #intorduce input[type=button], #subfunction input[type=button] {
+        width: 120px;
+    }
+
+    table {
+        table-layout: fixed;
+    }
+
+    .dialog {
+        display: none;
+        position: fixed;
+        _position: absolute; /* position fixed for IE6 */
+    }
+
+    #cover {
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        background-color: #666;
+        opacity: 0.6;
+        z-index: 0;
+    }
+
+    #inp,#divrecord {
+        left: 50%;
+        top: 50%;
+        margin-left: -450px;
+        margin-top: -210px;
+        width: 900px;
+        height: 400px;
+        padding-top: 20px;
+        background-color: #FFFFFF;
+        border: 1px solid #666;
+        z-index: 1;
+        _top: expression(documentElement.scrollTop+(documentElement.clientHeight-this.clientHeight)/2);
+        _margin-top: 0;
+    }
+
+</style>
+<style type="text/css">
+    .content td {
+        white-space: nowrap;
+        /*background-color: #ABC8E2;
+        border: 1px solid #666;
+        border-bottom: 2px solid #666;
+        border-right: 2px solid #666;*/
+        text-align: center;
+        vertical-align: middle;
+        height: 28px;
+        font-size: 22px;
+    }
+
+    input[type=checkbox] {
+        width: 20px;
+        height: 20px;
+    }
+
+</style>
+<script type="text/javascript">
+    var type = '@(ViewBag.ordertype)';
+    $(document).ready(function () {
+        @{
+            string TmpMessage = string.Empty;
+            if(Request["message"] != null)
+            {
+                @Html.Raw("showHint(\"" + Request["message"].ToString() + "\");")
+            }
+        }
+        //$("#showR").prop('checked', true);
+        //showordertype('R');
+        switch (type)
+        {
+            case "R":
+                $("#showR").attr('checked', true);
+                showordertype('R');
+                $('#set_all').hide();
+                break;
+            case "S3DAY":
+                $("#showS").attr('checked', true);
+                showordertype('S');
+                $('#set_all').show();
+                break;
+            case "DC":
+                $("#showDC").attr('checked', true);
+                showordertype('DC');
+                $('#set_all').hide();
+                break;
+            case "S":
+                $("#showS_all").attr('checked', true);
+                ckAllS();
+                $('#set_all').show();
+                break;
+            case "D":
+                $("#show_leave").attr('checked', true);
+                showordertype('D');
+                $('#set_all').hide();
+                break;
+            case "ALL":
+                $("#show_all").attr('checked', true);
+                showordertype('all');
+                $('#set_all').show();
+                break;
+        }
+
+        $("input[name=signstatus]").click(function () {
+            // 按鈕出現 / 隱藏
+            if ($(this).attr("savebut") == "Y")
+                $("#signsave").prop("disabled", false);
+            else
+                $("#signsave").prop("disabled", true);
+            //切換div
+            var show = $(this).attr("show");
+            var hide = $(this).attr("hide");
+
+            $("#" + hide).hide("slide", {
+                direction: 'left',
+                duration: 200,
+                complete: function () {
+                    $("#" + show).show("slide", {
+                        direction: 'right',
+                        duration: 200
+                    });
+                }
+            });
+        });
+
+        // 設定按鈕動作
+        $("button[name=but_setting]").click(function () {
+            var rowObj = $(this).parent("td").parent("tr").clone();
+            var id = $(rowObj).find("input[name=id]").val();
+            var item = $(rowObj).find("input[name=" + id + "_order_content]").val();
+
+            $.ajax({
+                url: "../MedicalAdvice/Set_Excute",
+                type: "post",
+                data: { id: id, item: item },
+                timeout: 5000,
+                success: function (data) {
+                    $("#inp").html(data);
+                    //$(".dialog").fadeIn(500);
+                    $("#inp").fadeIn(500);
+                    $("#cover").fadeIn(500);
+                }
+            })
+            return false;
+        });
+
+        $("input[name=ordertype]").click(function () {
+            $('input[type=checkbox]').attr("checked", false);
+            //切換div
+            var show = $(this).attr("show");
+            var hideObj = $("#R");
+            //把沒藏起來的找出來
+            $("#R, #S").each(function () {
+                if (!$(this).is(":hidden"))
+                    hideObj = $(this);
+            });
+            $(hideObj).hide("slide", {
+                direction: 'left',
+                duration: 200,
+                complete: function () {
+                    $("#" + show).show("slide", {
+                        direction: 'right',
+                        duration: 200
+                    });
+                }
+            });
+        });
+       // $('.D').fadeOut(0);
+        setGridColor();
+    });
+
+    function popupdisable()
+    {
+        if ($("input[name=ChkPlanYN]:checked").val() == "Y") {
+            $("#text_content").prop("disabled", false);
+        } else {
+            $("#text_content").prop("disabled", true);
+        }
+    }
+
+    ///帶入護理記錄按紐
+    function take_care_record() {
+        //var id = $(obj).attr('saveid');
+        //var start_time = $(obj).attr('order_start_time');
+        ////sheetno//order_type
+        //var order_type = $(obj).attr('order_type');
+        //var sheetno = $(obj).attr('sheetno');
+        //var content = $("[name=" + id + "_order_content]").val();
+
+        var id = $("#hid_id").val();
+        var start_time = $("#hid_start_time").val();
+        var Temp_date_time = $("#Txt_Date").val() + " " + $("#Txt_Time").val();
+        var order_type = $("#hid_order_type").val();
+        var sheetno = $("#hid_sheetno").val();
+        var content = $("#text_content").val();
+        var ChkCare = $("input[name=ChkPlanYN]:checked").val();
+        $.ajax({
+            type: 'post',
+            url: '@Url.Content("~/MedicalAdvice/SignTakeCareRecord")',
+            dataType:"html",
+            data: { id: id, content: content, sheetno: sheetno, order_type: order_type, temp: $('[name=displayordertype]:checked').val(), start_time: start_time, Temp_date_time: Temp_date_time, ChkCare: ChkCare },
+            success: function (data) {
+                if (data != "N") {
+                    alert("執行註記成功");
+                    //var temp = $('input[type=radio][name=displayordertype]').val();
+                    $('#divrecord').hide();
+                    //$('#cover').hide();
+                    window.location.href = 'Sign?type=' + data;
+                } else {
+                    alert("執行註記失敗");
+                    $('#divrecord').hide();
+                    $('#cover').hide();
+                }
+            }
+        })
+    }
+
+        //顯示開啟護裡記錄div
+        function showRecordDiv(obj)
+        {
+            var id = $(obj).attr('saveid');
+            var start_time = $(obj).attr('order_start_time');
+            //sheetno//order_type
+            var order_type = $(obj).attr('order_type');
+            var sheetno = $(obj).attr('sheetno');
+            var content = $("[name=" + id + "_order_content]").val();
+
+            $("#hid_id").val(id);
+            $("#hid_start_time").val(start_time);
+            $("#hid_order_type").val(order_type);
+            $("#hid_sheetno").val(sheetno);
+            $("#text_content").val(content.replace(/#br#/g, " "));
+            $("#divrecord").show();
+            $("#cover").show();
+
+        }
+
+
+        //顯示開啟護裡記錄div--批次
+        function showRecordDiv_batch_exe() {
+            //var id = $(obj).attr('saveid');
+            //sheetno//order_type
+            //var order_type = $(obj).attr('order_type');
+            //chk_batch_exe[]
+            var Arrsheet = new Array();
+            var Content = "";
+            var ArrStartDate = new Array();
+            $("[name='chk_batch_exe[]']:checked").each(function (i) {
+                Arrsheet[i] = $(this).attr("sheetno");
+                var temp = $(this).attr("saveid");
+                Content += $("[name=" + temp + "_order_content]").val() + " \n \n";
+                ArrStartDate[i] = $(this).attr("order_start_time");
+            });
+            $("#hid_id").val('');///後來我決定要用id這個後台不需要的空件來判斷是否是批次，空的代表批次，不是空的代表是單筆 
+            $("#hid_start_time").val(ArrStartDate);
+            $("#hid_sheetno").val(Arrsheet);
+
+            $("#text_content").html(Content.replace(/#br#/g, " "));
+            $("#divrecord").show();
+            $("#cover").show();
+        }
+
+
+        //批次執行按鈕的檢查
+        function CheckBatchExeChecked()
+        {
+            var count = 0;
+            $("input[type=checkbox][name='chk_batch_exe[]']:visible").each(function () {
+                if ($(this).prop("checked")) {
+                    count++;
+                }
+            });
+            if (count > 0) {
+                return true;
+            } else {
+                alert("請先勾選，再按批次執行!");
+                return false;
+
+            }
+        }
+
+
+
+
+        function RemoveCareRecord(id, sheetno, order_type, record_name, start_date) {
+            if (record_name != "") {
+                if (confirm('確定要刪除註記?')) {
+                    $.ajax({
+                        type: 'post',
+                        url: '@Url.Content("~/MedicalAdvice/SignRemoveCareRecord")',
+                        dataType: "html",
+                        data: { id: id, sheetno: sheetno, order_type: order_type, temp: $('[name=displayordertype]:checked').val(), start_time: start_date },
+                        success: function (data) {
+                            if (data != "N") {
+                                alert("刪除註記成功");
+                                //var temp = $('input[type=radio][name=displayordertype]').val();
+                                $('#divrecord').hide();
+                                $('#cover').hide();
+                                window.location.href = "Sign?type=" + data;
+                            } else {
+                                alert("刪除註記失敗");
+                                $('#divrecord').hide();
+                                $('#cover').hide();
+                            }
+                        }
+                    });
+                }
+            }
+    }
+
+        function setGridColor() {
+            //格行換色
+            var tr = $('.dataArea tr');
+            var color = '#ABC8E2';
+            for (var i = 0; i < tr.length; i++) {
+                if ($(tr[i]).css('display') != 'none') {
+                    $(tr[i]).css('background', color);
+                    if (color == '#ABC8E2')
+                        color = '#E1E6FA';
+                    else
+                        color = '#ABC8E2';
+                }
+            }
+            $('.head').css('background', '#85A5CC');
+        }
+
+        function showordertype(ordertype) {
+            $("#allcheck").prop('checked', false)
+            if (ordertype == 'DC') {
+                $('.DC').find('input[type=checkbox][name=c_index]').prop('disabled', false);
+
+                $('.D').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.S').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.R').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.day3').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.DC').fadeIn(0);
+                //$('.OverNow').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                //td_cb_dataHeader
+                $("[name=but_setting]").each(function () {
+                    $(this).hide();
+                });
+                $("[name=td_exe_dataArea],[name=td_batch_exe]").each(function () {
+                    $(this).hide();
+                });
+            }
+            else if (ordertype == 'R') {
+                $('.DC').find('input[type=checkbox][name=c_index]').prop('disabled', true);
+
+                $('.D').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.S').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.day3').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.R').fadeIn(0);
+                //$('.OverNow').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.DC').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $("[name=but_setting]").each(function () {
+                    $(this).show();
+                });
+                $("[name=td_exe_dataArea],[name=td_batch_exe]").each(function () {
+                    $(this).hide();
+                });
+            } else if (ordertype == 'S') {   //是S又滿足day3的狀況
+                $('.DC').find('input[type=checkbox][name=c_index]').prop('disabled', true);
+
+
+                $('.D').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.day3').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.S').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.R').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.DC').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                //$('.OverNow').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+
+                $('.S.day3').fadeIn(0);
+                $("[name=but_setting]").each(function () {
+                    $(this).show();
+                });
+                $("[name=td_exe_dataArea],[name=td_batch_exe]").each(function () {
+                    $(this).show();
+                });
+            }
+            else if (ordertype == 'D')
+            {//出院
+                $('.DC').find('input[type=checkbox][name=c_index]').prop('disabled', true);
+                $('.R').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.S').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.day3').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                //$('.OverNow').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $('.D').fadeIn(0);
+                $('.DC').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+                $("[name=but_setting]").each(function () {
+                    $(this).hide();
+                });
+                $("[name=td_exe_dataArea],[name=td_batch_exe]").each(function () {
+                    $(this).hide();
+                });
+            }
+            else {//all
+                $('.D').fadeIn(0);
+                $('.day3').fadeIn(0);
+                $('.S').fadeIn(0);
+                $('.R').fadeIn(0);
+                //$('.DC').fadeIn(0);
+                $('.S.day3').fadeIn(0);
+                //$('.OverNow').fadeIn(0);
+                $('.DC').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false).prop('disabled', true);
+                //$('.DC').find('input[type=checkbox][name=c_index]').prop('disabled', true);
+                $("[name=but_setting]").each(function () {
+                    $(this).show();
+                });
+                $("[name=td_exe_dataArea],[name=td_batch_exe]").each(function () {
+                    $(this).show();
+                });
+                $("[name=td_div_lab_dataArea]").each(function () {
+                    $(this).hide();
+                });
+                $("[tempname=div_exe_set_btn]").each(function () {
+                    $(this).hide();
+                });
+            }
+            setGridColor();
+            $('input[type=checkbox][name=c_index]').prop('checked', false);///////
+        }
+
+        function ckAllS() {
+            $("#allcheck").prop('checked', false);
+            $('.DC').find('input[type=checkbox][name=c_index]').prop('disabled', true);
+            $('.D').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+            $('.R').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+            $('.S').fadeIn(0);
+            //$('.day3').fadeIn(0);
+            //$('.OverNow').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+            $('.DC').fadeOut(0).find('input[type=checkbox][name=c_index]').prop('checked', false);
+            $("[name=but_setting]").each(function () {
+                $(this).show();
+            });
+            $("[name=td_exe_dataArea],[name=td_batch_exe]").each(function () {
+                $(this).show();
+            });
+            setGridColor();
+            $('input[type=checkbox][name=c_index]').prop('checked', false);///////
+
+        }
+
+        //檢查是否有勾選
+        function check()
+        {
+            //var isOk = false;
+            var count = 0;
+            //if ($('input[type=checkbox][name=c_index]:visible').prop('checked')) {
+            //    isOk = true;
+            //} else
+            //{
+            //    isOk = false;
+            //    alert("請先勾選，再確認簽收!");
+            //}
+            $('input[type=checkbox][name=c_index]:visible').each(function () {
+                if ($(this).prop("checked")) {
+                    //
+                    count++;
+                }
+            });
+            if (count > 0) {
+                return true;
+            } else
+            {
+                alert("請先勾選，再確認簽收!");
+                return false;
+
+            }
+        }
+
+        function BatchExeAllSelect()
+        {
+            if ($("#SelectExeAll").prop('checked') == true) {
+                $(".dataArea input[type=checkbox][name='chk_batch_exe[]']").each(function () {
+                    $(this).prop("checked", true);
+                });
+            } else
+            {
+                $(".dataArea input[type=checkbox][name='chk_batch_exe[]']").each(function () {
+                    $(this).prop("checked", false);
+                });
+            }
+        }
+
+        ///全選按鈕選擇
+        function CheckBtnAllSelect(obj)
+        {
+            var radiobtnSel = $("input[name=displayordertype]:checked").val();
+            if (radiobtnSel == "ALL") {
+                //$('.dataArea input[type=checkbox][name=c_index][dcflag=DC]:not:enabled:visible').prop('checked', $(obj).prop('checked'));
+                if ($('#allcheck').prop("checked")) {
+                    $('.dataArea input[type=checkbox][name=c_index]').each(function () {//[dcflag!=DC]
+                        var xxx = $(this).prop("dcflag");
+                        if ($(this).prop("dcflag") != "DC") {
+                            $(this).prop("checked", true);
+                        } else
+                        {
+                            //
+                            $(this).prop("checked", false);
+                        }
+                    });//:enabled//:enabled:visible  ///.prop("checked", true)
+                } else {
+                    $('.dataArea input[type=checkbox][name=c_index]').each(function () {//[dcflag!=DC]
+                        if ($(this).prop("dcflag") != "DC") {
+                            $(this).prop("checked", false);
+                        }
+                    });
+
+                }
+            }
+            else {
+                $('.dataArea input[type=checkbox][name=c_index]:enabled:visible').prop('checked', $(obj).prop('checked'));
+            }
+        }
+        function loading_change() {
+            window.location.href = 'Excute';
+            loop_windows("open_cover");
+        }
+</script>
+<form name="sign_form" action="SignSave" method="post" style="font-family:Arial">
+    <div id="msgbox"></div>
+    <input type="hidden" name="order" value="text" />
+    <div id="inp" class="dialog"></div>
+    <div id="cover" class="dialog"></div>
+    <span id="intorduce">
+        <input id="btn_sign" type="button" value="文字醫囑" disabled="disabled" />
+        <input id="btn_excute" type="button" value="藥品醫囑" onclick="loading_change()" />
+    </span>
+    <span id="ordertype">     
+        <input type="radio" id="showR" name="displayordertype" value="R" onclick="showordertype('R'); $('#set_all').hide();" />
+        <label for="showR">
+        @if (TextList != null && TextList[0].R == "Y")
+        {
+        @:<font color='#FF0000'> ★</font>
+        }
+        長期醫囑</label>
+        <input type="radio" id="showS" name="displayordertype" value="S3DAY" onclick="showordertype('S'); $('#set_all').show();" />
+        <label for="showS">
+            @if (TextList !=null && TextList[0].S3 == "Y")
+            {
+                @:<font color='#FF0000'> ★</font>
+        }
+        三天內臨時醫囑</label>
+        <input type="radio" id="showDC" name="displayordertype" value="DC" onclick="showordertype('DC'); $('#set_all').hide();" />
+        <label for="showDC">
+            @if (TextList != null && TextList[0].DC == "Y")
+            {
+                @:<font color='#FF0000'> ★</font>
+        }
+        DC醫囑</label>
+        <input type="radio" id="showS_all" name="displayordertype" value="S" onclick="ckAllS(); $('#set_all').show();" />
+        <label for="showS_all">
+            @if (TextList != null && TextList[0].S == "Y")
+            {
+                @:<font color='#FF0000'> ★</font>
+        }
+        全部臨時醫囑</label>
+        <input type="radio" id="show_leave" name="displayordertype" value="D" onclick="showordertype('D'); $('#set_all').hide();" />
+        <label for="show_leave">
+            @if (TextList != null && TextList[0].D == "Y")
+            {
+                @:<font color='#FF0000'> ★</font>
+        }
+        出院醫囑</label>
+        <input type="radio" id="show_all" name="displayordertype" value="ALL" onclick="showordertype('all'); $('#set_all').show();" />
+        <label for="show_all">
+            @if (TextList !=null &&(TextList[0].ALL == "Y" || TextList[0].S == "Y" || TextList[0].R == "Y" || TextList[0].D == "Y"))
+            {
+                @:<font color='#FF0000'> ★</font>
+        }
+        全部醫囑</label>
+    </span>
+    <hr />
+    <div id="subfunction">
+        <input type="button" value="確認簽收" id="signsave" onclick="if (check()) { $('#signsave').prop('disabled',true); $('form[name=sign_form]').submit(); }" />
+    </div>
+    <hr />
+    <div class="funcArea">
+        <div class="dataHeader">
+            <table border="0" cellpadding="4" cellspacing="1" width="100%">
+                <tr>
+                    <td @*name="td_cb_dataArea"*@ width="40">
+                        <input type="checkbox" id="allcheck" onclick="CheckBtnAllSelect(this);" />@*$('.dataArea input[type=checkbox][name=c_index]:enabled:visible').prop('checked', $(this).prop('checked'));*@
+                    </td>
+                    <td name="td_batch_exe" width="40"><input type="checkbox"  id="SelectExeAll" name="SelectExeAll" onclick="BatchExeAllSelect();"/></td>
+                    <td @*name="td_btn_exe"*@ width="60">
+
+                    <input id="set_all" style="display:none" type="button"  value="批次&#13;&#10;執行" onclick="if (CheckBatchExeChecked()) { showRecordDiv_batch_exe(); }" />
+                    
+                    </td>
+                    <td width="50">囑型</td>
+                    <td width="140">
+                        開始日期
+                        <br />
+                        結束日期
+                    </td>
+                    <td>醫令名稱</td>
+                    <td @*name="td_cb_dataArea"*@ width="100">
+                        簽收<br />
+                        護理師/時間
+                    </td>
+                    <td name="td_exe_dataArea" width="100">
+                        執行<br />
+                        護理師/時間
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="dataArea" id="RS">
+            <table border="0" cellpadding="4" cellspacing="1" width="100%">
+                @{
+                    List<SignOrder> signorder = (List<SignOrder>)ViewData["signorder"];
+                    if (signorder != null)
+                    {
+                        for (int i = 0; i <= signorder.Count - 1; i++)
+                        {
+                            string idx = signorder[i].sheet_no.ToString() + i.ToString();
+                            string sheetno = signorder[i].sheet_no.ToString();
+                            //Mod by yungchen 文字醫囑 DC的照樣顯示 20160613
+                            if (signorder[i].order_type == "R")
+                            {
+                                cls = "R";
+                            }
+                            else if (signorder[i].order_type == "S")
+                            {
+                                cls = "S";
+                            }
+                            else if (signorder[i].order_type == "D")
+                            {
+                                cls = "D";
+                            }
+                            //if (signorder[i].end_date != DateTime.MaxValue)
+                            if (signorder[i].DC_FLAG != "" && signorder[i].DC_FLAG != null)
+                            {
+                                dcType = "DC";
+                            }
+                            else
+                            {
+                                dcType = "";
+                            }
+                            if (signorder[i].start_date > DateTime.Now)
+                            {
+                                OverStatus = "";//OverNow
+                            }
+                            else
+                            {
+                                OverStatus = "";
+                            }
+                            // if(signorder[i].order_type != "S" || (signorder[i].start_date.AddDays(3) >= DateTime.Now))
+                            // {
+                            // @:<tr class="@cls @dcType">
+                            // }
+                            // else
+                            // {
+                            // @:<tr class="@cls day3 @dcType">
+                            // }
+                            if (signorder[i].start_date >= DateTime.Now.AddDays(-3))
+                            {
+                                day3 = "day3";
+                            }
+                            else
+                            {
+                                day3 = "";
+                            }
+                            <tr class="@cls @day3 @dcType @OverStatus">
+                                <td @*name="td_cb_dataArea"*@ width="40">
+                                    @if (signorder[i].sign_user != "")
+                                    {
+                                        @:&nbsp;
+                                    }
+                                    else
+                                    {
+                                        <input type="checkbox" name="c_index" dcflag="@(dcType)" value="@(idx)" />
+                                    }
+                                    <input type="hidden" name="id" value="@(idx)" />
+                                    <input type="hidden" name="@(idx + "_sheet_no")" value="@(signorder[i].sheet_no)" />
+                                </td>
+                                <td name="td_batch_exe" width="40">
+                                      @if(signorder[i].sign_time.ToString("yyyy/MM/dd HH:mm:ss") != "0001/01/01 00:00:00" && signorder[i].order_type == "S" && signorder[i].record_time == "")
+                                      {
+                                            <input type="checkbox" name="chk_batch_exe[]"  saveid="@(idx)" sheetno="@(sheetno)"  order_start_time="@(signorder[i].start_date)"  />
+                                      }
+                                      else
+                                      {
+                                           @:&nbsp;
+                                      }
+                                </td>
+                                <td @*name="td_btn_exe"*@ width="60">
+
+                                    @if(signorder[i].order_type != "S")
+                                    {
+                                        string Temp_name = (signorder[i].order_type == "D" || signorder[i].order_type == "DC") ? "div_exe_set_btn" : "";
+                                        if(signorder[i].sign_user != "")
+                                        {
+                                            <button name="but_setting" tempname="@(Temp_name)" saveid="@(idx)">設定</button>
+                                            @*<input type="submit" name="but_setting" saveid="@(idx)" value="設定" />*@
+                                        }
+                                        else
+                                        {
+                                            <button name="but_setting" tempname="@(Temp_name)" disabled="">設定</button>
+                                            @*<input type="submit" name="but_setting" disabled="" value="設定" />*@
+                                        <!-- 取消 disabled="disabled" -->
+                                        }
+                                    }
+                                    else //等於S
+                                    {
+                                        @*<button name="but_take_care_record" saveid="@(idx)" >帶記錄</button>*@
+                                        if(signorder[i].sign_user != "")
+                                        {
+                                            if(signorder[i].record_name != null && signorder[i].record_name.ToString() == "")
+                                            {
+                                            <input type="button" saveid="@(idx)" sheetno="@(sheetno)" order_type="@(signorder[i].order_type)" order_start_time="@(signorder[i].start_date)" value="執行&#13;&#10;註記" onclick="showRecordDiv(this);" />
+                                            @* < button saveid="@(idx)" sheetno="@(sheetno)" order_type="@(signorder[i].order_type)" order_start_time="@(signorder[i].start_date)" onclick="take_care_record(this);">執行<br />註記</button>*@
+
+                                            }
+                                            else
+                                            {
+                                            <button saveid="@(idx)" disabled="">執行<br />註記</button>
+                                            }
+                                        }
+                                        else
+                                        {
+                                        <button saveid="@(idx)" disabled="">執行<br />註記</button>
+                                        }
+                                    }
+                                </td>
+                                <td width="50">
+                                    <!--囑型-->
+                                    @*@(signorder[i].order_type)*@
+                                    @if(signorder[i].order_type == "R")
+                                    {
+                                        <label>長期</label>
+                                    }
+                                    else if(signorder[i].order_type == "S")
+                                    {
+                                        <label>臨時</label>
+                                    }
+                                    else if(signorder[i].order_type == "D")
+                                    {
+                                        <label>出院</label>
+                                    }
+                                    <input type="hidden" name="@(idx + "_order_type")" value="@(signorder[i].order_type)" />
+                                </td>
+                                <td width="140" style="font-size: 14px;">
+                                    @if(signorder[i].start_date != DateTime.MinValue)
+                                    {
+                                        @(signorder[i].start_date.ToString("yyyy/MM/dd HH:mm"))
+                                        <input type="hidden" name="@(idx + "_start_date")" value="@(signorder[i].start_date.ToString("yyyy/MM/dd HH:mm:ss"))" />
+                                    }
+                                    else
+                                    {
+                                        @:&nbsp;<input type="hidden" name="@(idx + "_start_date")" value="" />
+                                }
+                                    <hr style="height: 1px;" />
+                                    @if(signorder[i].end_date != DateTime.MaxValue)
+                                    {
+                                        @(signorder[i].end_date.ToString("yyyy/MM/dd HH:mm"))
+                                        <input type="hidden" name="@(idx + "_end_date")" value="@(signorder[i].end_date.ToString("yyyy/MM/dd HH:mm:ss"))" />
+                                    }
+                                    else
+                                    {
+                                        @:&nbsp;<input type="hidden" name="@(idx + "_end_date")" value="" />
+                                }
+                                </td>
+                                <td style="text-align: left;">
+                                    <!--醫令名稱-->
+                                    @Html.Raw(signorder[i].order_content.Replace("#br#", "<br />"))
+                                    @*@(signorder[i].order_content)*@
+                                    <input type="hidden" name="@(idx + "_order_content")" value="@(signorder[i].order_content)" />
+                                </td>
+                                <td @*name="td_cb_dataArea"*@ width="100" style="font-size: 14px;">
+                                    <label for="lab" title="@(signorder[i].sign_user)">
+                                        @(signorder[i].sign_user_name)
+                                        &nbsp;
+                                    </label>
+                                    <hr />
+                                    @if(signorder[i].sign_time.ToString("yyyy/MM/dd HH:mm:ss") != "0001/01/01 00:00:00")
+                                    {
+                                        @(signorder[i].sign_time.ToString("yyyy/MM/dd HH:mm"))
+                                    }
+                                    else
+                                    {
+                                        @:&nbsp;
+                                            }
+                                </td>
+                                <td name="td_exe_dataArea" width="100" style="font-size: 14px;">
+                                    @{
+                                    string tempstr = (signorder[i].order_type == "R" || signorder[i].order_type == "DC" || signorder[i].order_type == "D") ? "td_div_lab_dataArea" : "";
+                                    }
+                                    <a style="color: blue; text-decoration: underline;">
+                                        <div name="@(tempstr)" onclick="RemoveCareRecord('@(idx)','@(sheetno)','@(signorder[i].order_type)','@(signorder[i].record_name)','@(signorder[i].start_date)');">
+
+                                            <label for="lab" @*title="@(signorder[i].sign_user)"0001/01/01 00:00:00*@>
+                                                @(signorder[i].record_name)
+
+                                            &nbsp;
+                                        </label>
+                                        <hr />
+                                        @if(signorder[i].record_time != "")
+                                        {
+                                            if(Convert.ToDateTime(signorder[i].record_time).ToString("yyyy/MM/dd HH:mm:ss") != "0001/01/01 00:00:00")
+                                            {
+                                                @(Convert.ToDateTime(signorder[i].record_time).ToString("yyyy/MM/dd HH:mm"))
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @:&nbsp;
+                                }
+                                            
+                                    </div></a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                }
+            </table>
+        </div>
+    </div>
+</form>
+<div id="divrecord" class="dialog dataArea" style="width: 700px;height: 400px;">
+    <div class="content">
+        <table  border="0" cellpadding="0" cellspacing="4" width="95%" align="center">
+            <tr style="height:40px;">
+                <td style="text-align:left;">
+                    <label style="font-weight: bold">日期時間：</label>
+                    @*@Html.TextBox("Txt_Date", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                    @Html.TextBox("Txt_Time", DateTime.Now.ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                    @WebTool.setDateTime("Txt_Date", "Txt_Time")*@
+
+                    <input type="text" id="Txt_Date" name="Txt_Date" value="@(DateTime.Now.ToString("yyyy/MM/dd"))" />
+                    <input type="text" id="Txt_Time" name="Txt_Time" value="@(DateTime.Now.ToString("HH:mm"))" />
+                    @*@WebTool.setDateTime("Txt_Date", "Txt_Time")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "Txt_Date", "Txt_Time", false)
+                </td>
+            </tr>
+            <tr style="height:330px;">
+                <td>
+                    <textarea id="text_content" style="width: 95%; height: 280px;font-size:20px;"></textarea>
+                    <br />
+                    <input type="hidden" id="hid_sheetno" />
+                    <input type="hidden" id="hid_id" />
+                    <input type="hidden" id="hid_start_time" />
+                    <input type="hidden" id="hid_order_type" />
+                    <label><input type="checkbox" name="ChkPlanYN" value="Y"  onclick="popupdisable();" checked/>帶入護理紀錄</label>
+                    @*<input type="button" value="帶記錄" onclick="take_care_record();" />*@
+                    <input type="button" value="執行註記" onclick="take_care_record();" />
+                    <input type="button" value="取消" onclick="$('#divrecord').hide();$('#cover').hide();" />
+                </td>
+            </tr>
+           
+        </table>
+    </div>
+</div>

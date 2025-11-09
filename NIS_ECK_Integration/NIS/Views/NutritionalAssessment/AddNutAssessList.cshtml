@@ -1,0 +1,684 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+    string NutType = ViewBag.NutType;
+    DataTable DT = ViewBag.dt_list;
+    string RootDocument = ViewBag.RootDocument;
+    string LoginEmpNo = ViewBag.userno;
+    string bodyheight = ViewBag.bodyheight;
+    string bodyweight = ViewBag.bodyweight;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    .red_point
+    { 
+        color:red;
+        vertical-align:middle;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+        @if (ViewBag.St != "" && ViewBag.Ed != "")
+        {
+            <text>
+        $("#TxtDateSrchStart").val('@ViewBag.St');
+        $("#TxtDateSrchEnd").val('@ViewBag.Ed');
+        </text>
+        }
+        @if(!string.IsNullOrEmpty(bodyheight))
+        {//帶生命徵象 身高
+            <text>
+        $("#TxtNutaHeight").val('@(bodyheight)');
+        </text>
+        }
+        @if(!string.IsNullOrEmpty(bodyweight))
+        {//帶生命徵象 體重
+            string[] Txt_ArrWeight = bodyweight.Trim('|').Split('|');
+            <text>
+        $("#TxtNutaWeight").val('@(Txt_ArrWeight[0])');
+            </text>
+            @*if(Txt_ArrWeight[1] == "Kg")
+            {
+            <text>
+        $("#TxtNutaWeight").val('@(Txt_ArrWeight[0])');
+            </text>
+            }
+            else
+            {
+            <text>
+        $("#TxtNutaWeight").val('@((Convert.ToDouble(Txt_ArrWeight[0]) * 0.001).ToString())');
+            </text>
+            }*@
+        }
+        @if(!string.IsNullOrEmpty(bodyheight) && !string.IsNullOrEmpty(bodyweight))
+         {//算BMI
+            <text>
+        CountBMIFunc();
+        </text>
+         }
+    });
+
+    function setGridColor() {
+        //格行換色
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+        $('.due').css('background', '#FF6666');
+    }
+
+    function SetNutAssessmentFunc(TypeVal) {
+        var BoolVal = true;
+        if ($('#DdlNutaWeightUnit').val() == "-1") {
+            alert("請選擇體重單位");
+            BoolVal = false;
+            return;
+        }
+        if ($.trim($("#TxtNutaHeight").val()) == "") {
+            alert("請輸入身高");
+            BoolVal = false;
+            return;
+        }
+        if ($.trim($("#TxtNutaWeight").val()) == "") {
+            alert("請輸入體重");
+            BoolVal = false;
+            return;
+        }
+        if (TypeVal == "adult") {//成人營養評估
+            if ($('input[name=RbnAdultRow1]:checked').val() == undefined) {
+                alert("請選擇身體質量指數BMI");
+                BoolVal = false;
+                return;
+            }
+            if ($('input[name=RbnAdultRow2]:checked').val() == undefined) {
+                alert("三到六個月體重減輕");
+                BoolVal = false;
+                return;
+            }
+            if ($('input[name=RbnAdultRow3]:checked').val() == undefined) {
+                alert("急性疾病狀態幾乎無法進食或禁食");
+                BoolVal = false;
+                return;
+            }
+            if ($('#TxtAdultRow4').val() == "") {
+                alert("請輸入MUST總分");
+                BoolVal = false;
+                return;
+            }
+        }
+        if (BoolVal) {
+            $.ajax({
+                url: '../NutritionalAssessment/SetNutAssessmentData',
+                type: 'POST',
+                data: $('form[name=FormNutAssessSetArea]').serialize(),
+                success: function (data) {
+                    if (data == "Y") {
+                        alert('儲存成功');
+                        window.location.href = 'AddNutAssessList?type=' + TypeVal;
+                    }
+                    else if (data == "N") {
+                        alert('儲存失敗');
+                    }
+                    else if (data == "O") {
+                        alert('請重新選擇病患');
+                        window.location.href = 'Index';
+                    }
+                }, complete: function () {
+                }
+            });
+        }
+    }
+
+    //計算 BMI
+    function CountBMIFunc() {
+        if ($('#TxtNutaHeight').val() != "" && $('#TxtNutaWeight').val() != "") {
+            var NutaHieght = parseFloat($('#TxtNutaHeight').val()) / 100;
+            var NutaWeight = parseInt($('#TxtNutaWeight').val());
+            var BMIVal = NutaWeight / (NutaHieght * NutaHieght);
+            if (BMIVal < 18.5)
+                $('#RbnAdultRow1_2').prop('checked', true);
+            else if (18.5 <= BMIVal && BMIVal <= 20)
+                $('#RbnAdultRow1_1').prop('checked', true);
+            else if (BMIVal > 20)
+                $('#RbnAdultRow1_0').prop('checked', true);
+            $("#TxtNutaBMI").val(BMIVal.toFixed(1));
+            CountMUSTFunc();
+        }
+    }
+
+    function CountMUSTFunc() {
+        var MUSTVal = 0;
+        var ItemList = $('input[name=RbnAdultRow1]:checked, input[name=RbnAdultRow2]:checked, input[name=RbnAdultRow3]:checked')
+        $.each(ItemList, function (i, item) {
+            if ($(item).length > 0) {
+                MUSTVal += parseInt($(item).val());
+            }
+        });
+        $("#TxtAdultRow4").val(MUSTVal);
+        ViewNutaAssessResultFunc(MUSTVal);
+    }
+
+    function ViewNutaAssessResultFunc(MUSTVal) {
+        if (MUSTVal < 3)
+            $("#spanNutaAssessResult").html("MUST<3分，暫時不需要進一步的營養評估").css('color', 'black');
+        else if (MUSTVal >= 3)
+            $("#spanNutaAssessResult").html("MUST≧3分為營養不良高度風險，通知主治醫師決定是否照會營養師做進一步的營養評估").css('color', 'red');
+    }
+
+    //查詢
+    function SearchDataForDateStToEd() {
+        var DateSt = $("#TxtDateSrchStart").val();
+        var DateEd = $("#TxtDateSrchEnd").val();
+        window.location.href = 'AddNutAssessList?type=' + $('#HidNUTAType').val() + '&St=' + DateSt + '&Ed=' + DateEd;
+    }
+
+    //載入該筆資訊
+    function SetNutritionAssessInfo(ObjVal) {
+        var NUTAID = $(ObjVal).attr("nutaid");
+        var typeVal = $("#HidNUTAType").val();
+        loop_windows("open_cover");
+        $.ajax({
+            type: 'POST',
+            dataType: 'json',
+            url: '../NutritionalAssessment/SelectEditNutAssessInfo',
+            data: {
+                NUTAID: NUTAID,
+                type: typeVal
+            },
+            async: false,
+            cache: false,
+            success: function (data) {
+                if (data.length > 0) {
+                    $('#HidNUTAID').val(data[0].NUTA_ID);
+                    $("#TxtNutaAssessmentDTMDate").val(data[0].ASSDATE);
+                    $("#TxtNutaAssessmentDTMTime").val(data[0].ASSTIME);
+                    $("#TxtNutaHeight").val(data[0].NUTA_HEIGHT);
+                    $("#TxtNutaWeight").val(data[0].NUTA_WEIGHT);
+                    $("#TxtNutaBMI").val(data[0].NUTA_BMI);
+                    if (data[0].NUTA_TYPE == "adult") {
+                        set_for_rb('RbnAdultRow1', data[0].NUTA_ASSESSMENT_ROW1);
+                        set_for_rb('RbnAdultRow2', data[0].NUTA_ASSESSMENT_ROW2);
+                        set_for_rb('RbnAdultRow3', data[0].NUTA_ASSESSMENT_ROW3);
+                        $("#TxtAdultRow4").val(data[0].NUTA_ASSESSMENT_ROW4);
+                        ViewNutaAssessResultFunc(parseInt(data[0].NUTA_ASSESSMENT_ROW4));  //篩選結果只適用於成人，可計算時，故兒童沒有
+                    }
+                    else if (data[0].NUTA_TYPE == "child") {
+                        $("#TxtNutaHead").val(data[0].NUTA_HEAD);
+                        $("#TxtChildRow1").val(data[0].NUTA_ASSESSMENT_ROW1);
+                        $("#TxtChildRow2").val(data[0].NUTA_ASSESSMENT_ROW2);
+                        $("#TxtChildRow3").val(data[0].NUTA_ASSESSMENT_ROW3);//$("#TxtChildRow4").val(data[0].NUTA_ASSESSMENT_ROW4);
+                    }
+                    if (data[0].NUTA_CARE_RECORD == "Y") {// set_for_ck('ChkNutaCareRecord', data[0].NUTA_CARE_RECORD);
+                        $("#ChkNutaCareRecord").prop("checked", true);
+                    } else {
+                        $("#ChkNutaCareRecord").prop("checked", false);
+                    }
+                }
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    function set_for_rb(RbnName, RbnVal) {
+        if (RbnVal != '') {
+            $('input[name=' + RbnName + ']').each(function () {
+                if ($(this).val() == RbnVal) {
+                    this.checked = true;
+                    $(this).trigger('click');
+                }
+            });
+        }
+    }
+
+    function set_for_ck(CKName, VAL) {
+        if (VAL != '') {
+            var DefaultVal = VAL.split(",");
+            var CKB = document.getElementsByName(CKName);
+            for (var i = 0; i < DefaultVal.length; i++) {
+                for (var j = 0; j < CKB.length; j++) {
+                    if (DefaultVal[i] == CKB[j].value) {
+                        $(CKB[j]).click();
+                    }
+                }
+            }
+        }
+    }
+
+    function CancelInputData() {
+        $('.TextMarkCls').each(function () {
+            $(this).val('');
+        });
+        $('.DdlMarkCls').each(function () {
+            $(this).val(-1);
+        });
+        $('.RbnMarkCls').each(function () {
+            $(this).prop("checked", false);
+        });
+        var NowDateVal = new Date();
+        $("#TxtNutaAssessmentDTMDate").val(NowDateVal.getFullYear() + "/" + (NowDateVal.getMonth() + 1) + "/" + NowDateVal.getDate());
+        $("#TxtNutaAssessmentDTMTime").val(NowDateVal.getHours() + ":" + NowDateVal.getMinutes());
+    }
+
+    function DelNutAssmentFunc(ObjVal) {
+        var NUTAID = $(ObjVal).attr("nutaid");
+        $.ajax({
+            type: "POST",
+            url: '../NutritionalAssessment/DelNutAssmentInfo',
+            data: { NUTAID: NUTAID },
+            async: false,
+            success: function (data) {
+                if (data == "Y") {
+                    alert('刪除成功');
+                    window.location.href = 'AddNutAssessList?type=' + $("#HidNUTAType").val();
+                }
+                else if (data == "N") {
+                    alert('刪除失敗');
+                }
+                else if (data == "O") {
+                    alert('請重新選擇病患');
+                    window.location.href = 'Index';
+                }
+            }
+        });
+    }
+</script>
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr>
+            <td>
+                <div id="module_define">營養評估</div>
+            </td>
+        </tr>
+        <tr>
+            <td align="left" style="padding: 5px 0 5px 0;">
+                <form id="FormNutAssessSetArea" name="FormNutAssessSetArea" method="post">
+                    <input type="hidden" id="HidNUTAID" name="HidNUTAID" class="TextMarkCls" />
+                    <input type="hidden" id="HidNUTAType" name="HidNUTAType" value="@NutType" />
+                    <div style="text-align:center">
+                        <input type="button" value="返回營養評估總表" style="width: 130px; margin-bottom:-12px; margin-top:-4px;" onclick="window.location.href = 'Index?modeval=sel';" />
+                    </div>
+                    <fieldset>
+                        <legend>新增評估</legend>
+                        <div class="dataArea" style="height: 200px;overflow-y:auto;">
+                            <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+                                <tr>
+                                    <td class="head" style="width:20%;">
+                                       <label style="font-weight:bold;">日期時間：</label>
+                                    </td>
+                                    <td colspan="1">
+                                        @Html.TextBox("TxtNutaAssessmentDTMDate", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly", @class = "TextMarkCls" })
+                                        @Html.TextBox("TxtNutaAssessmentDTMTime", DateTime.Now.ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly", @class = "TextMarkCls" })
+                                        @*@WebTool.setDateTime("TxtNutaAssessmentDTMDate", "TxtNutaAssessmentDTMTime")*@
+                                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "TxtNutaAssessmentDTMDate", "TxtNutaAssessmentDTMTime", true)
+                                    </td>
+                                    @if(NutType != null && NutType != "")
+                                    {
+                                        switch(NutType)
+                                        {
+                                            case "adult":
+                                                //成人營養評估
+                                                <td colspan="4">
+                                                    &nbsp;
+                                                </td>
+                                                break;
+                                            case "child":
+                                                //兒童營養評估
+                                                <td class="head">
+                                                    <label style="font-weight:bold;">頭圍：</label>
+                                                </td>
+                                                <td colspan="3">
+                                                    <input type="text" id="TxtNutaHead" name="TxtNutaHead" class="TextMarkCls" style="width: 90px; " onchange="this.value=this.value.replace(/[^0-9\.]/g,'')" />&nbsp;cm
+                                                </td>
+                                                break;
+                                        }
+                                    }
+                                </tr>
+                                <tr>
+                                    <td class="head"><label class="red_point">*</label>
+                                        @Html.Label("lab_in_date_height", "身高：", new { style = "font-weight:bold;" })
+                                    </td>
+                                    <td>
+                                        <input type="text" id="TxtNutaHeight" name="TxtNutaHeight" class="TextMarkCls" style="width: 90px; " onchange="this.value=this.value.replace(/[^0-9\.]/g,'')" onblur="CountBMIFunc();" />&nbsp;cm
+                                    </td>
+                                    <td class="head"><label class="red_point">*</label>
+                                        @Html.Label("lab_in_date_weight", "體重：", new { style = "font-weight:bold;" })
+                                    </td>
+                                    <td>
+                                        <input type="text" id="TxtNutaWeight" name="TxtNutaWeight" class="TextMarkCls" style="width: 90px; " onchange="this.value=this.value.replace(/[^0-9\.]/g,'')" onblur="CountBMIFunc();" />&nbsp;kg
+                                    </td>
+                                    <td class="head"><label class="red_point">*</label>
+                                        @Html.Label("lab_in_date_bmi", "BMI：", new { style = "font-weight:bold;" })
+                                    </td>
+                                    <td>
+                                        @Html.TextBox("TxtNutaBMI", "", new { style = "width: 90px" })
+                                    </td>
+                                </tr>
+                                @if(NutType != null && NutType != "")
+                                {
+                                    switch(NutType)
+                                    {
+                                        case "adult":
+                                            //成人營養評估
+                                            <tr>
+                                                <td class="head"><label style="font-weight:bold;">身體質量指數(BMI)：</label></td>
+                                                <td colspan="5">
+                                                    <label class="tooltip2"><input type="radio" id="RbnAdultRow1_0" name="RbnAdultRow1" value="0" class="RbnMarkCls" onclick="CountMUSTFunc();" />0分：大於20</label>&emsp;
+                                                    <label class="tooltip2"><input type="radio" id="RbnAdultRow1_1" name="RbnAdultRow1" value="1" class="RbnMarkCls" onclick="CountMUSTFunc();" />1分：18.5~20</label>&emsp;
+                                                    <label class="tooltip2"><input type="radio" id="RbnAdultRow1_2" name="RbnAdultRow1" value="2" class="RbnMarkCls" onclick="CountMUSTFunc();" />2分：小於18.5</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head"><label style="font-weight:bold;">三到六個月體重減輕：</label></td>
+                                                <td colspan="5">
+                                                    <label class="tooltip2"><input type="radio" id="RbnAdultRow2_0" name="RbnAdultRow2" value="0" class="RbnMarkCls" onclick="CountMUSTFunc();" />0分：小於5%</label>&emsp;
+                                                    <label class="tooltip2"><input type="radio" id="RbnAdultRow2_1" name="RbnAdultRow2" value="1" class="RbnMarkCls" onclick="CountMUSTFunc();" />1分：5-10%</label>&emsp;
+                                                    <label class="tooltip2"><input type="radio" id="RbnAdultRow2_2" name="RbnAdultRow2" value="2" class="RbnMarkCls" onclick="CountMUSTFunc();" />2分：大於10%</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head"><label style="font-weight:bold;">急性疾病狀態幾乎無法進食或禁食：</label></td>
+                                                <td colspan="5">
+                                                    <label class="tooltip2"><input type="radio" id="RbnAdultRow3_0" name="RbnAdultRow3" value="0" class="RbnMarkCls" onclick="CountMUSTFunc();" />0分：無此問題或小於5天</label>&emsp;
+                                                    <label class="tooltip2"><input type="radio" id="RbnAdultRow3_2" name="RbnAdultRow3" value="2" class="RbnMarkCls" onclick="CountMUSTFunc();" />2分：大於5天</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head"><label style="font-weight:bold;">MUST總分：</label></td>
+                                                <td colspan="5">
+                                                    <input type="text" id="TxtAdultRow4" name="TxtAdultRow4" class="TextMarkCls" style="width: 120px;" />
+                                                </td>
+                                            </tr>
+                                            break;
+                                        case "child":
+                                            //兒童營養評估
+                                            <tr>
+                                                <td class="head"><label style="font-weight:bold;">身高百分比區間：</label></td>
+                                                <td colspan="5">
+                                                    <input type="text" id="TxtChildRow1" name="TxtChildRow1" class="TextMarkCls" style="width: 190px; " />&nbsp;
+                                                     <a onclick="window.open('../Images/BMI/@(ViewBag.PDFName).pdf');" style="font-size:12px; color:blue; cursor:pointer">身高百分比建議值</a>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head"><label style="font-weight:bold;">體重百分比區間：</label></td>
+                                                <td colspan="5">
+                                                    <input type="text" id="TxtChildRow2" name="TxtChildRow2" class="TextMarkCls" style="width: 190px; " />&nbsp;
+                                                   <a onclick="window.open('../Images/BMI/@(ViewBag.PDFName).pdf');" style="font-size:12px; color:blue; cursor:pointer">體重百分比建議值</a>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head"><label style="font-weight:bold;">頭圍百分比區間：</label></td>
+                                                <td colspan="5">
+                                                    <input type="text" id="TxtChildRow3" name="TxtChildRow3" class="TextMarkCls" style="width: 190px; " />&nbsp;
+                                                   <a onclick="window.open('../Images/BMI/@(ViewBag.PDFName).pdf');" style="font-size:12px; color:blue; cursor:pointer">頭圍百分比建議值</a>
+                                                </td>
+                                            </tr>
+                                            break;
+                                    }
+                                }
+                                <tr>
+                                    @if(NutType != null && NutType != "")
+                                    {
+                                        switch(NutType)
+                                        {//和咏蓁討論後，決定兒童的篩選結果隱藏 2016/07/21 by wawa
+                                            case "adult":
+                                                //成人營養評估
+                                                <td class="head" style="padding-top:2px;"><label style="font-weight:bold;">篩選結果：</label></td>
+                                                <td colspan="3">
+                                                    <div style="word-wrap: break-word; word-break: break-all; white-space: normal; padding: 3px;" id="spanNutaAssessResult">
+                                                    </div>
+                                                </td>
+                                                break;
+                                            case "child":
+                                                //兒童營養評估
+                                                <td colspan="4">
+                                                    &nbsp;
+                                                </td>
+                                                break;
+                                        }
+                                    }
+                                    <td class="head" style="padding-top: 2px;">
+                                        <label><input type="checkbox" id="ChkNutaCareRecord" name="ChkNutaCareRecord" value="Y" />帶入護理紀錄</label>&emsp;
+                                    </td>
+                                    <td class="head" style="padding: 5px 0 5px 0; text-align: center;">
+                                        <div class="funcArea">
+                                            <input type="button" value="存檔" style="width: 50px;" onclick="SetNutAssessmentFunc('@NutType');" />
+                                            <input type="button" value="取消" style="width: 50px;" onclick="if (confirm('確定取消?')) { CancelInputData();}" />
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </fieldset>
+                </form>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="funcArea">
+                    <table>
+                        <tr>
+                            <td>
+                                顯示區間：
+                            </td>
+                            <td>
+                                <input type="text" id="TxtDateSrchStart" name="TxtDateSrchStart" style="width:80px;" value="@DateTime.Now.ToString("yyyy/MM/dd")" readonly="readonly" />
+                                ~
+                                <input type="text" id="TxtDateSrchEnd" name="TxtDateSrchEnd" style="width:80px;" value="@DateTime.Now.ToString("yyyy/MM/dd")" readonly="readonly" />
+                                @*@WebTool.setDateTime("TxtDateSrchStart", "", "", "0", "", "")
+                                @WebTool.setDateTime("TxtDateSrchEnd", "", "", "0", "", "")*@
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "TxtDateSrchStart", "", false)
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "TxtDateSrchEnd", "", false)
+                            </td>
+                            <td>
+                                <div>
+                                    <input type="button" value="查詢" style="width: 50px;" onclick="SearchDataForDateStToEd();" />
+                                    <input type="button" value="列印" style="width: 50px;" onclick="window.open('@(RootDocument)/Print/GetPDF?url=@(RootDocument)/NutritionalAssessment/MUST_Print_List?LoginEmpNo=@(LoginEmpNo)&feeno=@(ViewBag.feeno)&type=' + $('#HidNUTAType').val() + '&St=' + $('#TxtDateSrchStart').val() + '&Ed=' + $('#TxtDateSrchEnd').val() + '&filename=test' )" />
+
+                                </div>
+                            </td>
+
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px;">
+                        <tr>
+                            <td style="width: 13%; text-align: left;font-weight:bold;">日期時間</td>
+                            <td style="width: 8%; text-align: left;font-weight:bold;">身高<br />體重</td>
+                            <td style="width: 4%; text-align: left;font-weight:bold;">BMI</td>
+                            @if(NutType != null && NutType != "")
+                            {
+                                switch(NutType)
+                                {
+                                    case "adult":
+                                        //成人營養評估
+                                        <td style="width: 13%; text-align: left;font-weight:bold;">身體質量指數</td>
+                                        <td style="width: 13%; text-align: left;font-weight:bold; ">三到六個月體重減輕</td>
+                                        <td style="width: 15%; text-align: left;font-weight:bold; ">急性疾病狀態幾乎無法進食或禁食</td>
+                                        <td style="width: 5%; text-align: left;font-weight:bold;">總分</td>
+                                        break;
+                                    case "child":
+                                        //兒童營養評估
+                                        <td style="width: 15%; text-align: left;font-weight:bold;">身高百分比區間</td>
+                                        <td style="width: 15%; text-align: left;font-weight:bold; ">體重百分比區間</td>
+                                        <td style="width: 17%; text-align: left;font-weight:bold; ">頭圍百分比區間</td>
+                                        break;
+                                }
+                            }
+                            @if(NutType != null && NutType != "")
+                            {
+                                switch(NutType)
+                                {
+                                    case "adult":
+                            <td style="width: 12%; text-align: left;font-weight:bold;">篩選結果</td>
+                                        break;
+                                    case "child":
+                                        break;
+                                }
+                            }  
+                            <td style="width: 6%; text-align: left;font-weight:bold;">評估者</td>
+                            <td style="width: 11%; text-align: left;font-weight:bold;">功能</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height: 110px;">
+                    @if(DT != null)
+                    {
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                            @foreach(DataRow r in DT.Rows)
+                            {
+                                string AssessmentRow1 = "", AssessmentRow2 = "", AssessmentRow3 = "", AssessmentRow4 = "", AssessmentResult = "";
+                                if(r["NUTA_TYPE"].ToString() == "adult")
+                                {
+                                    switch(r["NUTA_ASSESSMENT_ROW1"].ToString())
+                                    {
+                                        case "0":
+                                            AssessmentRow1 = "0分：大於20";
+                                            break;
+                                        case "1":
+                                            AssessmentRow1 = "1分：18.5~20";
+                                            break;
+                                        case "2":
+                                            AssessmentRow1 = "2分：小於18.5";
+                                            break;
+                                        default:
+                                            AssessmentRow1 = "內容錯誤";
+                                            break;
+                                    }
+                                    switch(r["NUTA_ASSESSMENT_ROW2"].ToString())
+                                    {
+                                        case "0":
+                                            AssessmentRow2 = "0分：小於5%";
+                                            break;
+                                        case "1":
+                                            AssessmentRow2 = "1分：5-10%";
+                                            break;
+                                        case "2":
+                                            AssessmentRow2 = "2分：大於10%";
+                                            break;
+                                        default:
+                                            AssessmentRow2 = "內容錯誤";
+                                            break;
+                                    }
+                                    switch(r["NUTA_ASSESSMENT_ROW3"].ToString())
+                                    {
+                                        case "0":
+                                            AssessmentRow3 = "0分：無此問題或小於5天";
+                                            break;
+                                        case "2":
+                                            AssessmentRow3 = "2分：大於5天";
+                                            break;
+                                        default:
+                                            AssessmentRow3 = "內容錯誤";
+                                            break;
+                                    }
+                                    AssessmentRow4 = r["NUTA_ASSESSMENT_ROW4"].ToString() + " 分";
+                                }
+                                else if(r["NUTA_TYPE"].ToString() == "child")
+                                {
+                                    AssessmentRow1 = r["NUTA_ASSESSMENT_ROW1"].ToString();
+                                    AssessmentRow2 = r["NUTA_ASSESSMENT_ROW2"].ToString();
+                                    AssessmentRow3 = r["NUTA_ASSESSMENT_ROW3"].ToString();
+                                }
+                                if(r["NUTA_TYPE"].ToString() == "adult")
+                                {
+                                    if(r["NUTA_ASSESSMENT_ROW4"] != null)
+                                    {
+                                        if(Convert.ToInt16(r["NUTA_ASSESSMENT_ROW4"].ToString()) < 3)
+                                        { AssessmentResult = "MUST<3分，暫時不需要進一步的營養評估"; }
+                                        else if(Convert.ToInt16(r["NUTA_ASSESSMENT_ROW4"].ToString()) >= 3)
+                                        { AssessmentResult = "MUST≧3分為營養不良高度風險，通知主治醫師決定是否照會營養師做進一步的營養評估"; }
+                                    }
+                                }
+                                <tr class="del">
+                                    <td style="width: 13%;">
+                                        @Convert.ToDateTime(r["NUTA_ASSESSMENT_DTM"]).ToString("yyyy/MM/dd HH:mm")
+                                    </td>
+                                    <td style="width: 8%;">
+                                        @r["NUTA_HEIGHT"] cm<br />
+                                        @r["NUTA_WEIGHT"] kg
+                                    </td>
+                                    <td style="width: 4%;">
+                                        @r["NUTA_BMI"]
+                                    </td>
+                                    @if(r["NUTA_TYPE"].ToString() == "adult")
+                                    {
+                                    <td style="width: 13%; ">
+                                        @AssessmentRow1
+                                    </td>
+                                    <td style="width: 13%; ">
+                                        @AssessmentRow2
+                                    </td>
+                                    <td style="width: 15%; ">
+                                        @AssessmentRow3
+                                    </td>
+                                    <td style="width: 5%;">
+                                        @AssessmentRow4
+                                    </td>
+                                    }
+                                    else
+                                    { 
+                                    <td style="width: 15%; ">
+                                        @AssessmentRow1
+                                    </td>
+                                    <td style="width: 15%; ">
+                                        @AssessmentRow2
+                                    </td>
+                                    <td style="width: 17%; ">
+                                        @AssessmentRow3
+                                    </td>
+                                    }
+                                    @if(r["NUTA_TYPE"].ToString() == "adult")
+                                    {
+                                    <td style="width: 12%;">
+                                        @AssessmentResult
+                                    </td>
+                                    }
+                                    <td style="width: 6%;">
+                                        @r["username"]
+                                    </td>
+                                    <td style="width: 11%;">
+                                        <input type="button" nutaid="@r["NUTA_ID"]" value="修改" style="width: 40px;" onclick="SetNutritionAssessInfo(this);" />
+                                        <input type="button" nutaid="@r["NUTA_ID"]" value="刪除" style="width: 40px;" onclick="if (confirm('是否要刪除此筆資料?')) { DelNutAssmentFunc(this); }" />
+                                    </td>
+                                </tr>
+                            }
+                        </table>
+                    }
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>

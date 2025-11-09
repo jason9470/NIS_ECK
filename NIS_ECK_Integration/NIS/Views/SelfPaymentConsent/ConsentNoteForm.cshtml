@@ -1,0 +1,302 @@
+﻿@using System.Data;
+@using NIS.Data
+@using NIS.Controllers;
+@using Newtonsoft.Json;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    PatientInfo ptInfo = (PatientInfo)Session["PatInfo"];
+    string ConsentId = ViewBag.ConsentId;
+    DataTable ConsentMaster = ViewBag.ConsentMaster;
+    string JsonConsentMaster = JsonConvert.SerializeObject(ConsentMaster);
+    DataTable ConsentDetail = ViewBag.ConsentDetail;
+    string title = "編輯同意書註記";
+}
+<style type="text/css" scoped>
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #d5d5f7 !important;
+        width: 100%;
+        border-radius: 10px !important;
+        font-size: 28px;
+        font-weight: 800;
+        border: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        font-family: Arial, EUDC !important;
+    }
+
+    .funcArea {
+        margin: 0.5rem !important;
+        font-size: 18px !important;
+    }
+
+    .fun_btn {
+        font-size: 17px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 5px 5px 4px 4px !important;
+        cursor: pointer;
+    }
+
+    .check_btn {
+        background-color: #3c7ec3 !important;
+    }
+
+    .add_btn {
+        background-color: #42b55b !important;
+    }
+
+    .modify_btn {
+        background-color: #ed9017 !important;
+    }
+
+    .delete_btn {
+        background-color: #ed6f6f !important;
+    }
+
+    .dataHeader td {
+        font-weight: bold;
+        margin: 1px 1px 1px 1px;
+        background-color: #cfe1eb;
+        text-align: center;
+        vertical-align: middle;
+        height: 26px;
+    }
+
+    .dataHeader {
+        border-radius: 10px !important;
+        margin-right: 15px !important;
+    }
+
+    .funcArea table {
+        font-family: Arial, EUDC;
+    }
+
+    .dataArea {
+        border: 0 !important;
+    }
+
+        .dataArea td {
+            border-bottom: 0 !important;
+        }
+</style>
+<script type="text/javascript">
+    var ConsentMaster = @Html.Raw(JsonConsentMaster);
+    var itemList = [];
+
+    $(document).ready(function () {
+        loadRecord();
+        $('.dataArea tr').css('background', '#E1E6FA');
+        //$(window).resize(function () {
+        //    var height = $(this).outerHeight();
+        //    if (height <= 300)
+        //        height = 450;
+        //    $(".dataArea").outerHeight(height - 250);
+        //}).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    //驗證
+    function dtl_check() {
+        var success = true;
+        var tr_list = $('p[must=Y]:visible,div[must=Y]:visible,td[must=Y]:visible');
+        for (let i = 0; i < tr_list.length; i++) {
+            let input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea), textarea:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                let input_name = '';
+                for (let j = 0; j < input_list.length; j++) {
+                    if (input_name != $(input_list[j]).attr('name')) {
+                        input_name = $(input_list[j]).attr('name');
+                        //判斷input類型
+                        if (input_list[j].type == 'text' || input_list[j].type == 'textarea') {
+                            var input_val = $.trim(input_list[j].value);
+                        }
+                        else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                            var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+                        }
+                        //若為空則結束驗證並提示名稱
+                        if (input_val == undefined || input_val == '') {
+                            success = false;
+                            alert($(tr_list[i]).find('.subtitle').html() + ' 未填寫!')
+                            i = tr_list.length;
+                            j = input_list.length;
+                        }
+                    }
+                }
+            }
+        }
+        return success;
+    }
+
+    // 建立自費同意書
+    function save() {
+        $("#save").prop('disabled', true);
+        loop_windows("open_cover");
+
+        //驗證必填選項
+        if (!dtl_check()) {
+            $("#save").prop('disabled', false);
+            loop_windows("close_cover");
+            return;
+        }
+
+        //整理儲存資訊
+        let result = {};
+        result['consentId'] = '@ConsentId';
+        $('#saveDiv').find('input:not([type="button"]), textarea').each(function () {
+            let name = $(this).attr('name');
+            let type = $(this).attr('type');
+
+            // 判斷欄位類型
+            if (type === 'checkbox') {
+                result[name] = $(this).is(':checked');
+            } else if (type === 'radio') {
+                if ($(this).is(':checked')) {
+                    result[name] = $(this).val();
+                }
+            } else {
+                result[name] = $(this).val();
+            }
+        });
+
+        $.ajax({
+            type: "post",
+            url: '@Url.Content("~/SelfPaymentConsent/SaveNote")',
+            contentType: 'application/json',
+            data: JSON.stringify(result),
+            success: function (data) {
+                let alert_message = "";
+                switch (data.status) {
+                    case 0:
+                        if (data.message) {
+                            alert_message = data.message;
+                        }
+                        alert(alert_message);
+                        window.close();
+                        window.opener.location.href = 'Index?type=consent';
+                        break;
+                    default:
+                        if (data.message) {
+                            alert_message = data.message;
+                        }
+                        alert(alert_message);
+                        $("#save").prop('disabled', false);
+                        loop_windows("close_cover");
+                        break;
+                }
+            }, complete: function () {
+                $("#save").prop('disabled', false);
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    //帶入資料(編輯)
+    function loadRecord() {
+        //檢查是否為空
+        if (ConsentMaster == null || ConsentMaster.length==0) {
+            return;
+        }
+        let master = ConsentMaster[0];
+        //帶入註記
+        $('textarea[name=note]').val(master.NOTE);
+    }
+</script>
+
+<div id="module_define">@(title)</div>
+
+<div id="saveDiv" class="dataArea" style="margin-top: 0.5rem; overflow-y: auto !important;height:100% !important">
+    @if (ConsentMaster != null && ConsentMaster.Rows.Count > 0)
+    {
+        DataRow r = ConsentMaster.Rows[0];
+        var generatedDate = "";
+        var generatedTime = "";
+        if (r["GENERATED_TIME"] != null && r["GENERATED_TIME"].ToString() != "")
+        {
+            DateTime dateTryParse;
+            if (DateTime.TryParse(r["GENERATED_TIME"].ToString(), out dateTryParse))
+            {
+                generatedDate = dateTryParse.ToString("yyyy/MM/dd");
+                generatedTime = dateTryParse.ToString("HH:mm");
+            }
+        }
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:16px;">
+            <tr>
+                <th style="width: 20%">同意書編號</th>
+                <td style="width: 80%">@r["JOB_ID"]</td>
+            </tr>
+            <tr>
+                <th style="width: 20%">同意書時間</th>
+                <td style="width: 80%">@generatedDate @generatedTime</td>
+            </tr>
+            <tr>
+                <th style="width: 20%">簽屬狀態</th>
+                <td style="width: 80%">
+                    @switch (r["JOB_STATUS"].ToString())
+                    {
+                        case "ONGOING":
+                            <div>未簽署</div>
+                            break;
+                        case "COMPLETE":
+                            <div>已簽署</div>
+                            break;
+                    }
+                </td>
+            </tr>
+            <tr>
+                <th style="width: 20%">自費項目</th>
+                <td style="width: 80%">
+                    @if (ConsentDetail != null && ConsentDetail.Rows.Count > 0)
+                    {
+                        <table border="1" cellpadding="4" cellspacing="1" style="width:100%;font-size:16px">
+                            <tr>
+                                <th style="width: 60%">名稱</th>
+                                <th style="width: 10%">院內碼</th>
+                                <th style="width: 10%">單價</th>
+                                <th style="width: 10%">數量</th>
+                                <th style="width: 10%">金額</th>
+                            </tr>
+                            @foreach (DataRow detail in ConsentDetail.Rows)
+                            {
+                                <tr>
+                                    <td>@detail["ITEM_NAME"]</td>
+                                    <td>@detail["HO_ID"]</td>
+                                    <td>@detail["SELF_PRICE"]</td>
+                                    <td>@detail["COUNT"]</td>
+                                    <td>@detail["ITEM_PRICE"]</td>
+                                </tr>
+                            }
+                        </table>
+                    }
+                </td>
+            </tr>
+            <tr>
+                <th style="width: 20%"><span style="color: red">＊</span>註記內容</th>
+                <td must="Y" style="width: 80%">
+                    <label class="subtitle" style="display:none">註記內容</label>
+                    <textarea type="text" name="note" rows="4" cols="50" style=""></textarea>
+                </td>
+            </tr>
+        </table>
+        <div style="width:100%;display:flex;justify-content:center;margin-top:0.5rem">
+            <div>
+                <input type="button" class="fun_btn add_btn" value="儲存" onclick="save()" />
+                <input type="button" class="fun_btn delete_btn" value="取消" onclick="if (confirm('是否取消編輯?')) { window.close() }" />
+            </div>
+        </div>
+    }
+</div>
+
+
+
+

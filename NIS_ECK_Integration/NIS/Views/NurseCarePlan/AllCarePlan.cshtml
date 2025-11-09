@@ -1,0 +1,784 @@
+﻿@using System.Data;
+@using NIS.Models;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "查詢所有護理計畫";
+    DateTime mindate = DateTime.Now;
+    DataTable Dt_Master = ViewBag.Dt_Master;
+    List<User_Care_Plan_Item> Dt_Deftin = (List<User_Care_Plan_Item>)ViewData["Dt_Deftin"];
+    List<User_Care_Plan_Item> Dt_About = (List<User_Care_Plan_Item>)ViewData["Dt_About"];
+    List<User_Care_Plan_Item> Dt_Goal = (List<User_Care_Plan_Item>)ViewData["Dt_Goal"];
+    List<User_Care_Plan_Item> Dt_Active = (List<User_Care_Plan_Item>)ViewData["Dt_Active"];
+    List<User_Care_Plan_Item> temp = null;
+    List<User_Care_Plan_Item> temp_act = null;
+    string ass_result = string.Empty;
+    bool Discharged = ViewBag.Discharged;
+    DateTime start = ViewBag.start;
+    string end = ViewBag.end;
+
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    input[type=button] {
+        border: 1px solid #666;
+        padding: 4px 10px 4px 10px;
+        border-radius: 3px;
+    }
+
+    #topic_panel {
+        width: 100%;
+        margin-top: 5px;
+        overflow-y: scroll;
+        overflow-x: hidden;
+        height: 550px;
+    }
+
+    .topic_block {
+        width: 98%;
+        margin: 5px;
+        padding: 5px;
+        border: 1px solid #666;
+        background-color: #E1E6FA;
+    }
+
+        .topic_block:hover {
+            background-color: #ABC8E2;
+        }
+
+    .cp_item {
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    .cp_info_panel > div {
+        display: block;
+        border: 1px solid #666;
+        background-color: #FFFFBB;
+        padding: 5px;
+        border-radius: 5px;
+        margin-bottom: 2px;
+    }
+
+        .cp_info_panel > div > ul {
+            display: block;
+            list-style-type: circle;
+            margin: 0px;
+            padding-left: 1.5em;
+        }
+
+            .cp_info_panel > div > ul > li {
+                padding: 2px;
+            }
+
+    .target_title {
+        margin: 2px 5px 0px 5px;
+        border: 1px solid #CCCCCC;
+        padding: 5px;
+        font-size: 12px;
+        font-weight: bold;
+        background-color: #99FFBB;
+    }
+
+    .target_block, .setp_block {
+        display: block;
+        line-height: 14px;
+        padding: 10px;
+        border: 1px solid #CCCCCC;
+        margin: 2px 5px 0px 5px;
+    }
+
+    .target_block {
+        background-color: #FFFFFF;
+    }
+    .target_block > label {
+        cursor: pointer;
+        }
+    .target_block > label:hover {
+        background-color: #EEEEEE;
+        }
+    .setp_block {
+        background-color: #EEDDFF;
+    }
+    .setp_block > label {
+        display: block;
+        cursor: pointer;
+        }
+    .setp_block > label:hover {
+        background-color: #CC99FF;
+        }
+    #win_content{
+        margin: 0px auto;
+        *margin: 0px auto; /* ie7 */
+        _margin: 0px auto; /* ie6 */
+        }
+    #win_footer {
+        height: 22px;
+        position: relative;
+        text-align: right;
+        padding: 10px 10px 10px 0px;
+    }
+    #win_Dt{
+        height:350px;
+        width:90%;
+        text-align: center;
+    }
+    #sys_Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1000;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+            #sys_Loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 1001;
+        display: none;
+    }
+
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        var recordid = "";
+        setGridColor();
+    });
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    $(function () {
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $("#topic_panel").outerHeight(height - 80);
+        }).trigger("resize");
+
+        if ($('.topic_block').length == 0)
+            $('#topic_panel').html('<div style="font-size:18px;font-weight:bold;margin-top:5px;">尚無執行中的護理計畫</div>');
+    });
+
+    function Edit(recordid) {
+        loop_windows("open_cover");
+        window.location.href = 'EditCarePlan?recordid=' + recordid;
+    }
+
+    //評值存檔 點選'不適用'需輸入原因
+    function Score_Goal(recordid, targetid) {
+
+        if ($('input[name=' + recordid + 'CPRESULT' + targetid + ']:checked').length > 0) {
+            $('#scoregoal_' + targetid).prop('disabled', true);
+            $.ajax({
+                url: "Score_Goal",
+                type: "POST",
+                data: $('#' + recordid).serialize() + "&recordid=" + recordid + "&targetid=" + targetid + "&type=Restart",
+                success: function (data) {
+                    alert(data);
+                    if ($('input[name=' + recordid + 'CPRESULT' + targetid + ']:checked').val() == "N" && $('#' + recordid + 'c_options' + targetid).val() == "修改護理措施") {
+                        window.location.href = 'EditCarePlan?R=Y&recordid=' + recordid;
+                    }
+                    else {
+                        window.location.href = 'AllCarePlan';
+                    }
+                },
+                beforeSend: function () {
+                    $("#sys_Block, #sys_Loading").show();
+                },
+                complete: function () {
+                    $('#scoregoal_' + targetid).prop('disabled', false);
+                    $("#sys_Block, #sys_Loading").hide();
+                },
+                error: function () {
+                    $("#sys_Block, #sys_Loading").hide();
+                }
+            });
+        }
+        else
+            alert("請選擇目標評值結果!");
+    }
+
+    //評值存檔 點選'不適用'需輸入原因
+    function Score_Del(recordid, targetid) {
+        loop_windows("open_cover");
+        $('#scoredel_' + targetid).prop('disabled', true);
+            $.ajax({
+                url: "Score_Del",
+                type: "POST",
+                data: $('#' + recordid).serialize() + "&recordid=" + recordid + "&targetid=" + targetid + "&type=Restart",
+                success: function (data) {
+                    alert(data);
+                        window.location.href = 'AllCarePlan';
+                },
+                complete: function () {
+                    $('#scoredel_' + targetid).prop('disabled', false);
+                    loop_windows("close_cover");
+                },
+                error: function () {
+                    loop_windows("close_cover");
+                }
+            });
+    }
+
+    //執行護理計畫
+    function Execute_Act(recordid) {
+
+        if ($('input[name=activity' + recordid + ']:checked').length > 0) {
+            loop_windows("open_cover");
+            $.ajax({
+                url: "Execute_Act",
+                type: "POST",
+                data: $('#' + recordid).serialize() + "&recordid=" + recordid,
+                success: function (data) {
+                    $('input[name=activity' + recordid + ']').attr('checked', false);
+                    alert(data);
+                },
+                complete: function () {
+                    loop_windows("close_cover");
+                },
+                error: function () {
+                    loop_windows("close_cover");
+                }
+            });
+        }
+        else
+            alert("請選擇護理措施!");
+    }
+
+    function Show_Txt(obj) {
+        if (obj.value == 'C') {
+            $('#unscore_text_' + $(obj).attr('gid')).fadeIn(100);
+            $('#unscore_text_' + $(obj).attr('gid')).css('display', 'inline-block');
+        }
+        else {
+            $('#unscore_text_' + $(obj).attr('gid')).fadeOut(0);
+            $('#unscore_text_' + $(obj).attr('gid')).val('');
+        }
+    }
+    function EditC_model(obj, source) {
+        $('.' + obj).fadeToggle();
+    }
+
+    function History_model(id, targetid) {
+        var start_date = $("#drainage_modal #win_content #start_date").val();
+        var end_date = $("#drainage_modal #win_content #end_date").val();
+        if (id != '') {
+            recordid = id;
+            showmodal(recordid, targetid);
+
+        } else {
+            recordid = $('#win_footer #recordid').val();
+            targetid = $('#win_footer #targetid').val();
+        }
+        loop_windows("open_cover");
+        $.ajax({
+            url: '@Url.Content("~/NurseCarePlan/HistoryData")',
+            type: 'POST',
+            async: false,
+            data: {
+                recordid: recordid,
+                start_date: start_date,
+                targetid: targetid,
+                end_date: end_date
+            },
+            success: function (data) {
+                $('#Dt tbody').html('')//清空
+                if (!!data.Dt_bool && data.CPHistory != "") {
+                    var tr_str = "";
+                    var item_tmp_html = $("#item_tmp");//取得樣板
+                    var Target_str = "";
+                    $.each(data.CPHistory, function (i, obj) {
+                        item_tmp_html.find('td [name=record_id]').val(obj.PK_ID);
+                        if (obj.ASSESS_ID != data.LoginUserID) {
+                            $('td [name=record_id]').hide();
+                        }
+                        if (i == 0) {
+                            item_tmp_html.find('td [name=record_id]').attr('onclick', "EditCPTARGET('All')");
+                        } else {
+                            item_tmp_html.find('td [name=record_id]').attr('onclick', "EditCPTARGET('Some')");
+                        }
+                        item_tmp_html.find('td[name=Date]').html(moment(obj.ASSESS_DATE).format("YYYY/MM/DD HH:mm:ss"));
+                        switch (obj.TARGETSTATUS) {
+                            case 'Y':
+                                Target_str = '已達成';
+                                break;
+                            case 'C':
+                                Target_str = '不適用';
+                                break;
+                            case 'N':
+                                Target_str = '未達成，' + obj.REASON;
+                                break;
+
+                            default:
+
+                        }
+                        item_tmp_html.find('td[name=Status]').html(Target_str);
+                        item_tmp_html.find('td[name=User]').html(obj.ASSESS_NAME);
+                        tr_str += item_tmp_html.html();
+                    });
+                    $('#Dt tbody').html(tr_str);
+                    return false;
+                }
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            },
+            error: function (jqXHR) {
+                loop_windows("close_cover");
+                log(jqXHR);
+                msg = '程式發生錯誤!';
+            },
+        });
+    }
+    function showmodal(recordid, targetid) {
+        var div_view = $('#drainage_modal');
+        $("#win_footer").find('#recordid').val(recordid);
+        $("#win_footer").find('#targetid').val(targetid);
+        $.blockUI({
+            message: div_view,
+            onOverlayClick: $.unblockUI(),
+            overlayCSS: {
+                border: 'none',
+                cursor: 'default'
+            },
+            css: {
+                top: ($(window).height() - div_view.height()) / 2 + 'px',
+                left: ($(window).width() - div_view.width()) / 2 + 'px',
+                width: 'min-content',
+                border: 'none',
+                cursor: 'default'
+            },
+            onBlock: function () {
+
+            }
+        });
+    }
+    function EditCPTARGET(obj) {
+        if (obj == "All") {
+            $("#win_footer .All").show();
+        } else if (obj == "Some") {
+            $("#win_footer .All").hide();
+        }
+    }
+    function CPdel(obj) {
+        var id = obj;
+        if (confirm("是否確定刪除該護理計畫?")) {
+            loop_windows("open_cover");
+
+            $.ajax({
+                url: "CarePlanDel",
+                type: "POST",
+                data: {
+                    Cid: id
+                },
+                success: function (data) {
+                    var alertstr = "";
+                    switch (data) {
+                        case "Y":
+                            alertstr = "刪除成功";
+                            break;
+                        case "N":
+                            alertstr = "刪除失敗";
+                            break;
+                        case "Fail":
+                            alertstr = "已做過評值或重整內容，無法刪除";
+                            break;
+                        default:
+                    }
+                    alert(alertstr);
+                    if (data == "Y") {
+                        window.location.href = 'AllCarePlan';
+                    }
+                },
+                complete: function () {
+                    loop_windows("close_cover");
+                },
+                error: function (data) {
+                    alert("刪除失敗,請再試一次");
+                    loop_windows("close_cover");
+                }
+
+
+            });
+        }
+
+    }
+    function History_edit() {
+        var His_id = $('input[type=radio][name=record_id]:checked').val();
+        var recordid = $('#win_footer #recordid').val();
+        var targetid = $('#win_footer #targetid').val();
+        var c_options = $('#c_options').val();
+        if ($('td [name=record_id]:checked').length > 0) {
+            if ($('input[type=radio][name=CPRESULT]:checked').length > 0) {
+                $.ajax({
+                    url: "HistoryEdit",
+                    type: "POST",
+                    data: {
+                        His_id: His_id,
+                        recordid: recordid,
+                        targetid: targetid,
+                        reason: c_options
+                    },
+                    success: function (data) {
+                        alert('OK');
+                        $.unblockUI();
+                        window.location.href = 'AllCarePlan';
+
+                        //if ($('#c_options').val() == "修改護理措施") {
+                        //    alert('EDIT');
+                        //    window.location.href = 'EditCarePlan?R=Y&recordid=' + recordid + '&source=AllCarePlan';
+                        //}
+                        //else {
+                        //    $.unblockUI();
+                        //    alert('RETURN');
+                        //    window.location.href = 'AllCarePlan';
+                        //}
+                    },
+                    error: function () {
+                        alert('ERROR');
+                    }
+                });
+            } else {
+                alert("請選擇評值狀態!");
+            }
+        } else {
+            alert("請選擇欲修改評值歷程!");
+        }
+        
+    }
+</script>
+
+<div class="funcArea">
+    <input type="button" value="新增護理計畫" style="width:160px;" onclick="window.location.href = 'Index'" />
+    <input type="button" value="查詢所有護理計畫" style="width:160px;" onclick="window.location.href = 'AllCarePlan'" />
+    <input type="button" value="護理計畫總表" style="width:160px;" onclick="window.location.href = 'AllList'" />
+    <input type="button" value="護理計畫(護理紀錄)" style="width:160px;" onclick="window.location.href = 'List'" />
+        @*11/19 護理計畫刪除功能隱藏*@
+
+
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;margin:5px 0 5px 0;">
+        <tr>
+            <td>
+                <div id="module_define">@(title)</div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <table style="width:100%;background-color:white;">
+                    <tr>
+                        <td>
+                            <div id="topic_panel" style="height:360px;">
+
+                                @if (Dt_Master != null && Dt_Master.Rows.Count > 0)
+                                {
+                                    foreach (DataRow r in Dt_Master.Rows)
+                                    {
+                                        //if (r["CPRESULT"].ToString() == "" || (r["CPRESULT"].ToString() == "N" && (r["REASON"].ToString() == "繼續執行" || r["REASON"].ToString() == "修改護理措施")))
+                                        //{
+                                        <div class="topic_block">
+                                            <table style="width:100%;">
+                                                <tr>
+                                                    <td colspan="2" style="width:40%;vertical-align:top;" class="cp_item">
+                                                        <span style="color:#660000">健康問題：</span>
+                                                        @if (r["MODIFT_DATE"] != null && r["MODIFT_DATE"].ToString() != "" && Convert.ToDateTime(DateTime.Now.AddDays(-6).ToString("yyyy/MM/dd")) < Convert.ToDateTime(Convert.ToDateTime(r["MODIFT_DATE"].ToString()).ToString("yyyy/MM/dd")))
+                                                        {
+                                                            @r["topicdesc"].ToString()
+                                                        }
+                                                        else if (Convert.ToDateTime(DateTime.Now.AddDays(-6).ToString("yyyy/MM/dd")) >= Convert.ToDateTime(Convert.ToDateTime(r["PLANSTARTDATE"].ToString()).ToString("yyyy/MM/dd")))
+                                                        {
+                                                            <span style="color:red">@r["topicdesc"].ToString()</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            @r["topicdesc"].ToString()
+                                                        }
+
+
+
+                                                        [<span style="color:#0300FA">#@(int.Parse(r["pno"].ToString()))</span>]
+                                                        @if (!Discharged)
+                                                            {
+                                                                <input type="submit" value="刪除" onclick="CPdel('@(r["recordid"].ToString())')" />
+                                                            }
+                                                               @* 11/19 護理計畫刪除功能隱藏 *@
+                                                    </td>
+                                                    @*<td style="width:60%">
+                                                            <input type="button" class="btn_m"  value="重整" onclick="Edit('@(r["recordid"].ToString())');" />
+                                                        </td>*@
+                                                </tr>
+                                                <tr>
+                                                    <td style="width:40%;vertical-align:top;font-size:12px;" class="cp_info_panel">
+                                                        <div>
+                                                            @if (Dt_Deftin != null && Dt_Deftin.Count > 0)
+                                                            {
+                                                                temp = Dt_Deftin.FindAll(x => x.M_ID == r["recordid"].ToString());
+                                                                @Html.Raw("定義性特徵:")
+                                                                @Html.Raw(" <hr />")
+                                                                @Html.Raw("<ul>")
+                                                                foreach (var item in temp)
+                                                                {
+                                                                    @*@Html.Raw("<li>" + item.Item + "</li>")*@
+
+                                                                    @Html.Raw("<li>" + item.Item + "<label style='color:blue;'>" + Convert.ToDateTime(item.RecordTime).ToString("yyyy/MM/dd") + "</label>")
+                                                                    if (item.StopDate.ToString() != "")
+                                                                    {
+                                                                        @Html.Raw("-<label style='color:blue;'>" + Convert.ToDateTime(item.StopDate).ToString("yyyy/MM/dd") + "</label>")
+                                                                    }
+                                                                    @Html.Raw("</li>")
+
+                                                                }
+                                                                @Html.Raw("</ul>")
+                                                            }
+                                                        </div>
+                                                        <div>
+                                                            @if (Dt_About != null && Dt_About.Count > 0)
+                                                            {
+                                                                temp = Dt_About.FindAll(x => x.M_ID == r["recordid"].ToString());
+                                                                @Html.Raw("相關因素:")
+                                                                @Html.Raw("<hr />")
+                                                                @Html.Raw("<ul>")
+                                                                foreach (var item in temp)
+                                                                {
+                                                                    @Html.Raw("<li>" + item.Item + "<label style='color:blue;'>" + Convert.ToDateTime(item.RecordTime).ToString("yyyy/MM/dd") + "</label>")
+                                                                    if (item.StopDate.ToString() != "")
+                                                                    {
+                                                                        @Html.Raw("-<label style='color:blue;'>" + Convert.ToDateTime(item.StopDate).ToString("yyyy/MM/dd") + "</label>")
+                                                                    }
+                                                                    @Html.Raw("</li>")
+                                                                }
+                                                                @Html.Raw("</ul>")
+                                                            }
+                                                        </div>
+                                                        <div style="display:none">
+                                                            @if (Dt_Goal != null && Dt_Goal.Count > 0)
+                                                            {
+                                                                temp = Dt_Goal.FindAll(x => (x.M_ID == r["recordid"].ToString()));
+                                                                @Html.Raw("目標:")
+                                                                @Html.Raw("<hr />")
+                                                                @Html.Raw("<ul>")
+                                                                foreach (var item in temp)
+                                                                {
+                                                                    @Html.Raw("<li>" + item.Item + "</li>")
+                                                                }
+                                                                @Html.Raw("</ul>")
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                    <td style="width:60%;vertical-align:top;font-size:12px;" class="cp_info_panel">
+                                                        <div>
+                                                            <form id="@r["recordid"].ToString()">
+                                                                <input type="hidden" name="Topic" value="@r["topicdesc"].ToString()" />
+                                                                <input type="hidden" name="PNO" value="@(int.Parse(r["pno"].ToString()))" />
+                                                                <p class='target_title' style="display:none;">
+                                                                    評值時間:
+                                                                    @Html.TextBox("CreateDate_" + r["recordid"].ToString(), DateTime.Now.ToUniversalTime().AddHours(8).ToString("yyyy/MM/dd"), new { @class = "form-control input-sm", @style = "display:inline-block;" })
+                                                                    @Html.TextBox("CreateTime_" + r["recordid"].ToString(), DateTime.Now.ToUniversalTime().AddHours(8).ToString("HH:mm"), new { @class = "form-control input-sm", @style = "display:inline-block;" })
+                                                                    @*@WebTool.setDateTime("CreateDate_" + r["recordid"].ToString(), "CreateTime_" + r["recordid"].ToString(), "", "0")*@
+                                                                    @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "CreateDate_" + r["recordid"].ToString(), "CreateTime_" + r["recordid"].ToString(), false)*@
+                                                                </p>
+                                                                @if (Dt_Goal != null && Dt_Goal.Count > 0)
+                                                                {
+                                                                    temp = Dt_Goal.FindAll(x => (x.M_ID == r["recordid"].ToString()));
+                                                                    foreach (var item in temp)
+                                                                    {
+                                                                        <div class='target_block'>
+                                                                            <div>
+                                                                                目標：@item.Item 評值日期：@item.ScoreTime
+                                                                                <input type="button" class="@(r["recordid"].ToString())c_editbtn@(item.G_PK_ID)" value="評值修改" onclick="EditC_model('@(r["recordid"].ToString())c_div@(item.G_PK_ID)', 'final')">
+                                                                                @*<input type="button" class="@(r["recordid"].ToString())c_history_btn@(item.G_PK_ID)" value="歷程評值修改" onclick="History_model('@(r["recordid"].ToString())','@(item.G_PK_ID)')">*@
+                                                                            </div>
+                                                                            <input type="hidden" name="@(r["recordid"].ToString())TARGET@(item.G_PK_ID)" value="@item.Item" />
+                                                                            <script type="text/javascript">
+                                                                                $(document).ready(function () {
+                                                                                    var itemValue = "@item.StopDate";
+                                                                                    var Modify_bool = "@item.Modify";
+                                                                                    var Score_Status = "@item.Score_Status";
+                                                                                    $('.@(r["recordid"].ToString())c_history_btn@(item.G_PK_ID)').hide();
+                                                                                    $('.@(r["recordid"].ToString())c_editbtn@(item.G_PK_ID)').hide();
+                                                                                    if (Modify_bool =="Y") {
+                                                                                        if (itemValue != "" && itemValue != null) {
+                                                                                            $('.@(r["recordid"].ToString())c_editbtn@(item.G_PK_ID)').show();
+                                                                                        }
+                                                                                        else {
+                                                                                            if (Score_Status == 'N') {
+                                                                                                $('.@(r["recordid"].ToString())c_editbtn@(item.G_PK_ID)').show();
+                                                                                                $('.@(r["recordid"].ToString())c_history_btn@(item.G_PK_ID)').show();
+
+                                                                                            }
+                                                                                        }
+                                                                                    } else {
+                                                                                        if (Score_Status == 'N' && itemValue == "") {
+                                                                                            $('.@(r["recordid"].ToString())c_history_btn@(item.G_PK_ID)').show();
+
+                                                                                        }
+                                                                                    }
+                                                                                });
+                                                                            </script>
+                                                                            <span>
+                                                                                評值結果：@item.Score
+                                                                            </span>
+                                                                            <div class="@(r["recordid"].ToString())c_div@(item.G_PK_ID)" style="display:none;">
+
+                                                                                <span>
+                                                                                    <label><input type="radio" name="@(r["recordid"].ToString())CPRESULT@(item.G_PK_ID)" value="Y" onclick="$('#@(r["recordid"].ToString())c_options@(item.G_PK_ID)').hide();">已達成</label>
+                                                                                    <label><input type="radio" name="@(r["recordid"].ToString())CPRESULT@(item.G_PK_ID)" value="N" onclick="$('#@(r["recordid"].ToString())c_options@(item.G_PK_ID)').show();">未達成</label>
+                                                                                    <label><input type="radio" name="@(r["recordid"].ToString())CPRESULT@(item.G_PK_ID)" value="C" onclick="$('#@(r["recordid"].ToString())c_options@(item.G_PK_ID)').hide();">不適用</label>
+                                                                                    <select id="@(r["recordid"].ToString())c_options@(item.G_PK_ID)" name="@(r["recordid"].ToString())c_options@(item.G_PK_ID)" style="display:none;">
+                                                                                        <option value="繼續執行">繼續執行</option>
+                                                                                        @*<option value="修改護理措施">修改護理措施</option>*@
+                                                                                        <option value="出院">出院</option>
+                                                                                        <option value="轉院">轉院</option>
+                                                                                        <option value="死亡">死亡</option>
+                                                                                    </select>
+                                                                                </span>
+                                                                                <input type="button" value="目標評值儲存" id="scoregoal_@(item.G_PK_ID)" onclick="Score_Goal('@(r["recordid"].ToString())','@item.G_PK_ID');" />
+                                                                                <input type="button" value="評值刪除" id="scoredel_@(item.G_PK_ID)" onclick="Score_Del('@(r["recordid"].ToString())','@item.G_PK_ID');" />
+                                                                            </div>
+                                                                        </div>
+                                                                    }
+
+                                                                }
+
+                                                                <div class='setp_block'>
+                                                                    @if (Dt_Active != null && Dt_Active.Count > 0)
+                                                                    {
+                                                                        temp = Dt_Active.FindAll(x => (x.M_ID == r["recordid"].ToString()));
+                                                                        @Html.Raw("<ul>")
+                                                                        foreach (var item in temp)
+                                                                        {
+                                                                            @Html.Raw("<li>" + item.Item + "<label style='color:blue;'>" + Convert.ToDateTime(item.RecordTime).ToString("yyyy/MM/dd") + "</label>")
+                                                                            if (item.StopDate.ToString() != "")
+                                                                            {
+                                                                                @Html.Raw("-<label style='color:blue;'>" + Convert.ToDateTime(item.StopDate).ToString("yyyy/MM/dd") + "</label>")
+                                                                            }
+                                                                            @Html.Raw("</li>")
+                                                                        }
+                                                                        @Html.Raw("</ul>")
+                                                                        <input type="hidden" value="執行護理計畫" onclick="Execute_Act('@(r["recordid"].ToString())');" />
+                                                                    }
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        //}
+                                    }
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+</div>
+<!--評值清單歷次查詢-->
+<div id="drainage_modal" style="width:800px;height:500px;display:none;">
+    <div style="height:500px;width:100%;">
+        <div id="win_header">
+            未達成評值清單歷次查詢
+        </div>
+        <div id="win_content">
+            @Html.TextBox("start_date", start.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+            @Html.Label("lab", " ~ ")
+            @Html.TextBox("end_date", end, new { style = "width:80px", @readonly = "readonly" })
+            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "", false, "0", "1020")
+            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "", false, "0", "1020")
+            <input type="button" id="search" value="查詢" style="width:60px;" onclick="History_model('')" />
+        </div>
+        <div id="win_Dt" style="width:95%;height:400px;overflow-y: auto;margin-left:20px">
+            <table id="Dt" style="margin-top:20px;border: 1px solid;width:100%;border-collapse: collapse;">
+                <thead>
+                    <tr class="" style="border: 1px solid;">
+                        <th style="width:8%;border: 1px solid;">修改</th>
+                        <th style="width:30%;border: 1px solid;">評值時間</th>
+                        <th style="width:30%;border: 1px solid;">評值時狀態</th>
+                        <th style="width:15%;border: 1px solid;">評值人員</th>
+                        @*<th style="width:17%;border: 1px solid;">修改狀態</th>*@
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="win_footer">
+            <span>
+                @*<label class="All" style="display:none;"><input type="radio" name="CPRESULT" value="Y" onclick="$('#c_options').hide();">已達成</label>*@
+                <label><input type="radio" name="CPRESULT" value="N" onclick="$('#c_options').show();" checked>未達成</label>
+                @*<label  class="All" style="display:none;"><input type="radio" name="CPRESULT" value="C" onclick="$('#c_options').hide();">不適用</label>*@
+                <select id="c_options" name="c_options">
+                    <option value="繼續執行">繼續執行</option>
+                    <option value="修改護理措施">修改護理措施</option>
+                    @*<option  class="All" style="display:none;" value="出院">出院</option>
+                    <option  class="All" style="display:none;" value="轉院">轉院</option>
+                    <option  class="All" style="display:none;" value="死亡">死亡</option>*@
+                </select>
+            </span>
+            <input type="hidden" id="recordid" value="">
+            <input type="hidden" id="targetid" value="">
+            <input type="button" value="修改" onclick="History_edit();" />
+            <input type="button" value="關閉" onclick="$.unblockUI();" />
+        </div>
+
+        <table style="display:none;">
+            <tbody id="item_tmp">
+                <tr style="background-color:honeydew;border: 1px solid;" data-json="">
+                    <td style="border: 1px solid;text-align:center;">
+                        <input type="radio" name="record_id" id="" value="" data-feq="" />
+                    </td>
+                    <td name="Date" style="border: 1px solid;"></td>
+                    <td align="left" name="Status" style="border: 1px solid;"></td>
+                    <td name="User" style="border: 1px solid;"></td>
+                </tr>
+            </tbody>
+        </table>
+
+    </div>
+</div>
+    <!--遮罩-->
+<div id="inp" class="dialog"></div>
+<div id="cover" class="dialog"></div>
+<div id="sys_Block"></div>
+<div id="sys_Loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/System/loading.gif" alt="" />
+</div>
+
+

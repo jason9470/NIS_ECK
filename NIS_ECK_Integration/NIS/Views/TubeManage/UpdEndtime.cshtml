@@ -1,0 +1,184 @@
+﻿@using System.Data; 
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable dt = ViewBag.dt_tube;
+    string CareMsg = string.Empty;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+  .dataArea td {
+    border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+  }
+</style>
+
+<div class="dataHeader">
+    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+        <tr>
+            <td style="width:11%;">插管日期</td>
+            <td style="width:14%;">種類</td>
+            <td style="width:7%;">部位</td>
+            <td style="width:7%;">位置</td>
+            <td style="width:5%;">編號</td>
+            <td style="width:16%;">預計拔管日期</td>
+            <td style="width:20%;">拔管日期</td>
+            <td style="width:20%;">拔管原因註記</td>
+        </tr>
+    </table>
+</div>
+<div class="dataArea" style="height:200px;">
+@if (dt != null && dt.Rows.Count > 0)
+{
+    <table id="Data" border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+    @foreach (DataRow r in dt.Rows)
+    {
+        CareMsg = "移除" + r["POSITION"];
+        if (r["LOCATION"].ToString() != "-1")
+        {
+            CareMsg += r["LOCATION_NAME"];
+        }
+        CareMsg += r["TYPE_NAME"];
+        if (r["NUMBERID"].ToString() != "99")
+        {
+            CareMsg += " #" + r["NUBER_NAME"];
+        }
+        else
+        {
+            if (r["NUMBEROTHER"].ToString() != "")
+            {
+                CareMsg += " #" + r["NUMBEROTHER"];
+            }
+        }
+        <tr data-Row="@r["TUBEROW"]" data-ID="@r["TUBEID"]" data-CareMsg="@CareMsg">
+            <td style="width:11%;text-align:center;">
+                @if (!string.IsNullOrWhiteSpace(r["STARTTIME"].ToString()))
+                {
+                    @Convert.ToDateTime(r["STARTTIME"]).ToString("yyyy/MM/dd HH:mm")
+                }
+                else
+                {
+                    <label>不詳</label>
+                }
+            </td>
+            <td style="width:14%;">@r["TYPE_NAME"]</td>
+            <td style="width:7%;">@r["POSITION"]</td>
+            <td style="width:7%;">
+                @if (r["LOCATION"].ToString() != "-1")
+                {
+                    @r["LOCATION_NAME"]
+                }
+            </td>
+            <td style="width:5%;">
+                @if (r["NUMBERID"].ToString() != "99")
+                {
+                    @r["NUBER_NAME"]
+                }
+                else
+                {
+                    @r["NUMBEROTHER"]
+                }  
+            </td>
+            <td style="width:16%;">
+                @if (r["FORECAST"].ToString() != "")
+                {
+                @Convert.ToDateTime(r["FORECAST"]).ToString("d")
+                }
+            </td>
+            <td style="width:20%;">
+                <input type="text" id="tube_end_date_@(r["TUBEID"])" name="tube_end_date" value="@(DateTime.Now.ToString("yyyy/MM/dd"))" />
+                <input type="text" id="tube_end_time_@(r["TUBEID"])" name="tube_end_time" value="@(DateTime.Now.ToString("HH:mm"))" />
+                @*@WebTool.setDateTime("tube_end_date_" + r["TUBEID"], "tube_end_time_" + r["TUBEID"])*@
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "tube_end_date_" + r["TUBEID"], "tube_end_time_" + r["TUBEID"], false)
+            </td>
+            <td style="width:20%;">
+                <label><input type="radio" name="RblMark_@(r["TUBEID"])" value="到期">到期</label>
+                <label><input type="radio" name="RblMark_@(r["TUBEID"])" value="滑脫">滑脫</label>
+                <label><input type="radio" name="RblMark_@(r["TUBEID"])" value="自拔">自拔</label>
+                <label><input type="radio" name="RblMark_@(r["TUBEID"])" value="依醫囑">依醫囑</label>
+                <label><input type="radio" name="RblMark_@(r["TUBEID"])" value="出院">出院</label>
+                <label><input type="radio" name="RblMark_@(r["TUBEID"])" value="其他">其他</label>
+                <input type="text" name="EndRemark" style="width:90%;display:none;" />
+            </td>
+        </tr>
+    }
+    </table>
+}
+</div>
+<div class="funcArea" style="text-align:center;" >
+    <input type="button" value="確認" onclick="Validation();" />
+    <input type="button" value="取消" onclick="if (confirm('確認取消?')) { window.close(); }" />
+</div>
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+
+        $("input[type=radio][name*=RblMark]").change(function () {
+            var item = $(this).closest('td').find('input[type=text][name=EndRemark]');
+            if ($(this).val() == "其他")
+                item.show();
+            else
+                item.val('').hide();
+        });
+    });
+
+    function Validation() {
+        var Success = true;
+        var JsonList = [];
+        var JsonObj;
+        $('input[type=button]').prop('disabled', true);
+        
+        $.each($('#Data tr'), function (i, item) {
+            if (Success) {
+                var tag = $(item).attr('data-ID');
+                if ($(item).find('input[name=RblMark_' + tag + ']:checked').length > 0) {
+                    if ($(item).find('input[name=RblMark_' + tag + ']:checked').val() == "其他"
+                         && $.trim($(item).find('input[type=text][name=EndRemark]').val()) == "") {
+                        alert('其他必須輸入!');
+                        Success = false;
+                        return false;
+                    }
+                }
+                else {
+                    alert('拔管原因註記必須輸入!');
+                    Success = false;
+                    return false;
+                }
+
+                if (Success) {
+                    JsonObj = new Object();
+                    JsonObj["Row"] = $(item).attr('data-Row');
+                    JsonObj["ID"] = $(item).attr('data-ID');
+                    JsonObj["RecordTime"] = $(item).find('input[type=text][name=tube_end_date]').val() + ' ' + $(item).find('input[type=text][name=tube_end_time]').val();
+                    JsonObj["Remark"] = $(item).find('input[name=RblMark_' + tag + ']:checked').val();
+                    JsonObj["RemarkReason"] = $.trim($(item).find('input[type=text][name=EndRemark]').val());
+                    JsonObj["CareMsg"] = $(item).attr('data-CareMsg');
+                    JsonList.push(JsonObj);
+                }
+            }
+        });
+        
+        if (Success) {
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/TubeManage/UpdEndtime")',
+                data: { 'JsonString': JSON.stringify(JsonList) },
+                success: function (data) {
+                    alert(data);
+                    opener.window.location.href = 'Index';
+                    window.close();
+                }
+            });
+        }
+        else
+            $('input[type=button]').prop('disabled', false);
+    }
+</script>

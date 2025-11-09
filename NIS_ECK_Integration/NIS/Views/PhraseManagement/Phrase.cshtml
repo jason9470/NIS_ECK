@@ -1,0 +1,802 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    UserInfo UserInfo = (UserInfo)Session["UserInfo"];
+    string userno = ViewBag.userno;
+}
+
+<style type="text/css">
+    .dataarea {
+        border: 1px solid rgba(20%,20%,40%,0.5);
+    }
+
+        .dataarea td {
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        }
+
+    img {
+        height: 24px;
+        width: 24px;
+    }
+
+    .popup {
+        width: auto;
+        height: auto;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -250px 0 0 -300px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    .dtree {
+        font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        color: #666;
+        white-space: nowrap;
+        overflow: auto;
+    }
+
+        .dtree img {
+            border: 0px;
+            vertical-align: middle;
+        }
+
+        .dtree a {
+            color: #333;
+            text-decoration: none;
+        }
+
+            .dtree a.node, .dtree a.nodeSel {
+                white-space: nowrap;
+                padding: 1px 2px 1px 2px;
+            }
+
+                .dtree a.node:hover, .dtree a.nodeSel:hover {
+                    color: #333;
+                    text-decoration: underline;
+                }
+
+            .dtree a.nodeSel {
+                background-color: #c0d2ec;
+            }
+
+        .dtree .clip {
+            overflow: hidden;
+        }
+
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #saving {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        $("#copy_button").attr("style", "display:none");
+
+        setTimeout(function () {
+            setDataAreaSize();
+        }, 200);
+
+        $(window).resize(function () { setDataAreaSize(); }).trigger('resize');
+
+        // 加入focus事件
+        ////$(window).focus(function () {
+        ////    window.opener.parent.check_session();
+        ////});
+        $("#phrase_add").draggable();
+        setGridColor();
+        set_unclick('insert_node,rename_node,delete_node,insert_phrase,update_phrase');
+        $('#phrase_data').load('../PhraseManagement/Phrase_Data?type=' + '@ViewBag.type');
+
+        var PhraseType = '@ViewBag.type';
+
+        if (PhraseType == 'self') {
+            //個人片語
+            QueryPhraseTreeNode(PhraseType, '@UserInfo.EmployeesNo');  //載入目錄
+        }
+        else if (PhraseType == 'unit') {
+            //單位片語
+            if (PhraseType != "") {
+                $("#DdlUnitType").val(PhraseType);
+                if ($("#DdlUnitType").val() != "-1")
+                    QueryPhraseTreeNode(PhraseType, $("#DdlUnitType"));  //載入目錄
+            }
+        }
+        else if (PhraseType == 'product') {
+            //全院片語
+            QueryPhraseTreeNode(PhraseType, "product");  //載入目錄
+        }
+        else if (PhraseType == 'user') {
+            //加入片語
+            $("#DDLChangePhraseType").val("3");  //預設
+            QueryPhraseTreeNode(PhraseType, '@UserInfo.EmployeesNo');  //載入目錄
+            $('#prouduct_button').fadeIn(0);
+            $('#node_button').fadeOut(0);
+            $('#user_button').fadeOut(0);
+            document.getElementById('title').disabled = true;
+            document.getElementById('record_com').disabled = true;
+            document.getElementById('record_s').disabled = true;
+            document.getElementById('record_o').disabled = true;
+            document.getElementById('record_i').disabled = true;
+            document.getElementById('record_e').disabled = true;
+        }
+        else {
+            //複製片語
+            CopyCtrlCloseOpen(true);
+            $("#node_button").attr("style", "display:none");
+            $("#user_button").attr("style", "display:none");
+            $("#copy_button").attr("style", "display:block");
+            $("#DivCopyClose").attr("style", "display:none");
+        }
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.tdeven').css('background', '#ABC8E2');
+        $('.tdodd').css('background', '#E1E6FA');
+    }
+
+    //解決片語於 語音IE 有高度BUG
+    function setDataAreaSize() {
+        var height = $("#form_phrase_data").innerHeight();
+        if (height <= 390)
+            height = 390;
+        $("#DivPhraseTreeNode").innerHeight(height / 2);
+        $("#phrase_data").innerHeight(height / 2);
+    }
+
+    //彈出div
+    function showPopup(id) {
+        var popup = document.getElementById(id);
+        popup.style.display = 'block';
+    }
+
+    function mark(obj) {
+        var nodeid = obj.id;
+        var depth = parseInt($(obj).attr('depth')) + 1;
+        var check_node_name = document.getElementById(obj.id).innerText;
+        $('#depth').val(depth);
+        $('#parent_node').val(nodeid);
+        $('#nodeid').val(nodeid);     
+        $('#edit_node_explain').val($(obj).attr('explanation'));
+        document.getElementById('add_node').innerText = check_node_name;
+        $('#edit_node_name').val(check_node_name);
+        document.getElementById('check_node').innerText = check_node_name;
+        $('#ck_nodeid').val(nodeid);
+        $('#movenode').val(nodeid);
+        var a = $('.dtree a');
+        for (var i = 0; i < a.length; i++) {
+            if (a[i].id == $(obj).attr('fatherid'))
+                document.getElementById('edit_node').innerText = document.getElementById(a[i].id).innerText;
+        }
+        var div = $('.dtree div');
+        var success = false;
+        var del_node = nodeid + ',';
+        for (var i = 0; i < div.length; i++) {
+            if (success) {
+                if (parseInt(depth) - 1 < parseInt($(div[i]).attr('depth'))) {
+                    del_node = del_node + $(div[i]).attr('nodeid') + ',';
+                }
+                else
+                    success = false;
+            }
+            else {
+                if (nodeid == $(div[i]).attr('nodeid'))
+                    success = true;
+            }
+        }
+        $('#del_node').val(del_node.substring(0, del_node.length - 1));
+    }
+
+    function set_default_div() {
+        var div = $('.dtree div');
+        for (var i = 0; i < div.length; i++) {
+            if (parseInt($(div[i]).attr('depth')) < 2) {
+                if ($(div[i]).attr('div_type') == 'hidden') {
+                    $(div[i]).fadeIn(200);
+                    $(div[i]).attr('div_type', 'show');
+                }
+            }
+        }
+    }
+
+    function set_div(obj) {
+        var nodeid = $(obj).attr('nodeid');
+        var depth = $(obj).attr('depth');
+        var div = $('.dtree div');
+        var success = false;
+        for (var i = 0; i < div.length; i++) {
+            if (success) {
+                if (parseInt(depth) < parseInt($(div[i]).attr('depth'))) {
+                    if ($(div[i]).attr('div_type') == 'hidden') {
+                        if (parseInt(depth) + 1 == parseInt($(div[i]).attr('depth'))) {
+                            $(div[i]).fadeIn(200);
+                            $(div[i]).attr('div_type', 'show');
+                        }
+                    }
+                    else {
+                        $(div[i]).fadeOut(100);
+                        $(div[i]).attr('div_type', 'hidden');
+                        set_close($(div[i]).attr('nodeid'));
+                    }
+                }
+                else
+                    success = false;
+            }
+            else {
+                if (nodeid == $(div[i]).attr('nodeid'))
+                    success = true;
+            }
+        }
+        set_img(nodeid);
+    }
+
+    function set_img(nodeid) {
+        var img = $('.img' + nodeid);
+        if ($(img[0]).attr('src') == '../Images/plus.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('plus', 'line_minus'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folder', 'folderopen'));
+        }
+        else if ($(img[0]).attr('src') == '../Images/plusbottom.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('plusbottom', 'minusbottom'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folder', 'folderopen'));
+        }
+        else if ($(img[0]).attr('src') == '../Images/line_minus.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('line_minus', 'plus'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folderopen', 'folder'));
+        }
+        else if ($(img[0]).attr('src') == '../Images/minusbottom.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('minusbottom', 'plusbottom'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folderopen', 'folder'));
+        }
+    }
+
+    function set_close(nodeid) {
+        var img = $('.img' + nodeid);
+        if ($(img[0]).attr('src') == '../Images/line_minus.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('line_minus', 'plus'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folderopen', 'folder'));
+        }
+        else if ($(img[0]).attr('src') == '../Images/minusbottom.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('minusbottom', 'plusbottom'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folderopen', 'folder'));
+        }
+    }
+
+    function check() {
+        $('#node_name').val($.trim($('#node_name').val()));
+        $('#node_explain').val($.trim($('#node_explain').val()));
+        if ($('#node_name').val() != '') {
+            if ($('#node_name').val().length < 50 || $('#node_explain').val().length < 500)
+                return true;
+            else
+                alert('字數過長');
+        }
+        else
+            alert('尚未輸入名稱');
+    }
+
+    function phrase_check() {
+        $('#title').val($.trim($('#title').val()));
+        $('#record_com').val($.trim($('#record_com').val()));
+        $('#record_s').val($.trim($('#record_s').val()));
+        $('#record_o').val($.trim($('#record_o').val()));
+        $('#record_i').val($.trim($('#record_i').val()));
+        $('#record_e').val($.trim($('#record_e').val()));
+        if ($('#title').val().length < 50 || $('#record_com').val().length < 1000 || $('#record_s').val().length < 1000 || $('#record_o').val().length < 1000 || $('#record_i').val().length < 1000 || $('#record_e').val().length < 1000) {
+            if ($('#title').val() != '') {
+                if ($('#record_com').val() != '' || $('#record_s').val() != '' || $('#record_o').val() != '' || $('#record_i').val() != '' || $('#record_e').val() != '')
+                    return true;
+                else
+                    alert('請輸入片語內容!');
+            }
+            else
+                alert('請輸入名稱!');
+        }
+        else
+            alert('字數過長!');
+    }
+
+    function data_clear() {
+        $('#ck_data').val('');
+        $('#id_node').val('');
+        $('#title').val('');
+        $('#record_com').val('');
+        $('#record_s').val('');
+        $('#record_o').val('');
+        $('#record_i').val('');
+        $('#record_e').val('');
+    }
+
+    function data_click(obj) {
+        $('#ck_data').val($(obj).attr('data_id'));
+        $('#id_node').val($(obj).attr('data_id')); 
+        $('#title').val($(obj).attr('data_name'));
+        $('#record_com').val($(obj).attr('C'));
+        $('#record_s').val($(obj).attr('S'));
+        $('#record_o').val($(obj).attr('O'));
+        $('#record_i').val($(obj).attr('I'));
+        $('#record_e').val($(obj).attr('E'));
+    }
+
+    function send_post(send_url, send_data, nodeid, word) {
+        $.ajax({
+            type: 'post',
+            url: send_url,
+            data: send_data,
+            success: function (result) {
+                if ('@ViewBag.type' == 'copy')
+                    CopyCtrlCloseOpen(true);
+                if (result == '1') {
+                    alert(word + '成功');
+                    $('#phrase_data').load('../PhraseManagement/Phrase_Data?id=' + nodeid + '&type=' + '@ViewBag.type');
+                }
+                else
+                    alert(word + '失敗');
+            },
+            complete: function () {
+                $('#block,#loading').hide();
+            }
+        });
+    }
+
+    function set_unclick(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('#' + list[i]).css("background-color", "gray");
+            $('#' + list[i]).css("color", "white");
+            document.getElementById(list[i]).disabled = true;
+        }
+    }
+
+    function set_click(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('#' + list[i]).css("background-color", "#9CB7CF");
+            $('#' + list[i]).css("color", "#000000");
+            document.getElementById(list[i]).disabled = false;
+        }
+    }
+
+    function send_record() {
+        try {
+            window.opener.document.getElementById('title').value = window.opener.document.getElementById('title').value + $('#title').val();
+            window.opener.document.getElementById('record_com').value = window.opener.document.getElementById('record_com').value + $('#record_com').val();
+            window.opener.document.getElementById('record_s').value = window.opener.document.getElementById('record_s').value + $('#record_s').val();
+            window.opener.document.getElementById('record_o').value = window.opener.document.getElementById('record_o').value + $('#record_o').val();
+            window.opener.document.getElementById('record_i').value = window.opener.document.getElementById('record_i').value + $('#record_i').val();
+            window.opener.document.getElementById('record_e').value = window.opener.document.getElementById('record_e').value + $('#record_e').val();
+        }
+        catch (e) {
+            window.opener.document.getElementById('@ViewBag.txtid').value = window.opener.document.getElementById('@ViewBag.txtid').value + $('#record_com').val();
+        }
+    }
+
+    function QueryPhraseTreeNode(PhraseType, Objval) {
+        var srchval = "";
+
+        if (PhraseType == "unit")
+            srchval = $(Objval).val();
+        else if (PhraseType != "product")
+            srchval = Objval;
+
+        var PhraseTypeVal = $("#DDLChangePhraseType").val();
+
+        if (srchval == '-1')
+            $('#DivPhraseTreeNode').html('');
+        else {
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/PhraseManagement/PhraseTreeNodeList")',
+                dataType: 'html',
+                data: {
+                    srchval: srchval,
+                    type: '@ViewBag.type',
+                    txtid: '@ViewBag.txtid',
+                    PhraseType: PhraseTypeVal
+                },
+                async: false,
+                success: function (data) {
+                    $('#DivPhraseTreeNode').html(data).show();
+                    set_default_div();
+                }
+            });
+        }
+    }
+
+    function SearchPhraseToCopy(ObjType) {
+        var srchval = "";
+        switch (ObjType) {
+            case 'self':
+                srchval = $('#TxtEmployeeNoSrch').val();
+                break;
+            case 'unit':
+                srchval = $('#DdlUnitTypeSrch').val();
+                break;
+            default:
+                srchval = '';
+                break;
+        }
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/PhraseManagement/PhraseTreeNodeList")',
+            dataType: 'html',
+            data: {
+                srchval: srchval,
+                type2: ObjType,
+                type: '@ViewBag.type'
+            },
+            async: false,
+            success: function (data) {
+                $('#DivPhraseTreeNode').html(data).show();
+                set_default_div();
+            }
+        });
+    }
+
+    function CopyCtrlCloseOpen(BooleanVal) {
+        //$('.DivCopyCloseClass').each(function () {
+        //    $(this).attr("disabled", BooleanVal);
+        //});
+        //20170407 mod by yungchen
+    }
+    function ck_node(node) {     
+        if (node == "") {           
+            alert("請先選擇要移動的片語");
+            return false;         
+        } else { return true; }
+    }
+
+    function ChangePhraseTypeFunc(ObjVal) {
+        $('#ck_data').val('');
+        $('#id_node').val('');
+        $('#title').val('');
+        $('#record_com').val('');
+        $('#record_s').val('');
+        $('#record_o').val('');
+        $('#record_i').val('');
+        $('#record_e').val('');
+
+        $("#DivUserSelUnit").hide();
+        $("#DdlUserSelUnit").val("-1");
+
+        var PhareType = $("#DDLChangePhraseType").val();
+        switch (PhareType) {
+            case '1':
+                //全院
+                QueryPhraseTreeNode("product", "product");
+                $('#phrase_data').load('../PhraseManagement/Phrase_Data?type=product');
+                break;
+            case '2':
+                //單位片語
+                $("#DivUserSelUnit").show();
+                if ($("#DdlUserSelUnit").val() != "-1")
+                    QueryPhraseTreeNode("unit", $("#DdlUserSelUnit"));
+                else
+                    $('#DivPhraseTreeNode').html("");
+                $('#phrase_data').load('../PhraseManagement/Phrase_Data?type=unit');
+                break;
+            case '3':
+                //個人
+                QueryPhraseTreeNode('self', '@UserInfo.EmployeesNo');
+                $('#phrase_data').load('../PhraseManagement/Phrase_Data?type=user');
+                break;
+        }
+    }
+</script>
+
+
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;height:470px;">
+        @if (ViewBag.type != "product")
+        {
+            string type = ViewBag.type;
+            string typeVal = "", btnTxtVal = "";
+            if (type == "self")
+            {
+                typeVal = "copy";
+                btnTxtVal = "複製其他片語";
+            }
+            else if (type == "copy")
+            {
+                typeVal = "self";
+                btnTxtVal = "片語維護";
+            }
+            if (type == "self" || type == "copy")
+            {
+                //2016.3.30  討論過後決定單位片語的複製功能先關起來，待流程決定後再看要如何寫、或刪掉。  wawa
+                <tr>
+                    <td colspan="2" style="padding-bottom:2px">
+                        <input id="BtnCopyPhrase" type="button" value="@btnTxtVal" onclick="location.href = '../PhraseManagement/Phrase?type=' + '@typeVal'" />
+                    </td>
+                </tr>
+            }
+            switch (type)
+            {
+                case "unit":
+                    <tr>
+                        <td colspan="2" style="padding-bottom:10px">
+                            單位：@Html.DropDownList("DdlUnitType", (List<SelectListItem>)ViewData["costlist"], new { @class = "selStation", @onchange = "$('#HidCostUnitInsert').val($(this).val());$('#HidCostUnitEdit').val($(this).val()); QueryPhraseTreeNode('" + ViewBag.type + "', this);" })
+                        </td>
+                    </tr>
+                    break;
+                case "copy":
+                <tr>
+                    <td colspan="2" style="padding-bottom:10px">
+                        輸入員工編號：
+                        <input type="text" id="TxtEmployeeNoSrch" name="txtEmployeeNoSrch" />
+                        <input type="button" id="BtnSearchEmpNo" name="BtnSearchEmpNo" value="查詢" onclick="$('#DivPhraseTreeNode').html(''); $('#DdlUnitTypeSrch').val(-1); $('#phrase_data').html(''); if ($('#txtEmployeeNoSrch').val() != '') SearchPhraseToCopy('self');" />
+                        &emsp;
+                        單位：@Html.DropDownList("DdlUnitTypeSrch", (List<SelectListItem>)ViewData["costlist"], new { @class = "selStation", @onchange = "$('#DivPhraseTreeNode').html(''); $('#TxtEmployeeNoSrch').val(''); $('#phrase_data').html(''); if ($(this).val() != '-1') SearchPhraseToCopy('unit');" })
+                        &emsp;
+                        <input type="button" id="BtnCommonPhrase" name="BtnCommonPhrase" value="全院共通片語" onclick="$('#TxtEmployeeNoSrch').val(''); $('#DdlUnitTypeSrch').val(-1); $('#phrase_data').html(''); SearchPhraseToCopy('product');" />
+                    </td>
+                </tr>
+                    break;
+                case "user":
+                <tr>
+                    <td colspan="2" style="padding-bottom:10px">
+                        <div>
+                            片語類型：
+                            <select id="DDLChangePhraseType" name="DDLChangePhraseType" onchange="ChangePhraseTypeFunc(this);">
+                                <option value="1">全院</option>
+                                <option value="2">單位</option>
+                                <option value="3">個人</option>
+                            </select>
+                        </div>
+                        <div style="display:none" id="DivUserSelUnit">
+                            單位：@Html.DropDownList("DdlUserSelUnit", (List<SelectListItem>)ViewData["costlist"], new { @class = "selStation", @onchange = "QueryPhraseTreeNode('unit', this);" })
+                        </div>
+                    </td>
+                </tr>
+                    break;
+            }
+        }
+        <tr>
+            <td style="width:30%;height:100%;">
+                <table border="1" style="width:100%;height:100%;table-layout:fixed;">
+                    <tr>
+                        <td valign="top" style="height:50%;width:100%;padding:4px 7px 2px 4px;">
+                            <div id="DivPhraseTreeNode" class="dtree" style="height:100%;">
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td valign="top" style="height:50%;padding:4px 7px 2px 4px;">
+                            <div id="phrase_data" style="display:block;height:100%;overflow:auto;"></div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td style="width: 70%; height: 100%;">
+                <form id="form_phrase_data" style="height: 100%; width: 100%; overflow: auto; ">
+                    <table border="0" class="dataarea" cellpadding="0" cellspacing="0" style="width:100%;height:95%;">
+                        <tr>
+                            <td class="tdodd" colspan="2" valign="top" style="padding:4px 7px 2px 4px;">
+                                <div style="height:25px;">
+                                    <span style="color:Blue;">目前選擇目錄：</span><label id="check_node" style="color:Blue;"></label>
+                                    <input type="hidden" id="ck_nodeid" name="ck_nodeid" />
+                                    <input type="hidden" id="ck_data" name="ck_data" />
+                                    <input type="hidden" id="del_node" name="del_node" />
+                                </div>
+                                <div id="node_button" style="height: 25px;">
+                                    <input id="insert_node" type="button" value="建立新的目錄" onclick="showPopup('phrase_add');" />
+                                    <input id="rename_node" type="button" value="目錄重新命名" onclick="showPopup('phrase_edit');" />
+                                    <input id="move_node" type="button" value="移動至其他目錄" onclick="if (ck_node($('#id_node').val())) { showPopup('phrase_move'); }" />
+                                    <input id="delete_node" type="button" value="刪除選擇目錄" onclick="if (confirm('將連同子目錄及片語一同刪除，確定刪除?')) { window.location.href = 'Del_Phrase_node?nodeid=' + $('#del_node').val() + '&type=' + '@ViewBag.type' + '&srchval=' + $('#DdlUnitType').val();; }" />
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style=" width:15%;height:30px;text-align:right;">@Html.Label("title", "片語名稱：")</td>
+                            <td class="tdeven" style="width:85%;padding-left:2px;">
+                                @Html.TextBox("title", "", new { style = "width:250px", maxlength = "50", @class = "DivCopyCloseClass" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style="text-align:right;">@Html.Label("record_com", "一般：")</td>
+                            <td class="tdeven" style="padding-left:2px;">
+                                @Html.TextArea("record_com", "", 4, 60, new { @class = "DivCopyCloseClass" })
+                                <input type="button" class="voiceBtn" value="語音歷程" onclick="VoiceopenText('@(userno)', '', 'PhraseG',document.all('record_com'));" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style="text-align:right;">@Html.Label("record_s", "S：")</td>
+                            <td class="tdeven" style="padding-left:2px;">
+                                @Html.TextArea("record_s", "", 4, 60, new { @class = "DivCopyCloseClass" })
+                                <input type="button" class="voiceBtn" value="語音歷程" onclick="VoiceopenText('@(userno)', '', 'PhraseS',document.all('record_s'));" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style="text-align:right;">@Html.Label("record_o", "0：")</td>
+                            <td class="tdeven" style="padding-left:2px;">
+                                @Html.TextArea("record_o", "", 4, 60, new { @class = "DivCopyCloseClass" })
+                                <input type="button" class="voiceBtn" value="語音歷程" onclick="VoiceopenText('@(userno)', '', 'PhraseO',document.all('record_o'));" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style="text-align:right;">@Html.Label("record_i", "I：")</td>
+                            <td class="tdeven" style="padding-left:2px;">
+                                @Html.TextArea("record_i", "", 4, 60, new { @class = "DivCopyCloseClass" })
+                                <input type="button" class="voiceBtn" value="語音歷程" onclick="VoiceopenText('@(userno)', '', 'PhraseI',document.all('record_i'));" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style="text-align:right;">@Html.Label("record_e", "E：")</td>
+                            <td class="tdeven" style="padding-left:2px;">
+                                @Html.TextArea("record_e", "", 4, 60, new { @class = "DivCopyCloseClass" })
+                                <input type="button" class="voiceBtn" value="語音歷程" onclick="VoiceopenText('@(userno)', '', 'PhraseE',document.all('record_e'));" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" colspan="2" style="text-align:center;">
+                                <div id="prouduct_button" style="display:none;">
+                                    <!-- 加入片語 -->
+                                    <input id="t1" type="button" value="確定" onclick="send_record(); window.close();" />
+                                    <input id="t2" type="button" value="取消" onclick="if (confirm('確認取消?')) window.close();" />
+                                </div>
+                                <div id="user_button">
+                                    <input id="insert_phrase" type="button" value="新增片語" onclick="if (phrase_check()) { send_post('Insert_Phrase_data', $('#form_phrase_data').serialize(), $('#ck_nodeid').val(), '新增'); data_clear(); }" />
+                                    <input id="update_phrase" type="button" value="儲存更新" onclick="if (phrase_check()) { send_post('Update_Phrase_data', $('#form_phrase_data').serialize(), $('#ck_nodeid').val(), '更新'); }" />
+                                    <input type="button" value="清除編輯資料" onclick="if (confirm('確認清除?')) data_clear();" />
+                                    @*<input type="button" value="離開片語維護" onclick="if (confirm('確認離開?')) window.close();" />*@
+                                </div>
+                                <div id="copy_button">
+                                    <input id="copy_phrase" type="button" value="複製單筆片語" onclick="if (phrase_check()) {$('#block,#loading').show(); CopyCtrlCloseOpen(false); send_post('Insert_Phrase_data?type=copy', $('#form_phrase_data').serialize(), $('#ck_nodeid').val(), '複製');}" />
+                                    &nbsp;
+                                    <input id="copy_phrase" type="button" value="複製資料夾片語" onclick=" $('#block,#loading').show(); send_post('Copy_Phrase_data?type=copy', $('#form_phrase_data').serialize(), $('#ck_nodeid').val(), '複製');" />
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </form>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<form action="Insert_Phrase_node?type=@ViewBag.type" method="post">
+    <div id="phrase_add" class="popup">
+        <table border="1" cellpadding="1" cellspacing="0" style="width:100%;background-color: #EEEFFF;border: 1px solid #CC88FF;">
+            <tr>
+                <td style="height:35px;text-align:right;">目前所在目錄位置：</td>
+                <td>
+                    <label id="add_node"></label>
+                    <input id="depth" name="depth" type="hidden" />
+                    <input id="parent_node" name="parent_node" type="hidden" />
+                    <input id="HidCostUnitInsert" name="HidCostUnitInsert" type="hidden" />
+                </td>
+            </tr>
+            <tr>
+                <td style="height:35px;text-align:right;">建立新目錄名稱：</td>
+                <td>
+                    @Html.TextBox("node_name", "", new { style = "width:160px;" })
+                    <span style="color:red;">字數限制：50</span>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:right;">目錄說明：</td>
+                <td>
+                    @Html.TextArea("node_explain", "", 10, 40, new { })<br />
+                    <span style="color:red;">字數限制：500</span>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="text-align:center">
+                    <div class="funcArea">
+                        <input type="button" value="確認" onclick="if(check())submit();" />
+                        <input type="button" value="取消" onclick="$('#phrase_add').fadeOut(500);" />
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+
+<form action="Edit_Phrase_node?type=@ViewBag.type" method="post">
+    <div id="phrase_edit" class="popup">
+        <table border="1" cellpadding="1" cellspacing="0" style="width:100%;background-color: #EEEFFF;border: 1px solid #CC88FF;">
+            <tr>
+                <td style="height:35px;text-align:right;">目前所在目錄位置：</td>
+                <td>
+                    <label id="edit_node"></label>
+                    <input type="hidden" id="nodeid" name="nodeid" />
+                    <input id="HidCostUnitEdit" name="HidCostUnitEdit" type="hidden" />
+                </td>
+            </tr>
+            <tr>
+                <td style="height:35px;text-align:right;">目錄重新命名：</td>
+                <td>
+                    @Html.TextBox("edit_node_name", "", new { style = "width:160px;" })
+                    <span style="color:red;">字數限制：50</span>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:right;">目錄說明：</td>
+                <td>
+                    @Html.TextArea("edit_node_explain", "", 10, 40, new { })<br />
+                    <span style="color:red;">字數限制：500</span>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="text-align:center">
+                    <div class="funcArea">
+                        <input type="button" value="確認" onclick="submit();" />
+                        <input type="button" value="取消" onclick="$('#phrase_edit').fadeOut(500);" />
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+
+<form action="Move_Phrase_node?type=@ViewBag.type" method="post">
+    <div id="phrase_move" class="popup">
+        <table border="1" cellpadding="1" cellspacing="0" style="width:100%;background-color: #EEEFFF;border: 1px solid #CC88FF;">
+            <tr>
+                <td style="height:35px;text-align:right;">目前所在目錄位置：</td>
+                <td>
+              
+                    <label id="move_node"></label>
+                    <input type="hidden" id="movenode" name="movenode" />
+                    <input type="hidden" id="id_node" name="id_node" />
+                    <input id="HidCostUnitInsert" name="HidCostUnitInsert" type="hidden" />
+                </td>
+            </tr>
+            <tr>
+                <td style="height:35px;text-align:right;">移動至：</td>
+                <td>
+                  @Html.DropDownList("DdlPhraseList", (List<SelectListItem>)ViewData["PhraseList"], new { @class = "selStation" })
+                </td>
+            </tr>
+        
+            <tr>
+                <td colspan="2" style="text-align:center">
+                    <div class="funcArea">
+                        <input type="button" value="確認" onclick=" submit();" />
+                        <input type="button" value="取消" onclick="$('#phrase_move').fadeOut(500);" />
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+<div id="block"></div>
+<div id="saving">
+    <label for="lab" style="font-size:16px">Saving...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

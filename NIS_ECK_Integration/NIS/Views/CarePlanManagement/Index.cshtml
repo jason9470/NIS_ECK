@@ -1,0 +1,315 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    List<SelectListItem> TypeList = (List<SelectListItem>)ViewData["typeList"];
+}
+
+<script type="text/javascript">
+    $(function () {
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $("#CarePlanItemList").outerHeight(height - 90);
+        }).trigger("resize");
+
+        to_Search(null, null, null);
+    });
+
+    function showSelectItem(num) {
+        $('.SearchItem').hide();
+        $('span[data-target=' + num + ']').show();
+    }
+
+    //搜尋
+    function Search() {
+        if ($('input:radio[name=Item]:checked').length > 0) {
+            var rd = $('input:radio[name=Item]:checked').val(),
+                sub = $("#type_list").val(),
+                txt = $.trim($("#txtid").val());
+            if (rd == "ITEM") {
+                if (txt == "")
+                    alert("請輸入查詢內容！");
+                else
+                    to_Search(rd, null, txt);
+            }
+            else if (rd == "SUBJECT") {
+                if (sub == "")
+                    alert("請選擇 Nanda領域！");
+                else
+                    to_Search(rd, sub, null);
+            }
+        }
+        else
+            alert("請選擇搜尋條件！");
+    }
+
+    function to_Search(rd, sub, txt) {
+        loop_windows("open_cover");
+        $.ajax({
+            type: 'POST',
+            url: "@Url.Content("~/CarePlanManagement/CarePlanSearch")",
+            data: { "rd": rd, "sub": sub, "text": txt },
+            success: function (data) {
+                $("#CarePlanItemList").html(data);
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    //啟用
+    function able_diagnosis(obj) {
+        if (confirm('確認啟用 ' + $(obj).attr('data-name') + ' 嗎？')) {
+            loop_windows("open_cover");
+            $.ajax({
+                type: 'POST',
+                url: "@Url.Content("~/CarePlanManagement/CarePlanAble")",
+                data: { "DiagnosisCode": $(obj).attr('data-code') },
+                success: function (data) {
+                    if (data == "Y") {
+                        alert('啟用成功！');
+                        if ($('input:radio[name=Item]:checked').length > 0)
+                            Search();
+                        else
+                            to_Search(null, null, null);
+                    }
+                    else {
+                        loop_windows("close_cover");
+                        alert('啟用失敗！');
+                    }
+                }
+            });
+        }
+    }
+
+    //停用
+    function disabled_diagnosis(obj) {
+        if (confirm('確認停用 ' + $(obj).attr('data-name') + ' 嗎？')) {
+            loop_windows("open_cover");
+            $.ajax({
+                type: 'POST',
+                url: "@Url.Content("~/CarePlanManagement/CarePlanDisabled")",
+                data: { "DiagnosisCode": $(obj).attr('data-code') },
+                success: function (data) {
+                    if (data == "Y") {
+                        alert('停用成功！');
+                        if ($('input:radio[name=Item]:checked').length > 0)
+                            Search();
+                        else
+                            to_Search(null, null, null);
+                    }
+                    else {
+                        loop_windows("close_cover");
+                        alert('停用失敗！');
+                    }
+                }
+            });
+        }
+    }
+
+    function InitCarePlanDetail(DiagnosisCode, DiagnosisDesc, DiagnosisDomainCode) {
+        loop_windows("open_cover");
+        $('#CarePlanIndex').hide();
+        $.ajax({
+            type: 'POST',
+            url: "@Url.Content("~/CarePlanManagement/CarePlanDetail")",
+            success: function (data) {
+                $('#CarePlanDetail').html(data).show();
+            },
+            complete: function () {
+                GetFeaFeature(DiagnosisCode, function () {
+                    GetInducements(DiagnosisCode, function () {
+                        GetTarget(DiagnosisCode, function () {
+                            GetMeasure(DiagnosisCode, function () {
+                                loop_windows("close_cover");
+                            });
+                        });
+                    });
+                });
+                if (DiagnosisCode != null && DiagnosisCode != "") {
+                    $('#DiagnosisCode').val(DiagnosisCode).prop('disabled', true);
+                    $('#DiagnosisDesc').val(DiagnosisDesc);
+                    $('#DiagnosisDomain').val(DiagnosisDomainCode);
+                    $('#OldDiagnosisCode').val(DiagnosisCode);
+                }
+                else {
+                    $('#DiagnosisCode').val('').prop('disabled', false);
+                    $('#DiagnosisDesc').val('');
+                    $('#DiagnosisDomain').val('');
+                    $('#OldDiagnosisCode').val('');
+                    loop_windows("close_cover");
+                }
+            }
+        });
+    }
+
+    function GetFeaFeature(DiagnosisCode, CallBack) {
+        $('.dtl_Content_Feature').empty();
+        if (DiagnosisCode != null && DiagnosisCode != "") {
+            $.ajax({
+                type: 'POST',
+                url: "@Url.Content("~/CarePlanManagement/Sel_Feature")",
+                data: { 'DiagnosisCode': DiagnosisCode },
+                success: function (data) {
+                    var List = JSON.parse(data);
+                    var obj = $('#AddFeature');
+                    var Content = obj.attr('data-Clone');
+                    $.each(List, function (i, item) {
+                        ToClone(obj);
+                        $('.' + Content).find('input[type=text][name=FeatureDesc]:last').val(item.FEATURE_DESC);
+                        if (item.DISABLE_DATE == "")
+                            BtnAbleChange($('.' + Content).find('input[type=button][name=FeatureAble][data-value=Y]:last'));
+                        else
+                            BtnAbleChange($('.' + Content).find('input[type=button][name=FeatureAble][data-value=N]:last'));
+                    });
+                },
+                complete: function () {
+                    if (!!CallBack) {
+                        CallBack();
+                    }
+                }
+            });
+        }
+    }
+
+    function GetInducements(DiagnosisCode, CallBack) {
+        $('.dtl_Content_Inducements').empty();
+        if (DiagnosisCode != null && DiagnosisCode != "") {
+            $.ajax({
+                type: 'POST',
+                url: "@Url.Content("~/CarePlanManagement/Sel_Inducements")",
+                data: { 'DiagnosisCode': DiagnosisCode },
+                success: function (data) {
+                    var List = JSON.parse(data);
+                    var obj = $('#AddInducements');
+                    var Content = obj.attr('data-Clone');
+                    $.each(List, function (i, item) {
+                        ToClone(obj);
+                        $('.' + Content).find('input[type=text][name=InducementsDesc]:last').val(item.INDUCEMENTS_DESC);
+                        if (item.DISABLE_DATE == "")
+                            BtnAbleChange($('.' + Content).find('input[type=button][name=InducementsAble][data-value=Y]:last'));
+                        else
+                            BtnAbleChange($('.' + Content).find('input[type=button][name=InducementsAble][data-value=N]:last'));
+                    });
+                },
+                complete: function () {
+                    if (!!CallBack) {
+                        CallBack();
+                    }
+                }
+            });
+        }
+    }
+
+    function GetTarget(DiagnosisCode, CallBack) {
+        $('.dtl_Content_Target').empty();
+        if (DiagnosisCode != null && DiagnosisCode != "") {
+            $.ajax({
+                type: 'POST',
+                url: "@Url.Content("~/CarePlanManagement/Sel_Target")",
+                data: { 'DiagnosisCode': DiagnosisCode },
+                success: function (data) {
+                    var List = JSON.parse(data);
+                    var obj = $('#AddTarget');
+                    var Content = obj.attr('data-Clone');
+                    $.each(List, function (i, item) {
+                        ToClone(obj);
+                        $('.' + Content).find('input[type=text][name=TargetDesc]:last').val(item.TARGET_DESC);
+                        if (item.DISABLE_DATE == "")
+                            BtnAbleChange($('.' + Content).find('input[type=button][name=TargetAble][data-value=Y]:last'));
+                        else
+                            BtnAbleChange($('.' + Content).find('input[type=button][name=TargetAble][data-value=N]:last'));
+                    });
+                },
+                complete: function () {
+                    if (!!CallBack) {
+                        CallBack();
+                    }
+                }
+            });
+        }
+    }
+
+    function GetMeasure(DiagnosisCode, CallBack) {
+        $('.dtl_Content_Measure').empty();
+        if (DiagnosisCode != null && DiagnosisCode != "") {
+            $.ajax({
+                type: 'POST',
+                url: "@Url.Content("~/CarePlanManagement/Sel_Measure")",
+                data: { 'DiagnosisCode': DiagnosisCode },
+                success: function (data) {
+                    var List = JSON.parse(data);
+                    var obj = $('#AddMeasure');
+                    var Content = obj.attr('data-Clone');
+                    $.each(List, function (i, item) {
+                        ToClone(obj);
+                        $('.' + Content).find('input[type=text][name=MeasureDesc]:last').val(item.MEASURE_DESC);
+                        if(item.DISABLE_DATE == "")
+                            BtnAbleChange($('.' + Content).find('input[type=button][name=MeasureAble][data-value=Y]:last'));
+                        else
+                            BtnAbleChange($('.' + Content).find('input[type=button][name=MeasureAble][data-value=N]:last'));
+                    });
+                },
+                complete: function () {
+                    if (!!CallBack) {
+                        CallBack();
+                    }
+                }
+            });
+        }
+    }
+
+    function InitDomainDetail() {
+        loop_windows("open_cover");
+        $('#CarePlanIndex').hide();
+        $.ajax({
+            type: 'POST',
+            url: "@Url.Content("~/CarePlanManagement/DomainDetail")",
+            success: function (data) {
+                $('#DomainDetail').html(data).show();
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+</script>
+
+
+<div class="funcArea" id="CarePlanIndex">
+    <span>
+        <label><input type="radio" name="Item" value="SUBJECT" onclick="showSelectItem(this.value);">依 Nanda 領域</label>
+        <label><input type="radio" name="Item" value="ITEM" onclick="showSelectItem(this.value);">依關鍵字</label>
+    </span>
+    <span class="SearchItem" data-target="SUBJECT" style="display:none;">
+        <select id="type_list" class="form-control input-sm">
+            <option value="">請選擇 Nanda領域</option>
+            @if(TypeList != null && TypeList.Count > 0)
+            {
+                foreach(SelectListItem item in TypeList)
+                {
+            <option value="@item.Value">@(item.Text)</option>
+                }
+            }
+        </select>
+    </span>
+    <span class="SearchItem" data-target="ITEM" style="display:none;">
+        <input id="txtid" type="text" name="txtquriy" style="width:160px;" />
+    </span>
+    <span style="margin-left:10px;">
+        <input type="button" value="查詢" onclick="Search();" style="width:60px;">
+        <input type="button" value="全部護理問題" onclick="to_Search(null, null, null);" />
+        <input type="button" value="維護 Nanda領域" onclick="InitDomainDetail();" />
+    </span>
+    <div style="margin:5px 0 10px 0;">
+        <span style="font-size: 18px; font-weight: bold;">護理問題(危險因子)：維護</span>
+        <input type="button" value="新增" style="width:60px;" onclick="InitCarePlanDetail();">
+    </div>
+    <div id="CarePlanItemList" style="overflow-y: scroll;overflow-x:hidden;">
+    </div>
+</div>
+
+<div class="funcArea" id="CarePlanDetail" style="display:none;"></div>
+<div class="funcArea" id="DomainDetail" style="display:none;"></div>

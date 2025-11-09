@@ -1,0 +1,456 @@
+﻿@using NIS.Controllers;
+@using System.Data;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+
+    int age = ViewBag.age;
+    string bp_type = "a", bf_type = "a", mp_type = "a";
+    if (age < 19 && age > 12)
+    { bp_type = "c17"; bf_type = "y"; mp_type = "y"; }
+    if (age < 12 && age > 5)
+    { bf_type = "c11"; mp_type = "c"; }
+    if (age < 5 && age > 3)
+    { mp_type = "c3-5"; }
+    if (age < 3 && age > 2)
+    { mp_type = "c1-2"; }
+    if (age < 2 && age > 1)
+    { bp_type = "n2"; }
+    if (age < 1)
+    {
+        bf_type = "c1"; mp_type = "c1";
+        DateTime Birthday = pf.Birthday;
+        int totalMonth = DateTime.Now.Year * 12 + DateTime.Now.Month - Birthday.Year * 12 - Birthday.Month;
+        if (totalMonth < 6)
+        { bp_type = "n"; }
+
+    }
+    var type = ViewBag.type;
+}
+<style type="text/css">
+    #TPR_Content {
+        width: 99%;
+        height: 100%;
+        overflow-x: hidden;
+        overflow-y: hidden;
+    }
+
+    #div_view_Device {
+        display: none;
+        width: 900px;
+        height: 650px;
+        max-height: 95%;
+        background-color: #EBE9DE;
+        border: 1px solid #666;
+        z-index: 98;
+    }
+
+    #sys_Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #sys_Loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 98;
+        display: none;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        @if (Request["message"] != null)
+        {
+        @:showHint("@(Request["message"].ToString())");
+        }
+
+        $(".dataArea button[name=editor]").click(function () {
+            // 取得vs_id
+            var vs_id = $(this).attr("altid");
+            var date = $(this).attr("altdate");
+            switch ($(this).attr('title')) {
+                case "編輯":
+                    location.href = "VitalSignModify?vs_id=" + vs_id + "&date=" + date;
+                    break;
+                case "刪除":
+                    if (confirm('確認刪除?')) {
+                        $('#sys_Block,#sys_Loading').show();
+                        $.ajax({
+                            url: "VitalSignDelete",
+                            type: "post",
+                            data: { "vs_id": vs_id, "date": date },
+                            timeout: 30000,
+                            success: function (data) {
+                                if (data == "Y") {
+                                    $('#sys_Block,#sys_Loading').hide();
+                                    location.href = "VitalSign_Index?starttime=" + $('#stDate').val() + ' ' + $('#stTime').val() + '&endtime=' + $('#edDate').val() + ' ' + $('#edTime').val() + "&message=" + encodeURIComponent("刪除完畢");
+                                } else {
+                                    $('#sys_Block,#sys_Loading').hide();
+                                    showHint("無任何資料被刪除");
+                                }
+                            }
+                        });
+                    }
+                    break;
+            }
+        });
+        //格行換色
+        setTimeout(function () { $(".dtl_VS").gridColor(); }, 800);
+    });
+
+    function show_content(item) {
+        $("#sys_Block, #sys_Loading").show();
+        $("#sys_Loading").hide();
+        $("#div_view_" + item).center().show();
+        get_tpr();
+    }
+    function setDateTime(id) {
+        $(id).attr('readonly', 'readonly');
+        $(id).datetimepicker({
+            showTimepicker: false,
+            beforeShowDay: function (date) {
+                switch (date.getDay()) {
+                    case 6:
+                        return [true, 'satday'];
+                        break;
+                    case 0:
+                        return [true, 'sunday'];
+                        break;
+                    default:
+                        return [true, ''];
+                        break;
+                }
+            },
+            maxDateTime: 0
+        });
+    }
+    function get_tpr() {
+        $.ajax({
+            type: "POST",
+            url: 'Get_Result',
+            cache: false,
+            data: {
+                startdate: $("#TPR_QueryStartDay").val(),
+                enddate: $("#TPR_QueryEndDay").val()
+            },
+            success: function (reslut) {
+                if (reslut == "N") {
+                    $("#TPR_result").html("取不到結果啦");
+                }
+                else {
+                    $("#TPR_result").html(reslut);
+                }
+            }
+        });
+    }
+
+    function com_SDM(bph_text, bpl_text) {
+        var sdm = bph_text / 3 + bpl_text / 3 * 2;
+        return sdm;
+    }
+
+    function sendValue() {
+        var ck = $('input[type=checkbox]:checked');
+        if (ck.length == 0)
+            alert('請選擇生命徵象紀錄!');
+        else if (ck.length > 1)
+            alert("只能選擇一筆!");
+        else {
+            var row = '';
+            for (var i = 0; i < ck.length; i++) {
+                if (ck[i].checked) {
+                    row = row + ck[i].value;
+                    break;
+                }
+            }
+            if (row != '') {
+                var T = $("#T" + row).val();
+                var P = $("#P" + row).val();
+                var R = $("#R" + row).val();
+
+                if (T == undefined)
+                    T = '';
+                if (P == undefined)
+                    P = '';
+                if (R == undefined)
+                    R = '';
+
+                window.opener.document.getElementById("TXT_TPR_" + "@type").value = T + "/" + P + "/" + R;
+                window.close();
+            }
+        }
+    }
+</script>
+@{
+    DateTime start = Convert.ToDateTime(ViewBag.start);
+    DateTime end = Convert.ToDateTime(ViewBag.end);
+    DataTable dt_check = ViewBag.dt_check;
+}
+<div class="funcArea">
+    <table style="width: 100%;">
+        <tr>
+            <td>
+                <fieldset>
+                    <legend>查詢區間</legend>
+                    @(Html.TextBox("stDate", start.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                    @(Html.TextBox("stTime", start.ToString("HH:mm"), new { @style = "width:35px" }))
+                    ~
+                    @(Html.TextBox("edDate", end.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                    @(Html.TextBox("edTime", end.ToString("HH:mm"), new { @style = "width:35px" }))
+                    @WebTool.setDateTime("stDate", "stTime")
+                    @WebTool.setDateTime("edDate", "edTime")
+                    <input type="button" value="查詢" onclick="window.location.href = 'VitalSign_Index?type=' + '@type' + '&starttime=' + $('#stDate').val() + ' ' + $('#stTime').val() + '&endtime=' + $('#edDate').val() + ' ' + $('#edTime').val()" />
+                    (紅色數值表過高，藍色數值表過低)
+                </fieldset>
+            </td>
+        </tr>
+    </table>
+</div>
+<div>
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+            <td style="width:100%;">
+                <div class="dataHeader" id="dataHeader">
+                    <table id="table_dataHeader" border="0" cellpadding="4" cellspacing="1" style="table-layout: fixed; white-space: nowrap; font-size: 14px; width: 100%;" class="dtl_VS">
+                        @*width:2240px;*@
+                        <tr>
+                            <td style="width:5%;">勾選</td>
+                            <td style="width:20%;">日期時間</td>
+                            <td style="width:25%;">體溫</td>
+                            <td style="width:25%;">心跳</td>
+                            <td style="width:25%;">呼吸</td>
+                        </tr>
+                    </table>
+                </div>
+                <!-- 表頭隨著資料內容一起動 -->
+                <div class="dataArea">
+                    <table id="table_dataArea" border="0" cellpadding="4" cellspacing="1" style="table-layout: fixed; white-space: nowrap; width: 100%" class="dtl_VS">
+                        @*width:2240px;1430px*@
+                        @{
+
+                            if (ViewData["VSData"] != null)
+                            {
+                                List<VitalSignDataList> vsDataList = (List<VitalSignDataList>)ViewData["VSData"];
+                                for (int i = 0; i <= vsDataList.Count - 1; i++)
+                                {
+                                    string color = "block";
+                                    List<VitalSignData> vsd = vsDataList[i].DataList;
+                                    <tr>
+                                        <td style="width:5%;">
+                                            <input type="checkbox" name="del_ID" value="@(vsDataList[i].vsid.Trim())" />
+                                        </td>
+                                        <td style="width:20%;" align="center" title="@vsd[0].create_user ">
+                                            <!-- 維護時間 -->
+                                            @{
+                                                string[] VIP = vsDataList[i].vsid.Split('_');
+
+                                                if (VIP.Length > 2)
+                                                {
+                                                    if (VIP[2] == "VIP")
+                                                    {
+                                                        color = "green";
+                                                    }
+                                                }
+
+                                            }
+                                            @if (vsd[0].modify_date != "" && vsd[0].modify_date != null)
+                                            {
+                                                @Html.Raw("<label style='color:" + color + ";'>" + Convert.ToDateTime(vsd[0].modify_date).ToString("yyyy/MM/dd HH:mm") + "</label>")
+                                            }
+                                            else
+                                            {
+                                                @Html.Raw("<label style='color:" + color + ";'>"+ "</label>")
+                                            }
+                                        </td>
+                                            <td style="width:25%;" align="center">
+                                                <!-- 體溫 -->
+                                                @try
+                                                {
+                                                    if (VitalSignData.getItem(vsd, "bt", VitalSignDataField.Record) != "")
+                                                    {
+                                                        string ck_value = VitalSignData.getItem(vsd, "bt", VitalSignDataField.Record);
+                                                        string l_check = "btl_e", h_check = "bth_e", part = VitalSignData.getItem(vsd, "bt", VitalSignDataField.Part);
+                                                        if (part == "腋溫")
+                                                        {
+                                                            l_check = "btl_a";
+                                                            h_check = "bth_a";
+                                                        }
+                                                        else if (part == "肛溫")
+                                                        {
+                                                            l_check = "btl_r";
+                                                            h_check = "bth_r";
+                                                        }
+                                                        else if (part == "額溫")
+                                                        {
+                                                            l_check = "btl_f";
+                                                            h_check = "bth_f";
+                                                        }
+                                                        foreach (DataRow r in dt_check.Rows)
+                                                        {
+                                                            if (r["MODEL_ID"].ToString() == l_check || r["MODEL_ID"].ToString() == h_check)
+                                                            {
+                                                                if (r["DECIDE"].ToString() == ">")
+                                                                {
+                                                                    if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                    {
+                                                                        color = "red";
+                                                                    }
+                                                                }
+                                                                else if (r["DECIDE"].ToString() == "<")
+                                                                {
+                                                                    if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                    {
+                                                                        color = "blue";
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        <input type="hidden" id="T@(vsDataList[i].vsid.Trim())" value="@ck_value" />
+                                                        @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                                    }
+                                                }
+                                                catch (Exception)
+                                                {
+                                                    @:@VitalSignData.getItem(vsd, "bt", VitalSignDataField.Record)
+                                                }
+                                                @if (VitalSignData.getItem(vsd, "bt", VitalSignDataField.Reason) != "無")
+                                                {
+                                                    @Html.Raw(VitalSignData.getItem(vsd, "bt", VitalSignDataField.Reason))
+                                                }
+                                                &nbsp;
+
+                                            </td>
+                                            <td style="width:25%;" align="center">
+                                                <!-- 心跳 -->
+                                                @try
+                                                {
+                                                    if (VitalSignData.getItem(vsd, "mp", VitalSignDataField.Record) != "")
+                                                    {
+                                                        string ck_value = VitalSignData.getItem(vsd, "mp", VitalSignDataField.Record);
+                                                        foreach (DataRow r in dt_check.Rows)
+                                                        {
+                                                            if (r["MODEL_ID"].ToString() == "mpl_" + mp_type || r["MODEL_ID"].ToString() == "mph_" + mp_type)
+                                                            {
+                                                                if (r["DECIDE"].ToString() == ">")
+                                                                {
+                                                                    if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                    {
+                                                                        color = "red";
+                                                                    }
+                                                                }
+                                                                else if (r["DECIDE"].ToString() == "<")
+                                                                {
+                                                                    if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                    {
+                                                                        color = "blue";
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        <input type="hidden" id="P@(vsDataList[i].vsid.Trim())" value="@ck_value" />
+                                                        @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                                    }
+                                                }
+                                                catch (Exception)
+                                                {
+                                                    @:@VitalSignData.getItem(vsd, "mp", VitalSignDataField.Record)
+                                                }
+                                                @if (VitalSignData.getItem(vsd, "mp", VitalSignDataField.Reason) != "無")
+                                                {
+                                                    @Html.Raw(VitalSignData.getItem(vsd, "mp", VitalSignDataField.Reason))
+                                                }
+                                                &nbsp;
+                                            </td>
+                                            <td style="width:25%;" align="center">
+                                                <!-- 呼吸 -->
+                                                @try
+                                                {
+                                                    if (VitalSignData.getItem(vsd, "bf", VitalSignDataField.Record) != "")
+                                                    {
+                                                        string ck_value = VitalSignData.getItem(vsd, "bf", VitalSignDataField.Record);
+                                                        foreach (DataRow r in dt_check.Rows)
+                                                        {
+                                                            if (r["MODEL_ID"].ToString() == "bfl_" + bf_type || r["MODEL_ID"].ToString() == "bfh_" + bf_type)
+                                                            {
+                                                                if (r["DECIDE"].ToString() == ">")
+                                                                {
+                                                                    if (double.Parse(ck_value.Replace("#", "")) > double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                    {
+                                                                        color = "red";
+                                                                    }
+                                                                }
+                                                                else if (r["DECIDE"].ToString() == "<")
+                                                                {
+                                                                    if (double.Parse(ck_value.Replace("#", "")) < double.Parse(r["VALUE_LIMIT"].ToString()))
+                                                                    {
+                                                                        color = "blue";
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        <input type="hidden" id="R@(vsDataList[i].vsid.Trim())" value="@ck_value" />
+                                                        @Html.Raw("<label style='color:" + color + ";'>" + ck_value + "</label>")
+                                                    }
+                                                }
+                                                catch (Exception)
+                                                {
+                                                    @:@VitalSignData.getItem(vsd, "bf", VitalSignDataField.Record)
+                                                }
+                                                @if (VitalSignData.getItem(vsd, "bf", VitalSignDataField.Reason) != "無")
+                                                {
+                                                    @Html.Raw(VitalSignData.getItem(vsd, "bf", VitalSignDataField.Reason))
+                                                }
+                                                &nbsp;
+                                            </td>
+                                        </tr>
+                                    }
+                                            }
+                                            }
+                                        </table>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="funcArea" style="text-align:center">
+                        <input type="button" value="帶入" style="width:60px;" onclick="sendValue();" />
+                        <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) window.close();" />
+                    </div>
+
+                    <div id="div_view_Device">
+                        <span style="position: inherit;right: -16px;top: -16px;cursor: pointer;">
+                            <img src="~/Images/Close.png" alt="close" onclick="$('#div_view_Device, #sys_Block').hide()" />
+                        </span>
+                        <div id="TPR_Content" style="MARGIN-TOP: 15px;TEXT-ALIGN: center;">
+                            <input type="text" size="6" readonly="readonly" id="TPR_QueryStartDay" value="@(DateTime.Now.ToString("yyyy/MM/dd"))" /> -
+                            <input type="text" size="6" readonly="readonly" id="TPR_QueryEndDay" value="@(DateTime.Now.AddDays(1).ToString("yyyy/MM/dd"))" />
+                            <input type="button" value="取得結果" id="get_tpr" onclick="get_tpr()" />
+                            <div id="TPR_result" style="MARGIN-TOP: 15px;"></div>
+                        </div>
+                    </div>
+                    <div id="sys_Block" class="mask"></div>
+                    <div id="sys_Loading" class="mask">
+                        <label for="lab" style="font-size: 16px">刪除中...</label><br />
+                        <img src="~/Images/System/loading.gif" alt="" />
+                    </div>

@@ -1,0 +1,286 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "病人清單";
+    string RootDocument = ViewBag.RootDocument;
+    string userno = ViewBag.userno;
+    UserInfo userinfo = ViewBag.userinfo;
+    string Popen_mode = ViewBag.Popen_mode;
+}
+<style type="text/css">
+    .dataArea td
+    {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define
+    {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+<script type="text/javascript">
+    var model = '@(Popen_mode)';
+    var num_query = '1123' ;
+    $(document).ready(function () {
+        close_pup_window();
+        loop_windows("open_cover");
+        loadPatList("mylist");
+        setGridColor();
+    });
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    function loadPatList(open_mode) {
+        var Query = "";//值
+        if (open_mode == "clist") {
+            switch ($("input[name=rb_list]:checked").val()) {
+                case "rb_unit":
+                    open_mode = "rb_unit";
+                    Query = $("[name=ddl_unit] option:selected").val();
+                    break;
+                case "rb_chrno":
+                    open_mode = "rb_chrno";
+                    //18AUG17:病歷號自動補成10碼 註:
+                    if ($("#txt_chrno").val() != "") {
+                        var chrno = padLeft(Trim($("#txt_chrno").val().toString()), 10, "0");
+                        $("#txt_chrno").val(chrno);
+                    }
+                    Query = $("#txt_chrno").val();
+                    break;
+                case "rb_bedno":
+                    open_mode = "rb_bedno";
+                    Query = $("#txt_bedno").val();
+                    break;
+            }
+            model = open_mode;
+            num_query = Query;
+        }
+        $.ajax({
+            type:"POST",
+            url: '@Url.Content("~/PatientList/PatList")',
+            dataType:"html",
+            data: { Popen_mode: open_mode, PQuery: Query },
+            cache: false,
+            async: true,
+            beforeSend: function () {
+                $("#block,#loading").show();
+            },
+            success: function (data) {
+                $("#dataAreaX").html(data);
+                TotalList();
+              //  alert(data);
+            },
+            complete: function () {
+                $("#block,#loading").hide();
+            }
+        })
+
+        
+         
+        
+    }
+
+    //暫時解決，按enter跳給藥的狀況
+    $(function () {
+        $("#txt_chrno,#txt_bedno").keypress(function (event) {
+            if (event.which == 13) {
+                loop_windows("open_cover");
+                loadPatList('clist');
+            }
+        });
+    });
+
+    //計算各項特殊註記數量//即時更新
+    function TotalList() {
+        $("#Lab_SickmanTotal").text($("#Hid_SickManCount").val());
+        $("#Lab_DNRTotal").text($("#Hid_DNRCount").val());
+        $("#Lab_SecurityTotal").text($("#Hid_SecurityCount").val());
+        $("#Lab_IcnDiseaseStrTotal").text($("#Hid_IcnDiseaseStrCount").val());
+        $("#Tab_Fall_AssessTotal").text($("#Hid_Fall_AssessCount").val());
+        $("#Lab_PressureTotal").text($("#Hid_PressureCount").val());
+        $("#Lab_Constraint").text($("#Hid_Constraint").val());
+        $("#Lab_Critically_ill").show();
+        //$("#Lab_Suicide").show();
+        $("#Lab_Suicide").show().text($("#Hid_Suicide").val());
+    }
+
+    //使得此textbox只能輸入數字及字母
+    function clearNoNum(obj)
+    {
+        //obj.value = obj.value.replace(/[^\w\.\/]/ig, '');
+        obj.value = obj.value.replace(/[\ \[\]\/\{\}\(\)\*\+\=\?\.\,\\\^\$\|\~\#\%\&\'\"\!\@@\;\:\<\>\_\`]/g, '');
+    }
+
+
+</script>
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%">
+        <tr>
+            <td>
+                <div id="module_define">@title</div>
+            </td>
+        </tr>
+        <tr>
+            <td style="width: 100%; text-align: center; padding: 0 0 5px 0;">
+                <div class="funcArea">
+                    <table>
+                        <tr>
+                            <td>
+                                @Html.RadioButton("rb_list", "rb_unit", true, new { id = "rb_unit", onclick = "$('#txt_chrno').fadeOut(0);$('#txt_bedno').fadeOut(0);$('#ddl_unit').fadeIn(0).focus();" })
+                                @Html.Label("rb_unit", "依單位")
+                                @Html.DropDownList("ddl_unit", (List<SelectListItem>)ViewData["costlist"], new { @class = "ddl_unit", @onchange = "" })
+                                @Html.RadioButton("rb_list", "rb_chrno", false, new { id = "rb_chrno", onclick = "$('#txt_chrno').fadeIn(0).focus();$('#txt_bedno').fadeOut(0);$('#ddl_unit').fadeOut(0);" })
+                                @Html.Label("rb_chrno", "依病歷號")
+                                @Html.TextBox("txt_chrno", "", new { style = "width:150px;height:20px;display:none;", onblur="clearNoNum(this);"})
+                                @Html.RadioButton("rb_list", "rb_bedno", false, new { id = "rb_bedno", onclick = "$('#txt_chrno').fadeOut(0);$('#txt_bedno').fadeIn(0).focus();$('#ddl_unit').fadeOut(0);" })
+                                @Html.Label("rb_bedno", "依床號")
+                                @Html.TextBox("txt_bedno", "", new { style = "width:150px;height:20px;display:none;", onchange="clearNoNum(this);"})
+                            <input type="hidden" id="test" value="mylist" />
+       
+                                <input type="button" style="width: 80px;" value="查詢" onclick="loadPatList('clist');" />
+                                <input type="button" style="width: 80px;" value="重新整理" onclick="window.location.href = '../PatientList/List'" />
+                                <input type="button" style="width: 80px;" value="列印" onclick="window.open('@(RootDocument)/Print/GetPDF?HeaderVal=@(Server.UrlEncode("病人清單"))&url=@(RootDocument)/PatientList/List_PDF?1=1&filename=test&Popen_mode='+ model +'&PQuery='+ num_query +'&userno=@(userno)&EmployeesNo=@(userinfo.EmployeesNo)&jobtype=@(userinfo.Category)')" />
+                                <input type="button" value="範圍列印" onclick="window.open('@(RootDocument)/PatientList/List_PDF?Popen_mode='+ model +'&PQuery='+ num_query +'&userno=@(userno)&EmployeesNo=@(userinfo.EmployeesNo)&jobtype=@(userinfo.Category)');" /></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left;">
+                                <input type="button" style="width: 80px;" value="我的病人" onclick="loadPatList('mylist');" />
+                                <input type="button" style="width: 80px;" value="預計出院" onclick="loadPatList('discharge');" />
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 5px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px;">
+                        <tr>
+                            <td style="width: 8%;">床號</td>
+                            <td style="width: 9%;">姓名</td>
+                            <td style="width: 5%;">性別</td>
+                            <td style="width: 5%;">年齡</td>
+                            <td style="width: 8%;">主治醫生</td>
+                            @*<td style="width: 6%;">專師</td>*@
+                            <td style="width: 14%;">診斷</td>
+                            <td style="width: 8%;">入院日期</td>
+                            <td style="width: 4%;">檢查</td>
+                            <td style="width: 4%;">手術</td>
+                            <td style="width: 4%;">會診</td>
+                            <td style="width: 4%;">給藥</td>
+                            <td style="width: 20%;">註記</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataAreaX" id="dataAreaX" style="height: 174px">
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 1px 1px 1px 1px;">
+                <div class="dataHeader" style="overflow-y: hidden; margin-right: 0px;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px;">
+                        <tr>
+                            <td style="width: 11%;">病人</td>
+                            <td style="width: 11%;">隔離</td>
+                            <td style="width: 11%;">跌倒</td>
+                            <td style="width: 11%;">壓傷</td>
+                            <td style="width: 11%;">約束</td>
+                            <td style="width: 11%;">心情</td>
+                            <td style="width: 11%;">DNR</td>
+                            <td style="width: 11%;">病危</td>
+                            <td style="width: 11%;">隱名</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height: 30px; overflow-y: hidden; background-color: #E1E6FA;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+                        <tr>
+                            <td style="width: 11%; text-align: center;">
+                                <label id="Lab_SickmanTotal"></label>
+                            </td>
+                            <td style="width: 11%; text-align: center;">
+                                <label id="Lab_IcnDiseaseStrTotal"></label>
+                            </td>
+                            <td style="width: 11%; text-align: center;">
+                                <label id="Tab_Fall_AssessTotal"></label>
+                            </td>
+                            <td style="width: 11%; text-align: center;">
+                                <label id="Lab_PressureTotal"></label>
+                            </td>
+                            <td style="width: 11%; text-align: center;">
+                                <label id="Lab_Constraint"></label>
+                            </td>
+                            <td style="width: 11%; text-align: center;">
+                               <label id="Lab_Suicide" style="display:none;">0</label>
+                            </td>
+                            <td style="width: 11%; text-align: center;">
+                                <label id="Lab_DNRTotal"></label>
+                            </td>
+                            <td style="width: 11%; text-align: center;">
+                                <label id="Lab_Critically_ill" style="display:none;">0</label>
+                            </td>
+                            <td style="width: 11%; text-align: center;">
+                                <label id="Lab_SecurityTotal"></label>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<style type="text/css">
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size: 16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

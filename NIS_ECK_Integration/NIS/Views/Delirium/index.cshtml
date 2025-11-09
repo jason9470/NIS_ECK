@@ -1,0 +1,157 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "譫妄評估";
+    string StartDate = ViewBag.StartDate;
+    string EndDate = ViewBag.EndDate;
+    string feeno = ViewBag.FeeNo;
+    string RootDocument = ViewBag.RootDocument;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        DataQuery();
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+    //撈資料
+    function DataQuery() {
+        loop_windows("open_cover");
+
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/Delirium/ListData")',
+            dataType: 'html',
+            data: { Pstart: $('#StartDate').val(), Pend: $('#EndDate').val() },
+            cache: false,
+            success: function (response) {
+                $('.dataAreaX').html(response);
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+    //刪除
+    function DelData(x) {
+        loop_windows("open_cover");
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/Delirium/Del_MoodData")',
+            dataType: 'Json',
+            data: { id: $('#assess_id_' + x).val() },
+            cache: false,
+            success: function (response) {
+                if (response > 0) {
+                    //alert("刪除成功");
+                    DataQuery();
+                } else {
+                    alert("刪除失敗");
+                }
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    function PrintPDF() {
+        window.open("@(RootDocument)/Print/GetPDF?url=@(RootDocument)/Delirium/PrintList?feeno=@(feeno)&StartDate=" + $("#StartDate").val() + "&EndDate=" + $("#EndDate").val() + "&filename=譫妄評估總表");
+}
+</script>
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+            <td>
+                <div id="module_define">@(title)</div>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:100%;text-align:center;padding:0 0 5px 0;">
+                <div class="funcArea">
+                    日期：
+                    @Html.TextBox("StartDate", pf.InDate.ToString("yyyy/MM/dd"), new { @OnBlur = "", @class = "form-control input-sm", style = "width:60px;display:inline;" })
+                    @Html.Label("lab", " ~ ")
+                    @Html.TextBox("EndDate", DateTime.Now.ToUniversalTime().AddHours(8).ToString("yyyy/MM/dd"), new { @OnBlur = "", @class = "form-control input-sm", style = "width:60px;display:inline;" })
+                    @*@WebTool.setDateTime("StartDate","","","","", "")
+                        @WebTool.setDateTime("EndDate","","","","","")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "StartDate", "", false)
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "EndDate", "", false)
+                    <input type="button" style="width:80px;" value="查詢" onclick="DataQuery();" />
+                    <input type="button" style="width:80px;" value="新增評估" onclick="window.location.href = '../Delirium/Insert'" />
+                    <input type="button" style="width:80px;" value="列印" onclick="PrintPDF();" />
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:5px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td rowspan="2" style="width:8%;">編輯</td>                       
+                            <td rowspan="2" style="width:10%;">日期時間</td>   
+                            <td rowspan="2" style="width:10%;">評核原因</td>                 
+                            <td colspan="2" style="width:20%;">1.急性發作且病程波動</td>                         
+                            <td rowspan="2" style="width:10%;">2.注意力不集中
+                                <a style="text-decoration: none; color: black;font-size:14px; font-size:18px" href="javascript:void(0);" class="tooltip"
+                                   title="病人是否集中注意力有困難? 例如容易分心或無法接續剛剛說過的話。">
+                                    <img src="~/Images/med_dictionary.png" class="medbook" border="0" alt="
+                                        病人是否集中注意力有困難? 例如容易分心或無法接續剛剛說過的話。" />&nbsp;
+                                </a>
+                            </td>                        
+                            <td rowspan="2" style="width:10%;" >3.思考缺乏組織
+                                <a style="text-decoration: none; color: black;font-size:14px; font-size:18px" href="javascript:void(0);" class="tooltip"
+                                   title="病人是否思考缺乏組織或不連貫? 如雜亂或答非所問的對話、不清楚或不合邏輯的想法或無預期的從一個主題跳到另一個主題。">
+                                    <img src="~/Images/med_dictionary.png" class="medbook" border="0" alt="
+                                         病人是否思考缺乏組織或不連貫? 如雜亂或答非所問的對話、不清楚或不合邏輯的想法或無預期的從一個主題跳到另一個主題。" />&nbsp;
+                                </a>
+                            </td>                        
+                            <td rowspan="2" style="width:10%;" >4.意識狀態改變
+                                <a style="text-decoration: none; color: black;font-size:14px; font-size:18px" href="javascript:void(0);" class="tooltip"
+                                   title="整體而言，您認為病人的意識狀態為過度警覺、嗜睡、木僵或昏迷。">
+                                    <img src="~/Images/med_dictionary.png" class="medbook" border="0" alt="
+                                         整體而言，您認為病人的意識狀態為過度警覺、嗜睡、木僵或昏迷。" />&nbsp;
+                                </a>
+                            </td>                         
+                            <td rowspan="2" style="width:17%;">結果</td>                     
+                            <td rowspan="2" style="width:8%;">執行者</td>                                                 
+                        </tr>
+                        <tr>                           
+                            <td>1a.
+                                <a style="text-decoration: none; color: black;font-size:14px; font-size:18px" href="javascript:void(0);" class="tooltip"
+                                   title="與平常相比較，是否有任何證據顯示病人精神狀態產生急性變化?">
+                                    <img src="~/Images/med_dictionary.png" class="medbook" border="0" alt="
+                                        與平常相比較，是否有任何證據顯示病人精神狀態產生急性變化?。" />&nbsp;
+                                </a>
+                            </td>
+                            <td >1b.
+                                <a style="text-decoration: none; color: black;font-size:14px; font-size:18px" href="javascript:void(0);" class="tooltip"
+                                   title="這些不正常的行為是否在一天中呈現波動狀態? 意即症狀來來去去或嚴重程度起起落落。">
+                                    <img src="~/Images/med_dictionary.png" class="medbook" border="0" alt="
+                                         這些不正常的行為是否在一天中呈現波動狀態? 意即症狀來來去去或嚴重程度起起落落。" />&nbsp;
+                                </a>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataAreaX">
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>

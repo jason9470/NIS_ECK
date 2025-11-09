@@ -1,0 +1,720 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "引流管輸出量 單日查詢";
+    string hour = ViewBag.hour;
+    string unit = ViewBag.unit;
+    string hisview = ViewBag.hisview;
+    string[] ShiftClassName = { "白班", "小夜班", "大夜班" };//new
+    string[] ShiftClassNo = { "D", "E", "N" };//new
+    string[] shiftClassN = { "23", "00", "01", "02", "03", "04", "05", "06" };//大夜時間(開頭時間)
+    string[] shiftClassD = { "07", "08", "09", "10", "11", "12", "13", "14" };//白
+    string[] shiftClassE = { "15", "16", "17", "18", "19", "20", "21", "22" };//小夜
+    int LossCount = ViewBag.LossCount;
+    string[] unitStr = { "mL", "g", "mg" };
+    string obs = ViewBag.obs;
+    string Inquire_url = "";
+    if (obs == "T")
+    {
+        Inquire_url = "Inquire_obs";
+    }
+    else
+    {
+        Inquire_url = "Inquire";
+    }
+    DataTable new_dt = ViewBag.dt_new_io_day_query;
+    DataTable tubes = ViewBag.dtType;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .popup {
+        width: 450px;
+        height: 250px;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        /*box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;*/
+        top: 50%;
+        left: 50%;
+        margin: -190px 0 0 -130px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        /*white-space: nowrap;*/
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+<script type="text/javascript">
+    var hisview = '@(hisview)';
+    $(function () {
+        close_pup_window();
+        setGridColor();
+        $("#ddl_total_interval").val('@(hour)');
+        $("#unit").val('@(unit)');
+        ComputeTotal();
+        if (hisview == "T") {
+            $("input[type='button'][hid_remark='hid']").each(function () {
+                $(this).hide();
+            });
+            $("td[hid_remark='hid']").each(function () {
+                $(this).hide();
+            });
+            $("textarea[hid_remark='hid']").each(function () {
+                $(this).hide();
+            });
+
+        }
+
+    });
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    $(document).ready(function () {
+        //SetDatePicker($('#qry_date'), '+1d');
+    });
+
+    //限制dateTimePicker 的起迄範圍
+    function ChangeStartDate(pType, TxtNameArr, ObjVal) {
+        var Index = $(".tabArea").tabs("option", "active");
+        var CurrentDate = new Date($('#qry_date').val());
+        var NewDate = new Date(CurrentDate);  //開始日期
+        var NextDateVal = new Date();  //現在日期，給「後一天」的 btn 使用；開始日期不可大於「現在日期 + 1」
+        //var BeforeDateVal = new Date();  //住院日期，給「前一天」的 btn 使用；開始日期不可小於「出院日期」
+        var dd = "", mm = "", yyyy = "";
+
+        if (pType == 'prev')
+            NewDate.setDate(NewDate.getDate() - 1);
+        else if (pType == 'next')
+            NewDate.setDate(NewDate.getDate() + 1);
+
+        //開始日期
+        dd = padLeft(NewDate.getDate().toString(), 2, "0");
+        mm = padLeft((NewDate.getMonth() + 1).toString(), 2, "0");
+        yyyy = NewDate.getFullYear();
+        var RightNowDate = yyyy + '/' + mm + '/' + dd;
+        $('#qry_date').val(RightNowDate);
+
+        //btn 判斷日期，現在日期 or 住院日期
+        //現在日期
+        NextDateVal.setDate(NextDateVal.getDate() + 1);  //現在日期 + 1
+        dd = padLeft(NextDateVal.getDate().toString(), 2, "0");
+        mm = padLeft((NextDateVal.getMonth() + 1).toString(), 2, "0");
+        yyyy = NextDateVal.getFullYear();
+        var NextDStr = yyyy + '/' + mm + '/' + dd;
+
+        //住院日期
+        var BeforeDStr = $(ObjVal).attr("indate");
+
+        var SplitTmp = TxtNameArr.split(',');
+        if (RightNowDate == NextDStr)  //最後一天
+        {
+            $("#" + SplitTmp[0]).attr("disabled", true);
+            $("#" + SplitTmp[1]).attr("disabled", false);
+        }
+        else if (RightNowDate == BeforeDStr)  //第一天
+        {
+            $("#" + SplitTmp[1]).attr("disabled", true);
+            $("#" + SplitTmp[0]).attr("disabled", false);
+        }
+        else {
+            $("#" + SplitTmp[1]).attr("disabled", false);
+            $("#" + SplitTmp[0]).attr("disabled", false);
+        }
+        reQuery();
+    }
+
+    function SetDatePicker(DateObj, AddDay) {
+        DateObj.prop('readonly', true).css({ 'width': '80px', 'font-size': '12px' });
+        DateObj.datepicker({
+            beforeShowDay: function (date) {
+                switch (date.getDay()) {
+                    case 6:
+                        return [true, 'satday'];
+                        break;
+                    case 0:
+                        return [true, 'sunday'];
+                        break;
+                    default:
+                        return [true, ''];
+                        break;
+                }
+            },
+            inline: true,
+            showAnim: "slideDown",
+            controlType: myControl,
+            maxDate: AddDay,
+            onSelect: function () {
+                ChangeStartDate('', 'BtnNextDay,BtnDayBefore', 'txt');
+            }
+        });
+    }
+    //WebTool月曆，往前往後一天
+    function setDate(pType, DateField) {
+        var NewDate = new Date($("#"+ DateField).val());
+        if (pType == 'prev') {
+            NewDate.setDate(NewDate.getDate() - 1);
+            $("#" + DateField).datepicker("setDate", NewDate);
+        } else if (pType == 'next') {
+            NewDate.setDate(NewDate.getDate() + 1);
+            $("#" + DateField).datepicker("setDate", NewDate);
+        }
+
+        reQuery();
+    }
+
+    function reQuery(){
+        $( "#tube_submit" ).trigger( "click" );
+    }
+
+
+    function add_content(obj, txtid) {
+        if (obj.checked)
+            $('#' + txtid).val($('#' + txtid).val() + obj.value + '，');
+        else
+            $('#' + txtid).val($('#' + txtid).val().replace(new RegExp("(" + obj.value + '，' + ")*", "g"), ''));
+    }
+
+    function send_content(txtid) {
+        $.ajax({
+            type: 'post',
+            url: 'Insert_Record',
+            data: { Com: $('#' + txtid).attr('record'), I: $('#' + txtid).val() },
+            success: function (result) {
+                if (result != '')
+                    alert(result);
+            }
+        });
+    }
+
+    function pup_window(url, width, height) {
+        new_window.push(window.open(url, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=' + width + ',height=' + height));
+    }
+
+    //直排類別統計
+    function ComputeTotal() {
+        var TempIOValue = [ "O"];
+        var TempIOClass = ["D", "E", "N"];
+        // var Temp_Class_Total = 0.00;//班別小計的暫存
+        var Temp_Class_Total_IO = 0.00;///不管I還是O的暫存
+        var tubes = "", $tubes = $("[name=lab_type_panme]");
+        $tubes.each(function () {
+            tubes += $(this).attr("pvalue") + ",";
+        });
+        if (tubes.length > 0) {
+            tubes = tubes.substring(0, tubes.length - 1);
+        }
+        var tubeType = tubes.split(',');
+
+
+        var v_tottal = "", h_total = "", summary_total = ""; tmp_subtotal = "";
+        var tube_value_pre = 0, tube_value_post = 0, lost_pre = lost_post = 0;
+        var subValue_h = 0, subLoss_h = 0; tmp_subtotal_1 = "", tmp_subtotal_2 = "";
+        var D_summary = ""; E_summary = ""; N_summary = "";
+        var D_val = 0, E_val = 0, N_val = 0, D_loss = 0, E_loss = 0, N_loss = 0; D_txt = "", E_txt = "", N_txt = "";
+        var $this_tube = "",$tube_val = 0, $tube_loss = 0;
+        for (var i = 0; i < tubeType.length; i++) {
+            $tubes.each(function () {
+                if ($(this).attr("pvalue") == tubeType[i]) {
+                    $this_tube = $(this);
+                }
+            });
+
+            D_val = 0, E_val = 0, N_val = 0, D_loss = 0, E_loss = 0, N_loss = 0;
+            tmp_subtotal = "";
+            if (i >=0) {
+                subValue_v = 0; subLoss_v = 0; subValue_h = 0; subLoss_h = 0;
+                for (var j = 0; j < TempIOClass.length ; j++) {
+                    var Tempint = 0;
+                    $("[name=lab_timelist_element][ptempio=" + TempIOValue[i] + "][ptempclass=" + TempIOClass[j] + "]").each(function () {
+                        var Temp_temppint = 0;
+                        Temp_temppint = ($(this).text() == "") ? "0" : $(this).text();/////2016/07/12v修改jarvis
+                        Tempint = Tempint + parseFloat(Temp_temppint);
+                    });
+                    var Temp_value = ((Tempint.toFixed(3)) == "0.000") ? "0" : (Tempint.toFixed(3));
+                    $("#lab_" + TempIOValue[i] + "_txt_" + TempIOClass[j]).text(parseFloat(Math.round(Temp_value * 1000)) / 1000);//(Tempint).toString()///2016/07/19v修改jarvis
+
+                    //引流管統計 by vertical
+                    var attr_v = "ptemp_value_" + TempIOClass[j] + i, attr_l = "ptemp_loss_" + TempIOClass[j] + i;
+                    var $tags_v = $("[name=lab_timelist_element][tags=" + TempIOClass[j]+i+"]");
+                    $tags_v.each(function () {
+                        if ($(this).text() !== "") {
+                            subValue_v += parseFloat($(this).attr(attr_v));
+                            subLoss_v += parseInt($(this).attr(attr_l));
+                            //---------------------by horizontal
+                            if ($(this).attr("ptempclass") == TempIOClass[j]) {
+                                subValue_h += parseFloat($(this).attr(attr_v));
+                                subLoss_h += parseInt($(this).attr(attr_l));
+                                if (j == 0) {
+                                    D_val += parseFloat($(this).attr(attr_v));
+                                    D_loss += parseInt($(this).attr(attr_l));
+
+                                    $this_tube.attr({
+                                        "D_val": D_val,
+                                        "D_loss": D_loss });
+                                } else if (j == 1) {
+                                    E_val += parseFloat($(this).attr(attr_v));
+                                    E_loss += parseInt($(this).attr(attr_l));
+
+                                    $this_tube.attr({
+                                        "E_val": E_val,
+                                        "E_loss": E_loss
+                                    });
+                                } else if (j == 2) {
+                                    N_val += parseFloat($(this).attr(attr_v));
+                                    N_loss += parseInt($(this).attr(attr_l));
+
+                                    $this_tube.attr({
+                                        "N_val": N_val,
+                                        "N_loss": N_loss
+                                    });
+                                }
+                            }
+                        }
+                    });
+
+                }
+                //----------------------總計
+                //11.31  ----  不明原因: 數字會變的很可怕的長.....  11.3000000000001   , 因此必須另外處理
+                subValue_v = parseFloat(Math.round(subValue_v * 1000)) / 1000;
+                var txt_v = (subValue_v == 0) ? "" : subValue_v + "mL";
+                var txt_l = (subLoss_v == 0) ? "" : " +Loss" ;
+                if (txt_v != "" || txt_l != "") {
+                    summary_total += " " + tubeType[i] + "：" + txt_v + txt_l + "；";
+                }
+                $("#label_final").text(summary_total !=""?"Record day total 引流管輸出量：" + summary_total.substring(0, summary_total.length - 1):"");
+                $("#AllTotal").val(summary_total != "" ? "Record day total 引流管輸出量：" + summary_total.substring(0, summary_total.length - 1) : "");
+
+                if (typeof ($this_tube) != String) {
+
+                for (var j = 0; j < TempIOClass.length ; j++) {
+                    if (($this_tube.attr(TempIOClass[j]+"_val") != 0) || ($this_tube.attr(TempIOClass[j]+"_loss") != 0)) {
+                        if (TempIOClass[j] == "D"){
+                            D_txt += combin_summary(tubeType[i], $this_tube.attr(TempIOClass[j]+"_val"), $this_tube.attr(TempIOClass[j]+"_loss"));
+                        } else if (TempIOClass[j] == "E") {
+                            E_txt += combin_summary(tubeType[i], $this_tube.attr(TempIOClass[j] + "_val"), $this_tube.attr(TempIOClass[j] + "_loss"));
+                        } else {
+                            N_txt += combin_summary(tubeType[i], $this_tube.attr(TempIOClass[j] + "_val"), $this_tube.attr(TempIOClass[j] + "_loss"));
+                        }
+                    }
+                }
+
+                }
+            }
+            //班別小計
+            $("#subtotal_by_TempClass_D").text((D_txt=="")?"":"白班內：" + D_txt.substring(0, D_txt.length - 1));
+            $("#subtotal_by_TempClass_E").text((E_txt=="")?"":"小夜班內：" + E_txt.substring(0, E_txt.length - 1));
+            $("#subtotal_by_TempClass_N").text((N_txt=="")?"":"大夜班內：" + N_txt.substring(0, N_txt.length - 1));
+        }
+
+        LateralTotal();
+        LossTotal();
+
+        function combin_summary(tube, tmp1, tmp2) {
+            //11.31  ----  不明原因: 數字會變的很可怕的長.....  11.3000000000001   , 因此必須另外處理
+            var tmp = parseFloat(Math.round(tmp1 * 1000)) / 1000;
+
+            var val = (tmp1 == 0 || tmp1 == undefined) ? "" : tmp + "mL";
+            var loss = (tmp2 == 0 || tmp1 == undefined) ? "" : " +Loss " ;
+            var output_txt = (val == "" && loss == "") ? "" : tube + "：" + val + loss + "；";
+            return output_txt;
+        }
+
+        var total = parseFloat($("#lab_I_AllTotal").text()) - parseFloat($("#lab_O_AllTotal").text()); //計算輸入減去輸出值
+        $("#lab_Compute_AllTotal").text(total);
+        var Temploss = 0;//以下計算LOSS.總量
+        for (var i = 0; i < 2; i++) {
+            Temploss = 0;
+            $("[name=lab_txt_loss_data_" + TempIOValue[i] + "]").each(function () {
+                Temploss = Temploss + parseInt($(this).text());
+            });
+            $("#lab_" + TempIOValue[i] + "_Loss_AllTotal").text(Temploss.toString());
+            var ddd = $("#lab_" + TempIOValue[i] + "_Loss_AllTotal").text();
+            //
+            if ($("#lab_" + TempIOValue[i] + "_Loss_AllTotal").text() != "0") {
+                $("#lab_" + TempIOValue[i] + "_Loss_AllTotal").show();
+                $("#lab_" + TempIOValue[i] + "_Loss_Str1").show();
+                $("#lab_" + TempIOValue[i] + "_Loss_Str2").show();
+            }
+        }
+        ////增加班別的差異量計算顯示
+        for (var i = 0; i < TempIOClass.length; i++) {
+            var StrTotal = " ";
+            var Temp_Class_Total = parseFloat($("#lab_O_txt_" + TempIOClass[i]).text());
+            if (Temp_Class_Total > 0) {
+                StrTotal = " +";
+            }
+            //StrTotal += Temp_Class_Total.toFixed(2);
+            var Temp_value = ((Temp_Class_Total.toFixed(3)) == "0.00") ? "0" : (Temp_Class_Total.toFixed(3));//
+            //parseFloat(Math.round(value*100))/100
+            //StrTotal += Temp_value;
+            StrTotal += parseFloat(Math.round(Temp_value * 1000)) / 1000;
+
+            $("#lab_class_small_total_" + TempIOClass[i]).text(StrTotal);
+        }
+    }
+
+    //橫排時間區間內統計
+    function LateralTotal() {
+        var TempInt = 0;
+        var TempIOClass = ["D", "E", "N"];
+        var TempIOValue = ["I", "O"];
+        for (var j = 0; j < 2; j++) {
+            TempInt = 0;
+            for (var i = 0; i < 3; i++) {
+                TempInt = TempInt + parseFloat($("#lab_" + TempIOValue[j] + "_txt_" + TempIOClass[i]).text());
+            }
+            $("#lab_" + TempIOValue[j] + "_AllTotal").text((TempInt).toString());
+        }
+    }
+
+    //計算loss-每班
+    function LossTotal() {
+        var TempIOClass = ["D", "E", "N"];
+        var OlossTemp = 0;
+        for (var i = 0; i < TempIOClass.length; i++) {
+            OlossTemp = 0;
+            $("[name=td_timehour_total][ptempclass=" + TempIOClass[i] + "]").each(function () {
+                OlossTemp = OlossTemp + parseInt($(this).attr("polossvalue"));//輸出
+            });
+
+            $("#lab_txt_loss_data_O_" + TempIOClass[i]).text(OlossTemp.toString());
+
+            if (parseInt($("#lab_txt_loss_data_O_" + TempIOClass[i]).text()) != "0") {
+                $("#lab_txt_loss_data_O_" + TempIOClass[i]).show();
+                $("#lab_txt_loss_Str3" + TempIOClass[i]).show();
+                $("#lab_txt_loss_Str4" + TempIOClass[i]).show();
+            }
+        }
+    }
+
+
+
+
+    //帶入護理記錄按扭
+    function Take_CareRecord(classNo, date, typei, className) {
+        loop_windows("open_cover");
+        $.ajax({
+            type: 'post',
+            url: '@Url.Content("~/IOManage/TakeCareRecord")',
+            data: {
+                Pclass: classNo, PclassName: className, Pdate: date, Ptypei: typei,
+                POValue:  $("#lab_O_txt_" + classNo).text(),PIValue: "0",
+                POTOTAL: $("#lab_O_AllTotal").text(),
+                PclasslossI:"",PclasslossO:"",
+                Ploss: '@(LossCount)',  PclasslossO: parseInt($("#lab_txt_loss_data_O_" + classNo).text()),PlossI: "0",
+                Pdealwith: "", PdealwithALL: $("#texta_dealwith_ALL").val(), Punit: '@(unit)',
+                qry_date: $("#qry_date").val(),
+                SubtotalO: $("#subtotal_by_TempClass_" + classNo).text(),
+                AllTotalO: $("#AllTotal").val(),
+                Func_from : "Inquire_tube"
+            },
+            success: function (data) {
+                if (data == "Y")
+                { alert('帶入護理紀錄成功!'); }
+                else
+                { alert('帶入護理紀錄失敗!'); }
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    function PupWindow(url, width, height, top) {
+        var pURL = url; pURL = pURL.replace('&amp;', '&');
+        new_window.push(window.open(pURL, '_blank', 'menubar=no,status=no,scrollbars=yes,top=Tp,left=200,toolbar=no,width=' + width + ',height=' + height));
+    }
+    function loading_change(_this) {
+        if (hisview != "T") {
+            loop_windows("open_cover");
+        }
+        $("#form1").submit();
+    }
+
+</script>
+@using System.Data;
+@{
+    string date = ViewBag.date;
+    DataTable dtType = ViewBag.dtType;
+    //DateTime dateStrStartE = Convert.ToDateTime(date + " 23:00:00").AddDays(-1);//舊
+    DateTime dateStrStartE = Convert.ToDateTime(date + " 07:01:00");//新
+
+    // DateTime FirstTimeEnd = Convert.ToDateTime(date + " 23:00:00").AddDays(1).AddHours(int.Parse(hour));
+    int count = (8 / int.Parse(hour)) + 1;
+    string TempClass = "";//註記在每一格數字上，代表班別
+    int ttl_cols = dtType.Rows.Count;
+    int width = (80 / ((ttl_cols == 0) ? 1 : ttl_cols));
+    int width_sub = 7; //合計寬度 8%
+    string subtotal_cols = (ttl_cols + 2).ToString();
+    string colName = "", show_detail = "", extra_msg = " (※移至標題可看到管路全名※)";
+
+    if (ttl_cols > 3)
+    {
+        show_detail = "細";
+        extra_msg = extra_msg;
+    }
+    else
+    {
+        show_detail = "明細";
+        extra_msg = "";
+    }
+
+}
+<form id="form1" action="Inquire_tube" method="post">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; padding-bottom: 10px;">
+            <tbody>
+                <tr>
+                    <td>
+                        <div id="module_define">@title</div>
+                    </td>
+                </tr>
+                <tr>
+                    @*<input type="button" value="前一天" id="BtnDayBefore" onclick="ChangeStartDate('prev', 'BtnNextDay,BtnDayBefore', this);" indate="@(ViewBag.InDate)" />*@
+                    <input type="button" value="前一天" id="BtnDayBefore" onclick="setDate('prev', 'qry_date');" indate="@(ViewBag.InDate)" />
+                    <input id="qry_date" name="qry_date" style="width: 80px; font-size: 12px;" type="text" value="@(ViewBag.date)" >
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "qry_date", "", false, "1")
+                    @*<input type="button" value="後一天" id="BtnNextDay" onclick="ChangeStartDate('next', 'BtnNextDay,BtnDayBefore', this);" />*@
+                    <input type="button" value="後一天" id="BtnNextDay" onclick="setDate('next', 'qry_date');" />
+                    <select id="unit" name="unit" style="display: none;">
+                        <option value="1" selected>mL</option>
+                        <option value="2">g</option>
+                        <option value="3">mg</option>
+                    </select>
+                    @Html.Label("lab_total_interval", " 統計區間：")
+                    <select id="ddl_total_interval" name="ddl_total_interval">
+                        <option value="1">1小時</option>
+                        <option value="2" selected>2小時</option>
+                        <option value="4">4小時</option>
+                    </select>
+                    <input type="button" id="tube_submit" value="查詢" style="width: 80px;" onclick="loading_change();">
+                    <input type="hidden" name="obs" value="@obs">
+                    <input type="hidden" name="hisview" value="@hisview">
+                    <input type="button" hid_remark="hid" value="新增攝入/輸出" style="width: 120px;" onclick="window.location.href = '../IOManage/IO_Insert_List';">@*window.location.href = 'Insert';*@
+                    <input type="button" value="IO總量統計" style="width: 140px;" onclick="window.location.href = '../IOManage/@Inquire_url?hisview=@(hisview)';">
+
+                    </td>
+                </tr>
+                <tr></tr>
+            </tbody>
+        </table>
+    </div>
+</form>
+<div class="dataHeader" id="dataHeader">
+    <table border="0" cellpadding="4" cellspacing="1" style="table-layout: fixed;white-space: nowrap; width: 100%;" class="dtl_VS">
+        <tbody>
+            <tr>
+                <td style="width: 12.5%;" colspan="1">
+                    <div style="overflow: hidden;">&nbsp;</div>
+                </td>
+                <td style="width: 80%; text-align: center;" colspan=@ttl_cols>
+                    <div style="overflow: hidden;">引流管 <span style='font-size: 14px;color:darkblue;'>@extra_msg</span></div>
+                </td>
+                <td style="width:@width_sub%; text-align: center;" rowspan="2">合計</td>
+            </tr>
+            <tr>
+                <td style="width: 10%; text-align: center; font-size: 12px;">班別\時間\管路</td>
+                @for (int i = 0; i < dtType.Rows.Count; i++)
+                {
+
+                    if (dtType.Rows.Count > 3)
+                    {
+                        colName = "#" + @dtType.Rows[i]["NUMBEROTHER"].ToString();
+                        show_detail = "細";
+                    }
+                    else
+                    {
+                        colName = @dtType.Rows[i]["TUBE_CONTENT"].ToString();
+                        show_detail = "明細";
+                    }
+
+                    <td style="width:@width %; text-align: center;">
+                        <label style="font-size:12px;" name="lab_type_panme" title="@dtType.Rows[i]["TUBE_CONTENT"]" io_row="@dtType.Rows[i]["TUBEROW"]" pvalue="@dtType.Rows[i]["TUBE_CONTENT"]">@colName</label>
+                        <input type='button' value='@show_detail' onclick='pup_window("Detail?show_by=tube&from_func=IO_Tube&itemid=@dtType.Rows[i]["TUBEROW"]&hisview=" + hisview +""&day=@(date)", "1000", "500");' />
+                    </td>
+                }
+                @if (dtType.Rows.Count == 0)
+                {
+                    <td style="text-align: center;">
+                        <label style="font-size:12px;" name="lab_type_panme" pvalue=""></label>
+                    </td>
+                }
+            </tr>
+        </tbody>
+    </table>
+</div>
+<div class="dataArea" onscroll="document.getElementById('dataHeader').scrollLeft = this.scrollLeft;" style="height: 320px; width: 100%;overflow-x:scroll;overflow-y:scroll; ">
+    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+        @{
+            DateTime dateStrEndE = dateStrStartE.AddHours(23);
+            int hourtotalcount = 0, classnamecount = 0, classnamearray = 0, dealwithcount = 0;
+        }
+        @for (DateTime x = dateStrStartE; x <= dateStrEndE; x = x.AddHours(int.Parse(hour)))
+        {
+            double loss_count = 0, Ohourtotalamount = 0;
+
+
+            hourtotalcount++;
+            classnamecount++;
+            dealwithcount++;
+            @Html.Raw("<tr style='background: rgb(171, 200, 226);'>")
+            string DateclassOnName = (classnamearray != 2) ? (x.ToString("yyyy/MM/dd")) : (x.AddDays(1).ToString("yyyy/MM/dd"));
+            if ((classnamecount % (8 / int.Parse(hour))) == 1)
+            {
+                //塞前面班別的及明細合併框格
+                @Html.Raw("<td class='head' rowspan='" + count + "' style='width: 5%; background: rgb(133, 165, 204); text-align: center;'><label style='font-size:11px;'>" + DateclassOnName + "</label><br />" + ShiftClassName[classnamearray] + " ")
+                @Html.Raw("<br />")
+                @Html.Raw("<input type='button' value='明細' style='display:none;' onclick='pup_window(\"Detail?show_by=class&tube_row=&from_func=IO_Tube&date=" + ShiftClassNo[classnamearray] + "&hisview=" + hisview + "&day=" + DateclassOnName + "\", \"1000\", \"500\");'>")
+                @Html.Raw("<input type='button' hid_remark='hid' value='帶入護理記錄' style='width:40px;height:120px;white-space:normal; word-break:break-all;overflow:hidden;font-size: 14px;' onclick='Take_CareRecord(\"" + ShiftClassNo[classnamearray] + "\",\"" + DateclassOnName + "\",\"1\",\"" + ShiftClassName[classnamearray] + "\")'>")
+                @Html.Raw("<br />")
+                @Html.Raw("</td> ")
+            }
+            else if (hour == "8")
+            {
+                @Html.Raw("<td class='head' rowspan='" + count + "' style='width: 5%; background: rgb(133, 165, 204); text-align: center;'><label style='font-size:11px;'>" + DateclassOnName + "</label><br />" + ShiftClassName[classnamearray] + " ")
+                @Html.Raw("<br />")
+                @Html.Raw("<input type='button' value='明細' style='display:none;'  onclick='pup_window(\"Detail?show_by=class&tube_row=&from_func=IO_Tube&date=" + ShiftClassNo[classnamearray] + "&hisview=" + hisview + "&day=" + DateclassOnName + "\", \"1000\", \"500\");'>")
+                @Html.Raw("<input type='button' hid_remark='hid' value='帶入護理記錄' style='width:50px;height:60px;white-space:normal; word-break:break-all;overflow:hidden;font-size: 14px;' onclick='Take_CareRecord(\"" + ShiftClassNo[classnamearray] + "\",\"" + DateclassOnName + "\",\"1\",\"" + ShiftClassName[classnamearray] + "\")'>")
+                @Html.Raw("<br />")
+                @Html.Raw("</td> ")
+            }
+            if (x <= dateStrEndE)
+            {
+                @Html.Raw("<td style='width:6%;'>")
+                @Html.Raw("<div style='overflow: hidden;'><label>")
+                @(x.ToString("HH"))  @Html.Raw("-") @(x.AddHours(int.Parse(hour)).ToString("HH"))
+                @Html.Raw("</label></div>")
+                @Html.Raw("</td>")
+                if ((shiftClassN.Any(s => x.ToString("HH").Contains(s))))
+                {
+                    TempClass = "N";
+                }
+                else if ((shiftClassD.Any(s => x.ToString("HH").Contains(s))))
+                {
+                    TempClass = "D";
+                }
+                else if ((shiftClassE.Any(s => x.ToString("HH").Contains(s))))
+                {
+                    TempClass = "E";
+                }
+                int count_i_loss = 0, count_o_loss = 0;
+
+                DateTime dt2 = x;//起始時間
+                DateTime dt3 = x.AddHours(Convert.ToInt32(hour)).AddMinutes(-1);
+                for (int y = 0; y < dtType.Rows.Count; y++)
+                {
+                    string TempStrio = "O";
+                    count_o_loss = 0;
+                    string lab_temp_timeList = "";
+                    if (new_dt != null && new_dt.Rows.Count > 0)
+                    {
+                        for (int z = 0; z < new_dt.Rows.Count; z++)
+                        {
+                            DateTime dt1 = Convert.ToDateTime(new_dt.Rows[z]["CREATETIME"]);
+                            if ((new_dt.Rows[z]["TUBE_CONTENT"].ToString() == dtType.Rows[y]["TUBE_CONTENT"].ToString()) && (dt1 >= dt2) && (dt3 >= dt1))
+                            {//還需要加條件
+                                if (new_dt.Rows[z]["TUBE_CONTENT"] != null && new_dt.Rows[z]["AMOUNT"].ToString() != "")
+                                {
+                                    double Temp_Amount = (lab_temp_timeList == "") ? 0 : Convert.ToDouble(lab_temp_timeList);
+                                    lab_temp_timeList = (Temp_Amount + Convert.ToDouble(new_dt.Rows[z]["AMOUNT"])).ToString();
+
+                                    if (lab_temp_timeList == "")
+                                    {
+                                        break;
+                                    }
+                                }
+                                if (new_dt.Rows[z]["REASON"].ToString() != "0")
+                                {
+                                    count_o_loss++;
+                                }
+                            }
+                        }
+
+                    }
+                    string Temp_Amount_Str = (lab_temp_timeList == "") ? "0" : lab_temp_timeList;//處理合計
+                    string tmp_loss = (count_o_loss == 0) ? "" : "+Loss ";
+
+                    loss_count += count_o_loss;
+                    Ohourtotalamount += Convert.ToDouble(Temp_Amount_Str);
+                    @Html.Raw("<td style='width:" + width + "%;text-align: center; word-break:break-all;' name='td_timelist_element' ><label name='lab_timelist_element' tags='" + TempClass + y.ToString() + "' ptempio ='" + TempStrio + "' ptempclass='" + TempClass + "' ptemp_value_" + TempClass + y.ToString() + "=" + Temp_Amount_Str + " ptemp_loss_" + TempClass + y.ToString() + "=" + count_o_loss + ">" + lab_temp_timeList + tmp_loss + "</label></td>")@*內容Amount加總*@
+
+                }
+                if (dtType.Rows.Count == 0)
+                {
+                    @Html.Raw("<td style='width:" + width + "%;text-align: center; word-break:break-all;' name='td_timelist_element' ><label name='lab_timelist_element' ></label></td>")
+                }
+
+                @Html.Raw("<td style='width:" + width_sub + "%;text-align: center;word-break:break-all;' name='td_timehour_total'  ptempclass='" + TempClass + "' hourtemp='" + x.Hour + "' pilossvalue='" + count_i_loss + "' polossvalue='" + count_o_loss + "'>")
+                var strloss = (loss_count == 0) ? "" : " +Loss ";
+                @Html.Raw("<label style='width:" + width_sub + "%;font-size: 14px;color:red;'>" + Math.Round(Ohourtotalamount, 3).ToString() + strloss)   @*合計*@
+
+                @Html.Raw("</label>")
+                @Html.Raw("<br />")
+                @Html.Raw("</td>")//合計每行的時間區間
+                if ((dealwithcount % (8 / int.Parse(hour))) == 1)
+                {
+                    classnamearray++;
+                }
+                else if (hour == "8")
+                {
+                    classnamearray++;
+                }
+                @Html.Raw("</tr>")
+            }
+            if (hourtotalcount == 8 / int.Parse(hour))
+            {
+                hourtotalcount = 0;
+                @Html.Raw("<tr style='background: rgb(225, 230, 250);'>")
+                @Html.Raw("<td>小計</td>")
+                @Html.Raw("<td colspan=" + subtotal_cols)
+                @Html.Raw("<label id='subtotal_by_TempClass_" + TempClass + "'></label>")
+                @Html.Raw("</td></tr>")
+            }
+        }
+        <tr style="background: rgb(171, 200, 226);">
+            <td colspan="2">
+                <div style="overflow: hidden; text-align: center;">
+                    輸出量總計
+                    @Html.Raw("<br />")
+                    @Html.Raw("<input type='button' hid_remark='hid' value='帶入護理記錄' style='white-space:normal; word-break:break-all;overflow:hidden;font-size: 12px; ' onclick='Take_CareRecord(\"\",\"" + date + "\",\"2\",\"\")'>")
+                </div>
+                <p></p>
+
+            </td>
+            <td colspan=@subtotal_cols>
+                <label id="label_final"></label>
+                <input id='AllTotal' name="AllTotal" type="hidden" />
+            </td>
+        </tr>
+    </table>
+</div>

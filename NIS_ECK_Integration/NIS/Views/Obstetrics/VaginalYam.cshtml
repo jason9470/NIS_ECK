@@ -1,0 +1,452 @@
+﻿@using System.Data;
+@using System.Web.Mvc.Html;
+@{
+    ViewBag.Title = "VaginalYam";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable dt = ViewBag.dt;
+
+    //放置及取出條數總和
+    var sum = ViewBag.sum;
+}
+<script>
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+
+        $('.head').css('background', '#85A5CC');
+    }
+
+    $(function () {
+        setGridColor();
+        //設定高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 160);
+        }).trigger("resize");
+    });
+
+    window.onunload = function () {
+        window.opener.location.href = 'Index?active=Postnatal_Record_List&show=Y';
+    };
+
+    function set_for_sel(sel_name, dvalue) {
+        if (dvalue != 'undefined') {
+            var sel = document.getElementsByName(sel_name);
+            if (sel.length > 0) {
+                for (var i = 0; i < sel[0].length; i++) {
+                    if (sel[0][i].value == dvalue)
+                        $(sel[0][i]).attr("selected", "true");
+                }
+            }
+        }
+    }
+
+    function get_employee_name(obj, name) {
+        var userno = $(obj).attr('id')
+        $.ajax({
+            url: "Get_Employee_Name",
+            type: "GET",
+            data: { userno: document.getElementById(userno).value },
+            success: function (data, textStatus, jqXHR) {
+                var userNameId = userno.replace("TXT_" + name, "LB_" + name);
+                if (data == "") {
+                    alert("查無此執行者員工編號!");
+                    $("#" + userNameId).html('請輸入員工編號');
+                }
+                else {
+                    $("#" + userNameId).html(data);
+                }
+            },
+            error: function (err) {
+            },
+            dataType: 'text'
+        });
+    }
+
+    function sendForm() {
+        var iid = $('#IID').val();
+
+        var putin_day = $("#PUTIN_TIME_DAY").val();
+        var putin_time = $("input[name=PUTIN_TIME_TIME]").val();
+
+        var takeout_day = $("#TAKEOUT_TIME_DAY").val();
+        var takeout_time = $("input[name=TAKEOUT_TIME_TIME]").val();
+
+        if (putin_day && putin_time && takeout_day && takeout_time) {
+            alert('放置或取出時間僅能選擇一種!');
+            $("#PUTIN_TIME_DAY").val('');
+            $("input[name=PUTIN_TIME_TIME]").val('');
+            $("#TAKEOUT_TIME_DAY").val('');
+            $("input[name=TAKEOUT_TIME_TIME]").val('');
+            return;
+        }
+
+        var putin = $("select[name=DDL_PUTIN_AMT]").val();
+        var takeout = $("select[name=DDL_TAKEOUT_AMT]").val();
+        if (putin == 0 && takeout == 0) {
+            alert('請選擇放置或取出條數!');
+            return;
+        }
+
+        if (putin == takeout && putin > 0 && takeout > 0) {
+            alert('放置或取出僅能選擇一種!');
+            $("select[name=DDL_PUTIN_AMT]").val('0');
+            $("select[name=DDL_TAKEOUT_AMT]").val('0');
+            return;
+        }
+
+        if (putin > 0) {
+            if (!iid) {
+                if (@sum > 0) {
+                    alert('還有' + '@sum' + '條尚未取出，不得放置!');
+                    $("select[name=DDL_PUTIN_AMT]").val('0');
+                    return;
+                }
+            }
+
+            var day = $("#PUTIN_TIME_DAY").val();
+            var time = $("input[name=PUTIN_TIME_TIME]").val();
+            var user = $("input[name=TXT_PUTIN_ID]").val();
+            if (!day || !time) {
+                alert('放置時間尚未填寫!')
+                return;
+            }
+            if (!user) {
+                alert('放置人員尚未填寫!')
+                return;
+            }
+        }
+
+        if (takeout > 0) {
+            if (!iid) {
+                if (@sum <= 0) {
+                    alert('無陰道塞紗可取出!');
+                    $("select[name=DDL_TAKEOUT_AMT]").val('0');
+                    return;
+                }
+
+                if (@sum < takeout) {
+                alert('欲取出的條數超過可取條數' + '@sum' + '條!');
+                    $("select[name=DDL_TAKEOUT_AMT]").val('0');
+                return;
+            }
+        }
+
+            var day = $("#TAKEOUT_TIME_DAY").val();
+            var time = $("input[name=TAKEOUT_TIME_TIME]").val();
+            var user = $("input[name=TXT_TAKEOUT_ID]").val();
+            if (!day || !time) {
+                alert('取出時間尚未填寫!')
+                return;
+            }
+            if (!user) {
+                alert('取出人員尚未填寫!')
+                return;
+            }
+    }
+
+    if (iid) {
+        $.ajax({
+            url: 'Upd_VagYarn',
+            type: 'post',
+            dataType: 'json',
+            data: $('form[name=insert_form]').serialize(),
+            success: function (data) {
+                if (Number(data) > 0) {
+                    alert('修改成功');
+                } else {
+                    alert('修改失敗');
+                }
+                window.location.href = 'VaginalYam';
+            },
+            failure: function (errMsg) {
+                alert('修改失敗');
+                window.location.href = 'VaginalYam';
+            }
+        });
+    }
+    else {
+        $("form[name=insert_form]").submit();
+    }
+    }
+
+    function Update() {
+        var id = $('input[type=checkbox]:checked').val();
+        if (id != "" && id != undefined) {
+
+                $.ajax({
+                    url: "Get_VaginalYarn",
+                    type: "GET",
+                    data: { IID: id },
+                    success: function (data, textStatus, jqXHR) {
+                        if (data != "") {
+                            var table = data.Table[0];
+                            if (table.IID) {
+                                $("#IID").val(table.IID);
+                            }
+                            else {
+                                $("#IID").val('');
+                            }
+
+                            if (table.PUTIN_TIME) {
+                                $("#PUTIN_TIME_DAY").val(table.PUTIN_TIME.split('T')[0].replace(/\-/g, "/"));
+                                $("#PUTIN_TIME_TIME").val(table.PUTIN_TIME.split('T')[1].substring(0, 5));
+                            }
+                            else {
+                                $("#PUTIN_TIME_DAY").val('');
+                                $("#PUTIN_TIME_TIME").val('');
+                            }
+                            if (table.TAKEOUT_TIME) {
+                                $("#TAKEOUT_TIME_DAY").val(table.TAKEOUT_TIME.split('T')[0].replace(/\-/g, "/"));
+                                $("#TAKEOUT_TIME_TIME").val(table.TAKEOUT_TIME.split('T')[1].substring(0, 5));
+                            } else {
+                                $("#TAKEOUT_TIME_DAY").val('');
+                                $("#TAKEOUT_TIME_TIME").val('');
+                            }
+                            if (Number(table.PUTIN_AMT) > 0)
+                                set_for_sel('DDL_PUTIN_AMT', table.PUTIN_AMT);
+                            else {
+                                set_for_sel('DDL_PUTIN_AMT', '0');
+                            }
+                            
+                            if (Number(table.TAKEOUT_AMT) > 0)
+                                set_for_sel('DDL_TAKEOUT_AMT', table.TAKEOUT_AMT);
+                            else {
+                                set_for_sel('DDL_TAKEOUT_AMT', '0');
+                            }
+                            if (table.PUTIN_ID)
+                                $("#TXT_PUTIN_ID").val(table.PUTIN_ID);
+                            else
+                                $("#TXT_PUTIN_ID").val('');
+
+                            if (table.PUTIN_ID_NAME)
+                                $("#LB_PUTIN_ID").text(table.PUTIN_ID_NAME);
+                            else
+                                $("#LB_PUTIN_ID").text('');
+
+                            if (table.TAKEOUT_ID)
+                                $("#TXT_TAKEOUT_ID").val(table.TAKEOUT_ID);
+                            else
+                                $("#TXT_TAKEOUT_ID").val('');
+
+                            if (table.TAKEOUT_ID_NAME)
+                                $("#LB_TAKEOUT_ID").text(table.TAKEOUT_ID_NAME);
+                            else
+                                $("#LB_TAKEOUT_ID").text('');
+                        }
+                    },
+                    error: function (err) {
+                    },
+                    dataType: 'json'
+                });
+        }
+    }
+
+    function Delete() {
+        $.ajax({
+            url: 'Del_VagYarn',
+            type: 'post',
+            dataType: 'json',
+            data: $('form[name=del_form]').serialize(),
+            success: function (data) {
+                if (Number(data) > 0) {
+                    alert('刪除成功');
+                } else {
+                    alert('刪除失敗');
+                }
+                window.location.href = 'VaginalYam';
+            },
+            failure: function (errMsg) {
+                alert('刪除失敗');
+                window.location.href = 'VaginalYam';
+            }
+        });
+    }
+</script>
+<link href="~/Content/StyleSheet/BabySystem.css" rel="stylesheet" />
+
+<form name="insert_form" action="Insert_VagYarn" method="post">
+    <div class="funcArea" style="text-align:center">
+        <input type="button" value="儲存" style="width:60px;" onclick="sendForm()" />
+        <input type="button" value="離開" style="width:60px;" onclick="if (confirm('確認離開?')) window.close(); window.opener.location.href='Index?active=Postnatal_Record_List'" />
+    </div>
+    <div class="funcArea">
+        <input type="hidden" name="IID" id="IID" />
+        <div class="addForm">
+            <table border="1" style="text-align:left;width:100%;border-collapse:collapse;">
+                <tr>
+                    <th>放置時間</th>
+                    <td>
+                        @Html.TextBox("PUTIN_TIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                        @Html.TextBox("PUTIN_TIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                        @WebTool.setDateTime("PUTIN_TIME_DAY", "PUTIN_TIME_TIME", "", "30")
+                    </td>
+                    <th>取出時間</th>
+                    <td>
+                        @Html.TextBox("TAKEOUT_TIME_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                        @Html.TextBox("TAKEOUT_TIME_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                        @WebTool.setDateTime("TAKEOUT_TIME_DAY", "TAKEOUT_TIME_TIME", "", "30")
+                    </td>
+                </tr>
+                <tr>
+                    <th style="width:25%">放置條數</th>
+                    <td>
+                        <select name="DDL_PUTIN_AMT">
+                            <option name="DDL_PUTIN_AMT" value="0">請選擇</option>
+                            <option name="DDL_PUTIN_AMT" value="1">1條</option>
+                            <option name="DDL_PUTIN_AMT" value="2">2條1串</option>
+                            <option name="DDL_PUTIN_AMT" value="3">3條1串</option>
+                            <option name="DDL_PUTIN_AMT" value="4">4條1串</option>
+                            <option name="DDL_PUTIN_AMT" value="5">5條1串</option>
+                        </select>
+                    </td>
+                    <th style="width:25%">取出條數</th>
+                    <td>
+                        <select name="DDL_TAKEOUT_AMT">
+                            <option name="DDL_TAKEOUT_AMT" value="0">請選擇</option>
+                            <option name="DDL_TAKEOUT_AMT" value="1">1條</option>
+                            <option name="DDL_TAKEOUT_AMT" value="2">2條1串</option>
+                            <option name="DDL_TAKEOUT_AMT" value="3">3條1串</option>
+                            <option name="DDL_TAKEOUT_AMT" value="4">4條1串</option>
+                            <option name="DDL_TAKEOUT_AMT" value="5">5條1串</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th style="width:25%">放置人員</th>
+                    <td>
+                        @Html.TextBox("TXT_PUTIN_ID", "", new { style = "width:100px", onchange = "get_employee_name(this, 'PUTIN_ID');" })
+                        <br />
+                        @Html.Label("LB_PUTIN_ID", "請輸入員工編號", new { id = "LB_PUTIN_ID", style = "width:100px" })
+                    </td>
+                    <th style="width:25%">取出人員</th>
+                    <td>
+                        @Html.TextBox("TXT_TAKEOUT_ID", "", new { style = "width:100px", onchange = "get_employee_name(this, 'TAKEOUT_ID');" })
+                        <br />
+                        @Html.Label("LB_TAKEOUT_ID", "請輸入員工編號", new { id = "LB_TAKEOUT_ID", style = "width:100px" })
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</form>
+
+<div class="funcArea">
+    <input type="button" value="修改" style="width:50px;" onclick="if ($('input[type=checkbox]:checked').length == 1) { Update(); } else if ($('input[type=checkbox]:checked').length > 1) { alert('只能選擇一筆紀錄!'); }else { alert('請選擇紀錄!'); }" />
+    <input type="button" value="刪除" style="width:50px;" onclick="if ($('input[type=checkbox]:checked').length > 0) { if (confirm('確認刪除?')) { Delete(); } } else { alert('請選擇紀錄!'); }" />
+</div>
+
+<form name="del_form" action="Del_VagYarn" method="post">
+    <table border="0" cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed">
+        <tr>
+            <td>
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width:5%">選取</td>
+                            <td style="width:10%">放置時間</td>
+                            <td style="width:10%">放置條數</td>
+                            <td style="width:10%">放置人員</td>
+                            <td style="width:10%">取出時間</td>
+                            <td style="width:10%">取出條數</td>
+                            <td style="width:10%">取出人員</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:190px;">
+                    @if (dt != null)
+                    {
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                            @foreach (DataRow r in dt.Rows)
+                            {
+                                <tr>
+                                    <td style="width:5%;"><label><input type="checkbox" name="IID" value="@r["IID"]" /></label></td>
+
+                                    @if (r["PUTIN_TIME"].ToString() != "")
+                                    {
+                                        <td style="width:10%">@Convert.ToDateTime(r["PUTIN_TIME"]).ToString("yyyy/MM/dd HH:mm")</td>
+                                    }
+                                    else
+                                    {
+                                        <td style="width:10%"></td>
+                                    }
+                                    @switch (r["PUTIN_AMT"].ToString())
+                                    {
+                                        case "0":
+                                            <td style="width:10%"></td>
+                                            break;
+                                        case "1":
+                                            <td style="width:10%">1條</td>
+                                            break;
+                                        case "2":
+                                            <td style="width:10%">2條1串</td>
+                                            break;
+                                        case "3":
+                                            <td style="width:10%">3條1串</td>
+                                            break;
+                                        case "4":
+                                            <td style="width:10%">4條1串</td>
+                                            break;
+                                        case "5":
+                                            <td style="width:10%">5條1串</td>
+                                            break;
+                                        default:
+                                            <td style="width:10%"></td>
+                                            break;
+                                    }
+                                    <td style="width:10%">@r["PUTIN_ID_NAME"]</td>
+                                    @if (r["TAKEOUT_TIME"].ToString() != "")
+                                    {
+                                        <td style="width:10%">@Convert.ToDateTime(r["TAKEOUT_TIME"]).ToString("yyyy/MM/dd HH:mm")</td>
+                                    }
+                                    else
+                                    {
+                                        <td style="width:10%"></td>
+                                    }
+                                    @switch (r["TAKEOUT_AMT"].ToString())
+                                    {
+                                        case "0":
+                                            <td style="width:10%"></td>
+                                            break;
+                                        case "1":
+                                            <td style="width:10%">1條</td>
+                                            break;
+                                        case "2":
+                                            <td style="width:10%">2條1串</td>
+                                            break;
+                                        case "3":
+                                            <td style="width:10%">3條1串</td>
+                                            break;
+                                        case "4":
+                                            <td style="width:10%">4條1串</td>
+                                            break;
+                                        case "5":
+                                            <td style="width:10%">5條1串</td>
+                                            break;
+                                        default:
+                                            <td style="width:10%"></td>
+                                            break;
+                                    }
+                                    <td style="width:10%">@r["TAKEOUT_ID_NAME"]</td>
+                                </tr>
+                            }
+                        </table>
+                    }
+                </div>
+            </td>
+        </tr>
+    </table>
+</form>
+
+<script>
+    $('form[name=insert_form]').on('keyup keypress', function (e) {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode === 13) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>

@@ -1,0 +1,1308 @@
+﻿@{
+    ViewBag.Title = "DR_From3";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+<link href="~/Content/StyleSheet/BabySystem.css" rel="stylesheet" />
+<style>
+    td {
+        text-align: left;
+    }
+</style>
+<script>
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+    //驗證欄位_數字
+    function numcheck(obj) {
+        if (obj.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(obj.value) && obj.value != "") {
+            $(obj).val('');
+            alert("只能輸入數字");
+        }
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue != 'undefined') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+            }
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = document.getElementsByName(ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+    function set_row(url, iid) {
+        var ck = $('input[name=del_ID]:checked');
+        if (ck.length == 0)
+            alert('請選擇藥物調配紀錄!');
+        else if (ck.length > 1)
+            alert("只能選擇一筆!");
+        else {
+            var row = '';
+            for (var i = 0; i < ck.length; i++) {
+                if (ck[i].checked)
+                    row = row + ck[i].value + ',';
+            }
+            if (row != '') {
+                row = row.substring(0, row.length - 1);
+                new_window.push(window.open(url + '?IID=' + iid + '&SNOM=' + row, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=900,height=700'));
+            }
+        }
+    }
+
+    function check(id) {
+        if (id == undefined)
+            id = '';
+
+        if (!$('input[name=RB_UTERUS_SHRINK' + id + ']:checked').val()) {
+            alert("[子宮-硬度]未填")
+            return false;
+        }
+        if (!$('input[name=RB_UTERUS_HEIGHT' + id + ']:checked').val()) {
+            alert("[子宮-高度]未填")
+            return false;
+        } else {
+            //其他
+            if ($('input[name=RB_UTERUS_HEIGHT' + id + ']:checked').val() == "8") {
+                if (!$('input[name=TXT_UTERUS_HEIGHT_OTH' + id + ']').val()) {
+                    alert("[子宮-高度-其他]未填")
+                    return false;
+                }
+            }
+        }
+        if (!$('input[name=RB_LOCHIA_STAT' + id + ']:checked').val()) {
+            alert("[惡露-量]未填")
+            return false;
+        }
+        if (!$('input[name=RB_LOCHIA_COLOR' + id + ']:checked').val()) {
+            alert("[惡露-色]未填")
+            return false;
+        } else {
+            //其他
+            if ($('input[name=RB_LOCHIA_COLOR' + id + ']:checked').val() == "3") {
+                if (!$('input[name=TXT_LOCHIA_COLOR_OTH' + id + ']').val()) {
+                    alert("[惡露-色-其他]未填")
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    function clearValue(name) {
+        $('input[name^=RB_' + name + ']').prop("checked", false);
+        $('input[name^=CK_' + name + ']').prop("checked", false);
+        $('input[name^=TXT_' + name + ']').val('');
+
+        if (name == "ABD") {
+            var name1 = "ABO";
+            $('input[name^=RB_' + name1 + ']').prop("checked", false);
+            $('input[name^=CK_' + name1 + ']').prop("checked", false);
+            $('input[name^=TXT_' + name1 + ']').val('');
+        }
+    }
+</script>
+
+@using System.Data;
+@using System.Web.Mvc.Html;
+@{
+    DataTable dt = ViewBag.dt;
+    DataTable dtAb_Disp = ViewBag.dt_Ab_Disp;
+
+    DataTable dt_new = ViewBag.dt_new;
+    DataTable dtAb_Disp_new = ViewBag.dtAb_Disp_new;
+    if (dt == null || dt.Rows.Count == 0)
+    {
+        <form action="Insert_Postnatal_Record" method="post">
+            <div class="addForm funcArea">
+                <table border="1" style="width:100%;border-collapse:collapse;">
+                    <caption style="color:blue;font-size:26px;">產後護理紀錄單</caption>
+                    <tr>
+                        <th style="width:25%" colspan="2">日期時間</th>
+                        <td colspan="7">
+                            @Html.TextBox("TXT_RECORDTIME_DAY", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                            @Html.TextBox("TXT_RECORDTIME_TIME", DateTime.Now.ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                            @WebTool.setDateTime("TXT_RECORDTIME_DAY", "TXT_RECORDTIME_TIME", "", "30")
+                        </td>
+                    </tr>
+                    <tbody>
+                        <tr>
+                            <th rowspan="2">子宮</th>
+                            <th>硬度</th>
+                            <td colspan="7">
+                                <input name="RB_UTERUS_SHRINK" type="radio" value="0" />硬
+                                <input name="RB_UTERUS_SHRINK" type="radio" value="1" />中
+                                <input name="RB_UTERUS_SHRINK" type="radio" value="2" />軟
+                                <input name="RB_UTERUS_SHRINK" type="radio" value="3" />無法測量
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>高度</th>
+                            <td colspan="7">
+                                <input name="RB_UTERUS_HEIGHT" type="radio" value="0" onclick="$('.UTERUS_HEIGHT_OTH').fadeOut()" />臍上3指
+                                <input name="RB_UTERUS_HEIGHT" type="radio" value="1" onclick="$('.UTERUS_HEIGHT_OTH').fadeOut()" />臍上2指
+                                <input name="RB_UTERUS_HEIGHT" type="radio" value="2" onclick="$('.UTERUS_HEIGHT_OTH').fadeOut()" />臍上1指
+                                <input name="RB_UTERUS_HEIGHT" type="radio" value="3" onclick="$('.UTERUS_HEIGHT_OTH').fadeOut()" />臍平
+                                <input name="RB_UTERUS_HEIGHT" type="radio" value="4" onclick="$('.UTERUS_HEIGHT_OTH').fadeOut()" />臍下1指
+                                <input name="RB_UTERUS_HEIGHT" type="radio" value="5" onclick="$('.UTERUS_HEIGHT_OTH').fadeOut()" />臍下2指
+                                <input name="RB_UTERUS_HEIGHT" type="radio" value="6" onclick="$('.UTERUS_HEIGHT_OTH').fadeOut()" />臍下3指
+                                <input name="RB_UTERUS_HEIGHT" type="radio" value="7" onclick="$('.UTERUS_HEIGHT_OTH').fadeOut()" />無法測量
+                                <input name="RB_UTERUS_HEIGHT" type="radio" value="8" onclick="$('.UTERUS_HEIGHT_OTH').fadeIn(500)" />其他
+                                <span class="UTERUS_HEIGHT_OTH" style="display:none">
+                                    ，@Html.TextBox("TXT_UTERUS_HEIGHT_OTH", "", new { style = "width:100px" })
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tbody>
+                        <tr>
+                            <th rowspan="2">惡露</th>
+                            <th>量</th>
+                            <td colspan="7">
+                                @Html.TextBox("TXT_LOCHIA", "", new { style = "width:100px", onchange = "numcheck(this);" })g，
+                                <input name="RB_LOCHIA_STAT" type="radio" value="0" />微量
+                                <input name="RB_LOCHIA_STAT" type="radio" value="1" />少
+                                <input name="RB_LOCHIA_STAT" type="radio" value="2" />中
+                                <input name="RB_LOCHIA_STAT" type="radio" value="3" />多
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>色</th>
+                            <td colspan="7">
+                                <input name="RB_LOCHIA_COLOR" type="radio" value="0" onclick="$('.LOCHIA_COLOR_OTH').fadeOut()" />鮮紅
+                                <input name="RB_LOCHIA_COLOR" type="radio" value="1" onclick="$('.LOCHIA_COLOR_OTH').fadeOut()" />深紅
+                                <input name="RB_LOCHIA_COLOR" type="radio" value="2" onclick="$('.LOCHIA_COLOR_OTH').fadeOut()" />淡紅
+                                <input name="RB_LOCHIA_COLOR" type="radio" value="3" onclick="$('.LOCHIA_COLOR_OTH').fadeIn(500)" />其他
+                                <span class="LOCHIA_COLOR_OTH" style="display:none">
+                                    @Html.TextBox("TXT_LOCHIA_COLOR_OTH", "", new { style = "width:100px" })
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tbody>
+                        <tr>
+                            <th rowspan="5">
+                                會陰傷口
+                                <button type="button" onclick="clearValue('EPWOUND')">清空</button>
+                            </th>
+                            <th>紅</th>
+                            <td colspan="7">
+                                <label><input value="0" type="radio" name="RB_EPWOUND_RED" />無</label>
+                                <label><input value="1" type="radio" name="RB_EPWOUND_RED" />傷口周圍邊緣 < 0.25公分</label>
+                                <label><input value="2" type="radio" name="RB_EPWOUND_RED" />傷口周圍邊緣 < 0.5公分</label>
+                                <label><input value="3" type="radio" name="RB_EPWOUND_RED" />傷口周圍邊緣 > 0.5公分</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>水腫</th>
+                            <td colspan="7">
+                                <label><input value="0" type="radio" name="RB_EPWOUND_EDEMA" />無</label>
+                                <label><input value="1" type="radio" name="RB_EPWOUND_EDEMA" />會陰處 < 1公分</label>
+                                <label><input value="2" type="radio" name="RB_EPWOUND_EDEMA" />會陰處 < 1-2公分</label>
+                                <label><input value="3" type="radio" name="RB_EPWOUND_EDEMA" />會陰處 > 2公分</label>
+                                ，範圍： @Html.TextBox("TXT_EPWOUND_EDEMA_AREA", "", new { style = "width:100px" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>瘀血</th>
+                            <td colspan="7">
+                                <label><input value="0" type="radio" name="RB_EPWOUND_ECC" />無</label>
+                                <label><input value="1" type="radio" name="RB_EPWOUND_ECC" />傷口兩側 < 0.25公分</label>
+                                <label><input value="2" type="radio" name="RB_EPWOUND_ECC" />傷口兩側0.25-1公分</label>
+                                <label><input value="3" type="radio" name="RB_EPWOUND_ECC" />傷口兩側 > 1公分</label>
+                                <label><input value="4" type="radio" name="RB_EPWOUND_ECC" />左側 < 0.5公分</label>
+                                <label><input value="5" type="radio" name="RB_EPWOUND_ECC" />左側0.5-2公分</label>
+                                <label><input value="6" type="radio" name="RB_EPWOUND_ECC" />左側 > 2公分</label>
+                                <label><input value="7" type="radio" name="RB_EPWOUND_ECC" />右側 < 0.5公分</label>
+                                <label><input value="8" type="radio" name="RB_EPWOUND_ECC" />右側0.5-2公分</label>
+                                <label><input value="9" type="radio" name="RB_EPWOUND_ECC" />右側 > 2公分</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>分泌物</th>
+                            <td colspan="7">
+                                <label><input value="0" type="radio" name="RB_EPWOUND_DISC" />無</label>
+                                <label><input value="1" type="radio" name="RB_EPWOUND_DISC" />漿液性</label>
+                                <label><input value="2" type="radio" name="RB_EPWOUND_DISC" />漿液性及血濃性</label>
+                                <label><input value="3" type="radio" name="RB_EPWOUND_DISC" />血濃性</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>傷口邊緣</th>
+                            <td colspan="7">
+                                <label><input value="0" type="radio" name="RB_EPWOUND_APPR" />密合</label>
+                                <label><input value="1" type="radio" name="RB_EPWOUND_APPR" />皮膚裂縫 < 0.3公分</label>
+                                <label><input value="2" type="radio" name="RB_EPWOUND_APPR" />皮膚和皮下脂肪有裂縫</label>
+                                <label><input value="3" type="radio" name="RB_EPWOUND_APPR" />皮膚、皮下脂肪、筋膜層裂開</label>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tbody>
+                        <tr>
+                            <th rowspan="5">
+                                腹部傷口
+                                <button type="button" onclick="clearValue('ABD')">清空</button>
+                            </th>
+                            <th>範圍</th>
+                            <td colspan="7">
+                                是否可測量：
+                                <label><input value="0" type="radio" name="RB_ABD_AREA" onclick="$('.ABD_AREA').fadeIn(500)" />是</label>
+                                <label><input value="1" type="radio" name="RB_ABD_AREA" onclick="$('.ABD_AREA').fadeOut()" />否</label>
+                                <span class="ABD_AREA" style="display:none">
+                                    ，長：@Html.TextBox("TXT_ABD_AREA_L", "", new { style = "width:100px" })
+                                    寬：@Html.TextBox("TXT_ABD_AREA_W", "", new { style = "width:100px" })
+                                    高：@Html.TextBox("TXT_ABD_AREA_H", "", new { style = "width:100px" })
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>外觀</th>
+                            <td colspan="7">
+                                <label><input value="0" type="checkbox" name="CK_ABD_FEA" />紅</label>
+                                <label><input value="1" type="checkbox" name="CK_ABD_FEA" />腫</label>
+                                <label><input value="2" type="checkbox" name="CK_ABD_FEA" />硬結</label>
+                                <label><input value="3" type="checkbox" name="CK_ABD_FEA" />浸潤變軟</label>
+                                <label><input value="4" type="checkbox" name="CK_ABD_FEA" />色素沉著</label>
+                                <label><input value="5" type="checkbox" name="CK_ABD_FEA" />水腫</label>
+                                <label><input value="6" type="checkbox" name="CK_ABD_FEA" />過度角化</label>
+                                <label><input value="7" type="checkbox" name="CK_ABD_FEA" />皮膚壞死呈現黑色</label>
+                                <label><input value="8" type="checkbox" name="CK_ABD_FEA" />皮膚壞死呈現暗紫色</label>
+                                <label><input value="9" type="checkbox" name="CK_ABD_FEA" />組織增生</label>
+                                <label><input value="10" type="checkbox" name="CK_ABD_FEA" onclick="$('.ABD_FEA_OTH').fadeToggle()" />其他</label>
+                                <span class="ABD_FEA_OTH" style="display:none">
+                                    ，@Html.TextBox("TXT_ABD_FEA_OTH", "", new { style = "width:100px" })
+                                </span>
+                                <label><input value="11" type="checkbox" name="CK_ABD_FEA" />正常</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>滲出液</th>
+                            <td colspan="7">
+                                <label><input value="0" type="radio" name="RB_ABD_EXU" onclick="$('.ABD_EXU').fadeOut()" />無</label>
+                                <label><input value="1" type="radio" name="RB_ABD_EXU" onclick="$('.ABD_EXU').fadeIn(500)" />有</label>
+                                <span class="ABD_EXU" style="display:none;text-align:left !important">
+                                    <br /> 滲出物量：
+                                    <label><input value="0" type="radio" name="RB_ABD_EXU_AMT" />少</label>
+                                    <label><input value="1" type="radio" name="RB_ABD_EXU_AMT" />中</label>
+                                    <label><input value="2" type="radio" name="RB_ABD_EXU_AMT" />多</label>
+                                    <br /> 性狀：
+                                    <label><input value="0" type="checkbox" name="CK_ABD_EXU_TPE" />漿液</label>
+                                    <label><input value="1" type="checkbox" name="CK_ABD_EXU_TPE" />血液</label>
+                                    <label><input value="2" type="checkbox" name="CK_ABD_EXU_TPE" />化膿</label>
+                                    <label><input value="3" type="checkbox" name="CK_ABD_EXU_TPE" />惡臭</label>
+                                    <label><input value="4" type="checkbox" name="CK_ABD_EXU_TPE" onclick="$('.ABD_EXU_TPE_OTH').fadeToggle()" />其他</label>
+                                    <span class="ABD_EXU_TPE_OTH" style="display:none">
+                                        ，@Html.TextBox("TXT_ABD_EXU_TPE_OTH", "", new { style = "width:100px" })
+                                    </span>
+                                    <br />  顏色：
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="0" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />暗紅色
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="1" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />紅色
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="2" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />鮮紅色
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="3" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />淡紅
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="4" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />粉紅
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="5" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />褐色
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="6" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />黃褐
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="7" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />黃綠
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="8" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />黃色
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="9" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />土黃
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="10" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />白
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="11" onclick="$('.ABD_EXU_COL_OTH').fadeOut()" />透明
+                                    <input name="RB_ABD_EXU_COL" type="radio" value="12" onclick="$('.ABD_EXU_COL_OTH').fadeIn(500)" />其他
+                                    <span class="ABD_EXU_COL_OTH" style="display:none">
+                                        ，@Html.TextBox("TXT_ABD_EXU_COL_OTH", "", new { style = "width:100px" })
+                                    </span>
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>是否有縫線</th>
+                            <td colspan="7">
+                                <input name="RB_ABO_SUT" type="radio" value="0" onclick="$('.ABO_SUT_N').fadeOut()" />無縫線
+                                <input name="RB_ABO_SUT" type="radio" value="1" onclick="$('.ABO_SUT_N').fadeIn(500)" />有縫線
+                                <input name="RB_ABO_SUT" type="radio" value="2" onclick="$('.ABO_SUT_N').fadeOut()" />縫線已拆
+                                <span class="ABO_SUT_N" style="display:none">
+                                    ，縫：@Html.TextBox("TXT_ABO_SUT_N", "", new { style = "width:100px" }) 針
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>處置</th>
+                            <td colspan="7">
+                                <input name="RB_ABO_TRT" type="radio" value="0" onclick="$('.ABO_TRT_M').fadeOut()" />無
+                                <input name="RB_ABO_TRT" type="radio" value="1" onclick="$('.ABO_TRT_M').fadeIn(500)" />有
+                                <span class="ABO_TRT_M" style="display:none">
+                                    <label><input value="0" type="checkbox" name="CK_ABO_TRT_M" />CD</label>
+                                    <label><input value="1" type="checkbox" name="CK_ABO_TRT_M" />Wet</label>
+                                    <label><input value="2" type="checkbox" name="CK_ABO_TRT_M" />Iodoform</label>
+                                    <label><input value="3" type="checkbox" name="CK_ABO_TRT_M" />Port-A CD</label>
+                                    <label><input value="4" type="checkbox" name="CK_ABO_TRT_M" />導管引流</label>
+                                    <label><input value="5" type="checkbox" name="CK_ABO_TRT_M" />燙傷CD</label>
+                                    <label><input value="6" type="checkbox" name="CK_ABO_TRT_M" onclick="$('.ABO_TRT_M_OTH').fadeToggle()" />其他</label>
+                                    <span class="ABO_TRT_M_OTH" style="display:none">
+                                        ，@Html.TextBox("TXT_ABO_TRT_M_OTH", "", new { style = "width:100px" })
+                                    </span>
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tbody>
+                        <tr>
+                            <th rowspan="4">下肢</th>
+                            <th>紅</th>
+                            <td colspan="7">
+                                <input name="RB_LL_RED" type="radio" value="0" onclick="$('.LL_RED_LR').fadeOut()" />無
+                                <input name="RB_LL_RED" type="radio" value="1" onclick="$('.LL_RED_LR').fadeIn(500)" />有
+                                <span class="LL_RED_LR" style="display:none">
+                                    <label><input value="0" type="checkbox" name="CK_LL_RED_LR" onclick="$('.LL_RED_LS').fadeToggle()" />左</label>
+                                    <span class="LL_RED_LS" style="display:none">
+                                        <input name="RB_LL_RED_LS" type="radio" value="1" />-
+                                        <input name="RB_LL_RED_LS" type="radio" value="2" />±
+                                        <input name="RB_LL_RED_LS" type="radio" value="0" />+
+                                        <input name="RB_LL_RED_LS" type="radio" value="3" />++
+                                        <input name="RB_LL_RED_LS" type="radio" value="4" />+++
+                                        <input name="RB_LL_RED_LS" type="radio" value="5" />++++
+                                    </span>
+                                    <label><input value="1" type="checkbox" name="CK_LL_RED_LR" onclick="$('.LL_RED_RS').fadeToggle()" />右</label>
+                                    <span class="LL_RED_RS" style="display:none">
+                                        <input name="RB_LL_RED_RS" type="radio" value="1" />-
+                                        <input name="RB_LL_RED_RS" type="radio" value="2" />±
+                                        <input name="RB_LL_RED_RS" type="radio" value="0" />+
+                                        <input name="RB_LL_RED_RS" type="radio" value="3" />++
+                                        <input name="RB_LL_RED_RS" type="radio" value="4" />+++
+                                        <input name="RB_LL_RED_RS" type="radio" value="5" />++++
+                                    </span>
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>腫</th>
+                            <td colspan="7">
+                                <input name="RB_LL_SWO" type="radio" value="0" onclick="$('.LL_SWO_LR').fadeOut()" />無
+                                <input name="RB_LL_SWO" type="radio" value="1" onclick="$('.LL_SWO_LR').fadeIn(500)" />有
+                                <span class="LL_SWO_LR" style="display:none">
+                                    <label><input value="0" type="checkbox" name="CK_LL_SWO_LR" onclick="$('.LL_SWO_LS').fadeToggle()" />左</label>
+                                    <span class="LL_SWO_LS" style="display:none">
+                                        <input name="RB_LL_SWO_LS" type="radio" value="1" />-
+                                        <input name="RB_LL_SWO_LS" type="radio" value="2" />±
+                                        <input name="RB_LL_SWO_LS" type="radio" value="0" />+
+                                        <input name="RB_LL_SWO_LS" type="radio" value="3" />++
+                                        <input name="RB_LL_SWO_LS" type="radio" value="4" />+++
+                                        <input name="RB_LL_SWO_LS" type="radio" value="5" />++++
+
+                                    </span>
+                                    <label><input value="1" type="checkbox" name="CK_LL_SWO_LR" onclick="$('.LL_SWO_RS').fadeToggle()" />右</label>
+                                    <span class="LL_SWO_RS" style="display:none">
+                                        <input name="RB_LL_SWO_RS" type="radio" value="1" />-
+                                        <input name="RB_LL_SWO_RS" type="radio" value="2" />±
+                                        <input name="RB_LL_SWO_RS" type="radio" value="0" />+
+                                        <input name="RB_LL_SWO_RS" type="radio" value="3" />++
+                                        <input name="RB_LL_SWO_RS" type="radio" value="4" />+++
+                                        <input name="RB_LL_SWO_RS" type="radio" value="5" />++++
+                                    </span>
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>壓痛</th>
+                            <td colspan="7">
+                                <input name="RB_LL_TEN" type="radio" value="0" onclick="$('.LL_TEN_LR').fadeOut()" />無
+                                <input name="RB_LL_TEN" type="radio" value="1" onclick="$('.LL_TEN_LR').fadeIn(500)" />有
+                                <span class="LL_TEN_LR" style="display:none">
+                                    <label><input value="0" type="checkbox" name="CK_LL_TEN_LR" onclick="$('.LL_TEN_LS').fadeToggle()" />左</label>
+                                    <span class="LL_TEN_LS" style="display:none">
+                                        <input name="RB_LL_TEN_LS" type="radio" value="1" />-
+                                        <input name="RB_LL_TEN_LS" type="radio" value="2" />±
+                                        <input name="RB_LL_TEN_LS" type="radio" value="0" />+
+                                        <input name="RB_LL_TEN_LS" type="radio" value="3" />++
+                                        <input name="RB_LL_TEN_LS" type="radio" value="4" />+++
+                                        <input name="RB_LL_TEN_LS" type="radio" value="5" />++++
+
+                                    </span>
+                                    <label><input value="1" type="checkbox" name="CK_LL_TEN_LR" onclick="$('.LL_TEN_RS').fadeToggle()" />右</label>
+                                    <span class="LL_TEN_RS" style="display:none">
+                                        <input name="RB_LL_TEN_RS" type="radio" value="1" />-
+                                        <input name="RB_LL_TEN_RS" type="radio" value="2" />±
+                                        <input name="RB_LL_TEN_RS" type="radio" value="0" />+
+                                        <input name="RB_LL_TEN_RS" type="radio" value="3" />++
+                                        <input name="RB_LL_TEN_RS" type="radio" value="4" />+++
+                                        <input name="RB_LL_TEN_RS" type="radio" value="5" />++++
+                                    </span>
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>霍曼氏徵象</th>
+                            <td colspan="7">
+                                <input name="RB_LL_HS" type="radio" value="0" onclick="$('.LL_HS_LR').fadeOut()" />無
+                                <input name="RB_LL_HS" type="radio" value="1" onclick="$('.LL_HS_LR').fadeIn(500)" />有
+                                <span class="LL_HS_LR" style="display:none">
+                                    <label><input value="0" type="checkbox" name="CK_LL_HS_LR" onclick="$('.LL_HS_LS').fadeToggle()" />左</label>
+                                    <span class="LL_HS_LS" style="display:none">
+                                        <input name="RB_LL_HS_LS" type="radio" value="1" />-
+                                        <input name="RB_LL_HS_LS" type="radio" value="2" />±
+                                        <input name="RB_LL_HS_LS" type="radio" value="0" />+
+                                        <input name="RB_LL_HS_LS" type="radio" value="3" />++
+                                        <input name="RB_LL_HS_LS" type="radio" value="4" />+++
+                                        <input name="RB_LL_HS_LS" type="radio" value="5" />++++
+                                    </span>
+                                    <label><input value="1" type="checkbox" name="CK_LL_HS_LR" onclick="$('.LL_HS_RS').fadeToggle()" />右</label>
+                                    <span class="LL_HS_RS" style="display:none">
+                                        <input name="RB_LL_HS_RS" type="radio" value="1" />-
+                                        <input name="RB_LL_HS_RS" type="radio" value="2" />±
+                                        <input name="RB_LL_HS_RS" type="radio" value="0" />+
+                                        <input name="RB_LL_HS_RS" type="radio" value="3" />++
+                                        <input name="RB_LL_HS_RS" type="radio" value="4" />+++
+                                        <input name="RB_LL_HS_RS" type="radio" value="5" />++++
+                                    </span>
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tbody>
+                        <tr> <th rowspan="4">排尿</th></tr>
+                        <tr>
+                            <th>自解</th>
+                            <td colspan="7">
+                                <input name="RB_URINE_SELF" type="radio" value="0" />+
+                                <input name="RB_URINE_SELF" type="radio" value="1" />-
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>單導</th>
+                            <td colspan="7">
+                                @Html.TextBox("TXT_URINE_SINGLE_AMT", "", new { style = "width:100px" })cc,
+                                <input name="RB_URINE_SINGLE_STAT" type="radio" value="0" />黃色
+                                <input name="RB_URINE_SINGLE_STAT" type="radio" value="1" />褐色
+                                <input name="RB_URINE_SINGLE_STAT" type="radio" value="2" />暗紅色
+                                <input name="RB_URINE_SINGLE_STAT" type="radio" value="3" />淡紅色
+                                <input name="RB_URINE_SINGLE_STAT" type="radio" value="4" />鮮紅色
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>導尿管</th>
+                            <td colspan="7">
+                                @Html.TextBox("TXT_URINE_CAT_AMT", "", new { style = "width:100px" })cc,
+                                <input name="RB_URINE_CAT_STAT" type="radio" value="0" />黃色
+                                <input name="RB_URINE_CAT_STAT" type="radio" value="1" />褐色
+                                <input name="RB_URINE_CAT_STAT" type="radio" value="2" />暗紅色
+                                <input name="RB_URINE_CAT_STAT" type="radio" value="3" />淡紅色
+                                <input name="RB_URINE_CAT_STAT" type="radio" value="4" />鮮紅色
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tr>
+                        <th colspan="2">
+                            護理處置
+                            <input type="button" name="btn" id="" value="處置" onclick="window.open('SharedVitalSign?title=產後護理之護理處置&checkValue=TXT_NS_TREAT', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                        </th>
+                        <td colspan="7" style="text-align:left">
+                            @Html.TextArea("TXT_NS_TREAT", "", new { id = "TXT_NS_TREAT", @rows = "5", style = "width:500px" })
+                        </td>
+                    </tr>
+                    @if (dtAb_Disp_new == null || dtAb_Disp_new.Rows.Count == 0)
+                    {
+                        <tr>
+                            <th colspan="2" id="disp_title" rowspan="2">
+                                <input type="button" name="btn" value="給藥" onclick="window.open('../CommonMedication/Medication_NurseExecute', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                <input type="button" name="btn" value="調配" onclick="window.open('AB_Disp', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                            </th>
+                            <th>A藥品種類</th>
+                            <th>劑量</th>
+                            <th>B藥品(點滴)種類</th>
+                            <th>劑量</th>
+                            <th>總用量</th>
+                            <th>流速</th>
+                            <th>狀態</th>
+                        </tr>
+                    }
+                    else if (dtAb_Disp_new != null || dtAb_Disp_new.Rows.Count > 0)
+                    {
+                        var title_cols = 2 + dtAb_Disp_new.Rows.Count;
+                        <tr>
+                            <th colspan="2" id="disp_title" rowspan="@title_cols">
+                                <input type="button" name="btn" value="給藥" onclick="window.open('../CommonMedication/Medication_NurseExecute', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                <input type="button" name="btn" value="調配" onclick="window.open('AB_Disp', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                            </th>
+                            <td class="head">A藥品種類</td>
+                            <td class="head">劑量</td>
+                            <td class="head">B藥品(點滴)種類</td>
+                            <td class="head">劑量</td>
+                            <td class="head">總用量</td>
+                            <td class="head">流速</td>
+                            <td class="head">狀態</td>
+                        </tr>
+                        foreach (DataRow row in dtAb_Disp_new.Rows)
+                        {
+                            <tr>
+                                <td class="head"><input name="TXT_TM_MED_A" value="@row["TM_MED_A"]" readonly style="width:120px" /></td>
+                                <td class="head"><input name="TXT_TM_MED_A_AMT" value="@row["TM_MED_A_AMT"]" readonly style="width:80px" /></td>
+                                <td class="head"><input name="TXT_TM_MED_B" value="@row["TM_MED_B"]" readonly style="width:120px" /></td>
+                                <td class="head"><input name="TXT_TM_MED_B_AMT" value="@row["TM_MED_B_AMT"]" readonly style="width:80px" /></td>
+                                <td class="head"><input name="TXT_TM_MED_USE" value="@row["TM_MED_USE"]" readonly style="width:50px" /></td>
+                                <td class="head"><input name="TXT_TM_MED_SPEED" value="@row["TM_MED_SPEED"]" style="width:40px" /></td>
+                                @if (row["TM_MED_USE_STAT"].ToString() == "0")
+                                {
+                                    <td class="head">
+                                        <input id="TXT_TM_MED_USE_STAT_@row["IID"]_@row["SNOM"]" name="TXT_TM_MED_USE_STAT" value="啟用" readonly style="width:40px" />
+                                        <input type="button" value="停止" style="width:50px;font-size:11px;" onclick="if (confirm('確認停止?')) { $('#TXT_TM_MED_USE_STAT_' + '@row["IID"]' + '_' + '@row["SNOM"]').val('停止'); }" />
+                                    </td>
+
+                                }
+                                else if (row["TM_MED_USE_STAT"].ToString() == "1")
+                                {
+                                    <td class="head"><input name="TXT_TM_MED_USE_STAT" value="停止" readonly style="width:40px" /></td>
+                                }
+                                else if (row["TM_MED_USE_STAT"].ToString() == "2")
+                                {
+                                    <td class="head"><input name="TXT_TM_MED_USE_STAT" value="一次性給藥" readonly style="width:40px" /></td>
+                                }
+                            </tr>
+                        }
+                    }
+                    <tr id="updateDisp"></tr>
+                </table>
+            </div>
+            <div style="text-align:center" class="funcArea">
+                <input type="button" value="儲存" style="width:60px;" onclick="if (check()) { submit(); }" />
+                <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) window.close();" />
+            </div>
+        </form>
+    }
+    else
+    {
+        <form action="Upd_Postnatal_Record" method="post">
+            @foreach (DataRow r in dt.Rows)
+            {
+                var Ab_Disp_out_count = dtAb_Disp == null ? 2 : dtAb_Disp.Rows.Count + 2;
+                var Ab_Disp_in_count = dtAb_Disp == null ? 1 : dtAb_Disp.Rows.Count + 1;
+                <input type="hidden" name="IID" value="@r["IID"]" />
+                <div class="addForm funcArea">
+                    <table border="1" style="width:100%;border-collapse:collapse;">
+                        <caption style="color:blue;font-size:26px;">產後護理紀錄單</caption>
+                        <tr>
+                            <th style="width:25%" colspan="2">日期時間</th>
+                            <td colspan="7">
+                                @Html.TextBox("TXT_RECORDTIME_DAY" + r["IID"], Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                @Html.TextBox("TXT_RECORDTIME_TIME" + r["IID"], Convert.ToDateTime(r["RECORDTIME"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                @WebTool.setDateTime("TXT_RECORDTIME_DAY" + r["IID"], "TXT_RECORDTIME_TIME" + r["IID"], "", "30")
+                            </td>
+                        </tr>
+                        <tbody>
+                            <tr>
+                                <th rowspan="2">子宮</th>
+                                <th>硬度</th>
+                                <td colspan="7">
+                                    <input name="RB_UTERUS_SHRINK@(r["IID"])" type="radio" value="0" />硬
+                                    <input name="RB_UTERUS_SHRINK@(r["IID"])" type="radio" value="1" />中
+                                    <input name="RB_UTERUS_SHRINK@(r["IID"])" type="radio" value="2" />軟
+                                    <input name="RB_UTERUS_SHRINK@(r["IID"])" type="radio" value="3" />無法測量
+
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>高度</th>
+                                <td colspan="7">
+                                    <input name="RB_UTERUS_HEIGHT@(r["IID"])" type="radio" value="0" onclick="$('.UTERUS_HEIGHT_OTH' + '@r["IID"]').fadeOut()" />臍上3指
+                                    <input name="RB_UTERUS_HEIGHT@(r["IID"])" type="radio" value="1" onclick="$('.UTERUS_HEIGHT_OTH' + '@r["IID"]').fadeOut()" />臍上2指
+                                    <input name="RB_UTERUS_HEIGHT@(r["IID"])" type="radio" value="2" onclick="$('.UTERUS_HEIGHT_OTH' + '@r["IID"]').fadeOut()" />臍上1指
+                                    <input name="RB_UTERUS_HEIGHT@(r["IID"])" type="radio" value="3" onclick="$('.UTERUS_HEIGHT_OTH' + '@r["IID"]').fadeOut()" />臍平
+                                    <input name="RB_UTERUS_HEIGHT@(r["IID"])" type="radio" value="4" onclick="$('.UTERUS_HEIGHT_OTH' + '@r["IID"]').fadeOut()" />臍下1指
+                                    <input name="RB_UTERUS_HEIGHT@(r["IID"])" type="radio" value="5" onclick="$('.UTERUS_HEIGHT_OTH' + '@r["IID"]').fadeOut()" />臍下2指
+                                    <input name="RB_UTERUS_HEIGHT@(r["IID"])" type="radio" value="6" onclick="$('.UTERUS_HEIGHT_OTH' + '@r["IID"]').fadeOut()" />臍下3指
+                                    <input name="RB_UTERUS_HEIGHT@(r["IID"])" type="radio" value="7" onclick="$('.UTERUS_HEIGHT_OTH' + '@r["IID"]').fadeOut()" />無法測量
+                                    <input name="RB_UTERUS_HEIGHT@(r["IID"])" type="radio" value="8" onclick="$('.UTERUS_HEIGHT_OTH' + '@r["IID"]').fadeIn(500)" />其他
+                                    <span class="UTERUS_HEIGHT_OTH@(r["IID"])" style="display:none">
+                                        ，@Html.TextBox("TXT_UTERUS_HEIGHT_OTH" + r["IID"], r["UTERUS_HEIGHT_OTH"], new { style = "width:100px" })
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tbody>
+                            <tr>
+                                <th rowspan="2">惡露</th>
+                                <th>量</th>
+                                <td colspan="7">
+                                    @Html.TextBox("TXT_LOCHIA" + r["IID"], r["LOCHIA"], new { style = "width:100px", onchange = "numcheck(this);" })g，
+                                    <input name="RB_LOCHIA_STAT@(r["IID"])" type="radio" value="0" />微量
+                                    <input name="RB_LOCHIA_STAT@(r["IID"])" type="radio" value="1" />少
+                                    <input name="RB_LOCHIA_STAT@(r["IID"])" type="radio" value="2" />中
+                                    <input name="RB_LOCHIA_STAT@(r["IID"])" type="radio" value="3" />多
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>色</th>
+                                <td colspan="7">
+                                    <input name="RB_LOCHIA_COLOR@(r["IID"])" type="radio" value="0" onclick="$('.LOCHIA_COLOR_OTH' + '@r["IID"]').fadeOut()" />鮮紅
+                                    <input name="RB_LOCHIA_COLOR@(r["IID"])" type="radio" value="1" onclick="$('.LOCHIA_COLOR_OTH' + '@r["IID"]').fadeOut()" />深紅
+                                    <input name="RB_LOCHIA_COLOR@(r["IID"])" type="radio" value="2" onclick="$('.LOCHIA_COLOR_OTH' + '@r["IID"]').fadeOut()" />淡紅
+                                    <input name="RB_LOCHIA_COLOR@(r["IID"])" type="radio" value="3" onclick="$('.LOCHIA_COLOR_OTH' + '@r["IID"]').fadeIn(500)" />其他
+                                    <span class="LOCHIA_COLOR_OTH@(r["IID"])" style="display:none">
+                                        @Html.TextBox("TXT_LOCHIA_COLOR_OTH" + r["IID"], r["LOCHIA_COLOR_OTH"], new { style = "width:100px" })
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tbody>
+                            <tr>
+                                <th rowspan="5">
+                                    會陰傷口
+                                    <button type="button" onclick="clearValue('EPWOUND')">清空</button>
+                                </th>
+                                <th>紅</th>
+                                <td colspan="7">
+                                    <label><input value="0" type="radio" name="RB_EPWOUND_RED@(r["IID"])" />無</label>
+                                    <label><input value="1" type="radio" name="RB_EPWOUND_RED@(r["IID"])" />傷口周圍邊緣 < 0.25公分</label>
+                                    <label><input value="2" type="radio" name="RB_EPWOUND_RED@(r["IID"])" />傷口周圍邊緣 < 0.5公分</label>
+                                    <label><input value="3" type="radio" name="RB_EPWOUND_RED@(r["IID"])" />傷口周圍邊緣 > 0.5公分</label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>水腫</th>
+                                <td colspan="7">
+                                    <label><input value="0" type="radio" name="RB_EPWOUND_EDEMA@(r["IID"])" />無</label>
+                                    <label><input value="1" type="radio" name="RB_EPWOUND_EDEMA@(r["IID"])" />會陰處 < 1公分</label>
+                                    <label><input value="2" type="radio" name="RB_EPWOUND_EDEMA@(r["IID"])" />會陰處 < 1-2公分</label>
+                                    <label><input value="3" type="radio" name="RB_EPWOUND_EDEMA@(r["IID"])" />會陰處 > 2公分</label>
+                                    ，範圍： @Html.TextBox("TXT_EPWOUND_EDEMA_AREA" + r["IID"], r["EPWOUND_EDEMA_AREA"], new { style = "width:100px" })
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>瘀血</th>
+                                <td colspan="7">
+                                    <label><input value="0" type="radio" name="RB_EPWOUND_ECC@(r["IID"])" />無</label>
+                                    <label><input value="1" type="radio" name="RB_EPWOUND_ECC@(r["IID"])" />傷口兩側 < 0.25公分</label>
+                                    <label><input value="2" type="radio" name="RB_EPWOUND_ECC@(r["IID"])" />傷口兩側0.25-1公分</label>
+                                    <label><input value="3" type="radio" name="RB_EPWOUND_ECC@(r["IID"])" />傷口兩側 > 1公分</label>
+                                    <label><input value="4" type="radio" name="RB_EPWOUND_ECC@(r["IID"])" />左側 < 0.5公分</label>
+                                    <label><input value="5" type="radio" name="RB_EPWOUND_ECC@(r["IID"])" />左側0.5-2公分</label>
+                                    <label><input value="6" type="radio" name="RB_EPWOUND_ECC@(r["IID"])" />左側 > 2公分</label>
+                                    <label><input value="7" type="radio" name="RB_EPWOUND_ECC@(r["IID"])" />右側 < 0.5公分</label>
+                                    <label><input value="8" type="radio" name="RB_EPWOUND_ECC@(r["IID"])" />右側0.5-2公分</label>
+                                    <label><input value="9" type="radio" name="RB_EPWOUND_ECC@(r["IID"])" />右側 > 2公分</label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>分泌物</th>
+                                <td colspan="7">
+                                    <label><input value="0" type="radio" name="RB_EPWOUND_DISC@(r["IID"])" />無</label>
+                                    <label><input value="1" type="radio" name="RB_EPWOUND_DISC@(r["IID"])" />漿液性</label>
+                                    <label><input value="2" type="radio" name="RB_EPWOUND_DISC@(r["IID"])" />漿液性及血濃性</label>
+                                    <label><input value="3" type="radio" name="RB_EPWOUND_DISC@(r["IID"])" />血濃性</label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>
+                                    傷口邊緣
+                                </th>
+                                <td colspan="7">
+                                    <label><input value="0" type="radio" name="RB_EPWOUND_APPR@(r["IID"])" />密合</label>
+                                    <label><input value="1" type="radio" name="RB_EPWOUND_APPR@(r["IID"])" />皮膚裂縫 < 0.3公分</label>
+                                    <label><input value="2" type="radio" name="RB_EPWOUND_APPR@(r["IID"])" />皮膚和皮下脂肪有裂縫</label>
+                                    <label><input value="3" type="radio" name="RB_EPWOUND_APPR@(r["IID"])" />皮膚、皮下脂肪、筋膜層裂開</label>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tbody>
+                            <tr>
+                                <th rowspan="5">
+                                    腹部傷口
+                                    <button type="button" onclick="clearValue('ABD')">清空</button>
+                                </th>
+                                <th>範圍</th>
+                                <td colspan="7">
+                                    是否可測量：
+                                    <label><input value="0" type="radio" name="RB_ABD_AREA@(r["IID"])" onclick="$('.ABD_AREA'+ '@r["IID"]').fadeIn(500)" />是</label>
+                                    <label><input value="1" type="radio" name="RB_ABD_AREA@(r["IID"])" onclick="$('.ABD_AREA'+ '@r["IID"]').fadeOut()" />否</label>
+                                    <span class="ABD_AREA@(r["IID"])" style="display:none">
+                                        ，長：@Html.TextBox("TXT_ABD_AREA_L" + r["IID"], r["ABD_AREA_L"], new { style = "width:100px" })
+                                        寬：@Html.TextBox("TXT_ABD_AREA_W" + r["IID"], r["ABD_AREA_W"], new { style = "width:100px" })
+                                        高：@Html.TextBox("TXT_ABD_AREA_H" + r["IID"], r["ABD_AREA_H"], new { style = "width:100px" })
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>外觀</th>
+                                <td colspan="7">
+                                    <label><input value="0" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />紅</label>
+                                    <label><input value="1" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />腫</label>
+                                    <label><input value="2" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />硬結</label>
+                                    <label><input value="3" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />浸潤變軟</label>
+                                    <label><input value="4" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />色素沉著</label>
+                                    <label><input value="5" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />水腫</label>
+                                    <label><input value="6" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />過度角化</label>
+                                    <label><input value="7" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />皮膚壞死呈現黑色</label>
+                                    <label><input value="8" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />皮膚壞死呈現暗紫色</label>
+                                    <label><input value="9" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />組織增生</label>
+                                    <label><input value="10" type="checkbox" name="CK_ABD_FEA@(r["IID"])" onclick="$('.ABD_FEA_OTH'+ '@r["IID"]').fadeToggle()" />其他</label>
+                                    <span class="ABD_FEA_OTH@(r["IID"])" style="display:none">
+                                        ，@Html.TextBox("TXT_ABD_FEA_OTH" + r["IID"], r["ABD_FEA_OTH"], new { style = "width:100px" })
+                                    </span>
+                                    <label><input value="11" type="checkbox" name="CK_ABD_FEA@(r["IID"])" />正常</label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>滲出液</th>
+                                <td colspan="7">
+                                    <label><input value="0" type="radio" name="RB_ABD_EXU@(r["IID"])" onclick="$('.ABD_EXU'+ '@r["IID"]').fadeOut()" />無</label>
+                                    <label><input value="1" type="radio" name="RB_ABD_EXU@(r["IID"])" onclick="$('.ABD_EXU'+ '@r["IID"]').fadeIn(500)" />有</label>
+                                    <span class="ABD_EXU@(r["IID"])" style="display:none;text-align:left !important">
+                                        <br /> 滲出物量：
+                                        <label><input value="0" type="radio" name="RB_ABD_EXU_AMT@(r["IID"])" />少</label>
+                                        <label><input value="1" type="radio" name="RB_ABD_EXU_AMT@(r["IID"])" />中</label>
+                                        <label><input value="2" type="radio" name="RB_ABD_EXU_AMT@(r["IID"])" />多</label>
+                                        <br /> 性狀：
+                                        <label><input value="0" type="checkbox" name="CK_ABD_EXU_TPE@(r["IID"])" />漿液</label>
+                                        <label><input value="1" type="checkbox" name="CK_ABD_EXU_TPE@(r["IID"])" />血液</label>
+                                        <label><input value="2" type="checkbox" name="CK_ABD_EXU_TPE@(r["IID"])" />化膿</label>
+                                        <label><input value="3" type="checkbox" name="CK_ABD_EXU_TPE@(r["IID"])" />惡臭</label>
+                                        <label><input value="4" type="checkbox" name="CK_ABD_EXU_TPE@(r["IID"])" onclick="$('.ABD_EXU_TPE_OTH'+ '@r["IID"]').fadeToggle()" />其他</label>
+                                        <span class="ABD_EXU_TPE_OTH@(r["IID"])" style="display:none">
+                                            ，@Html.TextBox("TXT_ABD_EXU_TPE_OTH" + r["IID"], r["ABD_EXU_TPE_OTH"], new { style = "width:100px" })
+                                        </span>
+                                        <br />  顏色：
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="0" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />暗紅色
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="1" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />紅色
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="2" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />鮮紅色
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="3" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />淡紅
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="4" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />粉紅
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="5" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />褐色
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="6" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />黃褐
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="7" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />黃綠
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="8" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />黃色
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="9" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />土黃
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="10" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />白
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="11" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeOut()" />透明
+                                        <input name="RB_ABD_EXU_COL@(r["IID"])" type="radio" value="12" onclick="$('.ABD_EXU_COL_OTH'+ '@r["IID"]').fadeIn(500)" />其他
+                                        <span class="ABD_EXU_COL_OTH@(r["IID"])" style="display:none">
+                                            ，@Html.TextBox("TXT_ABD_EXU_COL_OTH" + r["IID"], r["ABD_EXU_COL_OTH"], new { style = "width:100px" })
+                                        </span>
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>是否有縫線</th>
+                                <td colspan="7">
+                                    <input name="RB_ABO_SUT@(r["IID"])" type="radio" value="0" onclick="$('.ABO_SUT_N'+ '@r["IID"]').fadeOut()" />無縫線
+                                    <input name="RB_ABO_SUT@(r["IID"])" type="radio" value="1" onclick="$('.ABO_SUT_N'+ '@r["IID"]').fadeIn(500)" />有縫線
+                                    <input name="RB_ABO_SUT@(r["IID"])" type="radio" value="2" onclick="$('.ABO_SUT_N'+ '@r["IID"]').fadeOut()" />縫線已拆
+                                    <span class="ABO_SUT_N@(r["IID"])" style="display:none">
+                                        ，縫：@Html.TextBox("TXT_ABO_SUT_N" + r["IID"], r["ABO_SUT_N"], new { style = "width:100px" }) 針
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>處置</th>
+                                <td colspan="7">
+                                    <input name="RB_ABO_TRT@(r["IID"])" type="radio" value="0" onclick="$('.ABO_TRT_M'+ '@r["IID"]').fadeOut()" />無
+                                    <input name="RB_ABO_TRT@(r["IID"])" type="radio" value="1" onclick="$('.ABO_TRT_M'+ '@r["IID"]').fadeIn(500)" />有
+                                    <span class="ABO_TRT_M@(r["IID"])" style="display:none">
+                                        <label><input value="0" type="checkbox" name="CK_ABO_TRT_M@(r["IID"])" />CD</label>
+                                        <label><input value="1" type="checkbox" name="CK_ABO_TRT_M@(r["IID"])" />Wet</label>
+                                        <label><input value="2" type="checkbox" name="CK_ABO_TRT_M@(r["IID"])" />Iodoform</label>
+                                        <label><input value="3" type="checkbox" name="CK_ABO_TRT_M@(r["IID"])" />Port-A CD</label>
+                                        <label><input value="4" type="checkbox" name="CK_ABO_TRT_M@(r["IID"])" />導管引流</label>
+                                        <label><input value="5" type="checkbox" name="CK_ABO_TRT_M@(r["IID"])" />燙傷CD</label>
+                                        <label><input value="6" type="checkbox" name="CK_ABO_TRT_M@(r["IID"])" onclick="$('.ABO_TRT_M_OTH'+ '@r["IID"]').fadeToggle()" />其他</label>
+                                        <span class="ABO_TRT_M_OTH@(r["IID"])" style="display:none">
+                                            ，@Html.TextBox("TXT_ABO_TRT_M_OTH" + r["IID"], r["ABO_TRT_M_OTH"], new { style = "width:100px" })
+                                        </span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tbody>
+                            <tr>
+                                <th rowspan="4">下肢</th>
+                                <th>紅</th>
+                                <td colspan="7">
+                                    <input name="RB_LL_RED@(r["IID"])" type="radio" value="0" onclick="$('.LL_RED_LR'+ '@r["IID"]').fadeOut()" />無
+                                    <input name="RB_LL_RED@(r["IID"])" type="radio" value="1" onclick="$('.LL_RED_LR'+ '@r["IID"]').fadeIn(500)" />有
+                                    <span class="LL_RED_LR@(r["IID"])" style="display:none">
+                                        <label><input value="0" type="checkbox" name="CK_LL_RED_LR@(r["IID"])" onclick="$('.LL_RED_LS' + '@r["IID"]').fadeToggle()" />左</label>
+                                        <span class="LL_RED_LS@(r["IID"])" style="display:none">
+                                            <input name="RB_LL_RED_LS@(r["IID"])" type="radio" value="1" />-
+                                            <input name="RB_LL_RED_LS@(r["IID"])" type="radio" value="2" />±
+                                            <input name="RB_LL_RED_LS@(r["IID"])" type="radio" value="0" />+
+                                            <input name="RB_LL_RED_LS@(r["IID"])" type="radio" value="3" />++
+                                            <input name="RB_LL_RED_LS@(r["IID"])" type="radio" value="4" />+++
+                                            <input name="RB_LL_RED_LS@(r["IID"])" type="radio" value="5" />++++
+                                        </span>
+                                        <label><input value="1" type="checkbox" name="CK_LL_RED_LR@(r["IID"])" onclick="$('.LL_RED_RS' + '@r["IID"]').fadeToggle()" />右</label>
+                                        <span class="LL_RED_RS@(r["IID"])" style="display:none">
+                                            <input name="RB_LL_RED_RS@(r["IID"])" type="radio" value="1" />-
+                                            <input name="RB_LL_RED_RS@(r["IID"])" type="radio" value="2" />±
+                                            <input name="RB_LL_RED_RS@(r["IID"])" type="radio" value="0" />+
+                                            <input name="RB_LL_RED_RS@(r["IID"])" type="radio" value="3" />++
+                                            <input name="RB_LL_RED_RS@(r["IID"])" type="radio" value="4" />+++
+                                            <input name="RB_LL_RED_RS@(r["IID"])" type="radio" value="5" />++++
+                                        </span>
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>腫</th>
+                                <td colspan="7">
+                                    <input name="RB_LL_SWO@(r["IID"])" type="radio" value="0" onclick="$('.LL_SWO_LR'+ '@r["IID"]').fadeOut()" />無
+                                    <input name="RB_LL_SWO@(r["IID"])" type="radio" value="1" onclick="$('.LL_SWO_LR'+ '@r["IID"]').fadeIn(500)" />有
+                                    <span class="LL_SWO_LR@(r["IID"])" style="display:none">
+                                        <label><input value="0" type="checkbox" name="CK_LL_SWO_LR@(r["IID"])" onclick="$('.LL_SWO_LS'+ '@r["IID"]').fadeToggle()" />左</label>
+                                        <span class="LL_SWO_LS@(r["IID"])" style="display:none">
+                                            <input name="RB_LL_SWO_LS@(r["IID"])" type="radio" value="1" />-
+                                            <input name="RB_LL_SWO_LS@(r["IID"])" type="radio" value="2" />±
+                                            <input name="RB_LL_SWO_LS@(r["IID"])" type="radio" value="0" />+
+                                            <input name="RB_LL_SWO_LS@(r["IID"])" type="radio" value="3" />++
+                                            <input name="RB_LL_SWO_LS@(r["IID"])" type="radio" value="4" />+++
+                                            <input name="RB_LL_SWO_LS@(r["IID"])" type="radio" value="5" />++++
+                                        </span>
+                                        <label><input value="1" type="checkbox" name="CK_LL_SWO_LR@(r["IID"])" onclick="$('.LL_SWO_RS'+ '@r["IID"]').fadeToggle()" />右</label>
+                                        <span class="LL_SWO_RS@(r["IID"])" style="display:none">
+                                            <input name="RB_LL_SWO_RS@(r["IID"])" type="radio" value="1" />-
+                                            <input name="RB_LL_SWO_RS@(r["IID"])" type="radio" value="2" />±
+                                            <input name="RB_LL_SWO_RS@(r["IID"])" type="radio" value="0" />+
+                                            <input name="RB_LL_SWO_RS@(r["IID"])" type="radio" value="3" />++
+                                            <input name="RB_LL_SWO_RS@(r["IID"])" type="radio" value="4" />+++
+                                            <input name="RB_LL_SWO_RS@(r["IID"])" type="radio" value="5" />++++
+                                        </span>
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>壓痛</th>
+                                <td colspan="7">
+                                    <input name="RB_LL_TEN@(r["IID"])" type="radio" value="0" onclick="$('.LL_TEN_LR'+ '@r["IID"]').fadeOut()" />無
+                                    <input name="RB_LL_TEN@(r["IID"])" type="radio" value="1" onclick="$('.LL_TEN_LR'+ '@r["IID"]').fadeIn(500)" />有
+                                    <span class="LL_TEN_LR@(r["IID"])" style="display:none">
+                                        <label><input value="0" type="checkbox" name="CK_LL_TEN_LR@(r["IID"])" onclick="$('.LL_TEN_LS' + '@r["IID"]').fadeToggle()" />左</label>
+                                        <span class="LL_TEN_LS@(r["IID"])" style="display:none">
+                                            <input name="RB_LL_TEN_LS@(r["IID"])" type="radio" value="1" />-
+                                            <input name="RB_LL_TEN_LS@(r["IID"])" type="radio" value="2" />±
+                                            <input name="RB_LL_TEN_LS@(r["IID"])" type="radio" value="0" />+
+                                            <input name="RB_LL_TEN_LS@(r["IID"])" type="radio" value="3" />++
+                                            <input name="RB_LL_TEN_LS@(r["IID"])" type="radio" value="4" />+++
+                                            <input name="RB_LL_TEN_LS@(r["IID"])" type="radio" value="5" />++++
+                                        </span>
+                                        <label><input value="1" type="checkbox" name="CK_LL_TEN_LR@(r["IID"])" onclick="$('.LL_TEN_RS' + '@r["IID"]').fadeToggle()" />右</label>
+                                        <span class="LL_TEN_RS@(r["IID"])" style="display:none">
+                                            <input name="RB_LL_TEN_RS@(r["IID"])" type="radio" value="1" />-
+                                            <input name="RB_LL_TEN_RS@(r["IID"])" type="radio" value="2" />±
+                                            <input name="RB_LL_TEN_RS@(r["IID"])" type="radio" value="0" />+
+                                            <input name="RB_LL_TEN_RS@(r["IID"])" type="radio" value="3" />++
+                                            <input name="RB_LL_TEN_RS@(r["IID"])" type="radio" value="4" />+++
+                                            <input name="RB_LL_TEN_RS@(r["IID"])" type="radio" value="5" />++++
+                                        </span>
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>霍曼氏徵象</th>
+                                <td colspan="7">
+                                    <input name="RB_LL_HS@(r["IID"])" type="radio" value="0" onclick="$('.LL_HS_LR'+ '@r["IID"]').fadeOut()" />無
+                                    <input name="RB_LL_HS@(r["IID"])" type="radio" value="1" onclick="$('.LL_HS_LR'+ '@r["IID"]').fadeIn(500)" />有
+                                    <span class="LL_HS_LR@(r["IID"])" style="display:none">
+                                        <label><input value="0" type="checkbox" name="CK_LL_HS_LR@(r["IID"])" onclick="$('.LL_HS_LS'+ '@r["IID"]').fadeToggle()" />左</label>
+                                        <span class="LL_HS_LS@(r["IID"])" style="display:none">
+                                            <input name="RB_LL_HS_LS@(r["IID"])" type="radio" value="1" />-
+                                            <input name="RB_LL_HS_LS@(r["IID"])" type="radio" value="2" />±
+                                            <input name="RB_LL_HS_LS@(r["IID"])" type="radio" value="0" />+
+                                            <input name="RB_LL_HS_LS@(r["IID"])" type="radio" value="3" />++
+                                            <input name="RB_LL_HS_LS@(r["IID"])" type="radio" value="4" />+++
+                                            <input name="RB_LL_HS_LS@(r["IID"])" type="radio" value="5" />++++
+                                        </span>
+                                        <label><input value="1" type="checkbox" name="CK_LL_HS_LR@(r["IID"])" onclick="$('.LL_HS_RS'+ '@r["IID"]').fadeToggle()" />右</label>
+                                        <span class="LL_HS_RS@(r["IID"])" style="display:none">
+                                            <input name="RB_LL_HS_RS@(r["IID"])" type="radio" value="1" />-
+                                            <input name="RB_LL_HS_RS@(r["IID"])" type="radio" value="2" />±
+                                            <input name="RB_LL_HS_RS@(r["IID"])" type="radio" value="0" />+
+                                            <input name="RB_LL_HS_RS@(r["IID"])" type="radio" value="3" />++
+                                            <input name="RB_LL_HS_RS@(r["IID"])" type="radio" value="4" />+++
+                                            <input name="RB_LL_HS_RS@(r["IID"])" type="radio" value="5" />++++
+                                        </span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tbody>
+                            <tr> <th rowspan="4">排尿</th></tr>
+                            <tr>
+                                <th>自解</th>
+                                <td colspan="7">
+                                    <input name="RB_URINE_SELF@(r["IID"])" type="radio" value="0" />+
+                                    <input name="RB_URINE_SELF@(r["IID"])" type="radio" value="1" />-
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>單導</th>
+                                <td colspan="7">
+                                    @Html.TextBox("TXT_URINE_SINGLE_AMT" + r["IID"], r["URINE_SINGLE_AMT"], new { style = "width:100px" })cc,
+                                    <input name="RB_URINE_SINGLE_STAT@(r["IID"])" type="radio" value="0" />黃色
+                                    <input name="RB_URINE_SINGLE_STAT@(r["IID"])" type="radio" value="1" />褐色
+                                    <input name="RB_URINE_SINGLE_STAT@(r["IID"])" type="radio" value="2" />暗紅色
+                                    <input name="RB_URINE_SINGLE_STAT@(r["IID"])" type="radio" value="3" />淡紅色
+                                    <input name="RB_URINE_SINGLE_STAT@(r["IID"])" type="radio" value="4" />鮮紅色
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>導尿管</th>
+                                <td colspan="7">
+                                    @Html.TextBox("TXT_URINE_CAT_AMT" + r["IID"], r["URINE_CAT_AMT"], new { style = "width:100px" })cc,
+                                    <input name="RB_URINE_CAT_STAT@(r["IID"])" type="radio" value="0" />黃色
+                                    <input name="RB_URINE_CAT_STAT@(r["IID"])" type="radio" value="1" />褐色
+                                    <input name="RB_URINE_CAT_STAT@(r["IID"])" type="radio" value="2" />暗紅色
+                                    <input name="RB_URINE_CAT_STAT@(r["IID"])" type="radio" value="3" />淡紅色
+                                    <input name="RB_URINE_CAT_STAT@(r["IID"])" type="radio" value="4" />鮮紅色
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tr>
+                            <th colspan="2">
+                                護理處置
+                                <input type="button" name="btn" id="" value="處置" onclick="window.open('SharedVitalSign?title=產後護理之護理處置&checkValue=TXT_NS_TREAT', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                            </th>
+                            <td style="text-align:left" colspan="7">
+                                @Html.TextArea("TXT_NS_TREAT" + r["IID"], r["NS_TREAT"].ToString(), new { id = "TXT_NS_TREAT", @rows = "5", style = "width:500px" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2" rowspan="@Ab_Disp_in_count">
+                                <input type="button" name="btn" value="給藥" onclick="window.open('../CommonMedication/Medication_NurseExecute', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                <input type="button" name="btn" value="調配" onclick="window.open('AB_Disp?IID=@r["IID"]', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                <input type="button" name="btn" id="" value="修改流速" onclick="set_row('Ab_Disp', '@r["IID"]')" />
+                            </th>
+                            <th class="head">A藥品種類</th>
+                            <th class="head">劑量</th>
+                            <th class="head">B藥品種類</th>
+                            <th class="head">劑量</th>
+                            <th class="head">總用量</th>
+                            <th class="head">流速</th>
+                            <th class="head">狀態</th>
+                        </tr>
+                        @if (dtAb_Disp != null)
+                        {
+                            foreach (DataRow ab in dtAb_Disp.Rows)
+                            {
+                                <tr>
+                                    <td><label><input type="checkbox" name="del_ID" value="@ab["SNOM"]" /></label>@ab["TM_MED_A"]</td>
+                                    <td>@ab["TM_MED_A_AMT"]</td>
+                                    <td>@ab["TM_MED_B"]</td>
+                                    <td>@ab["TM_MED_B_AMT"]</td>
+                                    <td>@ab["TM_MED_USE"]</td>
+                                    <td>@ab["TM_MED_SPEED"]</td>
+                                    @switch (ab["TM_MED_USE_STAT"].ToString())
+                                    {
+                                        case "0":
+                                            <td>啟用</td>
+                                            break;
+                                        case "1":
+                                            <td>停止</td>
+                                            break;
+                                        case "2":
+                                            <td>一次性給藥</td>
+                                            break;
+                                        default:
+                                            <td></td>
+                                            break;
+                                    }
+                                </tr>
+                            }
+                        }
+                        <tr>
+                    </table>
+                    <script>
+                        @if(r["UTERUS_SHRINK"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_UTERUS_SHRINK@(r["IID"])', '@r["UTERUS_SHRINK"]');
+                                        }
+                        @if(r["UTERUS_HEIGHT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_UTERUS_HEIGHT@(r["IID"])', '@r["UTERUS_HEIGHT"]');
+                                        }
+                        @if(r["LOCHIA_STAT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LOCHIA_STAT@(r["IID"])', '@r["LOCHIA_STAT"]');
+                                        }
+                        @if(r["LOCHIA_COLOR"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LOCHIA_COLOR@(r["IID"])', '@r["LOCHIA_COLOR"]');
+                                        }
+                        @if(r["EPWOUND_RED"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_EPWOUND_RED@(r["IID"])', '@r["EPWOUND_RED"]');
+                                        }
+                        @if(r["EPWOUND_EDEMA"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_EPWOUND_EDEMA@(r["IID"])', '@r["EPWOUND_EDEMA"]');
+                                        }
+                        @if(r["EPWOUND_ECC"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_EPWOUND_ECC@(r["IID"])', '@r["EPWOUND_ECC"]');
+                                        }
+                        @if(r["EPWOUND_DISC"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_EPWOUND_DISC@(r["IID"])', '@r["EPWOUND_DISC"]');
+                                        }
+                        @if(r["EPWOUND_APPR"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_EPWOUND_APPR@(r["IID"])', '@r["EPWOUND_APPR"]');
+                                        }
+                        @if(r["ABD_AREA"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_ABD_AREA@(r["IID"])', '@r["ABD_AREA"]');
+                                        }
+                        @if (r["ABD_FEA"].ToString() != "")
+                                             {
+                            var ABD_FEA = r["ABD_FEA"].ToString();
+                            var ABD_FEAV = new List<string>();
+
+                            for (var i = 0; i < ABD_FEA.ToString().Length; i++)
+                                                 {
+                                if (ABD_FEA[i] == '1')
+                                                     {
+                                                        ABD_FEAV.Add(i.ToString());
+                                                     }
+                                                 }
+                                                 @:set_for_ck('CK_ABD_FEA@(r["IID"])', '@String.Join(",", ABD_FEAV)');
+                                             }
+                        @if(r["ABD_EXU"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_ABD_EXU@(r["IID"])', '@r["ABD_EXU"]');
+                                        }
+                         @if(r["ABD_EXU_AMT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_ABD_EXU_AMT@(r["IID"])', '@r["ABD_EXU_AMT"]');
+                                        }
+                         @if (r["ABD_EXU_TPE"].ToString() != "")
+                         {
+                             var ABD_EXU_TPE = r["ABD_EXU_TPE"].ToString();
+                             var ABD_EXU_TPEV = new List<string>();
+
+                             for (var i = 0; i < ABD_EXU_TPE.ToString().Length; i++)
+                             {
+                                 if (ABD_EXU_TPE[i] == '1')
+                                 {
+                                     ABD_EXU_TPEV.Add(i.ToString());
+                                 }
+                             }
+                                                 @:set_for_ck('CK_ABD_EXU_TPE@(r["IID"])', '@String.Join(",", ABD_EXU_TPEV)');
+                                             }
+                           @if(r["ABD_EXU_COL"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_ABD_EXU_COL@(r["IID"])', '@r["ABD_EXU_COL"]');
+                                        }
+                           @if(r["ABD_EXU_COL"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_ABD_EXU_COL@(r["IID"])', '@r["ABD_EXU_COL"]');
+                                        }
+                           @if(r["ABO_SUT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_ABO_SUT@(r["IID"])', '@r["ABO_SUT"]');
+                                        }
+                           @if(r["ABO_TRT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_ABO_TRT@(r["IID"])', '@r["ABO_TRT"]');
+                                        }
+                            @if (r["ABO_TRT_M"].ToString() != "")
+                            {
+                                var ABO_TRT_M = r["ABO_TRT_M"].ToString();
+                                var ABO_TRT_MV = new List<string>();
+
+                                for (var i = 0; i < ABO_TRT_M.ToString().Length; i++)
+                                {
+                                    if (ABO_TRT_M[i] == '1')
+                                    {
+                                        ABO_TRT_MV.Add(i.ToString());
+                                    }
+                                }
+                                                 @:set_for_ck('CK_ABO_TRT_M@(r["IID"])', '@String.Join(",", ABO_TRT_MV)');
+                                             }
+
+                        @if(r["LL_RED"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_RED@(r["IID"])', '@r["LL_RED"]');
+                                        }
+                        @if (r["LL_RED_LR"].ToString() != "")
+                        {
+                            var LL_RED_LR = r["LL_RED_LR"].ToString();
+                            var LL_RED_LRV = new List<string>();
+
+                            for (var i = 0; i < LL_RED_LR.ToString().Length; i++)
+                            {
+                                if (LL_RED_LR[i] == '1')
+                                {
+                                    LL_RED_LRV.Add(i.ToString());
+                                }
+                            }
+                                                 @:set_for_ck('CK_LL_RED_LR@(r["IID"])', '@String.Join(",", LL_RED_LRV)');
+                                             }
+                        @if(r["LL_RED_LS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_RED_LS@(r["IID"])', '@r["LL_RED_LS"]');
+                                        }
+                        @if(r["LL_RED_RS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_RED_RS@(r["IID"])', '@r["LL_RED_RS"]');
+                                        }
+                        @if(r["LL_SWO"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_SWO@(r["IID"])', '@r["LL_SWO"]');
+                                        }
+                        @if (r["LL_SWO_LR"].ToString() != "")
+                        {
+                            var LL_SWO_LR = r["LL_SWO_LR"].ToString();
+                            var LL_SWO_LRV = new List<string>();
+
+                            for (var i = 0; i < LL_SWO_LR.ToString().Length; i++)
+                            {
+                                if (LL_SWO_LR[i] == '1')
+                                {
+                                    LL_SWO_LRV.Add(i.ToString());
+                                }
+                            }
+                                                 @:set_for_ck('CK_LL_SWO_LR@(r["IID"])', '@String.Join(",", LL_SWO_LRV)');
+                                             }
+                        @if(r["LL_SWO_LS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_SWO_LS@(r["IID"])', '@r["LL_SWO_LS"]');
+                                        }
+                        @if(r["LL_SWO_RS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_SWO_RS@(r["IID"])', '@r["LL_SWO_RS"]');
+                                        }
+                        @if(r["LL_TEN"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_TEN@(r["IID"])', '@r["LL_TEN"]');
+                                        }
+                        @if (r["LL_TEN_LR"].ToString() != "")
+                        {
+                            var LL_TEN_LR = r["LL_TEN_LR"].ToString();
+                            var LL_TEN_LRV = new List<string>();
+
+                            for (var i = 0; i < LL_TEN_LR.ToString().Length; i++)
+                            {
+                                if (LL_TEN_LR[i] == '1')
+                                {
+                                    LL_TEN_LRV.Add(i.ToString());
+                                }
+                            }
+                                                 @:set_for_ck('CK_LL_TEN_LR@(r["IID"])', '@String.Join(",", LL_TEN_LRV)');
+                                             }
+                        @if(r["LL_TEN_LS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_TEN_LS@(r["IID"])', '@r["LL_TEN_LS"]');
+                                        }
+                        @if(r["LL_TEN_RS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_TEN_RS@(r["IID"])', '@r["LL_TEN_RS"]');
+                                        }
+
+                        @if(r["LL_HS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_HS@(r["IID"])', '@r["LL_HS"]');
+                                        }
+                        @if (r["LL_HS_LR"].ToString() != "")
+                        {
+                            var LL_HS_LR = r["LL_HS_LR"].ToString();
+                            var LL_HS_LRV = new List<string>();
+
+                            for (var i = 0; i < LL_HS_LR.ToString().Length; i++)
+                            {
+                                if (LL_HS_LR[i] == '1')
+                                {
+                                    LL_HS_LRV.Add(i.ToString());
+                                }
+                            }
+                                                 @:set_for_ck('CK_LL_HS_LR@(r["IID"])', '@String.Join(",", LL_HS_LRV)');
+                                             }
+                        @if(r["LL_HS_LS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_HS_LS@(r["IID"])', '@r["LL_HS_LS"]');
+                                        }
+                        @if(r["LL_HS_RS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LL_HS_RS@(r["IID"])', '@r["LL_HS_RS"]');
+                                        }
+
+                         @if(r["URINE_SELF"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_URINE_SELF@(r["IID"])', '@r["URINE_SELF"]');
+                                        }
+                         @if(r["URINE_SINGLE_STAT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_URINE_SINGLE_STAT@(r["IID"])', '@r["URINE_SINGLE_STAT"]');
+                                        }
+                          @if(r["URINE_CAT_STAT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_URINE_CAT_STAT@(r["IID"])', '@r["URINE_CAT_STAT"]');
+                                        }
+                           @if (r["NS_TREAT"].ToString() != "")
+                           {
+                               var NS_TREAT = r["NS_TREAT"].ToString();
+                               var NS_TREATV = new List<string>();
+
+                               for (var i = 0; i < NS_TREAT.ToString().Length; i++)
+                               {
+                                   if (NS_TREAT[i] == '1')
+                                   {
+                                       NS_TREATV.Add(i.ToString());
+                                   }
+                               }
+                                                 @:set_for_ck('CK_NS_TREAT@(r["IID"])', '@String.Join(",", NS_TREATV)');
+                                             }
+                    </script>
+                </div>
+                <div style="text-align:center" class="funcArea">
+                    <input type="button" value="儲存" style="width:60px;" onclick="if (check('@r["IID"]')) { submit(); }" />
+                    <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) window.close();" />
+                </div>
+            }
+        </form>
+    }
+}
+
+<script>
+    $('form').on('keyup keypress', function (e) {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode === 13) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>

@@ -1,0 +1,467 @@
+﻿@using System.Data;
+@using NIS.Models;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "新增護理計畫";
+    DateTime mindate = DateTime.Now;
+    DataTable Dt_Master = ViewBag.Dt_Master;
+    List<User_Care_Plan_Item> Dt_Deftin = (List<User_Care_Plan_Item>)ViewData["Dt_Deftin"];
+    List<User_Care_Plan_Item> Dt_About = (List<User_Care_Plan_Item>)ViewData["Dt_About"];
+    List<User_Care_Plan_Item> Dt_Goal = (List<User_Care_Plan_Item>)ViewData["Dt_Goal"];
+    List<User_Care_Plan_Item> Dt_Active = (List<User_Care_Plan_Item>)ViewData["Dt_Active"];
+    List<User_Care_Plan_Item> temp = null;
+    List<User_Care_Plan_Item> temp_act = null;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+  .dataArea td {
+    border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+    text-align: left;
+  }
+  #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+   input[type=button] {
+        border: 1px solid #666;
+        padding: 4px 10px 4px 10px;
+        border-radius: 3px;
+    }
+
+    #topic_panel {
+        width: 100%;
+        margin-top: 5px;
+        overflow-y: scroll;
+        overflow-x:hidden;
+        height: 550px;
+    }
+
+    .topic_block {
+        width: 98%;
+        margin: 5px;
+        padding: 5px;
+        border: 1px solid #666;
+        background-color: #E1E6FA;
+    }
+        .topic_block:hover {
+            background-color: #ABC8E2;
+        }
+        
+    .cp_item {
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    .cp_info_panel > div {
+        display: block;
+        border: 1px solid #666;
+        background-color: #FFFFBB;
+        padding: 5px;
+        border-radius: 5px;
+        margin-bottom: 2px;
+    }
+
+        .cp_info_panel > div > ul {
+            display: block;
+            list-style-type: circle;
+            margin: 0px;
+            padding-left: 1.5em;
+        }
+
+            .cp_info_panel > div > ul > li {
+                padding: 2px;
+            }
+            
+    .target_title {
+        margin: 2px 5px 0px 5px;
+        border: 1px solid #CCCCCC;
+        padding: 5px;
+        font-size: 12px;
+        font-weight: bold;
+        background-color: #99FFBB;
+    }
+
+    .target_block, .setp_block {
+        display: block;
+        line-height: 14px;
+        padding: 10px;
+        border: 1px solid #CCCCCC;
+        margin: 2px 5px 0px 5px;
+    }
+
+    .target_block {
+        background-color: #FFFFFF;
+    }
+
+        .target_block > label {
+            cursor: pointer;
+        }
+
+        .target_block > label:hover {
+            background-color: #EEEEEE;
+        }
+
+    .setp_block {
+        background-color: #EEDDFF;
+    }
+
+        .setp_block > label {
+            display: block;
+            cursor: pointer;
+        }
+
+        .setp_block > label:hover {
+            background-color: #CC99FF;
+        }
+        #sys_Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1000;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+            #sys_Loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 1001;
+        display: none;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+    });
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    $(function () {
+          $(window).resize(function () {
+              var height = $(this).outerHeight();
+              if (height <= 300)
+                  height = 450;
+              $("#topic_panel").outerHeight(height - 120);
+          }).trigger("resize");
+
+          if ($('.topic_block').length == 0)
+              $('#topic_panel').html('<div style="font-size:18px;font-weight:bold;margin-top:5px;">尚無執行中的護理計畫</div>');
+      });
+
+    function Edit(recordid) {
+            loop_windows("open_cover");
+            window.location.href = 'EditCarePlan?recordid=' + recordid;
+        }
+
+        //評值存檔 點選'不適用'需輸入原因
+        function Score_Goal(recordid,targetid) {
+
+            if ($('input[name=' + recordid + 'CPRESULT' + targetid + ']:checked').length > 0) {
+                $('#scoregoal_' + targetid).prop('disabled', true);
+                $.ajax({
+                    url: "Score_Goal",
+                    type: "POST",
+                    data: $('#' + recordid).serialize() + "&recordid=" + recordid + "&targetid=" + targetid,
+                    success: function (data) {
+                        alert(data);
+                        //alert($('#' + recordid + 'c_options' + targetid).val());
+                        if ($('input[name=' + recordid + 'CPRESULT' + targetid + ']:checked').val() == "N" && $('#' + recordid + 'c_options' + targetid).val() == "修改護理措施" )
+                        {
+                           window.location.href = 'EditCarePlan?R=Y&recordid=' + recordid;
+                        }
+                        else
+                        {
+                            window.location.href = 'Index';
+                        }
+
+                    },
+                    beforeSend: function () {
+                        $("#sys_Block, #sys_Loading").show();
+                    },
+                    complete: function () {
+                        $('#scoregoal_' + targetid).prop('disabled', false);
+                        $("#sys_Block, #sys_Loading").hide();
+                    }
+                });
+            }
+            else
+                alert("請選擇目標評值結果!");
+        }
+
+        //執行護理計畫
+        function Execute_Act(recordid) {
+
+            if ($('input[name=activity'+recordid+']:checked').length > 0) {
+                $.ajax({
+                    url: "Execute_Act",
+                    type: "POST",
+                    data: $('#' + recordid).serialize() + "&recordid=" + recordid,
+                    success: function (data) {
+                        $('input[name=activity' + recordid + ']').attr('checked', false);
+                        alert(data);
+                    }
+                });
+            }
+            else
+                alert("請選擇護理措施!");
+        }
+
+        function Show_Txt(obj) {
+            if (obj.value == 'C'){
+                $('#unscore_text_' + $(obj).attr('gid')).fadeIn(100);
+                $('#unscore_text_' + $(obj).attr('gid')).css('display', 'inline-block');
+            }
+            else {
+                $('#unscore_text_' + $(obj).attr('gid')).fadeOut(0);
+                $('#unscore_text_' + $(obj).attr('gid')).val('');
+            }
+        }
+        function EditC_model(obj) {
+            $('.'+ obj).fadeToggle();
+        }
+
+</script>
+
+
+<div class="funcArea">
+    <input type="button" value="新增護理計畫" style="width:160px;" onclick="window.location.href = 'Index'" />
+    <input type="button" value="查詢所有護理計畫" style="width:160px;" onclick="window.location.href = 'AllCarePlan'" />
+    <input type="button" value="護理計畫總表" style="width:160px;" onclick="window.location.href = 'AllList'" />
+    <input type="button" value="護理計畫(護理紀錄)" style="width:160px;" onclick="window.location.href = 'List'" />
+    @*1119 OLD*@
+    
+    
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;margin:5px 0 5px 0;">
+        <tr>
+            <td>
+                 <div id="module_define">@(title)</div>
+            </td>
+        </tr>
+        <tr>
+    <td>
+<table style="width:100%;background-color:white;">
+    <tr>
+        <td>
+            <div>
+                 <input type="button" value="新增" style="width:50px;" onclick="window.location.href = 'NewCarePlan'" />
+               @* <a class="btn btn-primary btn-sm" onclick="window.location.href = 'NewCarePlan?CaseNO=@(CaseNO)';"><i></i>新增</a>
+                <a class="btn btn-primary btn-sm" onclick="window.location.href = 'AllCarePlan?CaseNO=@(CaseNO)';"><i></i>查詢所有</a>*@
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div id="topic_panel" style="height:360px;">
+                
+                @if (Dt_Master != null && Dt_Master.Rows.Count > 0)
+                {
+                    foreach (DataRow r in Dt_Master.Rows)
+                    {
+                        if (r["PLANENDDATE"].ToString() == "")
+                        {
+                            <div class="topic_block">
+                                <table style="width:100%;">
+                                    <tr>
+                                        <td style="width:40%;vertical-align:top;" class="cp_item">
+                                            <span style="color:#660000">健康問題：</span>
+                                            @if (r["MODIFT_DATE"] != null && r["MODIFT_DATE"].ToString() != "" && Convert.ToDateTime(DateTime.Now.AddDays(-6).ToString("yyyy/MM/dd")) < Convert.ToDateTime(Convert.ToDateTime(r["MODIFT_DATE"].ToString()).ToString("yyyy/MM/dd")))
+                                            {
+                                               @r["topicdesc"].ToString()
+                                            }
+                                            else if (Convert.ToDateTime(DateTime.Now.AddDays(-6).ToString("yyyy/MM/dd")) >= Convert.ToDateTime(Convert.ToDateTime(r["PLANSTARTDATE"].ToString()).ToString("yyyy/MM/dd")))
+                                            {
+                                                 <span style="color:red">@r["topicdesc"].ToString()</span>
+                                            }
+                                            else
+                                            {
+                                              @r["topicdesc"].ToString()
+                                            } 
+                                                               
+                                                   [<span style="color:#0300FA">#@(int.Parse(r["pno"].ToString()))</span>]
+                                        </td>
+                                        <td style="width:60%">
+                                            <input type="button" class="btn_m"  value="重整" onclick="Edit('@(r["recordid"].ToString())');" />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width:40%;vertical-align:top;font-size:12px;" class="cp_info_panel">
+                                            <div>
+                                                @if (Dt_Deftin != null && Dt_Deftin.Count > 0)
+                                                {
+                                                    temp = Dt_Deftin.FindAll(x => x.M_ID == r["recordid"].ToString());
+                                                    @Html.Raw("定義性特徵:")
+                                                    @Html.Raw(" <hr />")
+                                                    @Html.Raw("<ul>")
+                                                    foreach (var item in temp)
+                                                    {
+                                                            @Html.Raw("<li>" + item.Item + "</li>")
+                                                            @*
+                                                            @Html.Raw("<li>"+item.Item +"<label style='color:blue;'>"+Convert.ToDateTime(item.RecordTime).ToString("yyyy/MM/dd HH:mm")+"</label>")
+                                                            if (item.StopDate.ToString() != "")
+                                                            {
+                                                                @Html.Raw("-<label style='color:blue;'>" + Convert.ToDateTime(item.StopDate).ToString("yyyy/MM/dd HH:mm") + "</label>")
+                                                            }
+                                                            @Html.Raw("</li>")
+                                                            *@
+                                                    }
+                                                    @Html.Raw("</ul>")
+                                                }
+                                            </div>
+                                            <div>
+                                                @if (Dt_About != null && Dt_About.Count > 0)
+                                                {
+                                                    temp = Dt_About.FindAll(x => x.M_ID == r["recordid"].ToString());
+                                                   @Html.Raw("相關因素:")
+                                                     @Html.Raw("<hr />")
+                                                    @Html.Raw("<ul>")
+                                                    foreach (var item in temp)
+                                                    {
+                                                            @Html.Raw("<li>" + item.Item + "</li>")
+                                                        //@Html.Raw("<li>"+item.Item+"<label style='color:blue;'>"+Convert.ToDateTime(item.RecordTime).ToString("yyyy/MM/dd HH:mm")+"</label></li>")
+                                                    }
+                                                    @Html.Raw("</ul>")
+                                                }
+                                            </div>
+                                            <div style="display:none">
+                                                @if (Dt_Goal != null && Dt_Goal.Count > 0)
+                                                {
+                                                    temp = Dt_Goal.FindAll(x => (x.M_ID == r["recordid"].ToString()));
+                                                    @Html.Raw("目標:")
+                                                    @Html.Raw("<hr />")
+                                                    @Html.Raw("<ul>")
+                                                    foreach (var item in temp)
+                                                    {
+                                                        @Html.Raw("<li>" + item.Item + "</li>")
+                                                    }
+                                                    @Html.Raw("</ul>")
+                                                }
+                                            </div>
+                                        </td>
+                                        <td style="width:60%;vertical-align:top;font-size:12px;" class="cp_info_panel">
+                                            <div>
+                                                <form id="@r["recordid"].ToString()">
+                                                    <input type="hidden" name="Topic" value="@r["topicdesc"].ToString()" />
+                                                    <input type="hidden" name="PNO" value="@(int.Parse(r["pno"].ToString()))" />
+                                                    <p class='target_title'>
+                                                        評值時間:
+                                                        @Html.TextBox("CreateDate_" + r["recordid"].ToString(), DateTime.Now.ToUniversalTime().AddHours(8).ToString("yyyy/MM/dd"), new { @class = "form-control input-sm", @style = "display:inline-block;" })
+                                                        @Html.TextBox("CreateTime_" + r["recordid"].ToString(), DateTime.Now.ToUniversalTime().AddHours(8).ToString("HH:mm"), new { @class = "form-control input-sm", @style = "display:inline-block;" })
+                                                        @*@WebTool.setDateTime("CreateDate_" + r["recordid"].ToString(), "CreateTime_" + r["recordid"].ToString(), "", "0")*@
+                                                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "CreateDate_" + r["recordid"].ToString(), "CreateTime_" + r["recordid"].ToString(), true)
+                                                    </p>
+                                                    @if (Dt_Goal != null && Dt_Goal.Count > 0)
+                                                    {
+                                                        temp = Dt_Goal.FindAll(x => (x.M_ID == r["recordid"].ToString()));
+                                                        foreach (var item in temp)
+                                                        {
+                                                            <div class='target_block'>
+                                                                <div>目標：@item.Item
+                                                                    @*<input type="button" class="@(r["recordid"].ToString())c_editbtn@(item.G_PK_ID)" value="重新評值" onclick="EditC_model('@(r["recordid"].ToString())c_div@(item.G_PK_ID)')">*@
+                                                                </div>
+                                                                <input type="hidden" name="@(r["recordid"].ToString())TARGET@(item.G_PK_ID)" value="@item.Item" />
+                                                                <script type="text/javascript">
+                                                                    $(document).ready(function () {
+                                                                        var itemValue = "@item.StopDate";
+                                                                        if (itemValue != "" && itemValue != null) {
+                                                                            $('.@(r["recordid"].ToString())c_div@(item.G_PK_ID)').hide();
+                                                                            $('.@(r["recordid"].ToString())c_editbtn@(item.G_PK_ID)').show();
+                                                                        }
+                                                                        else {
+                                                                            $('.@(r["recordid"].ToString())c_div@(item.G_PK_ID)').show();
+                                                                            $('.@(r["recordid"].ToString())c_editbtn@(item.G_PK_ID)').hide();
+                                                                        }
+                                                                    });
+                                                                </script>
+                                                                <div class="@(r["recordid"].ToString())c_div@(item.G_PK_ID)">
+                                                                    <span>
+                                                                        評值：
+                                                                        <label><input type="radio" name="@(r["recordid"].ToString())CPRESULT@(item.G_PK_ID)" value="Y" onclick="$('#@(r["recordid"].ToString())c_options@(item.G_PK_ID)').hide();">已達成</label>
+                                                                        <label><input type="radio" name="@(r["recordid"].ToString())CPRESULT@(item.G_PK_ID)" value="N" onclick="$('#@(r["recordid"].ToString())c_options@(item.G_PK_ID)').show();">未達成</label>
+                                                                        <label><input type="radio" name="@(r["recordid"].ToString())CPRESULT@(item.G_PK_ID)" value="C" onclick="$('#@(r["recordid"].ToString())c_options@(item.G_PK_ID)').hide();">不適用</label>
+                                                                        <select id="@(r["recordid"].ToString())c_options@(item.G_PK_ID)" name="@(r["recordid"].ToString())c_options@(item.G_PK_ID)" style="display:none;">
+                                                                            <option value="繼續執行">繼續執行</option>
+                                                                            @*<option value="修改護理措施">修改護理措施</option>*@
+                                                                            <option value="出院">出院</option>
+                                                                            <option value="轉院">轉院</option>
+                                                                            <option value="死亡">死亡</option>
+                                                                        </select>
+                                                                    </span>
+                                                                    <hr />
+                                                                    <input type="button" id="scoregoal_@(item.G_PK_ID)" value="目標評值儲存" onclick="Score_Goal('@(r["recordid"].ToString())','@item.G_PK_ID');" />
+                                                                </div>
+                                                            </div>
+
+                                                        }
+
+                                                    }
+
+                                                    <div class='setp_block'>
+                                                        @if (Dt_Active != null && Dt_Active.Count > 0)
+                                                        {
+                                                            temp = Dt_Active.FindAll(x => (x.M_ID == r["recordid"].ToString()));
+                                                            foreach (var item in temp)
+                                                            {
+                                                                <label><input type="checkbox" name="activity@(r["recordid"].ToString())" value="@item.Item" />@item.Item</label>
+                                                            }
+                                                            @Html.Raw("<hr />")
+                                                            if (temp != null && temp.Count > 0)
+                                                            {
+                                                                <input type="button" value="執行護理計畫" onclick="$('button').attr('disabled', true);Execute_Act('@(r["recordid"].ToString())');$('button').attr('disabled', false);" />
+                                                            }
+                                                        }
+
+                                                    </div>
+                                                </form>
+                                            </div>
+
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        }
+                    }
+                }
+            </div>
+        </td>
+    </tr>
+</table>
+
+        </td></tr></table>
+
+</div>
+
+    <!--遮罩-->
+    <div id="inp" class="dialog"></div>
+    <div id="cover" class="dialog"></div>
+    <div id="sys_Block"></div>
+    <div id="sys_Loading">
+        <label for="lab" style="font-size:16px">Loading...</label><br />
+        <img src="~/Images/System/loading.gif" alt="" />
+    </div>
+
+

@@ -1,0 +1,161 @@
+﻿@using System.Data;
+@using Newtonsoft.Json;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    NIS.Data.PatientInfo patientInfo = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.UserInfo userInfo = (NIS.Data.UserInfo)Session["UserInfo"];
+    string MasterID = ViewBag.MasterID;
+
+    DateTime Now = DateTime.Now;
+}
+
+<style type="text/css" scoped>
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #5175BC;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+        border-radius: 5px;
+    }
+
+    .dataHeader {
+        margin-right: 0px;
+    }
+
+    .dataArea {
+        overflow-y: auto;
+    }
+
+        .dataArea td {
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+            text-align: left;
+            height: 20px;
+        }
+
+    .fun_btn {
+        font-size: 17px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 5px 5px 4px 4px !important;
+        cursor: pointer;
+    }
+
+    .check_btn {
+        background-color: #3c7ec3 !important;
+    }
+
+    .add_btn {
+        background-color: #42b55b !important;
+    }
+
+    .modify_btn {
+        background-color: #ed9017 !important;
+    }
+
+    .delete_btn {
+        background-color: #ed6f6f !important;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('.dataArea tr').css('background', '#E1E6FA');
+        //setGridColor();
+        ImportVitalSign();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+        $('.due').css('background', '#FF6666');
+    }
+
+    //載入VitalSign資料帶入畫面
+    function ImportVitalSign() {
+        loop_windows("open_cover");
+
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/EmergencyTreatment/VitalSign_Interfacing")',
+            dataType: 'html',
+            data: { starttime: $('#startDate').val() + ' ' + $('#startTime').val(), endtime: $('#edDate').val() + ' ' + $('#edTime').val(), feeno: '@patientInfo.FeeNo', MasterID:'@MasterID'},
+            cache: false,
+            success: function (response) {
+                /*$('.dataAreaX').html();*/
+                $('.dataAreaX').html(response);
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+</script>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+    <tr>
+        <td style="width:100%;text-align:center;">
+            <div id="module_define">帶入生命徵象</div>
+        </td>
+    </tr>
+</table>
+
+@*生命徵象*@
+<div style="width:100%;display:flex;justify-content:center">
+    <div style="width: 100%">
+        <div class="dataHeader">
+            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                <tr>
+                    <td style="width:25%">床號:@patientInfo.BedNo</td>
+                    <td style="width:25%">病歷號:@patientInfo.ChartNo</td>
+                    <td style="width:25%">姓名:@patientInfo.PatientName</td>
+                    <td style="width:25%">性別:@patientInfo.PatientGender</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="funcArea">
+    <table style="width:100%;">
+        <tr>
+            <td>
+                <fieldset>
+                    <legend>查詢區間</legend>
+                    @(Html.TextBox("startDate", DateTime.Now.AddDays(-3).ToString("yyyy/MM/dd")))
+                    @(Html.TextBox("startTime", DateTime.Now.AddDays(-3).ToString("HH:mm")))
+                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "startDate", "startTime", false)
+                    ~
+                    @(Html.TextBox("edDate", DateTime.Now.ToString("yyyy/MM/dd")))
+                    @(Html.TextBox("edTime", DateTime.Now.ToString("HH:mm")))
+                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "edDate", "edTime", false)
+                    @*@WebTool.setDateTime("stDate", "stTime")
+                        @WebTool.setDateTime("edDate", "edTime")*@
+                    <input type="button" class="fun_btn check_btn" value="查詢" onclick="ImportVitalSign()" />
+                    @*(紅色數值表過高，藍色數值表過低)*@
+                </fieldset>
+            </td>
+        </tr>
+    </table>
+</div>
+<div class="dataAreaX" style="height: auto;">
+</div>

@@ -1,0 +1,239 @@
+﻿@using System.Data;
+@using System.Web.Mvc.Html;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    var NBIID = ViewBag.NBIID;
+}
+<script>
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+
+        $('.head').css('background', '#85A5CC');
+    }
+
+    $(function () {
+        setGridColor();
+        //設定高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 160);
+        }).trigger("resize");
+    });
+
+    function get_employee_name(obj, name) {
+        var userno = $(obj).attr('id')
+        $.ajax({
+            url: "Get_Employee_Name",
+            type: "GET",
+            data: { userno: document.getElementById(userno).value },
+            success: function (data, textStatus, jqXHR) {
+                var userNameId = userno.replace("TXT_" + name, "LB_" + name);
+                if (data == "") {
+                    alert("查無此執行者員工編號!");
+                    $("#" + userNameId).html('請輸入員工編號');
+                }
+                else {
+                    $("#" + userNameId).html(data);
+                }
+            },
+            error: function (err) {
+            },
+            dataType: 'text'
+        });
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = document.getElementsByName(ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+</script>
+<link href="~/Content/StyleSheet/BabySystem.css" rel="stylesheet" />
+
+@using System.Data;
+@using System.Web.Mvc.Html;
+@{
+    DataTable dt = ViewBag.dt;
+    if (dt == null || dt.Rows.Count == 0)
+    {
+        <form action="Insert_Partial_Child_EMR" method="post">
+            <div class="funcArea" style="text-align:center">
+                <input type="button" value="儲存" style="width:60px;" onclick="sendValue(); submit();" />
+                <input type="button" value="離開" style="width:60px;" onclick="if (confirm('確認離開?')) window.close();" />
+            </div>
+            <div class="funcArea">
+                <div class="addForm">
+                    <input type="hidden" name="SEQ" value="@ViewBag.SEQ" />
+                    <table border="1" style="text-align:left;width:100%;border-collapse:collapse;">
+                        <tr>
+                            <th style="width:40%">急救處置日期時間</th>
+                            <td>
+                                @Html.TextBox("ET_DATE_DAY", DateTime.Now.ToString("yyyy/MM/dd"), new { id = "ET_DATE_DAY", style = "width:80px", @readonly = "readonly" })
+                                @Html.TextBox("ET_DATE_TIME", DateTime.Now.ToString("HH:mm"), new { id = "ET_DATE_TIME", style = "width:50px", @readonly = "readonly" })
+                                @WebTool.setDateTime("ET_DATE_DAY", "ET_DATE_TIME", "", "30")
+                            </td>
+                        </tr>
+                        <tr>
+                            <th style="width:40%">
+                                急救處置內容
+                                <br />
+                                <input type="button" name="btn" id="" value="選取組套" onclick="window.open('SharedVitalSign?title=新生兒出生紀錄之急救片語&checkValue=TXT_ET', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=690,height=480')" />
+                            </th>
+                            <td>
+                                @Html.TextArea("TXT_ET", "", new { id = "TXT_ET", @rows = "5", style = "width:500px" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>急救處置記錄者</th>
+                            <td>
+                                @Html.TextBox("TXT_CREATNO_ET", "", new { style = "width:100px", onchange = "get_employee_name(this, 'CREATNO_ET');" })
+                                <br />
+                                @Html.Label("LB_CREATNO_ET", "請輸入員工編號", new { id = "LB_CREATNO_ET", style = "width:100px" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>帶入護理記錄</th>
+                            <td>
+                                <input type="checkbox" id="CK_ET_CARE_RECORD" name="CK_ET_CARE_RECORD" value="1" />
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </form>
+    }
+    else
+    {
+        <form action="Upd_Partial_Child_EMR" method="post">
+            <div class="funcArea" style="text-align:center">
+                <input type="button" value="儲存" style="width:60px;" onclick="updValue(); submit();" />
+                <input type="button" value="離開" style="width:60px;" onclick="if (confirm('確認離開?')) window.close();" />
+            </div>
+            <div class="funcArea">
+                @foreach (DataRow r in dt.Rows)
+                {
+                <div class="addForm">
+                    <input type="hidden" name="IID" id="IID" value="@r["IID"]" />
+                    <input type="hidden" name="SEQ" value="@r["BABY_SEQ"]" />
+                    <table border="1" style="text-align:left;width:100%;border-collapse:collapse;">
+                        <tr>
+                            <th style="width:40%">急救處置日期時間</th>
+                            <td>
+                                @if (r["ET_DATE"].ToString() == "")
+                                {
+                                    @Html.TextBox("ET_DATE_DAY" + r["IID"], "", new { id = "ET_DATE_DAY", style = "width:80px", @readonly = "readonly" })
+                                    <br />
+                                    @Html.TextBox("ET_DATE_TIME" + r["IID"], "", new { id = "ET_DATE_TIME", style = "width:50px", @readonly = "readonly" })
+                                }
+                                else
+                                {
+                                    @Html.TextBox("ET_DATE_DAY" + r["IID"], Convert.ToDateTime(r["ET_DATE"]).ToString("yyyy/MM/dd"), new { id = "ET_DATE_DAY", style = "width:80px", @readonly = "readonly" })
+                                    <br />
+                                    @Html.TextBox("ET_DATE_TIME" + r["IID"], Convert.ToDateTime(r["ET_DATE"]).ToString("HH:mm"), new { id = "ET_DATE_TIME", style = "width:50px", @readonly = "readonly" })
+                                }
+                                @WebTool.setDateTime("ET_DATE_DAY" + r["IID"], "ET_DATE_TIME" + r["IID"], "", "30")
+                            </td>
+                        </tr>
+                        <tr>
+                            <th style="width:40%">
+                                急救處置內容
+                                <br />
+                                <input type="button" name="btn" id="" value="選取組套" onclick="window.open('SharedVitalSign?title=新生兒出生紀錄之急救片語&checkValue=TXT_ET', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=690,height=480')" />
+                            </th>
+                            <td>
+                                @Html.TextArea("TXT_ET" + r["IID"], r["ET"].ToString(), new { id = "TXT_ET", @rows = "5", style = "width:500px" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>急救處置記錄者</th>
+                            <td>
+                                @Html.TextBox("TXT_CREATNO_ET" + r["IID"], r["CREATNO_ET"], new { style = "width:100px", onchange = "get_employee_name(this, 'CREATNO_ET');" })
+                                <br />
+                                @if (r["CREATNO_ET_NAME"].ToString() != "")
+                                {
+                                    @Html.Label("LB_CREATNO_ET" + r["IID"], r["CREATNO_ET_NAME"].ToString(), new { id = "LB_CREATNO_ET" + r["IID"], style = "width:100px" })
+                                }
+                                else
+                                {
+                                    @Html.Label("LB_CREATNO_ET" + r["IID"], "請輸入員工編號", new { id = "LB_CREATNO_ET" + r["IID"], style = "width:100px" })
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>帶入護理記錄</th>
+                            <td>
+                                <input type="checkbox" id="CK_ET_CARE_RECORD" name="CK_ET_CARE_RECORD@(r["IID"])" value="1" />
+                            </td>
+                        </tr>
+                    </table>
+                    <script>
+                            @if (r["ET_CARE_RECORD"].ToString() == "1")
+                            {
+                               @:set_for_ck('CK_ET_CARE_RECORD@(r["IID"])', '@r["ET_CARE_RECORD"]');
+                            }
+                    </script>
+                </div>
+                }
+            </div>
+        </form>
+    }
+}
+
+<script>
+    function sendValue() {
+        if (confirm("請確認資料填寫正確，輸入後無法修改!僅能在新生兒記錄儲存後才能修改!")) {
+
+            window.opener.$("#update_EMR_" + '@NBIID').empty();
+
+            var ET_DATE_DAY = $("#ET_DATE_DAY").val();
+            var ET_DATE_TIME = $("#ET_DATE_TIME").val();
+            var TXT_ET = $("#TXT_ET").val();
+            var LB_CREATNO_ET = $("#LB_CREATNO_ET").text();
+
+            var CK_ET_CARE_RECORD = $('input:checkbox:checked[id="CK_ET_CARE_RECORD"]').map(function () { return $(this).val(); }).get();
+
+            var label = '<tr><td></td>';
+            label += '<td>' + ET_DATE_DAY + ' ' + ET_DATE_TIME + '</td><td colspan="3">' + TXT_ET + '</td>';
+            label += '<td>' + LB_CREATNO_ET + '</td>';
+            if (CK_ET_CARE_RECORD.length > 0) {
+                label += '<td>是</td></tr>';
+            } else {
+                label += '<td>否</td></tr>';
+            }
+            window.opener.$('#update_EMR_' + '@NBIID').before(label);
+        }
+    }
+
+    function updValue() {
+        var iid = $("#IID").val();
+        window.opener.$("#update_EMR_" + iid).empty();
+        var ET_DATE_DAY = $("#ET_DATE_DAY").val();
+        var ET_DATE_TIME = $("#ET_DATE_TIME").val();
+        var TXT_ET = $("#TXT_ET").val();
+        var LB_CREATNO_ET = $("#LB_CREATNO_ET").text();
+
+        var CK_ET_CARE_RECORD = $('input:checkbox:checked[id="CK_ET_CARE_RECORD"]').map(function () { return $(this).val(); }).get();
+
+        var label = '<td><label><input type="checkbox" name="del_ID" value="' + iid + '" /></label></td>';
+        label += '<td>' + ET_DATE_DAY + ' ' + ET_DATE_TIME + '</td><td colspan="3">' + TXT_ET + '</td>';
+        label += '<td>' + LB_CREATNO_ET + '</td>';
+        if (CK_ET_CARE_RECORD.length > 0) {
+            label += '<td>是</td>';
+        } else {
+            label += '<td>否</td>';
+        }
+        window.opener.$("#update_EMR_" + iid).append(label);
+    }
+</script>

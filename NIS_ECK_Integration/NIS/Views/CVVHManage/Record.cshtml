@@ -1,0 +1,551 @@
+﻿@using System.Data;
+@{
+    ViewBag.Title = "Record";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "CVVH-新增內容";
+    string M_rc_id = ViewBag.id;
+    string M_rc_time = ViewBag.dtldate;
+    DataTable dt = ViewBag.dt;
+    string feeno = ViewBag.FeeNo;
+    string RootDocument = ViewBag.RootDocument;
+    double Todaytotal = Convert.ToDouble(ViewBag.white) + Convert.ToDouble(ViewBag.night) + Convert.ToDouble(ViewBag.longnight);
+    NIS.Data.UserInfo userInfo = (NIS.Data.UserInfo)Session["UserInfo"];
+    string employeesNo = userInfo.EmployeesNo.ToString();
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    //日期選擇器，鎖定時間
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+
+    bool IsDischarged = false;
+    if (Convert.ToDateTime(pf.OutDate).ToString("yyyy").ToString() != "0001" && pf.OutDate < DateTime.Now)
+    {
+        IsDischarged = true;
+    }
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    .funcArea LEGEND {
+        margin-left: 5px;
+        background: #FFF;
+        padding: 3px 7px 2px 7px;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        font-size: 14px;
+    }
+</style>
+<script type="text/javascript">
+    var dtCount = '@(ViewBag.dtCount)';
+    $(document).ready(function () {
+        BFR();
+        setGridColor();
+        disbtn();
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    //帶入最後一筆的BLOOD_FLOW_RATE記錄資料
+    function BFR() {
+        if (dtCount != "0") {
+            $("#txt_blood_flow_rate").val($("#lab_BLOOD_FLOW_RATE_" + dtCount).text());
+        }
+    }
+
+    //disabled按紐、前一日後一日
+    function disbtn() {
+        var beforeday = '@(ViewBag.beforeday)';
+        var nextday = '@(ViewBag.nextday)';
+        if (parseInt(beforeday) != 0) {
+            $("#btn_before_day").attr("disabled", false);
+            //$("#btn_before_day").css("color", '#000');//#d0d0d0
+        } else {
+            $("#btn_before_day").attr("disabled", true);
+            //$("#btn_before_day").css("color", '#d0d0d0');
+        }
+        if (parseInt(nextday) != 0) {
+            $("#btn_next_day").attr("disabled", false);
+            // $("#btn_next_day").css("color", '#000');
+        }
+        else {
+            $("#btn_next_day").attr("disabled", true);
+            // $("#btn_next_day").css("color", '#d0d0d0');
+        }
+    }
+
+    //即時計算
+    function InstantCalculations() {
+        var I_total = (parseFloat($("#txt_replace_fluid_ab").val()) + parseFloat($("#txt_flushes").val()) - parseFloat($("#txt_uf").val())).toFixed(2);
+        $("#txt_io_total").val(I_total);
+        var tempflag = (I_total > 0) ? "+" : "";
+        $("#lab_io_total").text(tempflag + I_total);
+    }
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        var success = true;
+        if (obj.value.indexOf('.') > -1)
+            var re = /^[0-9]+\.[0-9]*$/;
+        else
+            var re = /^[0-9]+$/;
+        if (!re.test(obj.value) && obj.value != "") {
+            alert("只能輸入數字");
+            $(obj).val('0');
+            success = false;
+        }
+        return success;
+    }
+
+    function numiototalcheck(obj) {
+        var success = true;
+        if (isNaN(obj.value)) {
+            alert("只能輸入數字");
+            $(obj).val('0');
+            success = false;
+        } else {
+            success = true;
+        }
+        return success;
+    }
+
+    function all_clear() {
+        $('#txt_blood_flow_rate').val('0');
+        $('#txt_venous_pressure').val('0');
+        $('[name=rb_air_detector]')[0].checked = true;
+        $('[name=rb_clots_in_venous_trap]')[0].checked = true;
+        $('#txt_heparin').val('0');
+        $('#txt_replace_fluid_ab').val('0');
+        $('#txt_flushes').val('0');
+        $('#txt_uf').val('0');
+        $('#txt_replace_fluid_ab').val('0');
+        $('#txt_io_total').val('0');
+        $('#lab_io_total').text('0');
+        $("#legend1").html("新增CVVH 內容");
+        $('#form1').attr('action', 'InsertItem');
+        BFR();
+    }
+
+    function edit(obj) {
+        $("#legend1").html("修改CVVH 內容");
+        var row = $(obj).attr('rownum');
+        $("#record_start_date").val($("#lab_date_" + row).text());
+        $("#record_start_time").val($("#lab_time_" + row).text());
+        $("#txt_blood_flow_rate").val($("#lab_BLOOD_FLOW_RATE_" + row).text());
+        $("#txt_venous_pressure").val($("#lab_VENOUS_PRESSURE_" + row).text());
+        var tempair = $("#lab_AIR_DETECTOR_" + row).attr("tempstr");
+        $("[name=rb_air_detector][value='" + tempair + "']").prop("checked", true);
+        var temptrap = $("#lab_CLOTS_IN_VENOUS_TRAP_" + row).attr("tempstr");
+        $("[name=rb_clots_in_venous_trap][value='" + temptrap + "']").prop("checked", true);
+        $("#txt_heparin").val($("#lab_HEPARIN_" + row).text());
+        $("#txt_replace_fluid_ab").val($("#lab_I_REPLACE_FLUID_" + row).text());
+        $("#txt_flushes").val($("#lab_I_FLUSHES_" + row).text());
+        $("#txt_uf").val($("#lab_O_UF_" + row).text());
+        $("#hid_recordid").val($("#hid_record_" + row).val());
+        $("#txt_io_total").val($("#lab_IO_TOTAL_" + row).text());
+        $("#lab_io_total").text($("#lab_IO_TOTAL_" + row).text());
+    }
+
+    //刪除----
+    function DelRecord(obj) {
+        var Confirm = confirm("確定刪除嗎?");
+        if (Confirm == true) {
+            var dtlid = $(obj).attr('dtlid');
+            var Mrcid = '@(M_rc_id)';
+            var Mrctime = '@(M_rc_time)';
+            loop_windows("open_cover");
+            $.ajax({
+                type: "POST",
+                url: '@Url.Content("~/CVVHManage/DelRecordDtl")',
+                dataType: 'Html',
+                data: { id: Mrcid, dtl_id: dtlid },
+                cache: false,
+                success: function (response) {
+                    if (response == "Y") {
+                        alert("刪除成功");
+                        // 重load該頁
+                        window.location.href = "../CVVHManage/Record?id=" + Mrcid + "&dtldate=" + Mrctime + "";
+                    } else {
+                        alert("刪除失敗");
+                    }
+                }, complete: function () {
+                    loop_windows("close_cover");
+                }
+            });
+        } else {
+            return;
+        }
+
+    }
+
+    //計算I/O
+    function ClassTotal() {
+        var date = $("#record_start_date").val() + " " + $("#record_start_time").val();
+        var testval = [];
+        var arrayvalue = [];
+        $("input[type='checkbox'][name='cb_class_total[]']:checked").each(function () {
+            testval.push($(this).val());
+            arrayvalue.push($(this).attr('temptotal'));
+            $(this).prop("checked", false);
+        });
+        if (testval.length != 0) {
+            var Ptestval = testval.join(',');
+            var Parrayvalue = arrayvalue.join(',');
+            $.ajax({
+                type: "POST",
+                url: '@Url.Content("~/CVVHManage/TakeCareRecord")',
+                dataType: 'Html',
+                data: { Ptype: Ptestval, Pdate: date, values: Parrayvalue },
+                cache: false,
+                success: function (response) {
+                    if (response == "Y") {
+                        alert("帶入護理記錄成功");
+                    } else {
+                        alert("帶入護理記錄失敗");
+                    }
+                }, complete: function () {
+                }
+            });
+        } else {
+            alert("請選擇轉護理記錄的班別!");
+        }
+    }
+
+    function PrintPDF() {
+        window.open("@(RootDocument)/Print/GetPDF?url=@(RootDocument)/CVVHManage/PrintList?feeno=@(feeno)&dtldate=@(Convert.ToDateTime(M_rc_time).ToString("yyyy/MM/dd"))&id=@(M_rc_id)&filename=test");
+
+    }
+    function save()
+    {
+        var setStr = "SET0410112653";
+        var id = $("#MRecordid").val();
+        var date = $("#record_start_date").val() + " " + $("#record_start_time").val();
+
+          $.ajax({
+              type: "POST",
+              url: '@Url.Content("~/CVVHManage/InsertItem")',
+              data: $("#form1").serialize(),
+              cache: false,
+              success: function (response) {
+                  if (response == "Y") {
+                      alert("新增成功");
+
+                    if ('@IsDischarged' == 'False' ) {
+                        window.open('../Billing/index?set=' + setStr, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=300,toolbar=no,width=1290,height=800');
+                    }
+
+                      window.location.href = "../CVVHManage/Record?id=" + id + "&dtldate=" + date;
+                  } else {
+                      alert("新增失敗");
+                  }
+              }, complete: function () {
+              }
+          });
+
+    }
+</script>
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; font-size: 14px;">
+        <tr style="display:none;">
+            <td colspan="2">
+                <div id="module_define">@(title)</div>
+            </td>
+        </tr>
+        <tr>
+            <td align="center" style="width:80%;">
+                <form id="form1" action="InsertItem" method="post">
+                    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; text-align: left;">
+                        <tr>
+                            <td>
+                                <fieldset style="height:180px;">
+                                    <legend id="legend1">新增CVVH 內容</legend>
+                                    <table border="0" cellpadding="2" cellspacing="0" style="width: 100%; font-size: 14px;">
+                                        <tr>
+                                            <td>
+                                                <table border="0" cellpadding="2" cellspacing="0" style="width: 100%; font-size: 14px; border-right: 2px #CCCCCC dashed;">
+                                                    <tr>
+                                                        <td style="width: 40%;">
+                                                            @Html.Label("lab_date_time", "日期時間：")
+                                                        </td>
+                                                        <td style="width: 60%;">
+                                                            @Html.TextBox("record_start_date", Convert.ToDateTime(M_rc_time).ToString("yyyy/MM/dd"), new { style = "width:80px;", @readonly = "readonly" })
+                                                            @Html.TextBox("record_start_time", DateTime.Now.ToString("HH:mm"), new { style = "width:50px;" })
+                                                            @*@WebTool.setDateTime("record_start_date", "record_start_time", "", "0", "", Convert.ToDateTime(M_rc_time).ToString("yyyy/MM/dd 00:00:00"))*@
+                                                            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "record_start_date", "record_start_time", true)
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>
+                                                            @Html.Label("lab_blood_flow_rate", "Blood Flow Rate：")
+                                                        </td>
+                                                        <td>
+                                                            @Html.TextBox("txt_blood_flow_rate", 0, new { style = "width:140px;", onchange = "numcheck(this);" }) ml/min
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>
+                                                            @Html.Label("lab_venous_pressure", "Venous Pressure：")
+                                                        </td>
+                                                        <td>
+                                                            @Html.TextBox("txt_venous_pressure", 0, new { style = "width:140px;", onchange = "numcheck(this);" }) mmHg
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>
+                                                            @Html.Label("lab_air_detector", "Air Detector：")
+                                                        </td>
+                                                        <td>
+                                                            @Html.RadioButton("rb_air_detector", "0", true, new { id = "rb_air_detector_0", text = "OK", onclick = "" })
+                                                            @Html.Label("rb_air_detector_0", "OK", new { @class = "tooltip2", title = "OK" })
+                                                            @Html.RadioButton("rb_air_detector", "1", false, new { id = "rb_air_detector_1", text = "NOT OK", onclick = "" })
+                                                            @Html.Label("rb_air_detector_1", "NOT OK", new { @class = "tooltip2", title = "NOT OK" })
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>
+                                                            @Html.Label("lab_clots_in_venous_trap", "Clots in Venous Trap：")
+                                                        </td>
+                                                        <td>
+                                                            @Html.RadioButton("rb_clots_in_venous_trap", "0", true, new { id = "rb_clots_in_venous_trap_0", text = "+", onclick = "" })
+                                                            @Html.Label("rb_clots_in_venous_trap_0", "+", new { @class = "tooltip2", title = "+" })
+                                                            @Html.RadioButton("rb_clots_in_venous_trap", "1", false, new { id = "rb_clots_in_venous_trap_1", text = "-", onclick = "" })
+                                                            @Html.Label("rb_clots_in_venous_trap_1", "-", new { @class = "tooltip2", title = "-" })
+                                                            @Html.RadioButton("rb_clots_in_venous_trap", "2", false, new { id = "rb_clots_in_venous_trap_2", text = "±", onclick = "" })
+                                                            @Html.Label("rb_clots_in_venous_trap_2", "±", new { @class = "tooltip2", title = "±" })
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>
+                                                            @Html.Label("lab_heparin", "Heparin：")
+                                                        </td>
+                                                        <td>
+                                                            @Html.TextBox("txt_heparin", 0, new { style = "width:140px;", onchange = "numcheck(this);" }) U/hr
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                            <td>
+                                                <table border="0" cellpadding="2" cellspacing="0" style="width: 100%; font-size: 14px;">
+                                                    <tr>
+                                                        <td colspan="2">
+                                                            @Html.Label("lab_replace_fluid_ab", "Replace Fluid A + B：")
+                                                        </td>
+                                                        <td>
+                                                            @Html.TextBox("txt_replace_fluid_ab", 0, new { style = "width:140px;", onchange = "if(numcheck(this)){InstantCalculations();}" }) ml
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td colspan="2">
+                                                            @Html.Label("lab_flushes", "Flushes：")
+                                                        </td>
+                                                        <td>
+                                                            @Html.TextBox("txt_flushes", 0, new { style = "width:140px;", onchange = "if(numcheck(this)){InstantCalculations();}" }) ml
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td colspan="2">
+                                                            @Html.Label("lab_uf", "UF：")
+                                                        </td>
+                                                        <td>
+                                                            @Html.TextBox("txt_uf", 0, new { style = "width:140px;", onchange = "if(numcheck(this)){InstantCalculations();}" }) ml
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td colspan="3">
+                                                            <hr />
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td colspan="3">
+                                                            @Html.Label("lab_i_o1", "I/O：")
+                                                            @Html.TextBox("txt_io_total", 0, new { style = "width:140px;ime-mode:disabled;display:none;" })@*,onblur="numiototalcheck(this);"*@
+                                                            @Html.Raw("<label id='lab_io_total' name='lab_io_total' style = 'width:140px;'>0</label>")
+                                                            &nbsp; &nbsp; &nbsp;
+                                                            ml
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td colspan="3" style="text-align: center;">
+                                                            <input type="button" value="存檔" style="width: 50px;" onclick="loop_windows('open_cover'); save();" />@*CheckTotalSave();*@
+                                                            <input type="button" value="取消" style="width: 50px;" onclick="all_clear();" />
+                                                            <input type="hidden" id="MRecordid" name="MRecordid" value="@(M_rc_id)" />
+                                                            <input type="hidden" id="hid_recordid" name="hid_recordid" value="" />
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </fieldset>
+                            </td>
+                        </tr>
+                    </table>
+                </form>
+            </td>
+            <td align="center" style="vertical-align: top;width:20%;">
+                <form id="form2" action="Insert" method="post">
+                    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; text-align: left;">
+                        <tr>
+                            <td>
+                                <fieldset style="height:180px;">
+                                    <legend>統計</legend>
+                                    <table border="0" cellpadding="2" cellspacing="0" style="width: 100%; font-size: 14px;">
+                                        <tr>
+                                            <td style="width: 6%">
+                                                <input type="checkbox" id="cb_24hour_total" name="cb_class_total[]" value="0" temptotal="@(Todaytotal)" />
+                                            </td>
+                                            <td style="text-align: right; width: 45%;">
+                                                <label for="cb_24hour_total">Total I/O：</label>
+                                            </td>
+                                            <td style="text-align: left; width: 48%;">
+                                                <label>@*@((Convert.ToDouble(ViewBag.hr24)>0)?"+":"")@(ViewBag.hr24)*@@((Todaytotal > 0) ? "+" : "")@(Todaytotal)</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" id="cb_morning_total" name="cb_class_total[]" value="1" temptotal="@(ViewBag.white)" />
+                                            </td>
+                                            <td style="text-align: right;">
+                                                <label for="cb_morning_total">白班小計：</label>
+                                            </td>
+                                            <td>
+                                                <label>@((Convert.ToDouble(ViewBag.white) > 0) ? "+" : "")@(ViewBag.white)</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" id="cb_afternoon_total" name="cb_class_total[]" value="2" temptotal="@(ViewBag.night)" />
+                                            </td>
+                                            <td style="text-align: right;">
+                                                <label for="cb_afternoon_total">小夜班小計：</label>
+                                            </td>
+                                            <td>
+                                                <label>@((Convert.ToDouble(ViewBag.night) > 0) ? "+" : "")@(ViewBag.night)</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" id="cb_late_night_total" name="cb_class_total[]" value="3" temptotal="@(ViewBag.longnight)" />
+                                            </td>
+                                            <td style="text-align: right;">
+                                                <label for="cb_late_night_total">大夜班小計：</label>
+                                            </td>
+                                            <td>
+                                                <label>@((Convert.ToDouble(ViewBag.longnight) > 0) ? "+" : "")@(ViewBag.longnight)</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="3" style="text-align: center;">
+                                                <input type="button" value="轉護理記錄" onclick="ClassTotal();" />
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </fieldset>
+                            </td>
+                        </tr>
+                    </table>
+                </form>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px;">
+                        <tr>
+                            <td colspan="8" style="text-align: center; background-color: white;">
+                                <input type="button" id="btn_before_day" value="前一天" style="width: 80px;" onclick="window.location.href = '../CVVHManage/Record?id=@(ViewBag.beforeday)&dtldate=@(Convert.ToDateTime(M_rc_time).AddDays(-1).ToString("yyyy/MM/dd"))';" />
+                                <input type="button" value="返回" style="width: 80px;" onclick="window.location.href = '../CVVHManage/List?StartDate=@(Convert.ToDateTime(M_rc_time).ToString("yyyy/MM/dd"))&EndDate=@(Convert.ToDateTime(M_rc_time).ToString("yyyy/MM/dd"))';" />
+                                <input type="button" id="btn_next_day" value="後一天" style="width: 80px;" onclick="window.location.href = '../CVVHManage/Record?id=@(ViewBag.nextday)&dtldate=@(Convert.ToDateTime(M_rc_time).AddDays(1).ToString("yyyy/MM/dd"))';" />
+                            </td>
+                            <td colspan="3" style="background-color: white;">
+                                <input type="button" value="列印" style="width: 80px;" onclick="PrintPDF();" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 6%;">Hour</td>
+                            <td style="width: 8%;">Blood Flow Rate(ml/min)</td>
+                            <td style="width: 8%;">Venous Pressure(mmHg)</td>
+                            <td style="width: 10%;">Air Detector(OK?)</td>
+                            <td style="width: 7%;">Clots in Venous Trap?</td>
+                            <td style="width: 8%;">Heparin(U/hr)</td>
+                            <td style="width: 12%;">Replace Fluid A+B(ml)</td>
+                            <td style="width: 6%;">Flushes(ml)</td>
+                            <td style="width: 8%;">UF(ml)</td>
+                            <td style="width: 11%;">I/O</td>
+                            <td style="width: 16%;">功能</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height: 110px;">
+                    <table border="0" cellpadding="4" cellspacing="1" width="100%" style="width: 100%; background-color: #FFFFFF; font-size: 14px;">
+                        @if (dt != null)
+                        {
+                           
+                            <tbody>
+                                @foreach (DataRow r in dt.Rows)
+                                {
+                                    string a = r["CREATNO"].ToString();
+                                    <tr>
+                                        <td style="width: 6%;text-align:center;">
+                                            <label id="lab_date_@(r["ROWNUM"])" style="display:none;">@(Convert.ToDateTime(r["DATA_TIME"]).ToString("yyyy/MM/dd"))</label>
+                                            <label id="lab_time_@(r["ROWNUM"])">@(Convert.ToDateTime(r["DATA_TIME"]).ToString("HH:mm"))</label>
+                                        </td>
+                                        <td style="width: 8%;"><label id="lab_BLOOD_FLOW_RATE_@(r["ROWNUM"])">@r["BLOOD_FLOW_RATE"]</label></td>
+                                        <td style="width: 8%;"><label id="lab_VENOUS_PRESSURE_@(r["ROWNUM"])">@r["VENOUS_PRESSURE"]</label></td>
+                                        @{
+                                    string[] AirDetectorArray = { "OK", "NOT OK" };
+                                    string[] ClotsInVenousTrapArray = { "+", "-", "±" };
+                                        }
+                                        <td style="width: 10%;"><label id="lab_AIR_DETECTOR_@(r["ROWNUM"])" tempstr="@(r["AIR_DETECTOR"])">@(AirDetectorArray[Convert.ToInt32(r["AIR_DETECTOR"])])</label></td>
+                                        <td style="width: 7%;"><label id="lab_CLOTS_IN_VENOUS_TRAP_@(r["ROWNUM"])" tempstr="@(r["CLOTS_IN_VENOUS_TRAP"])">@(ClotsInVenousTrapArray[Convert.ToInt32(r["CLOTS_IN_VENOUS_TRAP"])])</label></td>
+                                        <td style="width: 8%;"><label id="lab_HEPARIN_@(r["ROWNUM"])">@r["HEPARIN"]</label></td>
+                                        <td style="width: 12%;"><label id="lab_I_REPLACE_FLUID_@(r["ROWNUM"])">@r["I_REPLACE_FLUID"]</label></td>
+                                        <td style="width: 6%;"><label id="lab_I_FLUSHES_@(r["ROWNUM"])">@r["I_FLUSHES"]</label></td>
+                                        <td style="width: 8%;"><label id="lab_O_UF_@(r["ROWNUM"])">@r["O_UF"]</label></td>
+                                        <td style="width: 11%;">
+                                            <label id="lab_IO_TOTAL_@(r["ROWNUM"])">
+                                                @if (Convert.ToInt32(r["IO_TOTAL"]) > 0)
+                                                {
+                                                    @Html.Raw("+")
+                                                }
+                                                @(r["IO_TOTAL"])
+                                            </label>@*/<label id="lab_O_TOTAL_@(r["ROWNUM"])">@(r["O_TOTAL"])</label>*@
+                                        </td>
+                                        <td style="width: 16%; text-align: center;">
+                                           
+                                            @if (employeesNo == a)
+                                            {
+                                                <input type="button" value="修改" style="width: 50px;" dtlid="@r["DATA_ID"]" rownum="@(r["ROWNUM"])" onclick="$('#form1').attr('action', 'Edit');edit(this);" />
+                                                <input id="del" type="button" value="刪除" style="width: 50px;" dtlid="@r["DATA_ID"]" rownum="@(r["ROWNUM"])" onclick="DelRecord(this);" />
+                                            }
+
+
+                                            <input type="hidden" id="hid_record_@r["ROWNUM"]" value="@r["DATA_ID"]" />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        }
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+

@@ -1,0 +1,1230 @@
+﻿@using NIS.Data;
+@using System.Data;
+@{
+    //ViewBag.Title = "護理資訊系統-執行給藥紀錄";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    Random rd = new Random();
+    DataView dt_stat = ViewBag.dt_stat;
+    DataView dt_reg = ViewBag.dt_reg;
+    DataTable dt_iv = ViewBag.dt_iv;
+    DataTable dt_prn = ViewBag.dt_prn;
+    DataTable table_check = ViewBag.table_check;
+    var i = 0;
+    string checker = "";
+    if (ViewBag.checker != null)
+    { checker = ViewBag.checker; }
+    string textname = ViewBag.text, udodrgcode = ViewBag.udodrgcode;
+    string feeno = ViewBag.feeno,chrno = ViewBag.chrno;
+    string start_date, start_time, end_date, end_time;
+    DateTime check_time1 = DateTime.Now.AddHours(-1);
+    DateTime check_time2 = DateTime.Now.AddHours(1);
+    if (ViewBag.start_date == null && ViewBag.end_date == null)
+    {
+        start_date = DateTime.Now.AddHours(-8).ToString("yyyy/MM/dd");
+        start_time = DateTime.Now.AddHours(-8).ToString("HH:mm");
+        end_date = DateTime.Now.AddHours(1).ToString("d");
+        end_time = DateTime.Now.AddHours(1).ToString("HH:mm");
+    }
+    else
+    {
+        start_date = ViewBag.start_date;
+        start_time = ViewBag.start_time;
+        end_date = ViewBag.end_date;
+        end_time = ViewBag.end_time;
+    }
+        
+}
+<script type="text/javascript">
+    var num
+    var ckname
+    var Med_ExecList
+    var Med_DcList
+    $(document).ready(function () { //div中table樣式
+        
+        $(".gridview tr:odd").addClass("odd");     //奇數行設定為 "odd" 樣式
+        $(".gridview tr:even").addClass("even");   //偶數行設定為 "even" 樣式
+        $(".gridview tr").mouseover(function () { $(this).addClass("over"); })     //當 mouseover 時加入 "over" 樣式
+                         .mouseout(function () { $(this).removeClass("over"); })   //當 mouseout 時移除 "over" 樣式
+
+        $("input[name=med_type]").click(function(){
+            $("div[name='MedListSTAT'], div[name='MedListREG'], div[name='MedListPRN'], div[name='MedListIV']").hide();
+            $($(this).val()).show();
+        });
+
+        $("#udodrgcode").keypress(function(e){
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if(code == 13) { //Enter keycode
+                if(Trim($("#udodrgcode").val().toString()) == "")
+                {
+                    alert("藥包條碼錯誤！");
+                    return false;
+                }
+                else
+                    MedicinalInfo_barcode($(this).val());
+            }
+        });
+
+        $("#PatientNo").keypress(function(e){
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if(code == 13) { //Enter keycode
+                if(Trim($("#PatientNo").val().toString()) == "")
+                {   alert("手圈條碼錯誤！");
+                    return false; }
+                else
+                {   
+                    if(Trim($("#PatientNo").val().toString()) != null)
+                        PatientNo_barcode();
+                }
+            }
+        });
+        //$("input[name=PatientNo]").focus();
+        $("#PatientNo").focus();
+    });
+    function rinput(type) {
+        $("#type_early,#type_delay,#type_overtime,#type_notyet").css("display", "none");
+        $(".TableNote,#type_other").css("display", "inline");
+        $("#"+type).fadeIn(500);
+    }
+    function hidePopup(id) {
+        $("#" + id).fadeOut(200);  
+    }
+    function showPopup(id,flag,type,num) {
+        if(id == "dv_type")
+        { 
+            $("#textname").val(flag);
+            $("#injection_execution1,#injection_execution2,#injection_execution3,#injection_execution4").attr("checked",false); 
+            $("#injection_execution1,#injection_execution2,#injection_execution3,#injection_execution4").css("display","inline"); 
+            $(".TableNote,#type_other").css("display", "none");
+            if(type == "S"){
+                $("#injection_execution1").click();
+                $("#injection_execution2,#injection_execution3,#injection_execution4").css("display","none");
+                $(".TableNote,#type_other").css("display", "inline");
+            }
+
+            if($("#ck_"+num).attr("position") != ""){
+                $("#p_position").css("display", "inline");
+                $("#position").text($("#ck_"+num).attr("position"));}
+            else{$("#p_position").css("display", "none");}
+        }
+        $("#" + id).center().fadeIn(200);  
+    }
+    function get_DOSE(amount,unit,idname) {
+        $("#amount").val(amount);
+        $("#unit").val(unit);
+        $("#name").val(idname); //i流水號
+    }
+    function get_DOSE_all(text) {
+        $("#textname").val("all"); 
+    }
+    function reason(result, i) {
+        id = $("#name").val();
+        name = $("#name").val();
+        var textname = $("#textname");
+        if(typeof(textname) !== "undefined"){
+            textname = $(textname).val();
+        }
+        var other = $("#other1");
+        if(typeof(other) !== "undefined"){
+            other = $(other).val();
+        }
+        rd = $('input:radio[name=injection_execution]:checked').val();
+        $("#reasontype_" + id).val(rd);
+        $("#moddose_" + id).val($("#amount").val());                        //修改劑量
+        $("#checker_" + id).val($("#checker").val());                       //覆核人員
+        $("#bad_" + id).val($("input:radio[name=baditems]:checked").val()); //不良反應
+        text = "";
+        //單次備註 A
+        if (textname == 'A'){
+            nogood = "" + $("#bad_"+id).val();
+            if (result == 'textbox') {
+                if (nogood != "") { $("#txt_" + id).text($("#other1").val() + " 不良反應:" + nogood) }
+                else { $("#txt_" + id).text($("#other1").val()) }
+                $("#reason_" + id).val($("#other1").val()); //原因內容
+            }
+            else {
+                if (nogood != "") { $("#txt_" + id).text(result + " 不良反應:" + nogood) }
+                else { $("#txt_" + id).text(result) }
+                $("#reason_" + id).val(result); //原因內容
+            }
+            var ck_part = document.getElementById("ck_" + id);
+            if (ck_part.checked == false)
+                ck_part.checked = true;
+            //$("#ck_"+id).attr("checked",true);
+            if (i == "B"){
+                $("#ck_" + id).css("display", "none");
+                $("#ordstatus_" + id).val("2"); //是否勾選 0:true,1:false,2:註記
+            }
+            else{
+                $("#ck_" + id).css("display", "inline");
+                $("#ordstatus_" + id).val("0"); //是否勾選
+            }
+        }
+        else{
+            //批次備註 B
+            nogood = $("input:radio[name=baditems]:checked").val();
+            if (nogood != "Y" && nogood != "N")
+                nogood = "";
+            $("div[name='MedListREG']").find("input[type=checkbox]").each(function(i){
+                $(this).attr("checked",true); 
+                $("#reasontype_" + i).val(rd);
+                //$("#moddose_" + i).val($("#amount").val());//修改劑量
+                if (i == "B"){
+                    $("#ordstatus_" + id).val("2"); //是否勾選 0:true,1:false,2:註記
+                }
+                else{
+                   // var ck_part = document.getElementById("ck_" + id);
+                    //ck_part.checked = true;
+                    $("#ck_"+id).attr("checked",true);
+                    $("#ordstatus_" + id).val("0"); //是否勾選
+                }
+                $("#ordstatus_" + i).val("0"); //是否勾選
+                $("#checker_" + i).val($("#checker").val()); //覆核人員
+                $("#bad_" + i).val($("input[name=baditems]:checked").val()); //不良反應
+                if (result == 'textbox') {
+                    if (nogood != "") { $("#txt_" + i).text($("#other1").val() + " 不良反應:" + nogood) }
+                    else { $("#txt_" + i).text($("#other1").val()) }
+                    $("#reason_" + i).val($("#other1").val()); //原因內容
+                }
+                else {
+                    if (nogood != "") { $("#txt_" + i).text(result + " 不良反應:" + nogood) }
+                    else { $("#txt_" + i).text(result) }
+                    $("#reason_" + i).val(result); //原因內容
+                }
+            })
+            $("#textname").val("");
+            $("#name").val("");
+        }
+
+        $("input[name=baditems]").attr("checked",false);
+    }   
+    function DouCheck(YorN, i) {//檢查是否需要覆核
+        if(YorN == "Y")
+        {
+            if($("#checker").val() != "")
+            { return false; }
+            if(document.getElementById('ck_'+i).checked == false)
+            { return false; }
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    function get_checker(id) {
+        $("#butname").val(id);
+    }
+    function fatherHello(ckname) {
+        if (ckname != "") {
+            $("#checker").val(ckname);        
+            alert("覆核者為:" + ckname);
+        }
+        else
+        { alert("帳號或密碼錯誤"); }
+    }
+    function doit(id) {     
+        $("#execflag").val(id)
+        return true;
+        //quiry = 查詢
+        //quiryAll = 查詢所有待執行醫囑
+        //ckin = 覆核 按紐
+        //OK = 完成
+        //over = 結束
+    }
+    function cc(flag){ 
+        $("#textname").val("");
+        $("#name").val("");
+        $("#medmessage").text("");
+    }
+    function PatientNo_barcode (){
+        $.ajax({
+            type: 'POST',
+            url: "WebS_InHistory",
+            data: "str_Barcode=" + Trim($("#PatientNo").val().toString()),
+            success: function (data) {
+                if(data == "Error")
+                { alert("查無此手圈條碼病患，請重新確認。"); }
+                else {
+                    top.location.href = data;}
+            },
+            error: function(data){
+                alert("查無此手圈條碼病患，請重新確認。"); }
+        });
+    }
+    function MedicinalInfo (strMedCode,strInfo) {
+        //SHOW 藥品圖片
+        var str_tr,str_th,str_th1;
+        if(strInfo == "Reg"){
+            str_th = "<table border='0' style='width:100%' id='MedInfo'>";
+            str_th += "<tr><th style='width:200px'>藥品圖片</th><th>藥品資訊</th><th style='width:200px'>藥品圖片</th><th>藥品資訊</th></tr>";
+            $('#MedInfo').remove();
+            $('#piccontent').append(str_th);
+            for(var i=0;i<= obj.length-1;i++) {
+                str_tr = "<tr style='text-align:left; vertical-align:top;'>";
+                str_tr += "<td><img src='" + Med_ExecList[i].DrugPicPath + "' width='200px'/></td>";
+                str_tr += "<td style='font-size:12px'>藥品名稱：" + Med_ExecList[i].DrugName;
+                str_tr += "<br />劑量：" + Med_ExecList[i].UD_DOSE + "<br />頻次：" + Med_ExecList[i].ud_path ;
+                str_tr += "<br />作用：" + Med_ExecList[i].DrugEffects + "<br />副作用：" + Med_ExecList[i].DrugSideEffects ;
+                str_tr +=  Med_ExecList[i].med_code + "<br />" + Med_ExecList[i].med_time + "<br />" + Med_ExecList[i].ud_seq + "<br />" + Med_ExecList[i].ud_seq_new + "<br />" 
+                str_tr +=  Med_ExecList[i].flag + "<br />" + Med_ExecList[i].DrugName + "<br />" + Med_ExecList[i].GenericDrugs + "</td>";
+                if(i + 1 <= Med_ExecList.length - 1){
+                    i++;
+                    str_tr += "<td><img src='" + obj[i].DrugPicPath + "' width='200px'/></td>";
+                    str_tr += "<td style='font-size:12px'>" + obj[i].DrugName +"<br />"+ obj[i].GenericDrugs + "<br />" + obj[i].DrugEffects + "<br />" + obj[i].DrugSideEffects +"</td></tr>";
+                }
+                else{
+                    str_tr += "<td></td><td></td>"
+                }
+                str_tr += "</tr>";
+                $('#MedInfo tr:last').after(str_tr);
+                showPopup('div_Med','A','','');
+            }
+        }
+        else {
+            $.ajax({
+                type: 'POST',
+                url: "WebS_MedicinalInfo",
+                data: "Str_MedCode=" + Trim(strMedCode),
+                success: function (data) {
+                    if(data == "Error"){
+                        alert("錯誤！無法找到線上處方集資料。");
+                        return;
+                    }
+                    var obj = $.parseJSON(data);
+                    if (strInfo == "img" && obj.length > 0) {
+                        window.open(obj[0].DrugHref)
+                    }
+                    else
+                    {
+                        ///  藥品商品名 DrugName
+                        ///  藥品學名 GenericDrugs
+                        ///  藥品作用 DrugEffects
+                        ///  藥品副作用DrugSideEffects
+                        ///  藥品圖片路徑 DrugPicPath
+                        if(obj.length == 1) {
+                            $("#l_src").attr("src" , obj[0].DrugPicPath);
+                            $("#l_drugname").text("藥品名稱：" + obj[0].DrugName);
+                            $("#l_dose").text(" 劑量：" + $("#moddose_"+strInfo).val() + " " + $("#moddose_"+strInfo).attr("unit"));
+                            $("#l_cir").text("頻次：" + $("#udcir_"+strInfo).val());
+                            $("#l_effect").text("作用：" + obj[0].DrugEffects);
+                            $("#l_sideeffect").text("副作用：" + obj[0].DrugSideEffects);
+                            showPopup('div_Med2','A','','');
+                        }
+                        else{
+                            str_th = "<table border='0' style='width:100%' id='MedInfo'>";
+                            str_th += "<tr><th style='width:200px'>藥品圖片</th><th>藥品資訊</th><th style='width:200px'>藥品圖片</th><th>藥品資訊</th></tr>";
+                            $('#MedInfo').remove();
+                            $('#piccontent').append(str_th);
+                            for(var i=0;i<= obj.length-1;i++) {
+                                str_tr = "<tr style='text-align:left; vertical-align:top;'>";
+                                str_tr += "<td><img src='" + obj[i].DrugPicPath + "' width='200px'/></td>";
+                                str_tr += "<td style='font-size:12px'>" + obj[i].DrugName +"<br />"+ obj[i].GenericDrugs + "<br />" + obj[i].DrugEffects + "<br />" + obj[i].DrugSideEffects ;
+                                str_tr +=  obj[i].med_code + "<br />" + obj[i].med_time + "<br />" + obj[i].ud_seq + "<br />" + obj[i].ud_seq_new + "<br />" 
+                                str_tr +=  obj[i].flag + "<br />" + obj[i].DrugName + "<br />" + obj[i].GenericDrugs + "</td>";
+                                if(i + 1 <= obj.length - 1){
+                                    i++;
+                                    str_tr += "<td><img src='" + obj[i].DrugPicPath + "' width='200px'/></td>";
+                                    str_tr += "<td style='font-size:12px'>" + obj[i].DrugName +"<br />"+ obj[i].GenericDrugs + "<br />" + obj[i].DrugEffects + "<br />" + obj[i].DrugSideEffects +"</td></tr>";
+                                }
+                                else{
+                                    str_tr += "<td></td><td></td>"
+                                }
+                                str_tr += "</tr>";
+                                $('#MedInfo tr:last').after(str_tr);
+                                showPopup('div_Med','A','','');
+                            }
+                        }
+                        $("input[name='div_med_ok']").show();
+                        $("input[name='div_med_cancel']").val('取消');
+                    }
+                },
+                error: function (data) {
+                    alert("錯誤！無法找到線上處方集資料。");
+                }
+            });
+        }
+    }
+    function MedicinalInfo_barcode (strBarcode) {
+        //依藥品條碼找對應藥品
+        //var strBarcode = $("#udodrgcode").val().toString().trim();
+        var strMedCode = "";
+        var id = "";
+        Med_DcList = null;
+        if(strBarcode.length == 18){
+            $.ajax({
+                type: 'POST',
+                url: "Med_Bacrcode",
+                data: "str_Barcode=" + Trim(strBarcode),
+                success: function (data) {
+                    Med_ExecList = $.parseJSON(data);
+                    if(Med_ExecList.length > 0)
+                    {
+                        for(var i=0;i<= Med_ExecList.length-1;i++)
+                        {
+                            strMedCode += Med_ExecList[i].med_code + "','";
+                        }
+                        MedicinalInfo(strMedCode,'Reg');
+                    }
+                    else{
+                        alert("非正確餐包藥包條碼！請重新確認。");
+                    }
+                },
+                error: function (data) {
+                    alert("Web Service 執行失敗，請洽資訊室。");
+                }
+            });
+        }
+        else{
+            //種包條碼
+            var pass_flag = false;
+            $(".dataArea").find("input:checkbox[name="+strBarcode+"]").each(function(i){
+                id = $(this).attr("index");
+                strMedCode = $("#medcode_"+id).val();
+                pass_flag = true;
+                return false;
+            })
+            if(pass_flag == false)
+            {
+                //找是否有DC重開
+                $.ajax({
+                    type: 'POST',
+                    url: "WebS_MedOrderRenew",
+                    data: "str_Barcode=" + Trim(strBarcode),
+                    success: function (data) {
+                        if(data == "Error")
+                        { alert("非正確種包藥包條碼！請重新確認。");
+                            pass_flag = false;}
+                        else{
+                            Med_DcList = $.parseJSON(data);
+                            $(".dataArea").find("input:checkbox[name="+Med_DcList[0].UDSEQ+"]").each(function(i){
+                                id = $(this).attr("index");
+                                strMedCode = $("#medcode_"+id).val();
+                                pass_flag = true;
+                                $("#medmessage").text("原藥物已DC，新的醫囑藥物如下："+Med_DcList[0].UD_DOSE);
+                                $("#medmessage").css("display","inline");
+                                $("#udodrgcode").val(Med_DcList[0].UDSEQ);
+                                return false;
+                            })
+                            if(pass_flag == false){
+                                alert("非正確種包藥包條碼！請重新確認。"); }
+                            else{
+                                MedicinalInfo(strMedCode,id);}
+                        }
+                    },
+                    error: function(data){
+                        alert("Web Service 執行失敗，請洽資訊室。");}
+                });
+            }
+            else
+            { MedicinalInfo(strMedCode,id); }
+        }
+    }
+    function MedicinalInfo_Click(strBarcode){
+        //勾選給藥時間點
+        strBarcode = Trim($("#udodrgcode").val().toString());
+        var strMedCode = "", strMedCode1 = "", strMedTime = "", strUdSeq = "";
+        var checkflag = false;
+        var colnum = 0;
+        //勾選符合時間點藥品
+        if (strBarcode.length == 18){
+            for(var i=0;i<= Med_ExecList.length-1;i++)
+            {
+                strMedCode = Med_ExecList[i].med_code;
+                strUdSeq = Med_ExecList[i].ud_seq;
+                strMedCode1 += strMedCode + "','";
+                strMedTime = Med_ExecList[i].med_time.substr(8,2) + ":" + Med_ExecList[i].med_time.substr(10,2) +":00";
+                alert(strMedCode+","+strUdSeq+","+strMedTime);
+
+                $("div[name='MedListREG']").find("input[type=checkbox]").each(function(i){
+                    if ($(this).attr("name") == strMedCode && $(this).val() == strMedTime){   
+                        $(this).click();
+                        checkflag = true;
+                        colnum++; 
+                    } })
+            }
+            if (colnum != Med_ExecList.length) {
+                alert("此藥包[餐包]條碼藥品數量與給藥不符，請確認！" );
+            }
+            else{
+                $("#udodrgcode").val("");
+            }
+        }
+        else {
+            $(".dataArea").find("input:checkbox[name="+strBarcode+"]").each(function(i){
+                $("input:checkbox[name="+strBarcode+"]").last().click();
+                checkflag = true;
+                $("#udodrgcode").val("");
+                return false;
+            })
+            if (checkflag = false)
+            {
+                alert("非正確藥包[種包]條碼，請確認！" )
+            }
+        }
+        $("#medmessage").text("");
+    }
+    function checkbox(i,type){ 
+        if(document.getElementById('ck_'+i).checked == true)
+        {
+            $("#ordstatus_" + i).val("0");
+            if($("#ck_"+i).attr("checkt") == "spanB" && Trim($("#reasontype_"+i).val()) == ""){
+                $("#ck_"+i).attr("checked",false);
+                $("#name").val(i);
+                showPopup('dv_type','A',type,i);
+            }
+        }
+        else{
+           // $('#txt_'+i).text("");
+            $('#ordstatus_'+i).val("1");
+        }
+    }
+    function check_point(text) {
+        //完成時，檢核勾選項目是否在時間點內給藥
+        var passa = false;
+        var checkin = true;
+        $(".MedListREG").find("input[type=checkbox]:checked").each(function(i){
+            var id = $(this).attr("index");
+            if(($(this).attr("checkt") == "spanB" || $("#ordstatus_"+id).val() == "2") && $("#reasontype_"+id).val() == "")
+            {   alert($("#medcode_"+id).attr("meddesc")+" 未在給藥時間，請填選註記");
+                checkin = false;
+            }
+            else
+            { passa = true;}
+        })
+        $(".MedListSTAT,.MedListPRN,.MedListIV").find("input[type=checkbox]:checked:visible").each(function(i){
+            var id = $(this).attr("index");
+            $("#drug_date_"+id).val($("#prn_date"+id).val() + ' ' + $("#prn_time"+id).val());
+            passa = true;
+        })
+        if (passa)
+        {
+            $("#execflag").val("save");
+            return true;
+        }
+        else
+        {
+            if(checkin==true)
+            { alert("尚未勾選給藥時間點！") }
+            return false;
+        }
+    }    
+</script>
+
+<style type="text/css">
+    form {font-size: 14px;}
+    th {
+        background: #99CCFF;
+        text-align: center;
+        vertical-align: middle;
+    }
+    td {
+        text-align: center;
+        vertical-align: middle;
+        color: #333311;
+    }
+    .trhead { background: #EEE9BF; }
+    .trbody { 
+        background: #F5F5F5;
+        font-size: 14px;
+        height:30px;
+    }
+    .popup {
+        position: absolute;
+        border: 1px;
+        background-color:#DDDDFF;
+        padding: 15px;
+        width: auto;
+        height: 350px;
+        display: none;
+        z-index: 99;
+    }
+    .popup2 {
+        position: absolute;
+        border: 1px;
+        background-color:#DDDDFF;
+        padding: 15px;
+        width: 600px;
+        height: 300px;
+        display: none;
+        z-index: 99;
+        font-family: 微軟正黑體;
+    }
+    .mname {
+        color: blue;
+        font-weight: bold;
+    }
+    .sname {
+        color: #600c0c;
+        font-style: italic;
+    }
+    .button_note {
+        margin-left: 0px;
+        height: 20px;
+        text-align: center;
+        width: auto;
+    }
+    .medbook {cursor: pointer;}
+    .tabsapce { padding:2px;}
+    .udcmd {
+        background:#EEE9BF;
+        text-align:left;
+        font-size:12px;
+        color:red;
+    }
+    #spanA{
+        display: inline-block;
+        width: 200px;
+        line-height: 24px;
+        margin-top: 0px;
+        background-color: #F5F5F5;
+        border: 0px solid #cc33ff;
+        font-weight:bold;
+    }
+    #spanB{
+        display: inline-block;
+        width: 200px;
+        line-height: 24px;
+        margin-top: 0px;
+        background-color: #F5F5F5;
+        border: 0px solid #ff0000;
+        color:#ff0000;
+        font-weight:bold;
+    }
+    #spanC{
+        display: inline-block;
+        width: 180px;
+        line-height: 24px;
+        margin-top: 0px;
+        background-color: #eeddff;
+        border: 0px solid blue;
+        color:blue;
+        font-weight:bold;
+    }
+    #MedInfo td {
+        background-color:pink;
+        text-align:left;
+        vertical-align:top;
+    }
+    .TableNote {
+        border: 1px solid #DDDDFF;
+        width:100%;
+    }
+    .TableNote p {
+        text-align:left;
+    }
+    .TableNote td {
+        height: 25px;
+        width: 120px;
+        vertical-align: middle;
+        text-align: center;
+        background-color: #99CCFF;
+        }
+    .TableNote td:hover {
+        background-color: #fff;
+    }
+</style>
+
+<form method="post" action="Med_NurseExecute">
+    <div class="tabspace">
+        <input id="execflag" type="hidden" value="" name="execflag" />
+        <label>病人手圈：</label>
+        @Html.TextBox("PatientNo", "", new { style = "width:100px", @id = "PatientNo" }) &emsp;&emsp;
+        @Html.TextBox("start_date", @start_date, new { style = "width:70px;", @readonly = "readonly" })
+        @Html.TextBox("start_time", @start_time, new { style = "width:40px;", @readonly = "readonly" })
+        @WebTool.setDateTime("start_date", "start_time", "", "0")
+        @Html.Label("lab", " ~ ")
+        @Html.TextBox("end_date", @end_date, new { style = "width:70px;", @readonly = "readonly" })
+        @Html.TextBox("end_time", @end_time, new { style = "width:40px;", @readonly = "readonly" })
+        @WebTool.setDateTime("end_date", "end_time", "0", "1")
+        <input id="search" class="btn_m" type="button" value="查詢" onclick="if(doit('Zquiry'))submit();" />
+        <input id="search_all" class="btn" type="button" value="查詢所有待執行醫囑" onclick="if(doit('ZquiryAll'))submit();" />
+    </div>
+
+    <div class="tabsapce">
+        <label>藥包條碼：</label>
+        @Html.TextBox("udodrgcode", udodrgcode, new { style = "width:150px", @id = "udodrgcode" }) &emsp;&emsp;
+        <label><input type="radio" name="med_type" value=".MedListSTAT,.MedListREG,.MedListPRN,.MedListIV" id="med_type1"  checked="checked" />全部</label>
+        <label><input type="radio" name="med_type" value=".MedListSTAT" id="med_type2" />STAT</label>
+        <label><input type="radio" name="med_type" value=".MedListREG" id="med_type3" />常規</label>
+        <label><input type="radio" name="med_type" value=".MedListPRN" id="med_type4" />PRN</label>
+        <label><input type="radio" name="med_type" value=".MedListIV" id="med_type5" />點滴</label>
+        &emsp;
+        <input type="button" class="btn" value="批次原因註記" onclick="showPopup('dv_type','B','','');get_DOSE_all('@textname');" />
+        <input type="button" class="btn_m" value="復原" onclick="window.location.reload();" />
+        <input type="button" class="btn" value="完成" name="val" onclick="if(check_point())submit();" />
+        <input id="checker"  value="" name="cker" style="width:50px"/>
+    </div>
+
+    <div class="dataArea" style="height: 340px">
+        <p>★：高危險性藥品&emsp;!：高危跌倒藥品&emsp;$：特殊藥品需監測病人反應&emsp;@@：不可磨粉&emsp;***：抗生素類藥品</p><hr />
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+                <td>
+                    <div class="MedListSTAT" id="div_MedExecList" name="MedListSTAT">
+                        @if (dt_stat != null && dt_stat.Table.Rows.Count > 0)
+                        {                             
+                            <table border="0" cellpadding="5" cellspacing="1" width="100%">
+                                <tr style="height: 30px;">
+                                    <th>@Html.Label("lab", "STAT醫囑")</th>
+                                    <th>@Html.Label("lab", "使用劑量")</th>
+                                    <th>@Html.Label("lab", "途徑")</th>
+                                    <th>@Html.Label("lab", "頻次")</th>
+                                    <th>@Html.Label("lab", "生效時間")</th>
+                                </tr>
+                                @foreach (DataRow r in dt_stat.Table.Rows)
+                                {
+                                    if (@r["use_seq"].ToString().Trim() != "")
+                                    {
+                                    <tr class="trhead">
+                                        <td style="text-align: left">
+                                            <img src="~/Images/med_dictionary.png" class="medbook" border="0" onclick="MedicinalInfo('@r["MED_CODE"].ToString().Trim()','img');"/>
+                                            <label class="mname">@r["MED_DESC"].ToString().Trim()</label>
+                                        </td>
+                                        <td>@r["UD_DOSE"] @r["UD_UNIT"] </td>
+                                        <td>@r["UD_PATH"]</td>
+                                        <td>@r["UD_CIR"]</td>
+                                        <td>@r["BEGIN_DAY"] <br /> @r["DC_DAY"]</td>
+                                    </tr>
+                                    if (r["UD_CMD"].ToString().Trim() != "")
+                                    {
+                                      @: <tr style="background:#EEE9BF"><td colspan="5" class="udcmd">&emsp;醫囑備註：@(r["UD_CMD"].ToString().Trim()) @r["FLOW_SPEED"]</td></tr>
+                                    }  
+                                    <tr class="trbody">
+                                        <td colspan="5" style="text-align: left">
+                                            @{
+                                        String[] use_time = r["use_time"].ToString().Split(',');
+                                        string[] use_s = r["use_seq"].ToString().Split(',');
+                                        string[] use_d = r["use_date"].ToString().Split(',');
+                                        int k = 0;
+                                        foreach (string content in use_s)
+                                        {
+                                            if (@content != "")
+                                            {
+                                                <label style='margin-left: 40px'>@use_d[k]&nbsp;</label>      
+
+                                                <input type="checkbox" id ="ck_@i" index="@i" value ="@use_time[k]" name="@r["UD_SEQ"].ToString().Trim()"
+                                                    onchange="checkbox('@i','S')" position="@r["POSITION"]"/>
+                                                    @Html.TextBox("prn_date" + i, use_d[k], new { style = "width:60px;", @readonly = "readonly" })
+                                                    @Html.TextBox("prn_time" + i, use_time[k], new { style = "width:30px;", @readonly = "readonly" })
+                                                    @WebTool.setDateTime("prn_date" + i, "prn_time" + i, "", "0")     
+                                                <input class="button_note" type="button" value="註" onclick = "showPopup('dv_type','A','S',@i);get_DOSE('@r["UD_DOSE"]    ','@r["UD_UNIT"]    ',@i);"/>                                                   
+                                                <label id ="txt_@i" style="color:#000000;font-size:12px"></label>
+                                                <input type="hidden" value="@i"  name="data.Index"/> 
+                                                <input type="hidden" value="@use_s[k]"  name="data[@i].UD_SEQPK"/>
+                                                <input type="hidden" value="@r["MED_CODE"]" id="medcode_@i" meddesc="@r["MED_DESC"].ToString().Trim()" name="data[@i].MED_CODE"/>    
+                                                <input type="hidden" value="@r["UD_SEQ"]"  name="data[@i].UD_SEQ"/>
+                                                <input type="hidden" value="@use_d[k] @use_time[k]"  id="drug_date_@i" name="data[@i].DRUG_DATE"/>
+                                                <input type="hidden" value=""  name="data[@i].EXEC_NAME"/> 
+                                                <input type="hidden" value=""  name="data[@i].EXEC_ID"/> 
+                                                <input type="hidden" value="@r["UD_DOSE"]" unit="@r["UD_UNIT"]" name="data[@i].USE_DOSE" id="moddose_@i"/>
+                                                <input type="hidden" value=""  id="bad_@i"  name="data[@i].BADREACTION"/>  
+                                                <input type="hidden" value=""  id="reasontype_@i"    name="data[@i].REASONTYPE"/>
+                                                <input type="hidden" value=""  id="reason_@i"  name="data[@i].REASON"/>
+                                                <input type="hidden" value="1" id="ordstatus_@i" name="data[@i].ORDSTATUS"/>
+                                                <input type="hidden" value=""  id="checker_@i"   name="data[@i].CHECKER"/>
+                                                <input type="hidden" value="@r["DRUG_TYPE"]" id="drugtype_@i" name="data[@i].DRUG_TYPE"/>
+                                                <input type="hidden" value="U"  name="data[@i].UPD_TYPE"/>
+                                                <input type="hidden" value="@r["MED_DESC"]"  name="data[@i].MED_DESC"/>
+                                                <input type="hidden" value="@r["ALISE_DESC"]"  name="data[@i].ALISE_DESC"/>
+                                                <input type="hidden" value="@r["UD_CIR"]" id="udcir_@i" name="data[@i].UD_CIR"/>
+                                                <input type="hidden" value="@r["UD_PATH"]" id="udpath_@i" name="data[@i].UD_PATH"/>
+                                                <input type="hidden" value="@r["POSITION"]"  name="data[@i].POSITION"/>
+                                            }
+                                            k++;
+                                            i++;
+                                        } k = 0;
+                                            }
+                                        </td>
+                                    </tr>
+                                    } }
+                            </table>
+                            <hr />}
+                    </div>
+                    <div class="MedListREG" id="div_MedExecList" name="MedListREG">
+                        @if (dt_reg != null && dt_reg.Table.Rows.Count > 0)
+                        {                             
+                            <table border="0" cellpadding="5" cellspacing="1" width="100%">
+                                <tr style="height: 30px;">
+                                    <th>@Html.Label("lab", "常規醫囑")</th>
+                                    <th>@Html.Label("lab", "使用劑量")</th>
+                                    <th>@Html.Label("lab", "途徑")</th>
+                                    <th>@Html.Label("lab", "頻次")</th>
+                                    <th>@Html.Label("lab", "生效時間")</th>
+                                </tr>
+                                @foreach (DataRow r in dt_reg.Table.Rows)
+                                {
+                                    if (@r["use_seq"].ToString().Trim() != "")
+                                    {
+                                    <tr class="trhead">
+                                        <td style="text-align: left;">
+                                            <img src="~/Images/med_dictionary.png" class="medbook" border="0" onclick="MedicinalInfo('@r["MED_CODE"].ToString().Trim()','img');"/>
+                                            <label class="mname">@r["MED_DESC"].ToString().Trim()</label>
+                                        </td>
+                                        <td>@r["UD_DOSE"] @r["UD_UNIT"] </td>
+                                        <td>@r["UD_PATH"]</td>
+                                        <td>@r["UD_CIR"]</td>
+                                        <td>@r["BEGIN_DAY"] <br /> @r["DC_DAY"] </td>
+                                    </tr>
+                                        if (r["UD_CMD"].ToString().Trim() != "")
+                                        {
+                                      @: <tr style="background:#EEE9BF"><td colspan="5" class="udcmd">&emsp;醫囑備註：@(r["UD_CMD"].ToString().Trim()) @r["FLOW_SPEED"]</td></tr>
+                                    }  
+                                    <tr class="trbody">
+                                        <td colspan="5">
+                                        @{
+                                        string[] use_time = r["use_time"].ToString().Split(',');
+                                        string[] use_s = r["use_seq"].ToString().Split(',');
+                                        string[] use_d = r["use_date"].ToString().Split(',');
+                                        string[] use_reason = r["reason"].ToString().Split(',');
+                                        string[] use_reasontype = r["reasontype"].ToString().Split(',');
+                                        int k = 0;
+                                        string strMap = "";
+                                        <table border="0" width="100%">
+                                            @foreach (string strDate in use_d)
+                                            {
+                                                if (strMap != strDate)
+                                                {
+                                                    strMap = strDate;
+                                                    <tr>
+                                                    <td width="15%" style="text-align:right;vertical-align:middle" >@use_d[k]&nbsp;</td>
+                                                    <td width="85%" style="text-align:left;">
+                                                        @foreach (string strDate2 in use_d)
+                                                        {
+                                                            if (strDate == strDate2)
+                                                            {
+                                                                DateTime drugtime = Convert.ToDateTime(use_d[k] + " " + use_time[k].Substring(0, 2) + ":" + use_time[k].Substring(2, 2));
+                                                                string spanid = "spanA";
+                                                                if (check_time1 > drugtime)
+                                                                { spanid = "spanB"; }
+                                                                if (use_reasontype[k] == "3")
+                                                                { spanid = "spanC"; }
+                                                                <span id="@spanid">
+                                                                <input type="checkbox" id ="ck_@i" index="@i" checkt="@spanid" value ="@use_time[k]" name="@r["UD_SEQ"].ToString().Trim()"  position="@r["POSITION"]"
+                                                                     onchange="checkbox('@i','R');if(DouCheck('@r["DoubleCheck"].ToString()','@i'))@Java_funcion.pup_window("../CommonMedication/Login", 350, 180, "")" />
+                                                                <label for ="cka_@i" >@use_time[k]</label>
+                                                                <input class="button_note" type="button" value="註" onclick = "showPopup('dv_type','A','P',@i);get_DOSE('@r["UD_DOSE"]    ','@r["UD_UNIT"]    ',@i);"/>
+                                                                <label id ="txt_@i" style="color:#000000;font-size:12px">@use_reason[k]</label> 
+                                                                <input value="" id="reason_@i" name="data[@i].REASON" readonly="readonly" style="display:none;width:70px"/>
+                                                                <input type="hidden" value="@i"  name="data.Index"/> 
+                                                                <input type="hidden" value="@use_s[k]"  name="data[@i].UD_SEQPK"/>
+                                                                <input type="hidden" value="@r["MED_CODE"]" id="medcode_@i" meddesc="@r["MED_DESC"].ToString().Trim()" name="data[@i].MED_CODE"/>     
+                                                                <input type="hidden" value="@r["UD_SEQ"]"  name="data[@i].UD_SEQ"/>
+                                                                <input type="hidden" value="@use_d[k] @use_time[k]" id="drug_date_@i" name="data[@i].DRUG_DATE"/>
+                                                                <input type="hidden" value="" name="data[@i].EXEC_NAME"/> 
+                                                                <input type="hidden" value="" name="data[@i].EXEC_ID"/> 
+                                                                <input type="hidden" value="@r["UD_DOSE"]" unit="@r["UD_UNIT"]" name="data[@i].USE_DOSE" id="moddose_@i"/>
+                                                                <input type="hidden" value=""  id="bad_@i"  name="data[@i].BADREACTION"/>  
+                                                                <input type="hidden" value="@use_reasontype[k]"  id="reasontype_@i"    name="data[@i].REASONTYPE"/>
+                                                                <input type="hidden" value="@use_reason[k]"  id="reason_@i"  name="data[@i].REASON"/>
+                                                                <input type="hidden" value="1" id="ordstatus_@i" name="data[@i].ORDSTATUS"/>
+                                                                <input type="hidden" value="" id="checker_@i" name="data[@i].CHECKER"/>   
+                                                                <input type="hidden" value="@r["DRUG_TYPE"]" id="drugtype_@i" name="data[@i].DRUG_TYPE"/>
+                                                                <input type="hidden" value="U" name="data[@i].UPD_TYPE"/>
+                                                                <input type="hidden" value="@r["MED_DESC"].ToString().Trim()"  name="data[@i].MED_DESC"/>
+                                                                <input type="hidden" value="@r["ALISE_DESC"].ToString().Trim()"  name="data[@i].ALISE_DESC"/>
+                                                <input type="hidden" value="@r["UD_CIR"]" id="udcir_@i" name="data[@i].UD_CIR"/>
+                                                <input type="hidden" value="@r["UD_PATH"]" id="udpath_@i" name="data[@i].UD_PATH"/>
+                                                                <input type="hidden" value="@r["POSITION"]"  name="data[@i].POSITION"/>
+                                                                </span>
+                                                                k++;
+                                                                i++;
+                                                            }
+                                                        } 
+                                                    </td></tr>
+                                                }
+                                            }
+                                        </table>
+                                            k = 0;
+                                           }
+                                        </td>
+                                    </tr>
+                                    }
+                                }
+                            </table>
+                            <hr />}
+                    </div>
+                    <div class="MedListPRN" id="div_MedExecList" name="MedListPRN">
+                        @if (dt_prn != null && dt_prn.Rows.Count > 0)
+                        {                             
+                            <table border="0" cellpadding="5" cellspacing="1" width="100%">
+                                <tr style="height: 30px;">
+                                    <th width="45%">@Html.Label("lab", "需要時醫囑")</th>
+                                    <th width="10%">@Html.Label("lab", "使用劑量")</th>
+                                    <th width="5%">@Html.Label("lab", "途徑")</th>
+                                    <th width="5%">@Html.Label("lab", "頻次")</th>
+                                    <th width="15%">@Html.Label("lab", "生效時間")</th>
+                                    <th width="15%">@Html.Label("lab", "前次執行時間")</th>
+                                    <th width="5%" style="font-size:12px">@Html.Label("lab", "給藥次數")</th>
+                                </tr>
+                                @foreach (DataRow r in dt_prn.Rows)
+                                {
+                                    <tr class="trhead">
+                                        <td style="text-align: left;">
+                                            <img src="~/Images/med_dictionary.png" class="medbook" border="0" onclick="MedicinalInfo('@r["MED_CODE"].ToString().Trim()','img');"/>
+                                            <label class="mname">@r["MED_DESC"].ToString().Trim()</label>
+                                        </td>
+                                        <td>@r["UD_DOSE"] @r["UD_UNIT"]</td>
+                                        <td>@r["UD_PATH"]</td>
+                                        <td>@r["UD_CIR"]</td>
+                                        <td>@r["BEGIN_DAY"] <br /> @r["DC_DAY"]</td>
+                                        <td>@r["exec_date"]</td>
+                                        <td>@r["exec_count"] / @r["MAX_COUNT"]</td>
+                                    </tr>
+                                    if (r["UD_CMD"].ToString().Trim() != "")
+                                    {
+                                     @: <tr style="background:#EEE9BF"><td colspan="7" class="udcmd">&emsp;醫囑備註：@(r["UD_CMD"].ToString().Trim()) @r["FLOW_SPEED"]</td></tr>
+                                    }   
+                                    <tr class="trbody">
+                                        <td colspan="7" style="text-align: left"> 
+                                        @{  string[] use_s = r["use_seq"].ToString().Split(',');
+                                            string[] use_d = r["use_date"].ToString().Split(',');
+                                            string[] use_time = r["use_time"].ToString().Split(',');
+                                            int k = 0;
+                                            foreach (string content in use_s)
+                                            {
+                                                if (@content != "")
+                                                {
+                                                    <label style='margin-left: 40pt'>@use_d[k]&nbsp;</label>    
+                                                    if (r["MAX_COUNT"].ToString() == r["EXEC_COUNT"].ToString())
+                                                    { <span style="font-size:12px">
+                                                        已達今日給藥次數上限！
+                                                      </span>  }
+                                                    else
+                                                    {
+                                                        <input type="checkbox" id ="ck_@i" index="@i" value ="@use_time[k]" name="@r["UD_SEQ"].ToString().Trim()"
+                                                            onchange="checkbox('@i','P')"  position="@r["POSITION"]"/>
+                                                        @Html.TextBox("prn_date" + i, use_d[k], new { style = "width:70px;", @readonly = "readonly" })
+                                                        @Html.TextBox("prn_time" + i, use_time[k], new { style = "width:40px;", @readonly = "readonly" })
+                                                        @WebTool.setDateTime("prn_date" + i, "prn_time" + i, "", "0")        
+                                                        <input type="hidden" class="button_note" type="button" value="註" onclick = "showPopup('dv_type','A','P',@i);get_DOSE('@r["UD_DOSE"]    ','@r["UD_UNIT"]    ',@i);"/>                                                   
+                                                        <label id ="txt_@i" style="color:#000000;font-size:12px"></label>
+                                                        <input type="hidden" value="@i"  name="data.Index"/> 
+                                                        <input type="hidden" value="@use_s[k]"  name="data[@i].UD_SEQPK"/>
+                                                        <input type="hidden" value="@r["MED_CODE"]" unit="@r["UD_UNIT"]" id="medcode_@i" meddesc="@r["MED_DESC"].ToString().Trim()" name="data[@i].MED_CODE"/>     
+                                                        <input type="hidden" value="@r["UD_SEQ"]" name="data[@i].UD_SEQ"/>
+                                                        <input type="hidden" value="" id="drug_date_@i" name="data[@i].DRUG_DATE"/>
+                                                        <input type="hidden" value=""  name="data[@i].EXEC_NAME"/> 
+                                                        <input type="hidden" value=""  name="data[@i].EXEC_ID"/> 
+                                                        <input type="hidden" value="@r["UD_DOSE"]"  name="data[@i].USE_DOSE" id="moddose_@i"/>
+                                                        <input type="hidden" value=""  id="bad_@i"  name="data[@i].BADREACTION"/>  
+                                                        <input type="hidden" value=""  id="reasontype_@i"    name="data[@i].REASONTYPE"/>
+                                                        <input type="hidden" value=""  id="reason_@i"  name="data[@i].REASON"/>
+                                                        <input type="hidden" value="1" id="ordstatus_@i" name="data[@i].ORDSTATUS"/>
+                                                        <input type="hidden" value=""  id="checker_@i"   name="data[@i].CHECKER"/>
+                                                        <input type="hidden" value="@r["DRUG_TYPE"]" id="drugtype_@i" name="data[@i].DRUG_TYPE"/>
+                                                        <input type="hidden" value="I" name="data[@i].UPD_TYPE"/>
+                                                        <input type="hidden" value="@r["MED_DESC"]"  name="data[@i].MED_DESC"/>
+                                                        <input type="hidden" value="@r["ALISE_DESC"]"  name="data[@i].ALISE_DESC"/>
+                                                <input type="hidden" value="@r["UD_CIR"]" id="udcir_@i" name="data[@i].UD_CIR"/>
+                                                <input type="hidden" value="@r["UD_PATH"]" id="udpath_@i" name="data[@i].UD_PATH"/>
+                                                        <input type="hidden" value="@r["POSITION"]"  name="data[@i].POSITION"/>
+                                                        k++;
+                                                        i++;
+                                                    }
+                                                } k = 0;
+                                            }
+                                         }
+                                        </td>
+                                    </tr>
+                                }
+                            </table>}
+                    </div>
+                    <div class="MedListIV" id="div_MedExecList" name="MedListIV">
+                        @if (dt_iv != null && dt_iv.Rows.Count > 0)
+                        {                             
+                            <table border="0" cellpadding="5" cellspacing="1" width="100%">
+                                <tr style="height: 30px;">
+                                    <th width="45%">@Html.Label("lab", "點滴醫囑")</th>
+                                    <th width="10%">@Html.Label("lab", "使用劑量")</th>
+                                    <th width="5%">@Html.Label("lab", "途徑")</th>
+                                    <th width="5%">@Html.Label("lab", "頻次")</th>
+                                    <th width="15%">@Html.Label("lab", "生效時間")</th>
+                                    <th width="15%">@Html.Label("lab", "前次執行時間")</th>
+                                    <th width="5%" style="font-size:12px">@Html.Label("lab", "給藥次數")</th>
+                                </tr>
+                                @foreach (DataRow r in dt_iv.Rows)
+                                {
+                                    <tr class="trhead">
+                                        <td style="text-align: left;">
+                                            <img src="~/Images/med_dictionary.png" class="medbook" border="0" onclick="MedicinalInfo('@r["MED_CODE"].ToString().Trim()','img');"/>
+                                            <label class="mname">@r["MED_DESC"].ToString().Trim()</label>
+                                        </td>
+                                        <td>@r["UD_DOSE"] @r["UD_UNIT"] </td>
+                                        <td>@r["UD_PATH"]</td>
+                                        <td>@r["UD_CIR"]</td>
+                                        <td>@r["BEGIN_DAY"] <br /> @r["DC_DAY"]</td>
+                                        <td>@r["exec_date"]</td>
+                                        <td>@r["exec_count"] / @r["MAX_COUNT"]</td>
+                                    </tr>
+                                    if (r["UD_CMD"].ToString().Trim() != "")
+                                    {
+                                      @: <tr style="background:#EEE9BF"><td colspan="7" class="udcmd">&emsp;醫囑備註：@(r["UD_CMD"].ToString().Trim()) @r["FLOW_SPEED"]</td></tr>
+                                      }  
+                                    <tr class="trbody">
+                                        <td colspan="7" style="text-align: left"> 
+                                      @{
+                                    string[] use_time = r["use_time"].ToString().Split(',');
+                                    string[] use_s = r["use_seq"].ToString().Split(',');
+                                    string[] use_d = r["use_date"].ToString().Split(',');
+                                    int k = 0;
+                                    foreach (string content in use_s)
+                                    {
+                                        if (@content != "")
+                                        {
+                                            <label style='margin-left: 40pt'>@use_d[k]&nbsp;</label>      
+                                            if (r["MAX_COUNT"].ToString() == r["EXEC_COUNT"].ToString())
+                                            { <span style="font-size:12px">
+                                                    已達今日給藥次數上限！
+                                                </span>  }
+                                            else
+                                            {   
+                                                <input type="checkbox" id ="ck_@i" index="@i" value ="@use_time[k]" name="@r["UD_SEQ"].ToString().Trim()" 
+                                                    onchange="checkbox('@i','V')"  position="@r["POSITION"]"/>
+                                                @Html.TextBox("prn_date" + i, use_d[k], new { style = "width:60px;", @readonly = "readonly" })
+                                                @Html.TextBox("prn_time" + i, use_time[k], new { style = "width:30px;", @readonly = "readonly" })
+                                                @WebTool.setDateTime("prn_date" + i, "prn_time" + i, "", "0") 
+                                                <input class="button_note" type="button" value="註" onclick = "showPopup('dv_type','A','V',@i);get_DOSE('@r["UD_DOSE"]','@r["UD_UNIT"]',@i);"/>                                                   
+                                                <label id ="txt_@i" style="color:#000000;font-size:12px"></label>
+                                                <input type="hidden" value="@i"  name="data.Index"/> 
+                                                <input type="hidden" value="@use_s[k]"  name="data[@i].UD_SEQPK"/>
+                                                <input type="hidden" value="@r["MED_CODE"]" unit="@r["UD_UNIT"]" id="medcode_@i" meddesc="@r["MED_DESC"].ToString().Trim()" name="data[@i].MED_CODE"/>     
+                                                <input type="hidden" value="@r["UD_SEQ"]" name="data[@i].UD_SEQ"/>
+                                                <input type="hidden" value="" id="drug_date_@i" name="data[@i].DRUG_DATE"/>
+                                                <input type="hidden" value=""  name="data[@i].EXEC_NAME"/> 
+                                                <input type="hidden" value=""  name="data[@i].EXEC_ID"/> 
+                                                <input type="hidden" value="@r["UD_DOSE"]"  name="data[@i].USE_DOSE" id="moddose_@i"/>
+                                                <input type="hidden" value=""  id="bad_@i"  name="data[@i].BADREACTION"/>  
+                                                <input type="hidden" value=""  id="reasontype_@i"    name="data[@i].REASONTYPE"/>
+                                                <input type="hidden" value=""  id="reason_@i"  name="data[@i].REASON"/>
+                                                <input type="hidden" value="1" id="ordstatus_@i" name="data[@i].ORDSTATUS"/>
+                                                <input type="hidden" value=""  id="checker_@i"   name="data[@i].CHECKER"/>
+                                                <input type="hidden" value="@r["DRUG_TYPE"]" id="drugtype_@i" name="data[@i].DRUG_TYPE"/>
+                                                <input type="hidden" value="I" name="data[@i].UPD_TYPE"/>
+                                                <input type="hidden" value="@r["MAX_COUNT"]" id="max_count_@i"/>
+                                                <input type="hidden" value="@r["MED_DESC"]"  name="data[@i].MED_DESC"/>
+                                                <input type="hidden" value="@r["ALISE_DESC"]"  name="data[@i].ALISE_DESC"/>
+                                                <input type="hidden" value="@r["UD_CIR"]" id="udcir_@i" name="data[@i].UD_CIR"/>
+                                                <input type="hidden" value="@r["UD_PATH"]" id="udpath_@i" name="data[@i].UD_PATH"/>
+                                                <input type="hidden" value="@r["POSITION"]"  name="data[@i].POSITION"/>
+                                                k++;
+                                                i++;
+                                            }
+
+                                        }
+                                    } k = 0;
+                                            }
+                                        </td>
+                                    </tr>
+                                    
+                                }
+                            </table>
+                            <hr />}
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+
+<div id="dv_type" class="popup" >
+    <span class="p_close">
+        <img src="~/Images/Close.png" alt="關閉" onclick="cc();$('#dv_type').fadeOut(500);" />
+    </span>
+    <table style="border-collapse: collapse; border-style: solid; border-width: 1px; width: 100%;">
+        <tr>
+            <td style="text-align:left"><p>單次給藥劑量：
+                @Html.TextBox("txt", "", new { id = "name", style = "display:none" })
+                @Html.TextBox("txt", "", new { id = "textname", style = "display:none" })
+                @Html.TextBox("txt", "", new { id = "amount", style = "width:50px" })
+                @Html.TextBox("lab", "", new { id = "unit", ReadOnly = "readonly", style = "width:30px" })
+                </p>
+                <p id="p_position">部位註記：<label id="position" style="background-color:pink"></label></p>
+                <p>
+                不良反應註記：
+                <label><input type="radio" value="Y" id="badtype" name="baditems"/>有</label>
+                <label><input type="radio" value="N" id="badtype" name="baditems"/>無</label>
+                <input id="bad" type="text" /></p>
+            </td>
+        </tr>
+    </table>
+    <table style="width: 100%;vertical-align: middle;text-align: center;">
+        <tr>
+            <td style="text-align:left">
+                @Html.RadioButton("injection_execution", "1", false, new { id = "injection_execution1", onclick = "rinput('type_notyet')" })
+                @Html.Label("injection_execution1", "未執行", new { id = "injection_execution1"})
+            </td><td>
+                @Html.RadioButton("injection_execution", "2", false, new { id = "injection_execution2", onclick = "rinput('type_early')" })
+                @Html.Label("injection_execution2", "提早執行", new { id = "injection_execution2"})
+            </td><td>
+                @Html.RadioButton("injection_execution", "3", false, new { id = "injection_execution3", onclick = "rinput('type_delay')" })
+                @Html.Label("injection_execution3", "延遲執行", new { id = "injection_execution3"})
+            </td><td>
+                @Html.RadioButton("injection_execution", "4", false, new { id = "injection_execution4", onclick = "rinput('type_overtime')" })
+                @Html.Label("injection_execution4", "過時給藥", new { id = "injection_execution4"})
+            </td>
+        </tr>
+    </table>
+    <div style="display: none;" id="type_early">
+        <table class ="TableNote">
+            <tr>
+                <th>提早給原因</th>
+            </tr>
+            <tr>
+                <td>
+                    <label id="A1" onclick="reason('手術','A');$('#dv_type').fadeOut(500)">@Html.Label("lab", "手術")</label></td>
+                <td>
+                    <label id="A2" onclick="reason('洗腎','A');$('#dv_type').fadeOut(500)">@Html.Label("lab", "洗腎")</label></td>
+                <td>
+                    <label id="A3" onclick="reason('請假','A');$('#dv_type').fadeOut(500)">@Html.Label("lab", "請假")</label></td>
+            </tr>
+            <tr>
+                <td>
+                    <label id="A4" onclick="reason('病人要求','A');$('#dv_type').fadeOut(500)">@Html.Label("lab", "病人要求")</label></td>
+                <td>
+                    <label id="A5" onclick="reason('檢查','A');$('#dv_type').fadeOut(500)">@Html.Label("lab", "檢查")</label></td>
+                <td>
+                    <label id="A6" onclick="reason('病情需求','A');$('#dv_type').fadeOut(500)">@Html.Label("lab", "病情需求")</label></td>
+            </tr>
+            <tr>
+                <td>
+                    <label id="A7" onclick="reason('自行帶回','A');$('#dv_type').fadeOut(500)">@Html.Label("lab", "自行帶回")</label></td>
+                <td style="background:#DDDDFF"></td>
+                <td style="background:#DDDDFF"></td>
+            </tr>
+        </table>
+    </div>
+    <div style="display: none;" id="type_delay">
+        <table class ="TableNote">
+            <tr>
+                <th>延遲原因</th>
+            </tr>
+            <tr>
+                <td>
+                    <label id="B1" onclick="reason('手術','B');$('#dv_type').fadeOut(500)">@Html.Label("lab", "手術")</label></td>
+                <td>
+                    <label id="B2" onclick="reason('洗腎','B');$('#dv_type').fadeOut(500)">@Html.Label("lab", "洗腎")</label></td>
+                <td>
+                    <label id="B3" onclick="reason('病人外出','B');$('#dv_type').fadeOut(500)">@Html.Label("lab", "病人外出")</label></td>
+            </tr>
+            <tr>
+                <td>
+                    <label id="B4" onclick="reason('檢查','B');$('#dv_type').fadeOut(500)">@Html.Label("lab", "檢查")</label></td>
+                <td>
+                    <label id="B5" onclick="reason('請假','B');$('#dv_type').fadeOut(500)">@Html.Label("lab", "請假")</label></td>
+                <td>
+                    <label id="B6" onclick="reason('禁食','B');$('#dv_type').fadeOut(500)">@Html.Label("lab", "禁食")</label></td>
+            </tr>
+        </table>
+    </div>
+    <div style="display: none;" id="type_notyet">
+        <table class ="TableNote">
+            <tr>
+                <th>未執行原因</th>
+            </tr>
+            <tr>
+                <td>
+                    <label id="C1" onclick="reason('請假未給','C');$('#dv_type').fadeOut(500)">@Html.Label("lab", "請假未給")</label></td>
+                <td>
+                    <label id="C2" onclick="reason('病人拒服','C');$('#dv_type').fadeOut(500)">@Html.Label("lab", "病人拒服")</label></td>
+                <td>
+                    <label id="C3" onclick="reason('禁食','C');$('#dv_type').fadeOut(500)">@Html.Label("lab", "禁食")</label></td>
+            </tr>
+            <tr>
+                <td>
+                    <label id="C4" onclick="reason('血壓偏低','C');$('#dv_type').fadeOut(500)">@Html.Label("lab", "血壓偏低")</label></td>
+                <td>
+                    <label id="C5" onclick="reason('血糖偏低','C');$('#dv_type').fadeOut(500)">@Html.Label("lab", "血糖偏低")</label></td>
+                <td>
+                    <label id="C6" onclick="reason('返家服用','C');$('#dv_type').fadeOut(500)">@Html.Label("lab", "返家服用")</label></td>
+            </tr>
+            <tr>
+                <td>
+                    <label id="C7" onclick="reason('暫停使用','C');$('#dv_type').fadeOut(500)">@Html.Label("lab", "暫停使用")</label></td>
+                <td style="background:#DDDDFF"></td>
+                <td style="background:#DDDDFF"></td>
+            </tr>
+        </table>
+    </div>
+    <div style="display: none;" id="type_overtime">
+        <table class ="TableNote">
+        <tr>
+            <th>過時給藥原因</th>
+        </tr>
+        <tr>
+            <td>
+                <label id="D1" onclick="reason('手術','D');$('#dv_type').fadeOut(500)">@Html.Label("lab", "手術")</label>
+            </td>
+            <td>
+                <label id="D2" onclick="reason('洗腎','D');$('#dv_type').fadeOut(500)">@Html.Label("lab", "洗腎")</label>
+            </td>
+            <td>
+                <label id="D3" onclick="reason('病人外出','D');$('#dv_type').fadeOut(500)">@Html.Label("lab", "病人外出")</label>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <label id="D4" onclick="reason('檢查','D');$('#dv_type').fadeOut(500)">@Html.Label("lab", "檢查")</label>
+            </td>
+            <td>
+                <label id="D5" onclick="reason('請假','D');$('#dv_type').fadeOut(500)">@Html.Label("lab", "請假")</label>
+            </td>
+            <td>
+                <label id="D6" onclick="reason('禁食','D');$('#dv_type').fadeOut(500)">@Html.Label("lab", "禁食")</label>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <label id="D7" onclick="reason('藥物未到','D');$('#dv_type').fadeOut(500)">@Html.Label("lab", "藥物未到")</label>
+            </td>
+            <td>
+                <label id="D8" onclick="reason('配合醫師使用','D');$('#dv_type').fadeOut(500)">@Html.Label("lab", "配合醫師使用")</label>
+            </td>
+            <td><label id="D9" onclick="reason('近常規時間','D');$('#dv_type').fadeOut(500)">@Html.Label("lab", "近常規時間")</label></td>
+        </tr>
+    </table>
+    </div>
+    <div style="display: none;" id="type_other">
+        其他：@Html.TextBox("other1", "", new { id = "other1" })
+    </div>
+    <div>
+        <br />
+        <input id="maxid" type="hidden" value="@i"  />
+        <input id="add" type="button" value="確定" onclick="reason('textbox');$('#dv_type').fadeOut(500);" />
+        <input id="back" type="button" value="取消" onclick="cc();$('#dv_type').fadeOut(500);" />
+        <input id="reset" type="button" value="清除" onclick="cc();$('#dv_type').fadeOut(500);" />
+    </div>
+</div>
+
+<div id="div_Med" class="popup">
+    <span class="p_close">
+        <img src="~/Images/Close.png" alt="關閉" onclick="cc();$('#div_Med').fadeOut(500);" />
+    </span>
+
+    <input type="button" value="確定" name="div_med_ok" onclick="MedicinalInfo_Click('');$('#div_Med').fadeOut(500);">
+    <input type="button" value="取消" name="div_med_cancel" onclick="cc();$('#div_Med').fadeOut(500);"><br />
+    <div id = "piccontent" style="height: 300px; overflow: auto; text-align: left"></div>
+</div>
+
+<div id="div_Med2" class="popup2">
+    <span class="p_close">
+        <img src="~/Images/Close.png" alt="關閉" onclick="cc();$('#div_Med2').fadeOut(500);" />
+    </span>
+
+    <input type="button" value="確定" name="div_med_ok" onclick="MedicinalInfo_Click('');$('#div_Med2').fadeOut(500);">
+    <input type="button" value="取消" name="div_med_cancel" onclick="cc();$('#div_Med2').fadeOut(500);"><br />
+    <label id ="medmessage" style="display:none;color:yellow;background:red"></label>
+    <table border='0' style='width:100%' id='MedInfo'>
+        <tr>
+            <th style='width:300px'>藥品圖片</th><th style='width:300px'>藥品資訊</th>
+        </tr>
+        <tr style='text-align:left; vertical-align:top;'>
+            <td><img src='' width='300px' id="l_src"/></td>
+            <td>
+                <label id="l_drugname"></label><br />
+                <label id="l_dose"></label><br />
+                <label id="l_cir"></label><br />
+                <label id="l_effect"></label><br />
+                <label id="l_sideeffect"></label>
+            </td></tr>
+    </table>
+</div>

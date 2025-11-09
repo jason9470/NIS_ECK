@@ -1,0 +1,280 @@
+﻿@{
+    ViewBag.Title = "Special_Event_Index";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    //if (complement_List.Status)
+    //{ mindate = pf.InDate; }
+    //else
+    //{
+    //    if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+    //    {
+    //        mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+    //    }
+    //    else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+    //    {
+    //        if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+    //        {
+    //            if (DateTime.Now.Month == 2)
+    //            {
+    //                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+    //            }
+    //        }
+    //        if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+    //        {
+    //            mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+    //        }
+    //        else
+    //        {
+    //            if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+    //            else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+    //        }
+    //    }
+    //    else
+    //    { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+    //    if (pf.InDate > mindate)
+    //    { mindate = pf.InDate; }
+    //}
+
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+</style>
+
+<script type="text/javascript">
+    window.onload = function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        setGridColor();
+        $("#txt_amount").blur(function () {
+            word_replace();
+        });
+    }
+
+    function word_replace() {
+        var text = $("#txt_amount").val();
+        var replaceword = $('#txt_amount_content').attr('replaceword');
+        $('#txt_amount_content').attr('replaceword', text);
+        $('#txt_amount_content').val($('#txt_amount_content').val().replace(replaceword, text));
+    }
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue != 'undefined') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+                else
+                    rb[i].disabled = true;
+            }
+        }
+    }
+    function loading_change() {
+        if ($('input[name=type]:checked').val() != undefined) {
+            word_replace();
+            open_cover();
+            $("#form1").submit();
+        } else {
+            alert('尚未選擇特殊事件名稱!');
+        }
+    }
+    function open_cover() {
+        $(".loading").fadeIn(500);
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+    DataTable dt_care_plan_master = ViewBag.dt_care_plan_master;
+}
+<div class="funcArea">
+<form id="form1" action="Insert_Special_Event" method="post">
+    <input type="hidden" id="event_id" name="event_id" value="" />
+    <table border="0" cellpadding="0" cellspacing="0" style=" width:100%;">
+        <tr>
+            <td>
+                <div class="dataArea" style="height:260px;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td style=" width:25%;">發生日期時間</td>
+                            <td>
+                            @Html.TextBox("txt_day", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                            @Html.TextBox("txt_time", DateTime.Now.ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                            @*@WebTool.setDateTime("txt_day", "txt_time", "", "0", "", "")*@
+                            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", false)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style=" width:25%;">特殊事件名稱</td>
+                            <td>
+                                @Html.RadioButton("type", "0", false, new { id = "type_0", onclick = "$('#st01').show();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_0", "Sent Patient to")<br />
+                                <div id="st01" style="display:none;">
+                                    病人因 <input id="st" type="text" name="st" /> 送至 <input id="st1" type="text" name="st1" /> 
+                                </div>
+                                @Html.RadioButton("type", "1", false, new { id = "type_1", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeIn(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_1", "轉床(Transferred to)")
+                                <br />
+                                @Html.RadioButton("type", "2", false, new { id = "type_2", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_2", "生產(Delivered at)")
+                                @Html.RadioButton("type", "3", false, new { id = "type_3", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_3", "手術日(OP day)")
+                                <br />
+                                @Html.RadioButton("type", "4", false, new { id = "type_4", onclick = "$('#st01').hide();$('#tr3').hide();$('#tr2').fadeIn(0);$('.other').fadeOut(0);$('#txt_4').fadeIn(0);setGridColor();" })
+                                @Html.Label("type_4", "特殊處置及治療")
+                                <!--5為出院護理摘要 -->
+
+                                @Html.RadioButton("type", "7", false, new { id = "type_7", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_7", "Refuse")
+                                @Html.RadioButton("type", "8", false, new { id = "type_8", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_8", "Out at")
+                                <br />
+                                @Html.RadioButton("type", "9", false, new { id = "type_9", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_9", "Ice pillow use")
+                                @Html.RadioButton("type", "12", false, new { id = "type_12", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_12", "Born at")
+                                @Html.RadioButton("type", "10", false, new { id = "type_10", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_10", "返室")
+                                @*@Html.RadioButton("type", "11", false, new { id = "type_11", onclick = "$('#st01').hide();$('#tr3').hide();$('#tr2').fadeIn(0);$('.other').fadeOut(0);$('#txt_4').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_11", "安寧會診紀錄")*@
+                                <br />
+                                @Html.RadioButton("type", "13", false, new { id = "type_13", onclick = "$('#st01').hide();$('#tr3').fadeIn(0);$('.other').fadeOut(0);$('#txt_4').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_13", "ROSC(急診專用)")
+                                @Html.RadioButton("type", "19", false, new { id = "type_19", onclick = "$('#st01').hide();$('#tr3').hide();$('#tr2').fadeIn(0);$('.other').fadeOut(0);$('#txt_4').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_19", "緩和醫療照會紀錄")
+                                @Html.RadioButton("type", "20", false, new { id = "type_20", onclick = "$('#st01').hide();$('#tr3').hide();$('#tr2').fadeIn(0);$('.other').fadeOut(0);$('#txt_4').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_20", "安寧共照照會紀錄")
+                                <br />
+                                @Html.RadioButton("type", "14", false, new { id = "type_14", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_14", "新生兒篩檢")
+                                @Html.RadioButton("type", "15", false, new { id = "type_15", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_15", "HBIG注射")
+                                @Html.RadioButton("type", "16", false, new { id = "type_16", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_16", "B型肝炎注射")
+                                <br />
+                                @Html.RadioButton("type", "17", false, new { id = "type_17", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_17", "照光(開始)")
+                                @Html.RadioButton("type", "18", false, new { id = "type_18", onclick = "$('#st01').hide();$('#tr3').hide();$('.other').fadeOut(0);$('#tr2').fadeOut(0);setGridColor();" })
+                                @Html.Label("type_18", "照光(結束)")
+                            </td>
+                        </tr>
+                        <tr class="other" style="display:none;">
+                            <td>轉床單位</td>
+                            <td>
+                                @Html.TextBox("txt_amount", "", new { style = " width:130px;" })
+                            </td>
+                        </tr>
+                        <tr class="other" style="display:none;">
+                            <td>轉床摘要</td>
+                            <td>
+                                @{
+                                    string content = "病人因__________ ，送至 <單位> 。";
+                                    if (dt_care_plan_master != null && dt_care_plan_master.Rows.Count > 0)
+                                    {
+                                        content += "現存健康問題有";
+                                        foreach (DataRow r in dt_care_plan_master.Rows)
+                                        {
+                                            content += r["topicdesc"] + "、";
+                                        }
+                                        content = content.Substring(0, content.Length - 1);
+                                    }
+                                }
+                                @Html.TextArea("txt_amount_content", content, new { style = "width:70%;height:100px;", replaceword = "<單位>" })
+                            </td>
+                        </tr> 
+                        <tr id="tr2" style="display:none;">
+                            <td>
+                                說明<br />
+                                <span id="txt_4" style=" color:Red;">此項特殊事項將顯示於特殊處置及治療欄中</span>
+                            </td>
+                            <td style=" padding-top:10px;">
+                                <span style=" color:Red;">字體最多900字以內</span><br />
+                                @Html.TextArea("txt_special_content", "", new { style = "width:70%;height:100px;" })
+                            </td>
+                        </tr> 
+                        <tr id="tr3" style="display:none;">
+                            <td>
+                                ROSC                              
+                            </td>
+                            <td style=" padding-top:10px;">
+                                @{
+                                    content = "GCS:E1M1VE，瞳孔:左側_______mm，_____、右側______mm，_____，ROSC at____:____，血壓:______mmHg，心跳:______次/分鐘，呼吸器使用中，醫師現向家屬解釋病況中。";
+                                 
+                                }
+                                @Html.TextArea("txt_content_13", content, new { style = "width:70%;height:100px;" })
+                            </td>
+                        </tr> 
+                    </table>
+                </div>
+            </td>
+        </tr>
+        <tr>
+        <td style="padding:5px 0 5px 0;text-align:center;">
+            <input type="button" value="儲存" style="width:60px;" id="but_ok" onclick="loading_change()" />
+            <input type="button" value="取消" style="width:60px;" onclick="window.close();" />
+        </td>
+    </tr>
+    </table>
+</form>
+</div>
+<div class="loading" id="cover"></div>
+<div class="loading" id="loading">
+    <label for="lab">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>
+
+@if (dt != null && dt.Rows.Count > 0)
+{
+    foreach (DataRow r in dt.Rows)
+    {
+@:<script type="text/javascript">
+    @:$('#form1').attr('action','Upd_Special_Event');
+        @:$('#event_id').val('@r["EVENT_ID"]');
+        @:$('#txt_day').val('@Convert.ToDateTime(r["CREATTIME"]).ToString("yyyy/MM/dd")');
+        @:$('#txt_time').val('@Convert.ToDateTime(r["CREATTIME"]).ToString("HH:mm")');
+        @:set_for_rb('type', '@r["TYPE_ID"]');
+        if (r["TYPE_ID"].ToString() == "1")
+    {
+    @:$('#txt_amount').val('@r["CONTENT"]');
+        @*@:$('#txt_amount_content').val('@r["C_OTHER"]');
+        @:$('#txt_amount_content').attr('replaceword', '@r["CONTENT"]');*@
+
+        if (r["EDIT_ITEM"] != null && r["EDIT_ITEM"].ToString() != "" && r["EDIT_ITEM"].ToString().Split('|').Length > 0)
+        {
+        @:$('#txt_amount').val('@r["EDIT_ITEM"].ToString().Split('|').GetValue(0)');
+        @:$('#txt_amount_content').val('@r["EDIT_ITEM"].ToString().Split('|').GetValue(1)');
+        }
+    }
+        else if (r["TYPE_ID"].ToString() == "0")
+    {
+        if (r["EDIT_ITEM"] != null && r["EDIT_ITEM"].ToString() != "" && r["EDIT_ITEM"].ToString().Split('|').Length > 0)
+        {
+        @:$('#st').val('@r["EDIT_ITEM"].ToString().Split('|').GetValue(0)');
+        @:$('#st1').val('@r["EDIT_ITEM"].ToString().Split('|').GetValue(1)');
+        }
+    } 
+    else if (r["TYPE_ID"].ToString() == "4" || r["TYPE_ID"].ToString() == "11")
+    {
+    @:$('#txt_special_content').val('@r["CONTENT"]');
+    }
+      else if (r["TYPE_ID"].ToString() == "13" )
+    {
+    @:$('#txt_content_13').val('@r["EDIT_ITEM"]');
+    }
+@:</script>
+    }
+}

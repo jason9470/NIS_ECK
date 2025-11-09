@@ -1,0 +1,336 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+
+    //DateTime mindate = DateTime.Now;
+    string source_type = ViewBag.type;
+    string userno = ViewBag.userno;
+    string feeno = ViewBag.feeno;
+    //if (complement_List.Status)
+    //{ mindate = pf.InDate; }
+    //else
+    //{
+    //    if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+    //    {
+    //        mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+    //    }
+    //    else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+    //    {
+    //        if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+    //        {
+    //            if (DateTime.Now.Month == 2)
+    //            {
+    //                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+    //            }
+    //        }
+    //        if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+    //        {
+    //            mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+    //        }
+    //        else
+    //        {
+    //            if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+    //            else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+    //        }
+    //    }
+    //    else
+    //    { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+    //    if (pf.InDate > mindate)
+    //    { mindate = pf.InDate; }
+    //}
+}
+
+<style type="text/css">
+    .dataArea {
+        overflow-x: auto;
+        overflow-y: scroll;
+        border-top: 2px solid #666;
+        border-bottom: 2px solid #666;
+        border-left: 1px solid rgba(20%,20%,40%,0.5);
+    }
+        .dataArea td {
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+            text-align: left;
+        }
+</style>
+
+<script type="text/javascript">
+    //查詢列
+    var source_type = "@source_type";
+
+    $(function () {
+        var availableTags = [@Html.Raw("'" + string.Join("', '", (string[])ViewBag.dt_NursePlan) + "'")];             
+        $("#title").autocomplete({
+            source: availableTags
+        });
+    });
+
+    $(function () {
+        close_pup_window();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 120).outerWidth($(this).outerWidth() - 10);
+        }).trigger("resize");
+        setGridColor();
+
+        if (source_type=="NPlan") {
+            $("#source_type").val(source_type);
+        }
+
+        //註冊button按下後事件，開啟imgAreaSelect頁面        
+        $("#btnOpenImgAreaSelect").click(function () {
+            //一裁剪完，此頁的圖片要顯示裁剪圖片而hidden欄位要記下裁剪後圖片的檔名
+            var url = "@Url.Action("GetEKG", "CareRecord")?openerDataId=ECKImgDate&openerImgId=ECKImg";
+            //覺得window.open()太醜的話，再自行用fancybox或colorbox美化
+            window.open(url, 'top_dialog', 'width=' + (screen.width - 20) + ',resizable=yes,height=' + (screen.height - 70));
+        });
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.tdeven').css('background', '#ABC8E2');
+        $('.tdodd').css('background', '#E1E6FA');
+    }
+
+    //註記focus的text
+    function Mark(id) {
+        $("#key").val(id);
+    }
+
+    //螢幕鍵盤輸入_驗證
+    function btn_write(word) {
+        var Markid = $("#key").val();
+        var myArea = document.getElementById(Markid);
+        @*IE*@
+        if (document.selection) {
+            myArea.focus();
+            var mySelection = document.selection.createRange();
+            mySelection.text = word;
+        }
+        @*FireFox, Chrome*@
+        else {
+            var myPrefix = myArea.value.substring(0, myArea.selectionStart);
+            var mySuffix = myArea.value.substring(myArea.selectionEnd);
+            var preStr = myPrefix + word;
+            var preLen = preStr.length;
+            myArea.value = preStr + mySuffix;
+            myArea.selectionStart = preLen;
+            myArea.selectionEnd = preLen;
+            myArea.focus();
+        }
+    }
+
+    function pup_window(url, width, height) {
+        new_window.push(window.open(url + '?id=' + $('#key').val(), 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,resizable=yes,toolbar=no,width=' + width + ',height=' + height));
+    }
+    function Giveup() {
+        var hrefUrl = "List";
+        if (source_type=="NPlan") {
+            hrefUrl = "../NurseCarePlan/List";
+        }
+        if (confirm('確認放棄?'))
+        {
+            window.location.href = hrefUrl;
+        }
+    }
+</script>
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+    <tr>
+        <td colspan="2">
+            @*<div class="funcArea" style="display:none">
+               <input type="button" value="呼吸療法" style="width:100px;" onclick="pup_window('Breath', '900', '500');" />
+               <input type="button" value="生命徵象" style="width:100px;" onclick="pup_window('Vital_Sign', '900', '450');" />
+               <input type="button" value="管路" style="width:100px;" onclick="pup_window('Tube', '900', '500');" />
+               <input type="button" value="輸入/輸出" style="width:100px;" onclick="pup_window('../IOManage/IO', '900', '500');" />
+               <input type="button" value="傷口" style="width:100px;" onclick="pup_window('../Wound/Record', '900', '500');" />
+            </div>*@
+            @Html.Partial("all_button")        
+        </td>
+    </tr>
+
+    <tr>
+        <td style="padding:5px 0 5px 0;">
+        <div class="dataArea" style="height:320px;">
+            @*@WebTool.setDateTime("txt_day", "txt_time","","0","",mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+            @if (dt.Rows.Count > 0)
+            {
+            <form action="Update" method="post">
+                <input type="hidden" id="source_type" name="source_type">
+                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;background-color: #FFFFFF;">
+                    <tr>
+                        <td class="tdodd" style="width:15%;min-width:110px;">
+                            <span>紀錄日期時間e</span>
+                        </td>
+                        <td class="tdeven">
+                            <input type="text" id="txt_day" name="txt_day" value="@(Convert.ToDateTime(dt.Rows[0]["RECORDTIME"]).ToString("yyyy/MM/dd"))" />
+                            <input type="text" id="txt_time" name="txt_time" value="@(Convert.ToDateTime(dt.Rows[0]["RECORDTIME"]).ToString("HH:mm"))" />
+                            @*@WebTool.setDateTime("txt_day", "txt_time", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>治療/處置</span></td>
+                        <td class="tdeven">
+                            @Html.TextBox("title", dt.Rows[0]["TITLE"], new { style = "font-size:20px;width:250px", onfocus = "Mark(this.id);"})                          
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd" style="width:15%;">
+                            <span>EKG</span>
+                        </td>
+                        <td class="tdeven">
+                            @Html.Hidden("ECKImgDate")
+                            <div id="ECKImg">
+                               @if (dt.Rows[0]["EKG"].ToString() != "")
+                               {
+                                   byte[] imageBytes = (byte[])dt.Rows[0]["EKG"];
+                                   string base64String = Convert.ToBase64String(imageBytes);
+                                <img src="@String.Format("data:image/png;base64,{0}", base64String)" />
+                               }
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>紀錄內容<br />(一般)</span></td>
+                        <td class="tdeven">
+                            <div style="color:red;">@dt.Rows[0]["C_OTHER"].ToString()</div>
+                            @Html.TextArea("record_com", dt.Rows[0]["C"].ToString(), new { style = "width:90%;height:80px;font-size:20px;" ,onfocus = "Mark(this.id);" })
+                            <input type="button" class="voiceBtn" style="width:65px" value="語音歷程" onclick="VoiceopenText('@(userno)', '@(feeno)', 'NursingRecordG',document.all('record_com'));" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>記錄(S)<br />(主觀)</span></td>
+                        <td class="tdeven">
+                            <span style="color:red;">@dt.Rows[0]["S_OTHER"].ToString()</span>
+                            @Html.TextArea("record_s", dt.Rows[0]["S"].ToString(), new { style = "width:90%;height:80px;font-size:20px;", onfocus = "Mark(this.id);" })
+                            <input type="button" class="voiceBtn" style="width:65px" value="語音歷程" onclick="VoiceopenText('@(userno)', '@(feeno)', 'NursingRecordS',document.all('record_s'));" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>記錄(0)<br />(客觀)</span></td>
+                        <td class="tdeven">
+                            <span style="color:red;">@dt.Rows[0]["O_OTHER"].ToString()</span>
+                            @Html.TextArea("record_o", dt.Rows[0]["O"].ToString(), new { style = "width:90%;height:80px;font-size:20px;", onfocus = "Mark(this.id);" })
+                            <input type="button" class="voiceBtn" style="width:65px" value="語音歷程" onclick="VoiceopenText('@(userno)', '@(feeno)', 'NursingRecordO',document.all('record_o'));" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>記錄(I)<br />(執行)</span></td>
+                        <td class="tdeven">
+                            <span style="color:red;">@dt.Rows[0]["I_OTHER"].ToString()</span>
+                            @Html.TextArea("record_i", dt.Rows[0]["I"].ToString(), new { style = "width:90%;height:80px;font-size:20px;", onfocus = "Mark(this.id);" })
+                            <input type="button" class="voiceBtn" style="width:65px" value="語音歷程" onclick="VoiceopenText('@(userno)', '@(feeno)', 'NursingRecordI',document.all('record_i'));" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>記錄(E)<br />(評值)</span></td>
+                        <td class="tdeven">
+                            <span style="color:red;">@dt.Rows[0]["E_OTHER"].ToString()</span>
+                            @Html.TextArea("record_e", dt.Rows[0]["E"].ToString(), new { style = "width:90%;height:80px;font-size:20px;", onfocus = "Mark(this.id);" })
+                            <input type="button" class="voiceBtn" style="width:65px" value="語音歷程" onclick="VoiceopenText('@(userno)', '@(feeno)', 'NursingRecordE',document.all('record_e'));" />
+                        </td>
+                    </tr>
+                </table>
+                <input name="id" type="hidden" value="@dt.Rows[0]["CARERECORD_ID"]@dt.Rows[0]["SELF"]" />
+                <input name="self" type="hidden" value="@dt.Rows[0]["SELF"]" />
+                <input name="emrid" type="hidden" value="@dt.Rows[0]["CARERECORD_ID"]" />
+                <input id="save" type="button" style="display:none;" onclick="loop_windows('open_cover'); submit();" />
+            </form>
+            }
+            else
+            {
+            <form action="Insert" method="post">
+                <input type="hidden" id="source_type" name="source_type">
+                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;background-color: #FFFFFF;">
+                    <tr>
+                        <td class="tdodd" style="width:15%;min-width:110px;">
+                            <span>紀錄日期時間</span>
+                        </td>
+                        <td class="tdeven">
+                            @Html.TextBox("txt_day", @DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px" })
+                            @Html.TextBox("txt_time", @DateTime.Now.ToString("HH:mm"), new { style = "width:50px" })
+                            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>治療/處置</span></td>
+                        <td class="tdeven">
+                            @Html.TextBox("title", "", new { style = "font-size:20px;width:250px" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd" style="width:15%;">
+                            <span>EKG</span>
+                        </td>
+                        <td class="tdeven">
+                            @Html.Hidden("ECKImgDate")
+                            <div id="ECKImg"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>紀錄內容<br />(一般)</span></td>
+                        <td class="tdeven">
+                            <span id="span_record_com" style="color:red;"></span>
+                            <input type="hidden" id="hid_record_com" name="hid_record_com" value="" />
+                            @Html.TextArea("record_com", "", new { style = "font-size:20px;width:90%;height:80px;", onfocus = "Mark('record_com');" })
+                            <input type="button" class="voiceBtn" style="width:65px" value="語音歷程" onclick="VoiceopenText('@(userno)', '@(feeno)', 'NursingRecordG',document.all('record_com'));" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>記錄(S)<br />(主觀)</span></td>
+                        <td class="tdeven">
+                            <span id="span_record_s" style="color:red;"></span>
+                            <input type="hidden" id="hid_record_s" name="hid_record_s" value="" />
+                            @Html.TextArea("record_s", "", new { style = "font-size:20px;width:90%;height:80px;", onfocus = "Mark('record_s');" })
+                            <input type="button" class="voiceBtn" style="width:65px" value="語音歷程" onclick="VoiceopenText('@(userno)', '@(feeno)', 'NursingRecordS',document.all('record_s'));" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>記錄(0)<br />(客觀)</span></td>
+                        <td class="tdeven">
+                            <span id="span_record_o" style="color:red;"></span>
+                            <input type="hidden" id="hid_record_o" name="hid_record_o" value="" />
+                            @Html.TextArea("record_o", "", new { style = "font-size:20px;width:90%;height:80px;", onfocus = "Mark('record_o');" })
+                            <input type="button" class="voiceBtn" style="width:65px" value="語音歷程" onclick="VoiceopenText('@(userno)', '@(feeno)', 'NursingRecordO',document.all('record_o'));" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>記錄(I)<br />(執行)</span></td>
+                        <td class="tdeven">
+                            <span id="span_record_i" style="color:red;"></span>
+                            <input type="hidden" id="hid_record_i" name="hid_record_i" value="" />
+                            @Html.TextArea("record_i", "", new { style = "font-size:20px;width:90%;height:80px;", onfocus = "Mark('record_i');" })
+                            <input type="button" class="voiceBtn" style="width:65px" value="語音歷程" onclick="VoiceopenText('@(userno)', '@(feeno)', 'NursingRecordI',document.all('record_i'));" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="tdodd"><span>記錄(E)<br />(評值)</span></td>
+                        <td class="tdeven">
+                            <span id="span_record_e" style="color:red;"></span>
+                            <input type="hidden" id="hid_record_e" name="hid_record_e" value="" />
+                            @Html.TextArea("record_e", "", new { style = "font-size:20px;width:90%;height:80px;", onfocus = "Mark('record_e');" })
+                            <input type="button" class="voiceBtn" style="width:65px" value="語音歷程" onclick="VoiceopenText('@(userno)', '@(feeno)', 'NursingRecordE',document.all('record_e'));" />
+                        </td>
+                    </tr>
+                </table>
+                <input id="save" type="button" style="display:none;" onclick="loop_windows('open_cover'); submit();" />
+            </form>
+            }
+        </div>
+        </td>
+    </tr>
+    <tr><td colspan="2" style="text-align:center;">
+        <div class="funcArea">
+            <input type="button" value="護理紀錄新增存檔" onclick="this.disabled = true; $('#save').click();" />
+            <input id="cancle" type="button" value="放棄目前編輯資料" onclick="Giveup();" />
+        </div>
+    </td></tr>
+</table>

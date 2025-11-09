@@ -1,0 +1,1356 @@
+﻿@using System.Data;
+@using Newtonsoft.Json;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    NIS.Data.PatientInfo patientInfo = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.UserInfo userInfo = (NIS.Data.UserInfo)Session["UserInfo"];
+    DataTable TemplateAfter = ViewBag.TemplateAfter;
+    string JsonTemplateAfter = JsonConvert.SerializeObject(TemplateAfter);
+    DataTable DetailAfter = ViewBag.DetailAfter;
+    string JsonDetailAfter = JsonConvert.SerializeObject(DetailAfter);
+    string MasterID = ViewBag.MasterID;
+    string TemplateID = "";
+    TemplateID = ViewBag.TemplateID;
+    string title = "";
+    if (TemplateID != null && TemplateID != "")
+    {
+        title = "編輯急救後資訊";
+    }
+    else
+    {
+        title = "新增急救後資訊";
+    }
+
+    bool IsDischarged = false;
+    if (Convert.ToDateTime(patientInfo.OutDate).ToString("yyyy").ToString() != "0001" && patientInfo.OutDate < DateTime.Now)
+    {
+        IsDischarged = true;
+    }
+
+}
+<style type="text/css">
+    #module_define {
+        padding: 5px;
+        text-align: left;
+        background-color: #d5d5f7 !important;
+        width: 100%;
+        border-radius: 10px !important;
+        font-size: 28px;
+        font-weight: 800;
+        border: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        font-family: Arial, EUDC !important;
+    }
+
+    .fun_btn {
+        font-size: 17px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 5px 5px 4px 4px !important;
+        cursor: pointer;
+    }
+
+    .check_btn {
+        background-color: #3c7ec3 !important;
+    }
+
+    .add_btn {
+        background-color: #42b55b !important;
+    }
+
+    .modify_btn {
+        background-color: #ed9017 !important;
+    }
+
+    .delete_btn {
+        background-color: #ed6f6f !important;
+    }
+
+    .dataHeader td {
+        font-weight: bold;
+        margin: 1px 1px 1px 1px;
+        background-color: #cfe1eb;
+        text-align: center;
+        vertical-align: middle;
+        height: 26px;
+    }
+
+    .dataHeader {
+        border-radius: 10px !important;
+        margin-right: 0 !important;
+    }
+
+    .funcArea table {
+        font-family: Arial, EUDC;
+    }
+
+    .dataArea {
+        border: 0 !important;
+        overflow: hidden;
+    }
+
+    .dataArea td {
+        border-bottom: 0 !important;
+    }
+
+    #cover {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1001;
+    }
+
+    #divrecord {
+        display: none;
+        position: fixed;
+        top: 20%;
+        left: 25%;
+        background: white;
+        z-index: 2000;
+        padding: 20px;
+        border: 1px solid #333;
+    }
+</style>
+<script type="text/javascript">
+    var TemplateAfter = @Html.Raw(JsonTemplateAfter);
+    var DetailAfter = @Html.Raw(JsonDetailAfter);
+    var propertiesList = ["MasterID", "TemplateID", "Type", "EKG_Picture_Base64"];
+
+    $(document).ready(function () {
+        //設定MasterID、TemplateID供儲存時使用
+        $('input[name=MasterID]').val('@MasterID');
+        $('input[name=TemplateID]').val('@TemplateID');
+
+        setGridColor();
+        LoadAfterRecord();
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr').css('background', '#E1E6FA');
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            $(".outerDiv").outerHeight(height - 100);
+        }).trigger("resize");
+    }
+
+    //顯示隱藏題目
+    function ShowSpan(idList) {
+        if (idList.length > 0) {
+            for (var i = 0; i < idList.length; i++) {
+                $("#" + idList[i]).show();
+            }
+        }
+    }
+
+    //隱藏題目
+    function HideSpan(idList) {
+        if (idList.length == 0) {
+            return;
+        }
+        for (var i = 0; i < idList.length; i++) {
+            $("#" + idList[i]).hide();
+            var inputList = $('#' + idList[i] + ' input, #' + idList[i] + ' textarea');
+            if (inputList.length > 0) {
+                for (var j = 0; j < inputList.length; j++) {
+                    var inputType = inputList[j].type;
+                    switch (inputType) {
+                        case 'text':
+                        case 'textarea':
+                            inputList[j].value = '';
+                            break;
+                        case 'radio':
+                        case 'checkbox':
+                            inputList[j].checked = false;
+                            break;
+                    }
+                }
+            }
+        }
+    }
+
+    // 開啟VitalSign帶入介面跳窗
+    function OpenVitalSign() {
+        var url = "../EmergencyTreatment/VitalSign?MasterID="+'@MasterID';
+        window.open(url, 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=1000,top=50,left=150');
+    }
+
+    // 開啟Insert畫面
+    function OpenInsertView(MasterID) {
+        var url = 'Insert?MasterID=' + MasterID;
+        window.location.href = url;
+    }
+
+    // 開啟圖片跳窗
+    function ShowImg(obj) {
+        var src = $(obj).attr('src');
+        var newwindow = window.open('', 'top_dialog', 'menubar=yes,status=yes,scrollbars=yes,top=0,resizable=yes,left=0');
+        var t = newwindow.document.createElement('img');
+        $(t).prop('src', src);
+        $(newwindow.document.body).html(t);
+    }
+
+    // 取得員工姓名
+    function GetUserName(UserID, type) {
+        if (UserID == null || UserID == '') {
+            return;
+        }
+        $.ajax({
+            type: 'POST',
+            cache: false,
+            async: true,
+            dataType: 'json',
+            contentType: "application/json",
+            url: '@Url.Content("~/EmergencyTreatment/GetUserName")',
+            data: JSON.stringify({
+                UserID: UserID
+            }),
+            success: function (data) {
+                if (data.status == 0) {
+                    var UserName = data.message;
+                    $('#Input' + type + 'Name').val(UserName);
+                }
+            }
+        });
+    }
+
+    // 把員工姓名放入序列中
+    function ImportUserNameToList(type, UserName) {
+        if (UserName == null || UserName == '') {
+            return;
+        }
+
+        var NameList = $('input[name=Emergency_' + type + ']').val();
+        var inputElement = document.createElement('input');
+        inputElement.id = 'Emergency_' + type + '_' + UserName;
+        inputElement.type = 'button';
+        inputElement.value = UserName + ' X';
+        inputElement.style = 'margin-left:3px';
+        inputElement.addEventListener('click', function () {
+            var typeName = '';
+            switch (type) {
+                case 'Doctor':
+                    typeName = '醫師';
+                    break;
+                case 'SpecialistNurse':
+                    typeName = '專科護理師';
+                    break;
+                case 'Nurse':
+                    typeName = '護理師';
+                    break;
+                case 'RespiratoryTherapist':
+                    typeName = '呼吸治療師';
+                    break;
+                case 'OtherStaff':
+                    typeName = '其他人員';
+                    break;
+                default:
+                    typeName = type;
+                    break;
+            }
+            if (confirm('是否移除 [' + UserName + '] 於 [' + typeName +'] 列表?')) {
+                RemoveUserNameFromList(type, UserName);
+            }
+            else {
+                return;
+            }
+        })
+        //檢查員工序列是否為空
+        if (NameList != null && NameList != '') {
+            var NameArray = NameList.split(',');
+            if (!NameArray.includes(UserName)) {
+                NameArray.push(UserName);
+                $('#Emergency_' + type + '_List').append(inputElement)
+            }
+            $('input[name=Emergency_' + type + ']').val(NameArray.join(','));
+        }
+        else {
+            $('input[name=Emergency_' + type + ']').val(UserName);
+            $('#Emergency_' + type + '_List').append(inputElement)
+        }
+        //console.log($('input[name=Emergency_' + type + ']').val());
+    }
+
+    // 把員工從選中的序列中移除
+    function RemoveUserNameFromList(type, UserName) {
+        if (!type || !UserName) {
+            return;
+        }
+        var NameList = $('input[name=Emergency_' + type + ']').val();
+        //檢查員工序列是否為空
+        if (NameList) {
+            var NameArray = NameList.split(',');
+            var filteredArray = NameArray.filter((x) =>  x != UserName );
+            $('input[name=Emergency_' + type + ']').val(filteredArray.join(','));
+            $('#Emergency_' + type + '_' + UserName).remove();
+        }
+    }
+
+    // 驗證儲存資料
+    function dtl_check() {
+        var success = true;
+        var tr_list = $('p[must=Y]:visible,div[must=Y]:visible,td[must=Y]:visible');
+        for (var i = 0; i < tr_list.length; i++) {
+            var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                var input_name = '';
+                for (var j = 0; j < input_list.length; j++) {
+                    //檢查input的name是否為空
+                    if (input_name != $(input_list[j]).attr('name')) {
+                        input_name = $(input_list[j]).attr('name');
+                        //判斷input類型
+                        if (input_list[j].type == 'text' || input_list[j].type == 'textarea') {
+                            var input_val = $.trim(input_list[j].value);
+                        }
+                        else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                            var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+                        }
+                        //input值為空時停止驗證並提示
+                        if (input_val == undefined || input_val == '') {
+                            success = false;
+                            alert($(tr_list[i]).find('.subtitle').html() + ' 未填寫!')
+                            i = tr_list.length;
+                            j = input_list.length;
+                        }
+                    }
+                }
+            }
+        }
+        return success;
+    }
+
+    // 儲存
+    function Save() {
+        $(".loading").fadeIn(500);
+        var setStr = "SET0410112733";
+        $('#CareRecordStr').val($('#text_content').val());
+        $('#ExecutionStr').val($('#text_content2').val());
+        $.ajax({
+            type: 'POST',
+            cache: false,
+            async: true,
+            url: '@Url.Content("~/EmergencyTreatment/Save")',
+            data: $('#form1').serialize(),
+            success: function (data) {
+                $(".loading").fadeOut(500);
+                if (data.status == 0) {
+                    alert(data.message);
+                    OpenInsertView('@MasterID');
+
+                    if ('@IsDischarged' == 'False') {
+                        window.open('../Billing/index?set=' + setStr, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=300,toolbar=no,width=1290,height=800');
+                    }
+                }
+                else {
+                    alert(data.message);
+                }
+            }
+        });
+    }
+
+    let defIndex = 0;
+    // 載入紀錄
+    function LoadAfterRecord() {
+        if (TemplateAfter.length == 0 || DetailAfter.length == 0) {
+
+            // 預設意識狀況
+            $('[name="LOC_GCS_E"][value="1"]').prop('checked', true);
+            $('[name="LOC_GCS_V"][value="1"]').prop('checked', true);
+            $('[name="LOC_GCS_M"][value="1"]').prop('checked', true);
+
+            return;
+        }
+
+        // 載入EKG圖片
+        if (TemplateAfter[0].EKG != null) {
+            var srcString = "data:image/png;base64," + TemplateAfter[0].EKG;
+            var ECK_IMGElement = document.createElement('img');
+            ECK_IMGElement.src = srcString;
+            $('input[name=EKG_Picture_Base64]')[0].value = TemplateAfter[0].EKG;
+            $('#EKGPicture').attr('src',srcString)
+            //ShowSpan(['span_EKG_Picture_Import', 'span_EKG_Picture'])
+        }
+
+        // 急救人員題目ItemID
+        var EmergencyStaffItemIDList = ["Emergency_Doctor", "Emergency_SpecialistNurse", "Emergency_Nurse", "Emergency_RespiratoryTherapist", "Emergency_OtherStaff"];
+
+        // 帶入資料
+        for (var i = 0; i < DetailAfter.length; i++) {
+            var ItemID = DetailAfter[i].ITEM_ID;
+            if (propertiesList.includes(ItemID)) {
+                continue;
+            }
+            var ItemValue = DetailAfter[i].ITEM_VALUE;
+            var InputElement = $("input[name='" + ItemID + "']");
+            if (InputElement.length == 0) {
+                continue;
+            }
+            var InputElementType = InputElement[0].type;
+            if (ItemID.includes("DefibrillationDate_") || ItemID.includes("DefibrillationTime_")) {
+                let index = ItemID.split("_")[1];
+                $('.defibrillation_template_' + index).show();
+                defIndex = index;
+            }
+            if (EmergencyStaffItemIDList.includes(ItemID)) { // 急救人員需額外處理
+                var type = ItemID.replace('Emergency_', '');
+                var UserNameList = ItemValue.split(',');
+                for (var j = 0; j < UserNameList.length; j++) {
+                    ImportUserNameToList(type, UserNameList[j]);
+                };
+            }
+            else {
+                switch (InputElementType) {
+                    case 'text':
+                        $("input[name='" + ItemID + "']")[0].value = ItemValue;
+                        break;
+                    case 'radio':
+                        const target = $("input[name='" + ItemID + "'][value='" + ItemValue + "']")[0];
+                        if (target) {
+                            target.click();
+                        }
+                        break;
+                    case 'checkbox':
+                        var ItemValueList = ItemValue.split(',');
+                        for (var z = 0; z < ItemValueList.length; z++) {
+                            const target = $("input[name='" + ItemID + "'][value='" + ItemValueList[z] + "']")[0];
+                            if (target) {
+                                target.click();
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+    }
+
+    // 預設心外按摩時間
+    function SetCPCRDateTimeDefault(CPCR) {
+        if (CPCR.checked) {
+            let now = new Date();
+
+            let date = now.getFullYear() + '/' +
+                String(now.getMonth() + 1).padStart(2, '0') + '/' +
+                String(now.getDate()).padStart(2, '0');
+
+            let time = String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0');
+
+            $('#CPCRDate').val(date);
+            $('#CPCRTime').val(time);
+        }
+        else {
+            $('#CPCRDate').val('');
+            $('#CPCRTime').val('');
+        }
+    }
+
+    // 預設電擊
+    function SetDefibrillationDefault(Defibrillation) {
+        if (Defibrillation) {
+            // 預設時間
+            let now = new Date();
+
+            let date = now.getFullYear() + '/' +
+                String(now.getMonth() + 1).padStart(2, '0') + '/' +
+                String(now.getDate()).padStart(2, '0');
+
+            let time = String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0');
+
+            $('#DefibrillationDate').val(date);
+            $('#DefibrillationTime').val(time);
+
+            // 預設焦耳
+            $('[name="Defibrillation_Joule"][value="50"]').prop('checked', true);
+        }
+        else {
+            $('#DefibrillationDate').val('');
+            $('#DefibrillationTime').val('');
+        }
+    }
+
+    const MAX_DEF = 20;
+    function btn_add_contact() {
+        if (defIndex < MAX_DEF) {
+            defIndex = Number(defIndex) + 1;
+            $('.defibrillation_template_' + defIndex).show();
+            $('#DefibrillationDate_' + defIndex).val('');
+            $('#DefibrillationTime_' + defIndex).val('');
+            $(`input[name="Defibrillation_Joule_${defIndex}"]`).prop('checked', false);
+            $('#span_Defibrillation_Joule_Other_' + defIndex).hide();
+            $('#Defibrillation_Joule_Other_' + defIndex).val('');
+        }
+    }
+
+    function btn_del_contact(index) {
+        if (index < 1 || index > defIndex) return;
+        for (let i = index; i < defIndex; i++) {
+            $('#DefibrillationDate_' + i).val($('#DefibrillationDate_' + (i + 1)).val());
+            $('#DefibrillationTime_' + i).val($('#DefibrillationTime_' + (i + 1)).val());
+            $('#span_Defibrillation_Joule_Other_' + i).val($('#span_Defibrillation_Joule_Other_' + (i + 1)).val());
+
+            const $nextJoules = $(`input[name="Defibrillation_Joule_${i + 1}"]`);
+            const nextChecked = $nextJoules.filter(':checked').val() || '';
+            const $thisJoules = $(`input[name="Defibrillation_Joule_${i}"]`).prop('checked', false);
+            if (nextChecked) {
+                $(`input[name="Defibrillation_Joule_${i}"][value="${nextChecked}"]`).prop('checked', true);
+            }
+
+            const nextOther = $('#Defibrillation_Joule_Other_' + (i + 1)).val() || '';
+            $('#Defibrillation_Joule_Other_' + i).val(nextOther);
+            if (nextChecked === '其他' || nextOther) {
+                $('#span_Defibrillation_Joule_Other_' + i).show();
+            } else {
+                $('#span_Defibrillation_Joule_Other_' + i).hide();
+            }
+        }
+
+        $('#DefibrillationDate_' + defIndex).val('');
+        $('#DefibrillationTime_' + defIndex).val('');
+        $(`input[name="Defibrillation_Joule_${defIndex}"]`).prop('checked', false);
+        $('#Defibrillation_Joule_Other_' + defIndex).val('');
+        $('#span_Defibrillation_Joule_Other_' + defIndex).hide();
+
+        $('.defibrillation_template_' + defIndex).hide();
+        defIndex -= 1;
+    }
+
+    //儲存護理紀錄
+    function CheckCareRecord() {
+        var careRecordStr = buildCareRecordStr()
+        var ExecutionStr = buildExecutionStr()
+        $("#divrecord").show();
+        $('#text_content').val(careRecordStr);
+        $('#text_content2').val(ExecutionStr);
+        $("#cover").show();
+    }
+
+    function buildCareRecordStr() {
+        // ----------- 共用取值工具 -----------
+        const f = (name) => {
+            const els = document.querySelectorAll(`[name="${name}"]`);
+            if (!els.length) return "";
+            const type = els[0].type;
+            if (type === "radio") {
+                const checked = [...els].find((el) => el.checked);
+                return checked ? checked.value.trim() : "";
+            }
+            if (type === "checkbox") {
+                return [...els].filter((el) => el.checked).map((el) => el.value.trim());
+            }
+            return els[0].value.trim();
+        };
+        const fAll = (name) => f(name).join("、");
+
+        let careRecordStr = "";
+
+        // ----------- 急救結束時間 -----------
+        const endDate = f("EndEmergencyTreatmentDate");
+        const endTime = f("EndEmergencyTreatmentTime");
+        if (endDate || endTime) {
+            careRecordStr += `急救結束時間：${endDate} ${endTime}，`;
+        }
+
+        // ----------- 生命徵象 -----------
+        const vs_BT = f("VitalSign_BT");
+        const vs_HR = f("VitalSign_HR");
+        const vs_Resp = f("VitalSign_Respiratory");
+        const vs_BP_Sys = f("VitalSign_BP_Systolic");
+        const vs_BP_Dia = f("VitalSign_BP_Diastolic");
+        const vs_SPO2 = f("VitalSign_SPO2");
+
+        const vsArr = [];
+        if (vs_BT) vsArr.push(`體溫：${vs_BT}℃`);
+        if (vs_HR) vsArr.push(`心跳：${vs_HR}次/分鐘`);
+        if (vs_Resp) vsArr.push(`呼吸：${vs_Resp}次/分鐘`);
+        if (vs_BP_Sys || vs_BP_Dia) vsArr.push(`血壓：${vs_BP_Sys}/${vs_BP_Dia} mmHg`);
+        if (vs_SPO2) vsArr.push(`血氧：${vs_SPO2}%`);
+        if (vsArr.length) careRecordStr += `生命徵象：${vsArr.join("、")}。`;
+
+        // ----------- 意識狀況 -----------
+        const LOC_E = f("LOC_GCS_E");
+        const LOC_V = f("LOC_GCS_V");
+        const LOC_M = f("LOC_GCS_M");
+        const LOC_Eye_Left_Size = f("LOC_Eye_Left_Size");
+        const LOC_Eye_Right_Size = f("LOC_Eye_Right_Size");
+
+        let LOC_Eye_Left_Reflex = f("LOC_Eye_Left_Reflex");
+        if (LOC_Eye_Left_Reflex === "其他") LOC_Eye_Left_Reflex = f("LOC_Eye_Left_Reflex_Other");
+        let LOC_Eye_Right_Reflex = f("LOC_Eye_Right_Reflex");
+        if (LOC_Eye_Right_Reflex === "其他") LOC_Eye_Right_Reflex = f("LOC_Eye_Right_Reflex_Other");
+
+        const locArr = [];
+        if (LOC_E) locArr.push(`E：${LOC_E}`);
+        if (LOC_V) locArr.push(`V：${LOC_V}`);
+        if (LOC_M) locArr.push(`M：${LOC_M}`);
+        if (LOC_Eye_Left_Size || LOC_Eye_Left_Reflex)
+            locArr.push(`瞳孔：左眼：${LOC_Eye_Left_Size}mm (${LOC_Eye_Left_Reflex})`);
+        if (LOC_Eye_Right_Size || LOC_Eye_Right_Reflex)
+            locArr.push(
+                (LOC_Eye_Left_Size || LOC_Eye_Left_Reflex)
+                    ? `右眼：${LOC_Eye_Right_Size}mm (${LOC_Eye_Right_Reflex})`
+                    : `瞳孔：右眼：${LOC_Eye_Right_Size}mm (${LOC_Eye_Right_Reflex})`
+            );
+        if (locArr.length) careRecordStr += `意識狀況：${locArr.join("、")}。`;
+
+        // ----------- 心電圖波型 -----------
+        let EKG_Waveform = f("EKG_Waveform");
+        if (EKG_Waveform === "其他") EKG_Waveform = f("EKG_Waveform_Other");
+        if (EKG_Waveform) careRecordStr += `心電圖波型：${EKG_Waveform}。`;
+
+        // ----------- 急救結果 -----------
+        const outcome = f("EmergencyTreatmentOutcome");
+        const bed = f("EmergencyTreatmentOutcome_BedNumber");
+        if (outcome) {
+            const outcomeStr =
+                outcome === "轉入加護病房" && bed ? `${outcome}(${bed})` : outcome;
+            careRecordStr += `經______醫師評估後，予以${outcomeStr}處置。`;
+        }
+
+        console.log(careRecordStr);
+        return careRecordStr;
+    }
+
+    function buildExecutionStr() {
+        // --- 通用取值函式 ---
+        const f = (name) => {
+            const els = document.querySelectorAll(`[name="${name}"]`);
+            if (!els.length) return "";
+            const type = els[0].type;
+            if (type === "radio") {
+                const checked = [...els].find((el) => el.checked);
+                return checked ? checked.value.trim() : "";
+            }
+            if (type === "checkbox") {
+                return [...els].filter((el) => el.checked).map((el) => el.value.trim());
+            }
+            return els[0].value.trim();
+        };
+        let recordStr = "持續給予電擊器與生理監視器使用，依________醫師醫囑，給予";
+        const treatments = f("Treatment");
+        const treatmentTexts = [];
+        if (treatments.includes("NonRebeathingMask") || treatments.includes("Non-rebeathing mask")) {
+            treatmentTexts.push("Non-rebeathing mask。");
+        }
+        if (treatments.includes("置入氣管內管")) {
+            treatmentTexts.push("緊急置入氣管內管，聽診氣管內管位置正確，使用宜拉膠固定。");
+        }
+        if (treatments.includes("置入氣切") || treatments.includes("緊急氣切")) {
+            treatmentTexts.push("緊急氣切，聽診位置正確，以紗條固定。");
+        }
+        if (treatments.includes("置入CVP")) {
+            treatmentTexts.push("緊急置入CVP。");
+        }
+        if (treatments.includes("其他")) {
+            const other = f("Treatment_Other");
+            if (other) treatmentTexts.push(`${other}。`);
+        }
+        if (treatments.includes("心外按摩")) {
+            const cprDate = f("CPCRDate");
+            const cprTime = f("CPCRTime");
+            treatmentTexts.push(`心外按摩開始時間：${cprDate} ${cprTime}。`);
+        }
+        const defibrillation = f("Treatment");
+        if (defibrillation.includes("電擊")) {
+            const date = f("DefibrillationDate");
+            const time = f("DefibrillationTime");
+
+            let joule = f("Defibrillation_Joule");
+            if (joule === "其他") joule = f("Defibrillation_Joule_Other");
+
+            if (date || time || joule) {
+                treatmentTexts.push(`電擊開始時間：${date} ${time}，第一次電擊：${joule}焦耳。`);
+            }
+        }
+        if (treatmentTexts.length) {
+            recordStr += treatmentTexts.join("");
+        }
+        console.log(recordStr);
+        return recordStr;
+    }
+</script>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width: 100%; font-size: 18px !important">
+    <tr>
+        <td style="width:100%;text-align:center;">
+            <div id="module_define">@title</div>
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 5px 0 5px 0;">
+            <div class="funcArea">
+                <input type="button" class="fun_btn add_btn" id="save" value="存檔" onclick="CheckCareRecord()" />
+                <input type="button" class="fun_btn delete_btn" value="取消" onclick="if (confirm('確定取消?')) OpenInsertView('@MasterID')" />
+            </div>
+        </td>
+    </tr>
+</table>
+@*急救後資訊*@
+<form id="form1" method="post" action="">
+    <input type="hidden" name="MasterID" />
+    <input type="hidden" name="TemplateID" />
+    <input type="hidden" name="Type" value="After" />
+    <div class="outerDiv" style="width: 100%; margin-top: 5px; overflow-y: auto; overflow-x: hidden ">
+        <div style="width: 100%">
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 18px;">
+                    <tr>
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">急救過程</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div style="width: 100%">
+            <div class="dataArea" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 18px;">
+                    <tr>
+                        <th style="width:10%">執行措施</th>
+                        <td colspan="2">
+                            <label><input type="checkbox" name="Treatment" onclick="(this.checked)?ShowSpan(['span_Treatment_ChestCompressions']):HideSpan(['span_Treatment_ChestCompressions']);SetCPCRDateTimeDefault(this);" value="心外按摩" />心外按摩</label>
+                            <span id="span_Treatment_ChestCompressions" style="display:none">
+                                <label>，CPCR開始時間:</label>
+                                @(Html.TextBox("CPCRDate"))
+                                @(Html.TextBox("CPCRTime"))
+                                @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "CPCRDate", "CPCRTime", false)
+                            </span>
+                            <div>電擊:</div>
+                            <label><input type="radio" name="Treatment" onclick="(this.checked)?HideSpan(['span_InitialTreatment_Defibrillation']):ShowSpan(['span_InitialTreatment_Defibrillation']);SetDefibrillationDefault(false)" checked>無電擊</label>
+                            <label><input type="radio" name="Treatment" onclick="(this.checked)?ShowSpan(['span_InitialTreatment_Defibrillation']):HideSpan(['span_InitialTreatment_Defibrillation']);SetDefibrillationDefault(true)" value="電擊">有電擊</label>
+                            <img src="/Images/plus.png" style="cursor: pointer; width: 15px;" title="新增一筆" alt="新增一筆" onclick="btn_add_contact();">
+                            <span id="span_InitialTreatment_Defibrillation" style="display:none">
+                                <label>開始時間:</label>
+                                @(Html.TextBox("DefibrillationDate"))
+                                @(Html.TextBox("DefibrillationTime"))
+                                @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate", "DefibrillationTime", false)
+                                <label>，第一次電擊焦耳數:</label>
+                                <label><input type="radio" name="Defibrillation_Joule" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other'])" />50</label>
+                                <label><input type="radio" name="Defibrillation_Joule" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other'])" />100</label>
+                                <label><input type="radio" name="Defibrillation_Joule" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other'])" />150</label>
+                                <label><input type="radio" name="Defibrillation_Joule" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other'])" />200</label>
+                                <label><input type="radio" name="Defibrillation_Joule" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other'])" />其他</label>
+                                <span id="span_Defibrillation_Joule_Other" style="display:none">
+                                    <input type="text" name="Defibrillation_Joule_Other" style="margin-left:5px" />
+                                </span>
+                                <div class="defibrillation_template_1" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(1)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_1"))
+                                    @(Html.TextBox("DefibrillationTime_1"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_1", "DefibrillationTime_1", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_1" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_1'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_1" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_1'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_1" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_1'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_1" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_1'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_1" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_1'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_1" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_1" name="Defibrillation_Joule_Other_1" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_2" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(2)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_2"))
+                                    @(Html.TextBox("DefibrillationTime_2"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_2", "DefibrillationTime_2", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_2" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_2'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_2" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_2'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_2" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_2'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_2" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_2'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_2" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_2'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_2" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_2" name="Defibrillation_Joule_Other_2" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_3" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(3)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_3"))
+                                    @(Html.TextBox("DefibrillationTime_3"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_3", "DefibrillationTime_3", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_3" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_3'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_3" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_3'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_3" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_3'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_3" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_3'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_3" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_3'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_3" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_3" name="Defibrillation_Joule_Other_3" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_4" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(4)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_4"))
+                                    @(Html.TextBox("DefibrillationTime_4"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_4", "DefibrillationTime_4", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_4" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_4'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_4" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_4'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_4" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_4'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_4" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_4'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_4" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_4'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_4" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_4" name="Defibrillation_Joule_Other_4" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_5" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(5)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_5"))
+                                    @(Html.TextBox("DefibrillationTime_5"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_5", "DefibrillationTime_5", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_5" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_5'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_5" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_5'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_5" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_5'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_5" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_5'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_5" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_5'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_5" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_5" name="Defibrillation_Joule_Other_5" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_6" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(6)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_6"))
+                                    @(Html.TextBox("DefibrillationTime_6"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_6", "DefibrillationTime_6", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_6" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_6'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_6" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_6'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_6" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_6'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_6" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_6'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_6" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_6'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_6" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_6" name="Defibrillation_Joule_Other_6" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_7" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(7)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_7"))
+                                    @(Html.TextBox("DefibrillationTime_7"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_7", "DefibrillationTime_7", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_7" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_7'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_7" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_7'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_7" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_7'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_7" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_7'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_7" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_7'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_7" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_7" name="Defibrillation_Joule_Other_7" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_8" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(8)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_8"))
+                                    @(Html.TextBox("DefibrillationTime_8"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_8", "DefibrillationTime_8", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_8" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_8'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_8" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_8'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_8" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_8'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_8" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_8'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_8" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_8'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_8" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_8" name="Defibrillation_Joule_Other_8" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_9" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(9)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_9"))
+                                    @(Html.TextBox("DefibrillationTime_9"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_9", "DefibrillationTime_9", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_9" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_9'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_9" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_9'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_9" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_9'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_9" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_9'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_9" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_9'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_9" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_9" name="Defibrillation_Joule_Other_9" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_10" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(10)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_10"))
+                                    @(Html.TextBox("DefibrillationTime_10"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_10", "DefibrillationTime_10", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_10" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_10'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_10" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_10'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_10" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_10'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_10" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_10'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_10" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_10'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_10" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_10" name="Defibrillation_Joule_Other_10" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_11" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(11)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_11"))
+                                    @(Html.TextBox("DefibrillationTime_11"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_11", "DefibrillationTime_11", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_11" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_11'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_11" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_11'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_11" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_11'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_11" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_11'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_11" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_11'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_11" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_11" name="Defibrillation_Joule_Other_11" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_12" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(12)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_12"))
+                                    @(Html.TextBox("DefibrillationTime_12"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_12", "DefibrillationTime_12", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_12" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_12'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_12" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_12'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_12" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_12'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_12" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_12'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_12" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_12'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_12" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_12" name="Defibrillation_Joule_Other_12" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_13" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(13)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_13"))
+                                    @(Html.TextBox("DefibrillationTime_13"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_13", "DefibrillationTime_13", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_13" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_13'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_13" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_13'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_13" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_13'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_13" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_13'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_13" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_13'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_13" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_13" name="Defibrillation_Joule_Other_13" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_14" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(14)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_14"))
+                                    @(Html.TextBox("DefibrillationTime_14"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_14", "DefibrillationTime_14", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_14" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_14'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_14" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_14'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_14" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_14'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_14" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_14'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_14" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_14'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_14" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_14" name="Defibrillation_Joule_Other_14" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_15" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(15)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_15"))
+                                    @(Html.TextBox("DefibrillationTime_15"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_15", "DefibrillationTime_15", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_15" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_15'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_15" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_15'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_15" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_15'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_15" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_15'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_15" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_15'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_15" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_15" name="Defibrillation_Joule_Other_15" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_16" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(16)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_16"))
+                                    @(Html.TextBox("DefibrillationTime_16"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_16", "DefibrillationTime_16", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_16" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_16'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_16" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_16'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_16" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_16'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_16" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_16'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_16" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_16'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_16" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_16" name="Defibrillation_Joule_Other_16" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_17" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(17)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_17"))
+                                    @(Html.TextBox("DefibrillationTime_17"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_17", "DefibrillationTime_17", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_17" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_17'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_17" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_17'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_17" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_17'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_17" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_17'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_17" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_17'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_17" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_17" name="Defibrillation_Joule_Other_17" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_18" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(18)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_18"))
+                                    @(Html.TextBox("DefibrillationTime_18"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_18", "DefibrillationTime_18", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_18" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_18'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_18" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_18'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_18" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_18'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_18" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_18'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_18" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_18'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_18" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_18" name="Defibrillation_Joule_Other_18" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_19" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(19)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_19"))
+                                    @(Html.TextBox("DefibrillationTime_19"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_19", "DefibrillationTime_19", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_19" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_19'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_19" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_19'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_19" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_19'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_19" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_19'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_19" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_19'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_19" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_19" name="Defibrillation_Joule_Other_19" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                                <div class="defibrillation_template_20" style="display:none;">
+                                    <br />
+                                    <img src="../Images/minus.png" style="padding-left:160px;cursor: pointer; width: 15px;" title="刪除" alt="刪除" onclick="btn_del_contact(20)">
+                                    <label>開始時間:</label>
+                                    @(Html.TextBox("DefibrillationDate_20"))
+                                    @(Html.TextBox("DefibrillationTime_20"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "DefibrillationDate_20", "DefibrillationTime_20", false)
+                                    <label>，電擊焦耳數:</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_20" value="50" onclick="HideSpan(['span_Defibrillation_Joule_Other_20'])" />50</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_20" value="100" onclick="HideSpan(['span_Defibrillation_Joule_Other_20'])" />100</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_20" value="150" onclick="HideSpan(['span_Defibrillation_Joule_Other_20'])" />150</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_20" value="200" onclick="HideSpan(['span_Defibrillation_Joule_Other_20'])" />200</label>
+                                    <label><input type="radio" name="Defibrillation_Joule_20" value="其他" onclick="ShowSpan(['span_Defibrillation_Joule_Other_20'])" />其他</label>
+                                    <span id="span_Defibrillation_Joule_Other_20" style="display:none">
+                                        <input type="text" id="Defibrillation_Joule_Other_20" name="Defibrillation_Joule_Other_20" style="margin-left:5px" />
+                                    </span>
+                                </div>
+                            </span><br />
+                            <label><input type="checkbox" name="Treatment" value="BVM" />BVM(Bag Valve Mask)</label><br />
+                            <label><input type="checkbox" name="Treatment" value="NonRebeathingMask" />Non-rebeathing mask</label><br />
+                            <label><input type="checkbox" name="Treatment" value="Thump" />Thump</label><br />
+                            <label><input type="checkbox" name="Treatment" value="置入氣管內管" />置入氣管內管</label><br />
+                            <label><input type="checkbox" name="Treatment" value="置入氣切" />置入氣切</label><br />
+                            <label><input type="checkbox" name="Treatment" value="置入CVP" />置入CVP</label><br />
+                            <label><input type="checkbox" name="Treatment" value="置入留置尿管" />置入留置尿管</label><br />
+                            <label><input type="checkbox" name="Treatment" value="置入鼻胃管" />置入鼻胃管</label><br />
+                            <label><input type="checkbox" name="Treatment" value="抽痰" />抽痰</label><br />
+                            <label><input type="checkbox" name="Treatment" value="呼吸器" />呼吸器</label><br />
+                            <label><input type="checkbox" name="Treatment" value="抽血" />抽血</label><br />
+                            <label><input type="checkbox" name="Treatment" value="其他" onclick="if (this.checked) { ShowSpan(['span_Treatment_Other']) } else { HideSpan(['span_Treatment_Other']);}" />其他</label>
+                            <span id="span_Treatment_Other" style="display:none">
+                                <input type="text" name="Treatment_Other" />
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>使用藥物</th>
+                        <td colspan="2">
+                            <label><input type="checkbox" name="DrugUse" value="Atropine" />Atropine</label>
+                            <label><input type="checkbox" name="DrugUse" value="Bosmin(Epinephrine)" />Bosmin(Epinephrine)</label>
+                            <label><input type="checkbox" name="DrugUse" value="Cordarone" />Cordarone</label>
+                            <label><input type="checkbox" name="DrugUse" value="Dobutamine" />Dobutamine</label>
+                            <label><input type="checkbox" name="DrugUse" value="Dopamin" />Dopamin</label>
+                            <label><input type="checkbox" name="DrugUse" value="Easydopa" />Easydopa</label>
+                            <label><input type="checkbox" name="DrugUse" value="NaHCO3" />NaHCO3</label>
+                            <label><input type="checkbox" name="DrugUse" value="Levophed" />Levophed</label>
+                            <label><input type="checkbox" name="DrugUse" value="其他" onclick="if (this.checked) { ShowSpan(['span_DrugUse_Other']) } else { HideSpan(['span_DrugUse_Other']);}" />其他</label>
+                            <span id="span_DrugUse_Other" style="display:none">
+                                <input type="text" name="DrugUse_Other" />
+                            </span>
+                            <div>
+                                <input type="button" class="fun_btn check_btn" value="開啟生命徵象暨急救藥物使用 清單" onclick="window.open('NoteList?MasterID=@MasterID', 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=1000,top=50,left=150')" />
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 18px;">
+                    <tr>
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">發生時狀況</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 18px;">
+                    <tr>
+                        <th style="width:10%">生命徵象</th>
+                        <td colspan="2">
+                            <input type="text" id="Assess_Time" name="VitalSign_AssessTime" style="display:none" />
+                            <input type="text" id="VS_Id" name="VitalSign_VS_ID" style="display:none" />
+                            體溫:<input type="text" id="BT" name="VitalSign_BT" style="width:50px" readonly /> ℃,&nbsp;
+                            心跳:<input type="text" id="HR" name="VitalSign_HR" style="width:50px" readonly /> bpm,&nbsp;
+                            呼吸:<input type="text" id="Respiratory" name="VitalSign_Respiratory" style="width:50px" readonly /> bpm,&nbsp;
+                            血壓:<input type="text" id="BP_Systolic" name="VitalSign_BP_Systolic" style="width:50px" readonly /> / <input type="text" id="BP_Diastolic" name="VitalSign_BP_Diastolic" style="width:50px" readonly /> mmHg,&nbsp;
+                            SPO2:<input type="text" id="SPO2" name="VitalSign_SPO2" style="width:50px" readonly /> %
+                            <input type="button" class="fun_btn check_btn" value="帶入" onclick="OpenVitalSign()" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th rowspan="3">意識狀況</th>
+                        <th style="width:5%">GCS</th>
+                        <td>
+                            <div style="display:flex">
+                                <div style="width: 15px">E</div>:
+                                <label><input type="radio" name="LOC_GCS_E" value="4" />4</label>
+                                <label><input type="radio" name="LOC_GCS_E" value="3" />3</label>
+                                <label><input type="radio" name="LOC_GCS_E" value="2" />2</label>
+                                <label><input type="radio" name="LOC_GCS_E" value="2" />2</label>
+                                <label><input type="radio" name="LOC_GCS_E" value="1" />1</label>
+                                <label><input type="radio" name="LOC_GCS_E" value="C" />C</label>
+                            </div>
+                            <div style="display:flex">
+                                <div style="width: 15px">V</div>:
+                                <label><input type="radio" name="LOC_GCS_V" value="5" />5</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="4" />4</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="3" />3</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="2" />2</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="2" />2</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="1" />1</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="T" />T</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="A" />A</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="E" />E</label>
+                            </div>
+                            <div style="display:flex">
+                                <div style="width: 15px">M</div>:
+                                <label><input type="radio" name="LOC_GCS_M" value="6" />6</label>
+                                <label><input type="radio" name="LOC_GCS_M" value="5" />5</label>
+                                <label><input type="radio" name="LOC_GCS_M" value="4" />4</label>
+                                <label><input type="radio" name="LOC_GCS_M" value="3" />3</label>
+                                <label><input type="radio" name="LOC_GCS_M" value="2" />2</label>
+                                <label><input type="radio" name="LOC_GCS_M" value="1" />1</label>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>瞳孔-左</th>
+                        <td>
+                            <div style="display:flex">
+                                <div>反射 :</div>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="-" onclick="HideSpan(['span_LOC_Eye_Left_Reflex_Other']);" />-</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="+" onclick="HideSpan(['span_LOC_Eye_Left_Reflex_Other']);" />+</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="±" onclick="HideSpan(['span_LOC_Eye_Left_Reflex_Other']);" />±</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="無法睜眼" onclick="HideSpan(['span_LOC_Eye_Left_Reflex_Other']);" />無法睜眼</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="無法評估" onclick="HideSpan(['span_LOC_Eye_Left_Reflex_Other']);" />無法評估</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="其他" onclick="ShowSpan(['span_LOC_Eye_Left_Reflex_Other'])" />其他</label>
+                                <span id="span_LOC_Eye_Left_Reflex_Other" style="display:none">
+                                    <input type="text" name="LOC_Eye_Left_Reflex_Other" style="margin-left:5px" />
+                                </span>
+                            </div>
+                            <div style="display:flex">
+                                <div>大小(mm) :</div>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="1" />1</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="1.5" />1.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="2" />2</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="2.5" />2.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="3" />3</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="3.5" />3.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="4" />4</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="4.5" />4.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="5" />5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="5.5" />5.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="6" />6</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="6.5" />6.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="7" />7</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="7.5" />7.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="8" />8</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="8.5" />8.5</label>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>瞳孔-右</th>
+                        <td>
+                            <div style="display:flex">
+                                <div>反射 :</div>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="-" onclick="HideSpan(['span_LOC_Eye_Right_Reflex_Other']);" />-</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="+" onclick="HideSpan(['span_LOC_Eye_Right_Reflex_Other']);" />+</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="±" onclick="HideSpan(['span_LOC_Eye_Right_Reflex_Other']);" />±</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="無法睜眼" onclick="HideSpan(['span_LOC_Eye_Right_Reflex_Other']);" />無法睜眼</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="無法評估" onclick="HideSpan(['span_LOC_Eye_Right_Reflex_Other']);" />無法評估</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="其他" onclick="ShowSpan(['span_LOC_Eye_Right_Reflex_Other'])" />其他</label>
+                                <span id="span_LOC_Eye_Right_Reflex_Other" style="display:none">
+                                    <input type="text" name="LOC_Eye_Right_Reflex_Other" style="margin-left:5px" />
+                                </span>
+                            </div>
+                            <div style="display:flex">
+                                <div>大小(mm) :</div>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="1" />1</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="1.5" />1.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="2" />2</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="2.5" />2.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="3" />3</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="3.5" />3.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="4" />4</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="4.5" />4.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="5" />5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="5.5" />5.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="6" />6</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="6.5" />6.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="7" />7</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="7.5" />7.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="8" />8</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="8.5" />8.5</label>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th rowspan="2">心電圖</th>
+                        <td colspan="2">
+                            <div>心電圖波型:</div>
+                            <label><input type="radio" name="EKG_Waveform" value="Asystole" onclick="if (this.checked) { HideSpan(['span_EKG_Waveform_Other']) };" />Asystole</label>
+                            <label><input type="radio" name="EKG_Waveform" value="VT" onclick="if (this.checked) { HideSpan(['span_EKG_Waveform_Other']) };" />VT</label>
+                            <label><input type="radio" name="EKG_Waveform" value="VF" onclick="if (this.checked) { HideSpan(['span_EKG_Waveform_Other']) };" />VF</label>
+                            <label><input type="radio" name="EKG_Waveform" value="PEA" onclick="if (this.checked) { HideSpan(['span_EKG_Waveform_Other']) };" />PEA</label>
+                            <label><input type="radio" name="EKG_Waveform" value="Bradycardia" onclick="if (this.checked) { HideSpan(['span_EKG_Waveform_Other']) };" />Bradycardia</label>
+                            <label><input type="radio" name="EKG_Waveform" value="AVblock" onclick="if (this.checked) { HideSpan(['span_EKG_Waveform_Other']) };" />AVblock</label>
+                            <label><input type="radio" name="EKG_Waveform" value="其他" onclick="(this.checked)?ShowSpan(['span_EKG_Waveform_Other']):HideSpan(['span_EKG_Waveform_Other'])" />其他</label>
+                            <span id="span_EKG_Waveform_Other" style="display:none">
+                                <input type="text" name="EKG_Waveform_Other" />
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            <div>心電圖圖片:</div>
+                            <span id="span_EKG_Picture" style="display:none">
+                                <img id="EKGPicture" src="" onclick="ShowImg(this)" />
+                            </span>
+                            <label><input type="radio" name="EKG_Picture" value="Import" onclick="ShowSpan(['span_EKG_Picture_Import','span_EKG_Picture'])" />電擊器系統帶入</label>
+                            <span id="span_EKG_Picture_Import" style="display:none">
+                                <input type="button" class="EKGBtn" value="帶入" style="width:50px;" onclick="window.open('../EmergencyTreatment/EKGList', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=60,resizable=yes,left=350,toolbar=no,width=1200,height=600');" />
+                                <input type="button" class="EKGBtn" value="上傳" style="width:50px;" onclick="window.open('http://172.20.100.151:8805/main/#/system/eck/@(userInfo.EmployeesNo.Trim())/@userInfo.EmployeesName/@patientInfo.ChartNo.ToString().Trim()/@patientInfo.PatientName.ToString().Trim()/@DateTime.Now.ToString("yyyyMMdd0000")/@DateTime.Now.ToString("yyyyMMdd2359")?nur_code=@userInfo.CostCenterCode')" />
+                            </span>
+                            <label><input type="radio" name="EKG_Picture" value="Paper" onclick="HideSpan(['span_EKG_Picture_Import', 'span_EKG_Picture_Base64', 'span_EKG_Picture']); $('#EKGPicture')[0].src = '';" />紙本(詳見紙本記錄)</label>
+                            <span id="span_EKG_Picture_Base64" style="display:none">
+                                <input type="text" name="EKG_Picture_Base64" style="display:none" />
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>急救結果</th>
+                        <td colspan="2">
+                            <label><input type="radio" name="EmergencyTreatmentOutcome" value="送入急診室" onclick="if (this.checked) { HideSpan(['span_EmergencyTreatmentOutcome_BedNumber']); }" />送入急診室</label>
+                            <label><input type="radio" name="EmergencyTreatmentOutcome" value="留病房" onclick="if (this.checked) { HideSpan(['span_EmergencyTreatmentOutcome_BedNumber']); }" />留病房</label>
+                            <label><input type="radio" name="EmergencyTreatmentOutcome" value="轉入加護病房" onclick="if (this.checked) { ShowSpan(['span_EmergencyTreatmentOutcome_BedNumber']); } else { HideSpan(['span_EmergencyTreatmentOutcome_BedNumber']);}" />轉入加護病房</label>
+                            <span id="span_EmergencyTreatmentOutcome_BedNumber" style="display:none">
+                                <input type="text" name="EmergencyTreatmentOutcome_BedNumber" />
+                            </span>
+                            <label><input type="radio" name="EmergencyTreatmentOutcome" value="自動出院" onclick="if (this.checked) { HideSpan(['span_EmergencyTreatmentOutcome_BedNumber']); }" />自動出院</label>
+                            <label><input type="radio" name="EmergencyTreatmentOutcome" value="宣告死亡" onclick="if (this.checked) { HideSpan(['span_EmergencyTreatmentOutcome_BedNumber']); }" />宣告死亡</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width:10%">急救結束時間</th>
+                        <td colspan="2" style="width:90%">
+                            @(Html.TextBox("EndEmergencyTreatmentDate", DateTime.Now.ToString("yyyy/MM/dd")))
+                            @(Html.TextBox("EndEmergencyTreatmentTime", DateTime.Now.ToString("HH:mm")))
+                            @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "EndEmergencyTreatmentDate", "EndEmergencyTreatmentTime", false)
+                        </td>
+                    </tr>
+                    <tr style="display:none">
+                        <th>備註</th>
+                        <td>
+                            <textarea id="CareRecordStr" type="text" name="CareRecordStr" style="width:200px;height:80px"></textarea>
+                        </td>
+                    </tr>
+                    <tr style="display:none">
+                        <th>備註</th>
+                        <td>
+                            <textarea id="ExecutionStr" type="text" name="ExecutionStr" style="width:200px;height:80px"></textarea>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="loading" id="cover"></div>
+<div class="loading" id="loading">
+    <label for="lab">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>
+
+<div id="cover" class="dialog"></div>
+<div id="divrecord" class="dialog" style="width:700px;height:460px;">
+    <table width="100%" align="center">
+        <tr>
+            <td style="text-align:center;">
+                急救處置：
+                <textarea id="text_content2" style="width:95%; height:210px; font-size:17px;"></textarea>
+                <br>
+                急救結束：
+                <textarea id="text_content" style="width:95%; height:170px; font-size:17px;"></textarea>
+                <input type="button" value="存檔" tempstatus="N" onclick="Save();" />
+                <input type="button" value="取消" onclick="$('#divrecord').hide(); $('#cover').hide();" />
+            </td>
+        </tr>
+    </table>
+</div>
+

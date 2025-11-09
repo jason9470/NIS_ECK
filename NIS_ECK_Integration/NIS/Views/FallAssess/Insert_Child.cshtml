@@ -1,0 +1,295 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DateTime mindate = Convert.ToDateTime(ViewData["MinDate"]);
+    DataTable dt = ViewBag.dt;
+    DataTable dt_new = ViewBag.dt_new;
+    List<NIS.Data.FallAssessMeasure> FallAssessMeasure = (List<NIS.Data.FallAssessMeasure>)ViewData["FallAssessMeasure"];
+    string title = "新增 兒童跌倒評估表", action = "Insert_FallAssess_Child";
+    string day = DateTime.Now.ToString("yyyy/MM/dd");
+    string time = DateTime.Now.ToString("HH:mm");
+    string id = "";
+
+    DataRow r = null;
+    if ((dt != null && dt.Rows.Count > 0) || (dt_new != null && dt_new.Rows.Count > 0))
+    {
+        if (dt != null && dt.Rows.Count > 0)
+        {
+            r = dt.Rows[0];
+            title = "修改 兒童跌倒評估表";
+            action = "Upd_FallAssess_Child";
+            day = Convert.ToDateTime(dt.Rows[0]["RECORDTIME"]).ToString("yyyy/MM/dd");
+            time = Convert.ToDateTime(dt.Rows[0]["RECORDTIME"]).ToString("HH:mm");
+            id = dt.Rows[0]["FALL_ID"].ToString();
+        }
+        else if (dt_new != null && dt_new.Rows.Count > 0)
+        {
+            r = dt_new.Rows[0];
+        }
+    }
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        height: 25px;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 180);
+        }).trigger("resize");
+
+        $('.toScore').click(function () {
+            addScore();
+        });
+
+        @if (r != null)
+        {
+            <TEXT>
+        SetRadio('rb_reason', '@r["REASON"]');
+        SetRadio('rb_age', '@r["AGE"]');
+        SetRadio('rb_gender', '@r["GENDER"]');
+        SetRadio('rb_fitness_fall', '@r["FITNESS_FALL"]');
+        SetRadio('rb_fall_history', '@r["FALL_HISTORY"]');
+        SetRadio('rb_activity', '@r["ACTIVITY"]');
+        SetRadio('rb_drug', '@r["DRUG"]');
+        SetRadio('rb_disease', '@r["DISEASE"]');
+        SetCheckBox('cb_precaution', '@r["PRECAUTION"]');
+            </TEXT>
+        }
+        else
+        {
+            int age = ViewBag.age;
+            string PatientGender = ViewBag.PatientGender;
+            if (age < 5 && age > 1)
+            {
+            @:$('input[type=radio][name=rb_age][data-score=1]').prop('checked', true);
+            }
+            else
+            {
+            @:$('input[type=radio][name=rb_age][data-score=0]').prop('checked', true);
+            }
+            if (PatientGender == "男")
+            {
+            @:$('input[type=radio][name=rb_gender][data-score=1]').prop('checked', true);
+            }
+            else
+            {
+            @:$('input[type=radio][name=rb_gender][data-score=0]').prop('checked', true);
+            }
+        }
+        addScore();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function addScore() {
+        var score = 0;
+        $.each($('.toScore:checked'), function (i, item) {
+            score = score + parseInt($(item).attr('data-score'));
+        });
+        $('#total').val(score);
+
+        if (score >= 3)
+            $('#score').html(score + ' 高危跌倒').css("color", "red");
+        else
+            $('#score').html(score).css("color", "black");
+    }
+
+    function check() {
+        var success = true;
+        $.each($('.req'), function (i, item) {
+            if ($('input[name=' + $(item).attr('name') + ']:checked').length == 0) {
+                alert('請選擇 ' + $(item).closest('tr').find('td:first').html());
+                success = false;
+                return false;
+            }
+        });
+        return success;
+    }
+
+    function SetRadio(rbName, rbValue) {
+        $("input[type=radio][name='" + rbName + "'][value='" + rbValue + "']").prop('checked', true);
+    }
+
+    function SetCheckBox(ckName, ckValue) {
+        $.each(ckValue.split(','), function (i, item) {
+            $("input[type=checkbox][name='" + ckName + "'][value='" + item + "']").prop('checked', true);
+        });
+    }
+</script>
+
+<form action="@action" method="post">
+    <div id="module_define">@title</div>
+    <div class="funcArea" style="padding:5px 0 5px 0;text-align:center;">
+        <input type="button" value="存檔" style="width:80px;" onclick="loop_windows('open_cover'); if (check()) { submit(); } else { loop_windows('close_cover'); }" />
+        <input type="button" value="放棄編輯資料" onclick="if (confirm('確定放棄?')) { window.location.href = 'List_Child'; }" />
+        <input type="button" value="返回" style="width:80px;" onclick="if (confirm('確定放棄?')) { window.location.href = 'ListIndex?modeval=Y'; }" />
+    </div>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <tr>
+                <td style="width: 16%;">項目</td>
+                <td style="width: 84%;">內容</td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <tr>
+                <td style="width: 16%;">評估日期</td>
+                <td colspan="3" style="width:84%;">
+                    <input type="hidden" value="@ViewBag.num" name="num" />
+                    <input type="hidden" value="@id" name="id" />
+                    <input type="text" id="txt_day" name="txt_day" value="@day" />
+                    <input type="text" id="txt_time" name="txt_time" value="@time" />
+                    @*@WebTool.setDateTime("txt_day", "txt_time", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 16%;">評估原因</td>
+                <td colspan="2">
+                    <label><input type="radio" name="rb_reason" value="常規評估" class="req" checked="checked" />常規評估</label>
+                    <label><input type="radio" name="rb_reason" value="入院/轉入" />入院/轉入</label>
+                    <label><input type="radio" name="rb_reason" value="新增特殊藥物" />新增特殊藥物</label>
+                    <label><input type="radio" name="rb_reason" value="病情改變" />病情改變</label>
+                    <label><input type="radio" name="rb_reason" value="手術後" />手術後</label>
+                    <label><input type="radio" name="rb_reason" value="出院" />出院</label>
+                </td>
+            </tr>
+            <tr>
+                <td>年齡</td>
+                <td>
+                    <label><input type="radio" name="rb_age" value="0分：＜1歲或≧5歲" data-score="0" class="req toScore" />0分：＜1歲或≧5歲</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_age" value="1分：1歲至4歲(含)" data-score="1" class="toScore" />1分：1歲至4歲(含)</label>
+                </td>
+            </tr>
+            <tr>
+                <td>性別</td>
+                <td>
+                    <label><input type="radio" name="rb_gender" value="0分：女生" data-score="0" class="req toScore" />0分：女生</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_gender" value="1分：男生" data-score="1" class="toScore" />1分：男生</label>
+                </td>
+            </tr>
+
+            <tr>
+                <td>體能狀況</td>
+                <td>
+                    <label><input type="radio" name="rb_fitness_fall" value="0分：無虛弱感" data-score="0" class="req toScore" />0分：無虛弱感</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_fitness_fall" value="1分：有虛弱感(如:脫水.貧血.暈眩)" data-score="1" class="toScore" />1分：有虛弱感(如:脫水.貧血.暈眩)</label>
+                </td>
+            </tr>
+            <tr>
+                <td>跌倒史</td>
+                <td>
+                    <label><input type="radio" name="rb_fall_history" value="0分：沒有跌倒經驗" data-score="0" class="req toScore" />0分：沒有跌倒經驗</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_fall_history" value="2分：過去住院期間曾發生跌倒" data-score="2" class="toScore" />2分：過去住院期間曾發生跌倒</label>
+                </td>
+            </tr>
+            <tr>
+                <td>活動力</td>
+                <td>
+                    <label><input type="radio" name="rb_activity" value="0分：可自行走路不需協助" data-score="0" class="req toScore" />0分：可自行走路不需協助</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_activity" value="1分：嬰兒期翻身~幼兒期學步/肢體障礙/使用輔具/躁動(含步態平衡相關狀態)" data-score="1" class="toScore" />1分：嬰兒期翻身~幼兒期學步/肢體障礙/使用輔具/躁動(含步態平衡相關狀態)</label>
+                </td>
+            </tr>
+            <tr>
+                <td id="rb_drug" rowspan="1">藥物(抗組織胺類、抗癲癇藥物)</td>
+                <td>
+                    <label><input type="radio" name="rb_drug" value="0分：無使用易致跌倒藥物" data-score="0" class="req toScore" />0分：無使用易致跌倒藥物</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_drug" value="1分：使用易致跌倒藥物" data-score="1" class="toScore" />1分：使用易致跌倒藥物</label>
+                </td>
+            </tr>
+            <tr>
+                <td>疾病因素</td>
+                <td>
+                    <label><input type="radio" name="rb_disease" value="0分：無" data-score="0" class="req toScore" />0分：無</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_disease" value="3分：有(舞蹈症、癲癇、肌肉失養症、腦性麻痺症)" data-score="3" class="toScore" />3分：有(舞蹈症、癲癇、肌肉失養症、腦性麻痺症)</label>
+                </td>
+            </tr>
+            <tr>
+                <td>跌倒預防措施
+                </td>
+                <td colspan="2">
+                    @for (int i = 0; i < FallAssessMeasure.Count; i++)
+                    {
+                    <div>
+                        @if (i == 0)
+                        {
+                        <label><input type="checkbox" name="cb_precaution" value="@FallAssessMeasure[i].Name" class="req" />@FallAssessMeasure[i].Name</label>
+                        }
+                        else
+                        {
+                        <label><input type="checkbox" name="cb_precaution" value="@FallAssessMeasure[i].Name" />@FallAssessMeasure[i].Name</label>
+                        }
+                    </div>
+                    }
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <tr>
+                <td style="width:16%;">
+                    總分
+                    <input type="hidden" id="total" name="total" value="0" />
+                </td>
+                <td style="width:84%;">
+                    <label id="score">0</label>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>

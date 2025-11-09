@@ -1,0 +1,185 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+
+<style type="text/css">
+    
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    #module_selector {
+        margin-top: 5px;
+        margin-bottom: 5px;
+    }
+
+    #module_item_edit_area {
+        padding: 5px;
+        width: 99%;
+        height: 320px;
+    }
+
+    #item_area {
+        overflow:hidden;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var newindex = 0;
+
+    //設定底色
+    function setColor() {
+        $('#item_body tr:odd').css('background', '#ABC8E2');
+        $('#item_body tr:even').css('background', '#E1E6FA');
+    }
+
+    //檢查資料是否有空白
+    function checkitemdata(){
+        var msg = "";
+        $("#item_body").find("tr").each(function () {
+            var text = Trim($(this).find("input[name=p_name]").val());
+            var value = Trim($(this).find("input[name=p_value]").val());
+            if (text == "" || value == "") {
+                msg += "編號" + $(this).attr("editid");
+                if (text == "")
+                    msg += "【顯示文字】";
+                if (value == "")
+                    msg += "【值】";
+                msg += "不可為空白\n";
+            }
+        });
+        return msg;
+    }
+
+    $(document).ready(function () {
+        //選擇模組時載入模組細項
+        $("#group").change(function () {
+            $("#func_area").attr("disabled", true);
+            if ($(this).val() != "") {
+                newindex = 0;
+                var groupname = encodeURI($(this).val());
+                @Html.Raw("var modul = encodeURI(\"" + ViewData["model"] + "\");")
+                @Html.Raw("var url =\"../Function/DataItemList?model=\" + modul + \"&group=\" + groupname;")
+
+                $("#item_area").fadeOut(350, function () {
+                    $.ajax({
+                        url: url,
+                        type: "post",
+                        timeout: 5000,
+                        success: function (data) {
+                            $("#func_area").removeAttr("disabled");
+                            $("td[hide=Y]").css("display", "none");
+                            $("#item_area").html(data).fadeIn(350);
+                        }
+                    });
+                });
+                
+            } else {
+                $("#item_area").empty();
+            }
+        });
+
+        //儲存按鈕
+        $("input[funtype]").click(function () {
+            //如果要檢查欄位
+            if ($(this).attr("msg") == "Y" && checkitemdata() != "") {
+                alert(checkitemdata());
+                return;
+            }
+            //進行處理
+            switch ($(this).attr("funtype"))
+            {
+                case "save":
+                    $("#p_type").val($(this).attr("funtype"));
+                    $("form[name=itemeditform]").submit();
+                    break;
+                case "del":
+                    $("#p_type").val($(this).attr("funtype"));
+                    if (confirm("[確認]此動作將會刪除資料?")) 
+                        $("form[name=itemeditform]").submit();
+                    else
+                        return;
+                    break;
+                case "add":
+                    // clone最後一列
+                    var copy = $("#item_body tr:last").clone();
+                    var newid = "N" + newindex.toString();
+                    // 修改相關內容
+                    $(copy).attr("editid", newid);
+                    $(copy).find("input[name=edit_id]").attr({ "title": newid, "value": false, "disabled": true });
+                    $(copy).find("label[for=v_id]").html(newid);
+                    $(copy).find("input[name=p_id]").val("N");
+                    $(copy).find("input[name=p_name]").val("");
+                    $(copy).find("input[name=p_value]").val("");
+
+                    // 貼到最後
+                    $("#item_body").append(copy);
+                    // 重新設定底色
+                    setColor();
+                    newindex++;
+                    break;
+            }
+
+        });
+
+        //尚未選擇時關閉功能
+        $("#func_area").attr("disabled", true);
+
+        //tooltip
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+
+        @{
+            //假如有群組參數則自動帶入資料
+            if (ViewData["group"] != null){
+                @Html.Raw("var group = \""+ ViewData["group"] + "\";")
+                @Html.Raw("if(group != \"\"){ $(\"group\").val(group); $(\"#group\").trigger('change');}")
+            }
+
+            if (Request["message"] != null)
+            {
+                @Html.Raw("showHint(\"" + Request["message"].ToString() + "\");")
+            }
+
+        }
+
+    });
+</script>
+
+<div id="module_define">
+    @(ViewData["modelname"])資料維護
+</div>
+
+<form method="post" name="itemeditform" action="DataItemProcess">
+    @Html.Hidden("p_type", "")
+    <div id="module_selector">
+        模組：
+        @Html.DropDownList("group", (List<SelectListItem>)ViewData["modellist"])
+        @Html.Hidden("model", ViewData["model"].ToString().Trim())
+        @Html.Hidden("name", ViewData["modelname"].ToString().Trim())
+        <a style="text-decoration: none; color: blue;" href="javascript:void(0);" class="tooltip"
+            title="<font color='red'>注意：此功能為系統重要資料，若任意修改容易造成資料錯誤</font><br />儲存：修改後按下儲存則會將剛剛所變更之值儲存<br/>刪除：先勾選編輯勾選框，按下刪除後則進行刪除動作<br />">操作說明</a>
+    </div>
+
+    <div id="module_item_edit_area">
+        <!-- 功能按鈕 -->
+        <div id="func_area">
+            <input type="button" funtype="save" msg="Y" value="儲存" />
+            <input type="button" funtype="del" msg="Y" value="刪除" />
+            <input type="button" funtype="add" msg="N" value="新增項目" />
+        </div>
+        <hr />
+        <!-- 項目資料 -->
+        <div id="item_area">
+        </div>
+    </div>
+
+</form>

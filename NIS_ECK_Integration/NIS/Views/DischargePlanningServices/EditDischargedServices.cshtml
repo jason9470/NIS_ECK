@@ -1,0 +1,265 @@
+﻿@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+    int edit = ViewBag.edit;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<script type="text/javascript">
+    $(document).ready(function () {
+      setGridColor();
+      @if (dt != null && dt.Rows.Count > 0 && edit == 1){
+            @: SetRblVal('@(dt.Rows[0]["filter_state"].ToString().Trim())', $('input[name=RblFilterState]'), $("#TxtFilterOther"), $("#PnOpDate"), "1");
+            @: SetRblVal('@(dt.Rows[0]["daily_life"].ToString().Trim())', $('input[name=RblDailyLife]'));
+            @: SetRblVal('@(dt.Rows[0]["skin_state"].ToString().Trim())', $('input[name=RblSkinState]'), "", $("#PnSkinWound"), "1");
+            @: SetRblVal('@(dt.Rows[0]["social_support"].ToString().Trim())', $('input[name=RblSocialSupport]'));
+            @: SetRblVal('@(dt.Rows[0]["tube_request"].ToString().Trim())', $('input[name=RblTubeRequest]'), "", $("#PnTubeType"), "1");
+            @: SetRblVal('@(dt.Rows[0]["continence"].ToString().Trim())', $('input[name=RblContinence]'));
+            @: SetRblVal('@(dt.Rows[0]["usage_ventilator"].ToString().Trim())', $('input[name=RblUsageVentilator]'));
+            @: SetRblVal('@(dt.Rows[0]["usage_oxygen"].ToString().Trim())', $('input[name=RblUsageOxygen]'));
+            @: SetRblVal('@(dt.Rows[0]["momentus"].ToString().Trim())', $('input[name=RblMomentus]'), "", $("#PnLtcType"), "2",true);
+            @: SetRblVal('@(dt.Rows[0]["ltc_type"].ToString().Trim())', $('input[name=RblLtcType]'));
+
+            @: SetCblVal('@(dt.Rows[0]["skin_wound"].ToString().Trim())', $('input[name=CblSkinWound]'));
+            @: SetCblVal('@(dt.Rows[0]["tube_type"].ToString().Trim())', $('input[name=CblTubeType]'), $("#TxtTubeOther"));
+      }
+      
+        $("input[name=RblFilterState]").change(function () {
+            ToggleOther("r", this, $("#TxtFilterOther"));
+        })
+        $("input[name=CblTubeType]").change(function () {
+            ToggleOther("c", this, $("#TxtTubeOther"));
+        })
+        $("input[name=RblDailyLife]").change(function () {
+            TotalScore();
+        })
+        $("input[name=RblSkinState]").change(function () {
+            TotalScore();
+        })
+        $("input[name=RblSocialSupport]").change(function () {
+            TotalScore();
+        })
+        $("input[name=RblContinence]").change(function () {
+            TotalScore();
+        })
+        $("input[name=RblUsageVentilator]").change(function () {
+            TotalScore();
+        })
+        $("input[name=RblUsageOxygen]").change(function () {
+            TotalScore();
+        })
+        $("input[name=CblTubeType]").change(function () {
+            TotalScore();
+        })
+    });
+
+    function SetRblVal(pRdList, pCtrl, pChange, pPanel, pEqual, pEnter) {
+        if (pRdList != "") $(pCtrl).filter('[value=' + pRdList + ']').prop('checked', true);
+        if (pRdList == "99") $(pChange).prop('disabled', false);
+        if (pRdList == pEqual) {
+            $(pPanel).fadeIn(500);
+            if (pEnter == null || pEnter == false) $(pPanel).css('display', 'inline-block');
+        }
+    }
+
+    function SetCblVal(pChkList, pCtrl, pChange) {
+        var ThisList = pChkList.split(',');
+        if (ThisList != null && ThisList.length > 0 && ThisList[0] != "") {
+            for (var k = 0; k < ThisList.length; k++) {
+                $(pCtrl).filter('[value=' + ThisList[k] + ']').prop('checked', true);
+                if (ThisList[k] == "99") $(pChange).prop('disabled', false);
+            }
+        }
+    }
+
+    function ToggleOther(pType, pCtrl, pChange) {
+        if ($(pCtrl).val() == "99") {
+            $(pChange).prop('disabled', false);
+            if (pType == "c" && !$(pCtrl).prop('checked')) {
+                $(pChange).prop('disabled', true);
+                $(pChange).val('');
+            }
+        } else if (pType == "r") {
+            $(pChange).prop('disabled', true);
+            $(pChange).val('');
+        }
+    }
+
+    function ToggleView(pCtrl, pView, pEnter) {
+        if (pView) {
+            $("#" + pCtrl).fadeIn(500);
+            if (pEnter == null || pEnter == false) $("#" + pCtrl).css('display', 'inline-block');
+            else $("#" + pCtrl).css('padding-top', '10px');
+        }
+        else {
+            $("#" + pCtrl).fadeOut(500);
+            $("#" + pCtrl).find("input[type=checkbox]").each(function () {
+                $(this).prop('checked', false);
+            })
+            $("#" + pCtrl).find("input[type=radio]").each(function () {
+                $(this).prop('checked', false);
+            })
+            $("#" + pCtrl).find("input[type=text]").each(function () {
+                $(this).val('');
+            })
+        }
+    }
+
+    function TransNaN(pName) {
+        if ($('input[name=' + pName + ']:checked').val() != null && $('input[name=' + pName + ']:checked').val() != "") {
+            return parseInt($('input[name=' + pName + ']:checked').val());
+        }
+        return 0;
+    }
+
+    function TotalScore() {
+        var Total = TransNaN('RblDailyLife') + TransNaN('RblSkinState') + TransNaN('RblSocialSupport') + TransNaN('RblContinence') + TransNaN('RblUsageVentilator') + TransNaN('RblUsageOxygen');
+        var Tool = 0;
+        if ($('input[name=CblTubeType]:checked').length >= 2)
+            Tool = 2;
+        else if ($('input[name=CblTubeType]:checked').length == 1)
+            Tool = 1;
+
+        Total += Tool;
+        $('#TxtTotal').val(Total);
+    }
+</script>
+@if (dt != null && dt.Rows.Count > 0)
+{
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr>
+            <td align="center" style="padding: 5px 0 5px 0;">
+                <form name="FormDisCare" method="post">
+                    <input type="hidden" id="HfDcId" name="HfDcId" value="@(dt.Rows[0]["dc_id"].ToString().Trim())" />
+                    <input type="hidden" id="HfEdit" name="HfEdit" value="@(edit)" />
+                    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; text-align: left;">
+                        <tr>
+                            <td style="text-align:center;">
+                                <input type="button" value="存檔" style="width:80px;" onclick="SaveData();" />
+                                <input type="button" value="返回" style="width:80px;" onclick="$('#PnEdit').hide(); $('#PnQuery').fadeIn(500);" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px 0 5px 0;">
+                                <div class="dataArea">
+                                    <table border="0" cellpadding="10" cellspacing="1" style="width: 100%">
+                                        <tr>
+                                            <td>評估日期</td>
+                                            <td>
+                                                @Html.TextBox("TxtAssessDate", edit == 0 ? DateTime.Now.ToString("yyyy/MM/dd") : dt.Rows[0]["assess_date"].ToString().Trim())
+                                                @Html.TextBox("TxtAssessTime", edit == 0 ? DateTime.Now.ToString("HH:mm") : dt.Rows[0]["assess_time"].ToString().Trim())
+                                                @*@WebTool.setDateTime("TxtAssessDate", "TxtAssessTime")*@
+                                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "TxtAssessDate", "TxtAssessTime", true)
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>篩選狀態</td>
+                                            <td>
+                                                <label><input name="RblFilterState" type="radio" value="0" onclick="ToggleView('PnOpDate', false)" />新病人</label>
+                                                <label><input name="RblFilterState" type="radio" value="1" onclick="ToggleView('PnOpDate', true)" />手術</label>
+                                                <div id="PnOpDate" style="display:none;">
+                                                    ：手術日期<input id="TxtOpDate" name="TxtOpDate" type="text" value="@(dt.Rows[0]["op_date"].ToString().Trim())" />
+                                                    @*@WebTool.setDateTime("TxtOpDate", "")*@
+                                                    @WebTool.complementList_Status(complement_List.Status, "", @DateTime.Now.ToString("yyyy/MM/dd"), "TxtOpDate", "", false)
+                                                </div>
+                                                <label><input name="RblFilterState" type="radio" value="2" onclick="ToggleView('PnOpDate', false)" />ICU轉入</label>
+                                                <label><input name="RblFilterState" type="radio" value="3" onclick="ToggleView('PnOpDate', false)" />病情變化</label>
+                                                @*<label><input name="RblFilterState" type="radio" value="99" onclick="ToggleView('PnOpDate', false)" />其他</label><input id="TxtFilterOther" name="TxtFilterOther" type="text" value="@(dt.Rows[0]["filter_other"].ToString().Trim())" disabled="disabled" maxlength="60" />*@
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>日常生活</td>
+                                            <td>
+                                                <label><input name="RblDailyLife" type="radio" value="0" />完全自理</label>
+                                                <label><input name="RblDailyLife" type="radio" value="1" />部分依賴他人</label>
+                                                <label><input name="RblDailyLife" type="radio" value="2" />完全依賴他人</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>皮膚狀況</td>
+                                            <td style="display:inline-block;">
+                                                <label><input name="RblSkinState" type="radio" value="0" onclick="ToggleView('PnSkinWound', false)" />無傷口</label>
+                                                <label><input name="RblSkinState" type="radio" value="1" onclick="ToggleView('PnSkinWound', true)" />一般傷口</label>
+                                                <div id="PnSkinWound" style="display:none;">
+                                                    ：<label><input name="CblSkinWound" type="checkbox" value="0" />傷口</label>
+                                                    <label><input name="CblSkinWound" type="checkbox" value="1" />人工造口</label>
+                                                </div>
+                                                <label><input name="RblSkinState" type="radio" value="2" onclick="ToggleView('PnSkinWound', false)" />壓傷</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>社會支持</td>
+                                            <td>
+                                                <label><input name="RblSocialSupport" type="radio" value="0" />可自我照顧，家屬(外傭)有能力照顧病人</label>
+                                                <label><input name="RblSocialSupport" type="radio" value="1" />有家屬但缺乏照顧人力(包括看護工)</label>
+                                                <label><input name="RblSocialSupport" type="radio" value="2" />無家屬</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>居家導管照護需求</td>
+                                            <td>
+                                                <label><input name="RblTubeRequest" type="radio" value="0" onclick="ToggleView('PnTubeType', false)" />無</label>
+                                                <label><input name="RblTubeRequest" type="radio" value="1" onclick="ToggleView('PnTubeType', true)" />有</label>
+                                                <div id="PnTubeType" style="display:none;">
+                                                    <label><input name="CblTubeType" type="checkbox" value="0" />鼻胃管</label>
+                                                    <label><input name="CblTubeType" type="checkbox" value="1" />導尿管</label>
+                                                    <label><input name="CblTubeType" type="checkbox" value="2" />氣切管</label>
+                                                    <label><input name="CblTubeType" type="checkbox" value="99" id="CblTubeType" />其他</label><input id="TxtTubeOther" name="TxtTubeOther" type="text" value="@(dt.Rows[0]["tube_other"].ToString().Trim())" disabled="disabled" maxlength="60" />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>大小便控制</td>
+                                            <td>
+                                                <label><input name="RblContinence" type="radio" value="0" />可自行控制</label>
+                                                <label><input name="RblContinence" type="radio" value="1" />失禁一個月內</label>
+                                                <label><input name="RblContinence" type="radio" value="2" />失禁一個月以上</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>使用呼吸器</td>
+                                            <td>
+                                                <label><input name="RblUsageVentilator" type="radio" value="0" />不需要</label>
+                                                <label><input name="RblUsageVentilator" type="radio" value="1" />持續使用一個月內</label>
+                                                <label><input name="RblUsageVentilator" type="radio" value="2" />持續使用一個月以上</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>使用氧氣</td>
+                                            <td>
+                                                <label><input name="RblUsageOxygen" type="radio" value="0" />不需要</label>
+                                                <label><input name="RblUsageOxygen" type="radio" value="1" />PRN使用</label>
+                                                <label><input name="RblUsageOxygen" type="radio" value="2" />持續使用</label>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="width: 295px; height: 34px">病人動向</td>
+                                            <td style="height: 34px">
+                                                <label><input name="RblMomentus" type="radio" value="0" onclick="ToggleView('PnLtcType', false)" />門診追蹤</label>
+                                                <label><input name="RblMomentus" type="radio" value="1" onclick="ToggleView('PnLtcType', false)" />居家護理</label>
+                                                <label><input name="RblMomentus" type="radio" value="2" onclick="ToggleView('PnLtcType', true,true)" />長期照護</label>
+                                                <label><input name="RblMomentus" type="radio" value="3" onclick="ToggleView('PnLtcType', false)" />IDS-4</label>
+                                                <div id="PnLtcType" style="display:none;">
+                                                    <label><input name="RblLtcType" type="radio" value="0" />安養</label>
+                                                    <label><input name="RblLtcType" type="radio" value="1" />養護</label>
+                                                    <label><input name="RblLtcType" type="radio" value="2" />護理之家</label>
+                                                    <label><input name="RblLtcType" type="radio" value="3" />RCC</label>
+                                                    <label><input name="RblLtcType" type="radio" value="4" />RCW</label>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>總分</td>
+                                            <td><input id="TxtTotal" name="TxtTotal" type="text" value="@(dt.Rows[0]["total"].ToString().Trim())" onchange="this.value =this.value.replace(/[^0-9]/g,'')" maxlength="2" /></td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </form>
+            </td>
+        </tr>
+    </table>
+}

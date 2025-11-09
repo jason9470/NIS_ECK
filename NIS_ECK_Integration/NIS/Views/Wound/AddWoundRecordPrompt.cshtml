@@ -1,0 +1,1119 @@
+﻿@using System.Data;
+@{
+    //DataTable wound_data = ViewBag.wound_data;
+    //DataTable wound_record = ViewBag.wound_record;
+    DataTable DT = ViewBag.DT;
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if (complement_List.Status) { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (@pf != null)
+        {
+            if (pf.InDate > mindate)
+            { mindate = pf.InDate; }
+        }
+    }
+
+    string ButtonStr = "";
+    if (ViewBag.mod == "Update_Record")
+    {
+        ButtonStr = "儲存";
+    }
+    else
+    {
+        ButtonStr = "新增";
+    }
+}
+<style type="text/css">
+    .dataArea {
+        overflow-x: auto;
+        overflow-y: auto;
+        border-top: 2px solid #666;
+        border-bottom: 2px solid #666;
+        border-left: 1px solid rgba(20%,20%,40%,0.5);
+    }
+
+        .dataArea td {
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+            text-align: left;
+        }
+
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    .lab_point {
+        color: red;
+    }
+
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+
+    .CLSpanFixedWidth span {
+        width: 120px;
+        display: inline-block;
+    }
+
+    .CLSpanFixedWidth2 span {
+        /*width: 90px;*/
+        display: inline-block;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        set_default_val();
+        setGridColor();
+
+        //修改 載入資料
+        @if(ViewBag.mod == "Update_Record")
+        {
+            if(DT != null && DT.Rows.Count > 0)
+            {
+                foreach(DataRow r in DT.Rows)
+                {
+        <text>
+        var RowVal = '@r["WOUND_ROW"].ToString()';
+
+        $('#RecordID_' + RowVal).val('@r["RECORD_ID"].ToString()');
+        $('#wound_date' + RowVal).val('@Convert.ToDateTime(r["RECORDTIME"].ToString()).ToString("yyyy/MM/dd")');
+        $('#wound_time' + RowVal).val('@Convert.ToDateTime(r["RECORDTIME"].ToString()).ToString("HH:mm")');
+
+        set_for_rb('RbnRangeYN' + RowVal, '@r["RANGE_YN"]');
+        set_for_rb('RbnBackoutYN' + RowVal, '@r["BACKOUT_YN"]');
+        set_for_rb('RbnExudateYN' + RowVal, '@r["EXUDATE_YN"]');
+        set_for_rb('RbnHandleYN' + RowVal, '@r["HANDLE_YN"]');
+        set_for_rb('RbnPlanYN' + RowVal, '@r["PLAN_YN"]');
+        //set_for_ck('ChkExterior' + RowVal, '@r["EXTERIOR"]');
+
+        $('#TxtRangeHeight_' + RowVal).val('@r["RANGE_HEIGHT"].ToString()');
+        $('#TxtRangeWidth_' + RowVal).val('@r["RANGE_WIDTH"].ToString()');
+        $('#TxtRangeDepth_' + RowVal).val('@r["RANGE_DEPTH"].ToString()');
+
+        $('#wounddtm' + RowVal).attr('style', 'display:none');
+        $('#planyn' + RowVal).attr('style', 'display:none');
+        $('#TxtRangeHeight_' + RowVal).val('@r["RANGE_HEIGHT"].ToString()');
+        //by jarvis add 20160914
+        //ChkExudateExterior741
+        set_for_ck('ChkExudateExterior' + RowVal, '@r["EXTERIOR"]');
+
+        if ('@r["EXTERIOR_OTHER"].ToString()' != "") {//Txt_ExudateExterior741_Other
+            $('#Txt_ExudateExterior' + RowVal + "_Other").val('@r["EXTERIOR_OTHER"].ToString()');
+        }
+        //RbnExudateAmount
+        set_for_rb('RbnExudateAmount' + RowVal, '@r["EXUDATE_AMOUNT"]');
+        </text>
+                    if(r["TYPE"].ToString() == "壓瘡" || r["TYPE"].ToString() == "壓傷")
+                    {
+                <text>
+        //ChkExudateNatureBedSore742//TxtExudateNatureBedSore99
+        set_for_rb('RbnBedSoreRange' + RowVal, '@r["GRADE"]');
+        $('#TxtRangeNReason_' + RowVal).val('@r["RANGE_OTHER"].ToString()');
+        set_for_ck('ChkExudateNatureBedSore' + RowVal, '@r["EXUDATE_NATURE"]');//checkbox性質 //by jarvis edit 20160914
+        $('#TxtExudateNatureBedSore99_' + RowVal).val('@r["EXUDATE_NATURE_OTHER"].ToString()');//checkbox性質-其他的textbox //by jarvis edit 20160914
+        set_for_ck('ChkHandleItemBedSore' + RowVal, '@r["HANDLE_ITEM"]');
+        $('#TxtHandleItemBedSore99_' + RowVal).val('@r["HANDLE_OTHER"].ToString()');
+        </text>
+                    }
+                    else if (r["TYPE"].ToString() == "生產")
+                    {
+                        <text>
+        set_for_rb('ObsRange_class' + RowVal, '@r["PERINEUM_RANGE"]');
+        set_for_rb('ObsRed_class' + RowVal, '@r["PERINEUM_RED"]');
+        set_for_rb('ObsSwollen_class' + RowVal, '@r["PERINEUM_SWOLLEN"]');
+        set_for_rb('ObsBruise_class' + RowVal, '@r["PERINEUM_BRUISE"]');
+        set_for_rb('ObsSecretion_class' + RowVal, '@r["PERINEUM_SECRETION"]');
+        $('#txt_ObsSwollen_range' + RowVal).val('@r["SWOLLEN_RANGE"].ToString()');
+        set_for_ck('ChkHandleItemBabyLabor' + RowVal, '@r["HANDLE_ITEM"]');
+        $('#TxtHandleItemBabyLabor99_' + RowVal).val('@r["HANDLE_OTHER"].ToString()');
+
+    </text>
+                    }
+                    else
+                    {//一般傷口
+                <text>
+        //set_for_rb('RbnBedSoreRange' + RowVal, '@r["GRADE"]');
+        $('#TxtBackout99_' + RowVal).val('@r["RANGE_OTHER"].ToString()');
+        set_for_ck('ChkExudateNature' + RowVal, '@r["EXUDATE_NATURE"]');
+        if ('@r["EXUDATE_NATURE_OTHER"].ToString()' != "") {//Txt_ExudateNature743_Other
+            $('#Txt_ExudateNature' + RowVal + "_Other").val('@r["EXUDATE_NATURE_OTHER"].ToString()');
+        }
+        set_for_ck('ChkExudateColor' + RowVal, '@r["EXUDATE_COLOR"]');
+        if ('@r["EXUDATE_COLOR_OTHER"].ToString()' != "") {//Txt_ExudateColor743_Other
+            $('#Txt_ExudateColor' + RowVal + "_Other").val('@r["EXUDATE_COLOR_OTHER"].ToString()');
+        }
+        set_for_rb('RbnSuturesYN' + RowVal, '@r["SUTURES_YN"]');
+        set_for_rb('wound_class' + RowVal, '@r["WOUND_LEVEL"]');
+        $('#txt_wound_range' + RowVal).val('@r["SCALD_RANGE"].ToString()');
+        </text>
+                        if(r["SUTURES_YN"].ToString() == "有縫線")
+                        {
+                    @:$('#TxtSuturesYOther_' + RowVal).val('@r["PIN"].ToString()');
+                                }
+                        else if(r["SUTURES_YN"].ToString() == "縫線已拆")
+                        {//TxtPin_743
+                    @:$('#TxtPin_' + RowVal).val('@r["PIN"].ToString()');
+                                    @:$('#TxtStitchesDate_' + RowVal).val('@r["STITCHESDATE"].ToString()');
+                                }
+                @:set_for_ck('ChkHandleItemWound' + RowVal, '@r["HANDLE_ITEM"]');
+                                @:$('#TxtHandleItemWound99_' + RowVal).val('@r["HANDLE_OTHER"].ToString()');
+                                }
+                }
+            }
+        }
+
+        $.each($('img'), function (i, item) {
+            if ($(item).width() == 0) {
+                $(item).load(function () {
+                    Resize(this);
+                });
+            }
+            else
+                Resize(item);
+        });
+    });
+
+    function Resize(obj) {
+        var w = $(obj).width();
+        var h = $(obj).height();
+        if (w > 400 || h > 400) {
+            $(obj).css({ 'width': w * 0.9, 'height': h * 0.9 });
+            Resize(obj);
+        }
+    }
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.dataArea th').css('background', '#85A5CC');
+        $('.dataArea th').css('text-align', 'left');
+    }
+
+    //驗證欄位_數字
+    function numcheck(id, time) {
+        if (time.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(time.value) && time.value != "") {
+            alert("只能輸入數字");
+            document.getElementById(id).value = "";
+        }
+    }
+
+    function able(id) {
+        document.getElementById(id).disabled = false;
+        document.getElementById(id).focus();
+    }
+
+    function enable(id) {
+        document.getElementById(id).disabled = true;
+        document.getElementById(id).value = '';
+    }
+
+    function ckable(obj, txtid) {
+        if (obj.checked)
+        { able(txtid); }
+        else
+        { enable(txtid); }
+    }
+
+    function check() {
+        var row = document.getElementsByName('row[]');
+        for (var i = 0 ; i < row.length; i++) {
+            if (!record_text(row[i].value))
+                return false;
+            if (!record_skin_type(row[i].value))
+                return false;
+            if (!record_wound_class(row[i].value))
+                return false;
+            if (!record_wound_amount(row[i].value))
+                return false;
+            if (!record_wound_isolation(row[i].value))
+                return false;
+            if (!record_wound_Dressing(row[i].value))
+                return false;
+            if (!record_wound_Measure(row[i].value))
+                return false;
+        }
+        return true;
+    }
+
+    function record_text(row) {
+        if (document.getElementById('type' + row).innerText == '燙傷') {
+            if ($.trim($('#txt_wound_range' + row).val()) == '') {
+                alert('請輸入 編號：' + $('#number' + row).val() + '：燙傷範圍');
+                return false;
+            }
+        }
+        else {
+            if ($.trim($('#wound_long' + row).val()) == '' || $.trim($('#wound_wide' + row).val()) == '') {
+                alert('請輸入 編號：' + $('#number' + row).val() + '：傷口大小深度');
+                return false;
+            }
+            if ($.trim($('#wound_deep' + row).val()) == '')
+                $('#wound_deep' + row).val('0');
+        }
+        return true;
+    }
+
+    function record_skin_type(row) {
+        var ck = document.getElementsByName('woundSkinType' + row);
+        var content = '';
+        $('#skin_type' + row).val(content);
+        for (var i = 0; i < ck.length; i++) {
+            if (ck[i].checked) {
+                if (ck[i].value == '99') {
+                    if ($.trim($('#woundSkinType_other_' + row).val()) == '') {
+                        alert('請輸入 編號：' + $('#number' + row).val() + '：周圍皮膚：其他欄位');
+                        return false;
+                    }
+                    content = content + $('#woundSkinType_other_' + row).val() + '|';
+                }
+                else
+                    content = content + ck[i].value + '|';
+            }
+        }
+        if (content == '') {
+            alert('請選擇 編號：' + $('#number' + row).val() + '：周圍皮膚');
+            return false;
+        }
+        else {
+            content = content.substring(0, content.length - 1);
+            $('#skin_type' + row).val(content);
+            return true;
+        }
+    }
+
+    function record_wound_class(row) {
+        if ($('input[name=wound_class' + row + ']:checked').val() == undefined) {
+            alert('請選擇 編號：' + $('#number' + row).val() + '：傷口等級');
+            return false;
+        }
+        else {
+            $('#wound_class' + row).val($('input[name=wound_class' + row + ']:checked').val());
+            return true;
+        }
+    }
+
+    function record_wound_amount(row) {
+        var num = $('input[name=wound_amount' + row + ']:checked').val();
+        if (num == undefined) {
+            alert('請選擇 編號：' + $('#number' + row).val() + '：滲出物量');
+            return false;
+        }
+        else {
+            $('#wound_amount' + row).val(num);
+            if (num == '無')
+                $('#woundAmountType' + row).val('');
+            else {
+                if (!record_woundAmountType(row))
+                    return false;
+            }
+            return true;
+        }
+    }
+
+    function record_woundAmountType(row) {
+        var ck = document.getElementsByName('woundAmountType' + row);
+        var content = '';
+        $('#woundAmountType' + row).val(content);
+        for (var i = 0; i < ck.length; i++) {
+            if (ck[i].checked) {
+                if (ck[i].value == '99') {
+                    if ($.trim($('#woundAmountType_other_' + row).val()) == '') {
+                        alert('請輸入 編號：' + $('#number' + row).val() + '：滲出物性質：其他欄位');
+                        return false;
+                    }
+                    content = content + $('#woundAmountType_other_' + row).val() + '|';
+                }
+                else
+                    content = content + ck[i].value + '|';
+            }
+        }
+        if (content == '') {
+            alert('請選擇 編號：' + $('#number' + row).val() + '：滲出物性質');
+            return false;
+        }
+        else {
+            content = content.substring(0, content.length - 1)
+            $('#woundAmountType' + row).val(content);
+            return true;
+        }
+    }
+
+    function record_wound_isolation(row) {
+        if ($('input[name=wound_isolation' + row + ']:checked').val() == undefined) {
+            alert('請選擇 編號：' + $('#number' + row).val() + '：接觸隔離 ');
+            return false;
+        }
+        else {
+            $('#wound_isolation' + row).val($('input[name=wound_isolation' + row + ']:checked').val());
+            return true;
+        }
+    }
+
+    function record_wound_Dressing(row) {
+        var ck = document.getElementsByName('wound_Dressing' + row);
+        var content = '';
+        $('#wound_Dressing' + row).val(content);
+        for (var i = 0; i < ck.length; i++) {
+            if (ck[i].checked) {
+                if (ck[i].value == '99') {
+                    if ($.trim($('#txt_wound_Dressing_other_' + row).val()) == '') {
+                        alert('請輸入 編號：' + $('#number' + row).val() + '：換藥方式：其他欄位');
+                        return false;
+                    }
+                    content = content + $('#txt_wound_Dressing_other_' + row).val() + '|';
+                }
+                else
+                    content = content + ck[i].value + '|';
+            }
+        }
+        if (content == '') {
+            alert('請選擇 編號：' + $('#number' + row).val() + '：換藥方式');
+            return false;
+        }
+        else {
+            content = content.substring(0, content.length - 1);
+            $('#wound_Dressing' + row).val(content);
+            return true;
+        }
+    }
+
+    function record_wound_Measure(row) {
+        var ck = document.getElementsByName('wound_Measure' + row);
+        var content = '';
+        $('#wound_Measure' + row).val(content);
+        for (var i = 0; i < ck.length; i++) {
+            if (ck[i].checked) {
+                if (ck[i].value == '99') {
+                    if ($.trim($('#txt_wound_Measure_other_' + row).val()) == '') {
+                        alert('請輸入 編號：' + $('#number' + row).val() + '：護理措施：其他欄位');
+                        return false;
+                    }
+                    content = content + $('#txt_wound_Measure_other_' + row).val() + '|';
+                }
+                else
+                    content = content + ck[i].value + '|';
+            }
+        }
+        if (content == '') {
+            alert('請選擇 編號：' + $('#number' + row).val() + '：護理措施');
+            return false;
+        }
+        else {
+            content = content.substring(0, content.length - 1);
+            $('#wound_Measure' + row).val(content);
+            return true;
+        }
+    }
+
+    function SetAllRecordDate(RowVal, ObjVal) {
+        //在新增狀態時，第一筆改變日期，其它日期也一起改
+        var TimeObjID = $(ObjVal).attr("timeobjid");
+        if (RowVal == "0") {
+            $('input[name="wound_date[]"]').val($(ObjVal).val());
+            $('input[name="wound_time[]"]').val($("#" + TimeObjID).val());
+        }
+    }
+
+    function set_default_val() {
+        var row = document.getElementsByName('row[]');
+        for (var i = 0 ; i < row.length; i++) {
+            set_phYes(row[i].value);
+        }
+    }
+
+    function set_for_ck(CKName, VAL) {
+        if (VAL != '') {
+            var DefaultVal = VAL.split("|");
+            var CKB = document.getElementsByName(CKName);
+            for (var i = 0; i < DefaultVal.length; i++) {
+                for (var j = 0; j < CKB.length; j++) {
+                    if (DefaultVal[i] == CKB[j].value) {
+                        $(CKB[j]).click();
+                    }
+                }
+            }
+        }
+    }
+    function htmldecode(s) {
+        var div = document.createElement('div');
+        div.innerHTML = s;
+        return div.innerText || div.textContent;
+    }
+    function set_for_rb(RbnName, RbnVal) {
+        if (RbnVal != '') {
+            $('input[name=' + RbnName + ']').each(function () {
+                if ($(this).val() == htmldecode(RbnVal)) {
+                    this.checked = true;
+                    $(this).trigger('click');
+                }
+            });
+        }
+    }
+
+    function set_phYes(row) {
+        var default_val = $('#wound_amount' + row).val();
+        if (default_val != "無")
+            $('#phYes' + row).fadeIn(500);
+    }
+
+    function CtrlActionFunc(CtrlType, DivName, ObjVal) {
+        var ActBool = false;
+        var DivNameSplit = DivName.split(',');
+
+        for (var i = 0; i <= DivNameSplit.length - 1; i++) {
+            $("#" + DivNameSplit[i] + " input[type=checkbox]").each(function () {
+                $(this).prop("checked", false);
+            });
+            $("#" + DivNameSplit[i] + " input[type=radio]").each(function () {
+                $(this).prop("checked", false);
+            });
+            $("#" + DivNameSplit[i] + " input[type=text]").each(function () {
+                $(this).val("");
+            });
+
+            switch (CtrlType) {
+                case "radio":
+                    ActBool = ObjVal;
+                    break;
+                case "checkbox":
+                    ActBool = $(ObjVal).prop("checked");
+                    break;
+            }
+
+            if (ActBool)
+                $("#" + DivNameSplit[i]).show();
+            else
+                $("#" + DivNameSplit[i]).hide();
+        }
+
+        setGridColor();
+    }
+
+    function SetWoundRecordFunc(ModeVal) {
+        var BoolVal = true;
+
+        var tr_list = $('tr[must=Y]:visible');
+        TabLoop:
+            for (var i = 0; i < tr_list.length; i++) {
+                var input_list = $(tr_list[i]).find(':input').filter(':visible').filter(':enabled');
+                if (input_list.length > 0) {
+                    var input_name = '';
+                    for (var j = 0; j < input_list.length; j++) {
+                        //var input_val='';var input_tampfilter='';
+                        if (input_name != $(input_list[j]).attr('name')) {
+                            input_name = $(input_list[j]).attr('name');
+                            if (input_list[j].type == 'text' || input_list[j].type == 'textarea' || input_list[j].type == 'select-one') {
+                                var input_val = $.trim(input_list[j].value);
+                                var input_tampfilter = $(input_list[j]).attr('tempfilter');
+                            }
+                            else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                                var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+                                var input_tampfilter = "Y";
+                            }
+                            else
+                                continue;
+                            if ((input_val == undefined || $.trim(input_val) == '')) {
+                                if (input_tampfilter == "N") {
+                                    BoolVal = true;
+                                }
+                                else {
+                                    BoolVal = false;
+                                    if ($(tr_list[i]).attr('subtitle') != undefined)
+                                        alert("編號：" + $(tr_list[i]).attr('rownum') + " " + $(tr_list[i]).attr('subtitle') + ' 未填寫!');
+                                    else
+                                        alert('尚有項目未填寫!');
+
+                                    $(input_list[j]).focus();
+                                    break TabLoop;
+                                }
+                            }
+                            else {
+                                if (input_list[j].type == 'radio') {
+                                    $('#Hid' + $(input_list[j]).attr("name")).val($('input[name=' + $(input_list[j]).attr("name") + ']:checked').val());
+                                }
+                                else if (input_list[j].type == 'checkbox') {
+                                    var ChkTmpVal = "";
+                                    $('input[name=' + $(input_list[j]).attr("name") + ']').each(function () {
+                                        if ($(this).prop("checked"))
+                                            ChkTmpVal += $(this).val() + "|";
+                                    });
+                                    $('#Hid' + $(input_list[j]).attr("name")).val(ChkTmpVal.slice(0, -1));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        if (BoolVal) {
+            $('#block,#loading').show();
+
+            //帶入護理記錄非必填沒有塞值在這補上
+            $.each($('input[type=checkbox][name=ChkPlanYN]:visible'), function (i, item) {
+                if ($(item).prop('checked'))
+                    $(item).closest('tr').find('input[type=hidden][name=Hid' + $(item).attr('name') + ']').val($(item).val());
+                else
+                    $(item).closest('tr').find('input[type=hidden][name=Hid' + $(item).attr('name') + ']').val('');
+            });
+
+            $('form[name=FormWoundRecordArea]').submit();
+        }
+    }
+
+    function SelectScaldOnOpenDiv(TempSel, row) {
+        if (TempSel == "Y") {
+            var Temptype = $("#type" + row).text();
+
+            if (Temptype == "燙傷") {
+                CtrlActionFunc('radio', 'DivWoundRange' + row, true);
+                CtrlActionFunc('radio', 'DivRangeY' + row, false);
+            } else {
+                CtrlActionFunc('radio', 'DivRangeY' + row, true);
+                CtrlActionFunc('radio', 'DivWoundRange' + row, false);
+            }
+        } else {
+            CtrlActionFunc('radio', 'DivRangeY' + row, false);
+            CtrlActionFunc('radio', 'DivWoundRange' + row, false);
+        }
+    }
+</script>
+
+<form id="FormWoundRecordArea" name="FormWoundRecordArea" method="post" enctype="multipart/form-data" action="@Url.Content("~/Wound/SetWoundRecordData")">
+    <div class="funcArea">
+        @if (DT != null && DT.Rows.Count > 0)
+        {
+            int i = 0;
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+                <tr>
+                    <td style="text-align:center;">
+                        <span style="font-size:18px;color:blue;">新增紀錄作業</span>
+                        <input type="hidden" id="HidModeVal" name="HidModeVal" value="@ViewBag.mod" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="dataArea" style="height:440px;">
+                            @foreach (DataRow r in DT.Rows)
+                            {
+                                string WoundType = "", BedSoreSize = "";
+                                string BedSoreRange = "none", SuturesYN = "none", scald = "none", obs_Y = "none", obs_N = "";
+                                if (r["TYPE"].ToString() == "壓瘡" || r["TYPE"].ToString() == "壓傷")
+                                {
+                                    WoundType = "BedSore";
+                                    BedSoreRange = "";
+                                    scald = "none";
+                                    BedSoreSize = "";
+                                }
+                                else if (r["TYPE"].ToString() == "生產")
+                                {
+                                    WoundType = "BabyLabor";
+                                    BedSoreRange = "none";
+                                    scald = "none";
+                                    BedSoreSize = "none";
+                                    obs_N = "none";
+                                    obs_Y = "";
+                                }
+                                else
+                                {
+                                    if (r["TYPE"].ToString() == "燙傷")
+                                    {
+                                        scald = "";
+                                        BedSoreRange = "none";
+                                        WoundType = "WoundGeneral";
+                                        SuturesYN = "";
+                                        BedSoreSize = "none";
+                                    }
+                                    else
+                                    {
+                                        WoundType = "WoundGeneral";
+                                        SuturesYN = "";
+                                        scald = "none";
+                                        BedSoreRange = "none";
+                                        BedSoreSize = "";
+                                    }
+                                }
+                                <table border="0" cellpadding="4" cellspacing="1" style="text-align: left;padding-bottom:20px;width:100%">
+                                    <tr>
+                                        <th style="width:15%;height:28px">
+                                            <input type="hidden" name="RecordID_@(r["WOUND_ROW"])" id="RecordID_@(r["WOUND_ROW"])" />
+                                            <input type="hidden" name="row[]" value="@r["WOUND_ROW"]" />
+                                            <input type="hidden" name="ID[]" value="@r["WOUND_ID"]" />
+                                            <input type="hidden" id="number@(r["WOUND_ROW"])" value="@r["NUM"]" />
+                                            <input type="hidden" id="HidWoundType@(r["WOUND_ROW"])" name="HidWoundType[]" value="@WoundType" />
+                                            編號:@r["NUM"]
+                                        </th>
+                                        <th style="width:30%;">
+                                            傷口種類:<label id="type@(r["WOUND_ROW"])">@r["TYPE"]</label>
+                                            <input type="hidden" name="type[]" value="@r["TYPE"]" />
+                                        </th>
+                                        <th style="width:55%;">
+                                            部位:@r["POSITION"] (@r["POSITION_TYPE"])
+                                            <input type="hidden" name="position[]" value="@r["POSITION"]" />
+                                            <input type="hidden" name="positionType[]" value="@r["POSITION_TYPE"]" />
+                                        </th>
+                                    </tr>
+                                    <tr must="Y" subtitle="紀錄日期" rownum="@(r["NUM"])" id="wounddtm@(r["WOUND_ROW"])">
+                                        <td>紀錄日期</td>
+                                        <td colspan="2">
+                                            <input type="text" id="wound_date@(r["WOUND_ROW"])" name="wound_date[]" style="width:80px;" value="@DateTime.Now.ToString("yyyy/MM/dd")" readonly="readonly" onchange="if('@ViewBag.mod'=='Insert_Record') SetAllRecordDate('@i',this);" timeobjid="wound_time@(r["WOUND_ROW"])" />
+                                            <input type="text" id="wound_time@(r["WOUND_ROW"])" name="wound_time[]" style="width:50px;" value="@DateTime.Now.ToString("HH:mm")" readonly="readonly" onchange="" />
+                                            @*@WebTool.setDateTime("wound_date" + r["WOUND_ROW"], "wound_time" + r["WOUND_ROW"])*@
+                                            @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "wound_date" + r["WOUND_ROW"], "wound_time" + r["WOUND_ROW"], true)
+                                        </td>
+                                    </tr>
+                                    <!-- 壓傷分級 = if (WoundType == "BedSore") -->
+                                    @*@if(r["TYPE"].ToString() != "燙傷")
+                                        {
+
+                                    *@ @{//傷口的壓傷分級
+//等級Ｉ：局部皮膚發紅，施以指壓不會變白。
+//等級II：皮膚表淺部分皮層受損，已損及真皮，會出現表淺性粉紅凹洞傷口，但沒有壞死組織。也許會出現未破損或破裂的水泡。
+//等級III：真皮層皮膚完全受損。也許可看見皮下脂肪組織，但未影響到骨頭、肌腱或肌肉層。
+//等級IV：大量的組織壞死深及骨頭、肌腱或肌肉。
+//無法分級：全層皮膚組織缺損，並傷口底部被腐肉或焦痂覆蓋，導致無法評估潰傷的深度。
+//疑似深層組織損傷(SDTI)：潛在的壓力或剪力，導致軟組織損傷，局部皮膚出現紫色或紫褐色，或充血的水泡。
+                                    }
+                                    <tr must="Y" subtitle="壓傷分級" rownum="@(r["NUM"])" style="display:@(BedSoreRange)">
+                                        <td>
+                                            <label class="lab_point">*</label>
+                                            壓傷分級
+                                            <input type="hidden" name="HidRbnBedSoreRange[]" id="HidRbnBedSoreRange@(r["WOUND_ROW"])" />
+                                        </td>
+                                        <td colspan="2">
+                                            <label title="等級1：局部皮膚發紅，施以指壓不會變白"><input type="radio" name="RbnBedSoreRange@(r["WOUND_ROW"])" id="RbnBedSoreRange1_@(r["WOUND_ROW"])" value="1" />等級1：局部皮膚發紅，施以指壓不會變白。</label><br />
+                                            <label title="等級2：皮膚表淺部分皮層受損，已損及真皮，會出現表淺性粉紅凹洞傷口，但沒有壞死組織。也許會出現未破損或破裂的水泡。"><input type="radio" name="RbnBedSoreRange@(r["WOUND_ROW"])" id="RbnBedSoreRange2_@(r["WOUND_ROW"])" value="2" />等級2：皮膚表淺部分皮層受損，已損及真皮，會出現表淺性粉紅凹洞傷口，但沒有壞死組織。也許會出現未破損或破裂的水泡。</label><br />
+                                            <label title="等級3：真皮層皮膚完全受損。也許可看見皮下脂肪組織，但未影響到骨頭、肌腱或肌肉層。"><input type="radio" name="RbnBedSoreRange@(r["WOUND_ROW"])" id="RbnBedSoreRange3_@(r["WOUND_ROW"])" value="3" />等級3：真皮層皮膚完全受損。也許可看見皮下脂肪組織，但未影響到骨頭、肌腱或肌肉層。</label><br />
+                                            <label title="等級4：大量的組織壞死深及骨頭、肌腱或肌肉。"><input type="radio" name="RbnBedSoreRange@(r["WOUND_ROW"])" id="RbnBedSoreRange4_@(r["WOUND_ROW"])" value="4" />等級4：大量的組織壞死深及骨頭、肌腱或肌肉。</label><br />
+                                            <label title="無法分級：全層皮膚組織缺損，並傷口底部被腐肉或焦痂覆蓋，導致無法評估潰傷的深度。"><input type="radio" name="RbnBedSoreRange@(r["WOUND_ROW"])" id="RbnBedSoreRange5_@(r["WOUND_ROW"])" value="無法分級" />無法分級：全層皮膚組織缺損，並傷口底部被腐肉或焦痂覆蓋，導致無法評估潰傷的深度。</label><br />
+                                            <label title="疑似深層組織損傷(SDTI)：潛在的壓力或剪力，導致軟組織損傷，局部皮膚出現紫色或紫褐色，或充血的水泡。"><input type="radio" name="RbnBedSoreRange@(r["WOUND_ROW"])" id="RbnBedSoreRange6_@(r["WOUND_ROW"])" value="疑似深層組織損傷(SDTI)" />疑似深層組織損傷(SDTI)：潛在的壓力或剪力，導致軟組織損傷，局部皮膚出現紫色或紫褐色，或充血的水泡。</label><br />
+                                        </td>
+                                    </tr>
+                                    @*}
+                                        else
+                                        {*@
+                                    <tr must="Y" subtitle="傷口等級" rownum="@(r["NUM"])" style="display:@(scald)">
+                                        @*@(BedSoreRange)*@
+                                    <td>
+                                        <label class="lab_point">*</label>
+                                        傷口等級
+                                        @*<input type="hidden" name="HidRbnBedSoreRange[]" id="HidRbnBedSoreRange@(r["WOUND_ROW"])" />*@
+                                        <input type="hidden" id="Hidwound_class@(r["WOUND_ROW"])" name="Hidwound_class[]" value="" />
+                                    </td>
+                                    <td colspan="2">
+                                        @Html.RadioButton("wound_class" + r["WOUND_ROW"], "0", new { id = "wound_class_A_" + r["WOUND_ROW"] })
+                                        @Html.Label("wound_class_A_" + r["WOUND_ROW"], "N/A")           @Html.Raw("</br>")
+                                        @Html.RadioButton("wound_class" + r["WOUND_ROW"], "1", new { id = "wound_class_B_" + r["WOUND_ROW"] })
+                                        @Html.Label("wound_class_B_" + r["WOUND_ROW"], "第I級(Superficial burn)：表皮層受損，皮膚發紅沒有水泡。")@Html.Raw("</br>")
+                                        @Html.RadioButton("wound_class" + r["WOUND_ROW"], "2", new { id = "wound_class_C_" + r["WOUND_ROW"] })
+                                        @Html.Label("wound_class_C_" + r["WOUND_ROW"], "第II級(Superficial partial thickness burn)：表皮及部分真皮破損。")@Html.Raw("</br>")
+                                        @Html.RadioButton("wound_class" + r["WOUND_ROW"], "3", new { id = "wound_class_D_" + r["WOUND_ROW"] })
+                                        @Html.Label("wound_class_D_" + r["WOUND_ROW"], "第III級(Deep partial thickness burn)：表皮及真皮破損，有傷及毛囊及毛脂腺。")@Html.Raw("</br>")
+                                        @Html.RadioButton("wound_class" + r["WOUND_ROW"], "4", new { id = "wound_class_E_" + r["WOUND_ROW"] })
+                                        @Html.Label("wound_class_E_" + r["WOUND_ROW"], "第IV級(Full partial thickness burn)：表皮、真皮及皮下組織。")@Html.Raw("</br>")
+                                    </td>
+                                </tr>
+                                @*}*@
+                                <tr must="Y" subtitle="範圍" rownum="@(r["NUM"])" style="display:@(obs_N)">
+                                    <td>
+                                        <label class="lab_point">*</label>
+                                        範圍
+                                        <input type="hidden" name="HidRbnRangeYN[]" id="HidRbnRangeYN@(r["WOUND_ROW"])" />
+                                        <input type="hidden" name="HidRbnBackoutYN[]" id="HidRbnBackoutYN@(r["WOUND_ROW"])" />
+                                    </td>
+                                    <td>
+                                        是否可測量：
+                                        <label><input type="radio" name="RbnRangeYN@(r["WOUND_ROW"])" id="RbnRangeY_@(r["WOUND_ROW"])" value="是" checked="checked" onclick="SelectScaldOnOpenDiv('Y','@(r["WOUND_ROW"])');CtrlActionFunc('radio', 'DivRangeN@(WoundType)@(r["WOUND_ROW"]),spanBackout99Other@(r["WOUND_ROW"])', false);" />是</label>
+                                        <label><input type="radio" name="RbnRangeYN@(r["WOUND_ROW"])" id="RbnRangeN_@(r["WOUND_ROW"])" value="否" onclick="CtrlActionFunc('radio', 'DivRangeN@(WoundType)@(r["WOUND_ROW"])', true);SelectScaldOnOpenDiv('N','@(r["WOUND_ROW"])');" />否</label>
+                                    </td>
+                                    <td>
+                                        <div style="display:@(BedSoreSize)" id="DivRangeY@(r["WOUND_ROW"])">
+                                            @*  @if(r["TYPE"].ToString() != "燙傷")
+                                                {
+                                            *@
+
+                                            長：<input type="text" name="TxtRangeHeight[]" id="TxtRangeHeight_@(r["WOUND_ROW"])" style="width: 80px;" />
+                                            寬：<input type="text" name="TxtRangeWidth[]" id="TxtRangeWidth_@(r["WOUND_ROW"])" style="width: 80px;" />
+                                            深度：<input type="text" name="TxtRangeDepth[]" id="TxtRangeDepth_@(r["WOUND_ROW"])" style="width: 80px;" tempfilter="N" />@*使儲存時不會擋掉此項*@
+                                        </div>
+                                        @*   }
+                                            else
+                                            {*@
+                                        <div style="display:@(scald)" id="DivWoundRange@(r["WOUND_ROW"])">
+                                            燙傷範圍:
+                                            @Html.TextBox("txt_wound_range[]", "", new { id = "txt_wound_range" + r["WOUND_ROW"], style = "width:80px;", onchange = "numcheck(this.id,this);" })%
+                                            @*  }*@
+                                        </div>
+
+                                        <div style="display:none" id="DivRangeNWoundGeneral@(r["WOUND_ROW"])">
+                                            <label><input type="radio" name="RbnBackoutYN@(r["WOUND_ROW"])" id="RbnBackoutY_@(r["WOUND_ROW"])" value="傷口敷料暫不拆包" onclick="CtrlActionFunc('radio', 'spanBackout99Other@(r["WOUND_ROW"])', false);" />傷口敷料暫不拆包</label>
+                                            <label><input type="radio" name="RbnBackoutYN@(r["WOUND_ROW"])" id="RbnBackout99_@(r["WOUND_ROW"])" value="其他" onclick="CtrlActionFunc('radio', 'spanBackout99Other@(r["WOUND_ROW"])', true);" />其他</label>
+                                            <span style="display:none" id="spanBackout99Other@(r["WOUND_ROW"])">
+                                                <input type="text" name="TxtBackout99[]" id="TxtBackout99_@(r["WOUND_ROW"])" style="width: 80px;" />
+                                            </span>
+                                        </div>
+                                        <div style="display:none" id="DivRangeNBedSore@(r["WOUND_ROW"])">
+                                            原因：<input type="text" name="TxtRangeNReason[]" id="TxtRangeNReason_@(r["WOUND_ROW"])" style="width: 80px;" />
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr must="Y" subtitle="外觀" rownum="@(r["NUM"])" style="display:@(obs_N)">
+                                    <td>
+                                        <label class="lab_point">*</label>
+                                        外觀：
+                                        <input type="hidden" name="HidChkExudateExterior[]" id="HidChkExudateExterior@(r["WOUND_ROW"])" />@*Txt_ExudateExterior562_Other*@
+                                        <input type="hidden" name="HidTxt_ExudateExterior[]" id="HidTxt_ExudateExterior@(r["WOUND_ROW"])" />
+                                    </td>
+                                    <td colspan="2">
+                                        @Shared_Helper.list_shared_checkbox_autoTxt("ChkExudateExterior" + r["WOUND_ROW"].ToString(), ViewBag.WoundExterior, "", "ExudateExterior" + r["WOUND_ROW"].ToString(), "120px")
+                                    </td>
+                                </tr>
+                                <tr must="Y" subtitle="滲出液" rownum="@(r["NUM"])" style="display:@(obs_N)">
+                                    <td>
+                                        <label class="lab_point">*</label>
+                                        滲出液
+                                        <input type="hidden" name="HidRbnExudateYN[]" id="HidRbnExudateYN@(r["WOUND_ROW"])" />
+                                        <input type="hidden" name="HidChkExudateNature[]" id="HidChkExudateNature@(r["WOUND_ROW"])" />
+                                        <input type="hidden" name="HidChkExudateColor[]" id="HidChkExudateColor@(r["WOUND_ROW"])" />
+                                        <input type="hidden" name="HidChkExudateNatureBedSore[]" id="HidChkExudateNatureBedSore@(r["WOUND_ROW"])" />
+                                        <input type="hidden" name="HidRbnExudateAmount[]" id="HidRbnExudateAmount@(r["WOUND_ROW"])" />
+                                    </td>
+                                    <td>
+                                        <label><input type="radio" name="RbnExudateYN@(r["WOUND_ROW"])" id="RbnExudateN_@(r["WOUND_ROW"])" value="無" onclick="CtrlActionFunc('radio', 'DivExudate@(WoundType)@(r["WOUND_ROW"])', false);CtrlActionFunc('radio', 'DivExudateAmount@(r["WOUND_ROW"])', false);" />無</label>
+                                        <label><input type="radio" name="RbnExudateYN@(r["WOUND_ROW"])" id="RbnExudateY_@(r["WOUND_ROW"])" value="有" onclick="CtrlActionFunc('radio', 'DivExudate@(WoundType)@(r["WOUND_ROW"])', true);CtrlActionFunc('radio', 'DivExudateAmount@(r["WOUND_ROW"])', true);" />有</label>
+                                    </td>
+                                    <td class="CLSpanFixedWidth2">
+                                        <div style="display:none;" id="DivExudateAmount@(r["WOUND_ROW"])">
+                                            滲出物量：
+                                            @*<label><input type="radio" name="RbnExudateAmount@(r["WOUND_ROW"])" id="RbnExudateAmount1_@(r["WOUND_ROW"])" value="無" onclick="" />無</label>*@
+                                            <label><input type="radio" name="RbnExudateAmount@(r["WOUND_ROW"])" id="RbnExudateAmount2_@(r["WOUND_ROW"])" value="少" onclick="" />少</label>
+                                            <label><input type="radio" name="RbnExudateAmount@(r["WOUND_ROW"])" id="RbnExudateAmount3_@(r["WOUND_ROW"])" value="中" onclick="" />中</label>
+                                            <label><input type="radio" name="RbnExudateAmount@(r["WOUND_ROW"])" id="RbnExudateAmount4_@(r["WOUND_ROW"])" value="多" onclick="" />多</label>
+                                        </div>
+                                        <div style="display:none; " id="DivExudateWoundGeneral@(r["WOUND_ROW"])">
+                                            <div>
+                                                性狀：
+                                                @Shared_Helper.list_shared_checkbox_autoTxt("ChkExudateNature" + r["WOUND_ROW"].ToString(), ViewBag.ExudateNature, "", "ExudateNature" + r["WOUND_ROW"].ToString(), "120px")
+                                            </div>
+                                            <div>
+                                                顏色：
+                                                @Shared_Helper.list_shared_checkbox_autoTxt("ChkExudateColor" + r["WOUND_ROW"].ToString(), ViewBag.ExudateColor, "", "ExudateColor" + r["WOUND_ROW"].ToString(), "120px")
+                                            </div>
+                                        </div>
+                                        <div style="display: none; " id="DivExudateBedSore@(r["WOUND_ROW"])">
+                                            <div>
+                                                性質：
+                                                <label><input type="checkbox" name="ChkExudateNatureBedSore@(r["WOUND_ROW"])" id="ChkExudateNatureBedSore1_@(r["WOUND_ROW"])" value="漿液" />漿液</label>
+                                                <label><input type="checkbox" name="ChkExudateNatureBedSore@(r["WOUND_ROW"])" id="ChkExudateNatureBedSore2_@(r["WOUND_ROW"])" value="血液" />血液</label>
+                                                <label><input type="checkbox" name="ChkExudateNatureBedSore@(r["WOUND_ROW"])" id="ChkExudateNatureBedSore3_@(r["WOUND_ROW"])" value="化膿" />化膿</label>
+                                                <label><input type="checkbox" name="ChkExudateNatureBedSore@(r["WOUND_ROW"])" id="ChkExudateNatureBedSore4_@(r["WOUND_ROW"])" value="惡臭" />惡臭</label>
+                                                <div style="display:inline-block">
+                                                    <label><input type="checkbox" name="ChkExudateNatureBedSore@(r["WOUND_ROW"])" id="ChkExudateNatureBedSore99_@(r["WOUND_ROW"])" value="其他" onclick="CtrlActionFunc('checkbox', 'spanExudateNatureBedSore99Other@(r["WOUND_ROW"])', this);" />其他</label>
+                                                    <span style="display:none" id="spanExudateNatureBedSore99Other@(r["WOUND_ROW"])">
+                                                        <input type="text" name="TxtExudateNatureBedSore99[]" id="TxtExudateNatureBedSore99_@(r["WOUND_ROW"])" style="width: 80px;" />
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- 是否有縫線 = if (WoundType == "WoundGeneral") -->
+                                <tr must="Y" subtitle="是否有縫線" rownum="@(r["NUM"])" style="display:@(SuturesYN)">
+                                    <td>
+                                        <label class="lab_point">*</label>
+                                        是否有縫線
+                                        <input type="hidden" name="HidRbnSuturesYN[]" id="HidRbnSuturesYN@(r["WOUND_ROW"])" />
+                                    </td>
+                                    <td>
+                                        <label><input type="radio" name="RbnSuturesYN@(r["WOUND_ROW"])" id="RbnSuturesN_@(r["WOUND_ROW"])" value="無縫線" onclick="CtrlActionFunc('radio', 'spanSuturesY@(r["WOUND_ROW"]),DivSuturesR@(r["WOUND_ROW"])', false);" />無縫線</label>
+                                        <label><input type="radio" name="RbnSuturesYN@(r["WOUND_ROW"])" id="RbnSuturesY_@(r["WOUND_ROW"])" value="有縫線" onclick="CtrlActionFunc('radio', 'spanSuturesY@(r["WOUND_ROW"])', true);CtrlActionFunc('radio', 'DivSuturesR@(r["WOUND_ROW"])', false);" />有縫線</label>
+                                        <label><input type="radio" name="RbnSuturesYN@(r["WOUND_ROW"])" id="RbnSuturesR_@(r["WOUND_ROW"])" value="縫線已拆" onclick="CtrlActionFunc('radio', 'DivSuturesR@(r["WOUND_ROW"])', true);CtrlActionFunc('radio', 'spanSuturesY@(r["WOUND_ROW"])', false);" />縫線已拆</label>
+                                    </td>
+                                    <td>
+                                        <span style="display:none; " id="spanSuturesY@(r["WOUND_ROW"])">
+                                            縫：
+                                            <input type="text" name="TxtSuturesYOther[]" id="TxtSuturesYOther_@(r["WOUND_ROW"])" style="width: 80px;" tempfilter="N" />
+                                            針
+                                        </span>
+                                        <div style="display: none; " id="DivSuturesR@(r["WOUND_ROW"])">
+                                            拆線日期：
+                                            <input type="text" id="TxtStitchesDate_@(r["WOUND_ROW"])" name="TxtStitchesDate[]" style="width:80px;" value="" readonly="readonly" tempfilter="N" />
+                                            @WebTool.setDateTime("TxtStitchesDate_" + r["WOUND_ROW"], "")
+                                            拆多少針：
+                                            <input type="text" name="TxtPin[]" id="TxtPin_@(r["WOUND_ROW"])" style="width: 80px;" tempfilter="N" />
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr must="Y" subtitle="傷口邊緣" rownum="@(r["NUM"])" style="display:@(obs_Y)">
+                                    <td>
+                                        <label class="lab_point">*</label>
+                                        傷口邊緣
+                                        <input type="hidden" id="HidObsRange_class@(r["WOUND_ROW"])" name="HidObsRange_class[]" value="" />
+                                    </td>
+                                    <td colspan="2">
+                                        @Html.RadioButton("ObsRange_class" + r["WOUND_ROW"], "密合", new { id = "ObsRange_class_A_" + r["WOUND_ROW"] })
+                                        @Html.Label("ObsRange_class_A_" + r["WOUND_ROW"], "密合")@Html.Raw("</br>")
+                                        @Html.RadioButton("ObsRange_class" + r["WOUND_ROW"], "皮膚裂縫< 0.3公分", new { id = "ObsRange_class_B_" + r["WOUND_ROW"] })
+                                        @Html.Label("ObsRange_class_B_" + r["WOUND_ROW"], "皮膚裂縫< 0.3公分")@Html.Raw("</br>")
+                                        @Html.RadioButton("ObsRange_class" + r["WOUND_ROW"], "皮膚和皮下脂肪有裂縫", new { id = "ObsRange_class_C_" + r["WOUND_ROW"] })
+                                        @Html.Label("ObsRange_class_C_" + r["WOUND_ROW"], "皮膚和皮下脂肪有裂縫")@Html.Raw("</br>")
+                                        @Html.RadioButton("ObsRange_class" + r["WOUND_ROW"], "皮膚、皮下脂肪、筋膜層裂開", new { id = "ObsRange_class_D_" + r["WOUND_ROW"] })
+                                        @Html.Label("ObsRange_class_D_" + r["WOUND_ROW"], "皮膚、皮下脂肪、筋膜層裂開")@Html.Raw("</br>")
+                                    </td>
+                                </tr>
+                                    <tr must="Y" subtitle="紅" rownum="@(r["NUM"])" style="display:@(obs_Y)">
+                                        <td>
+                                            <label class="lab_point">*</label>
+                                            紅
+                                            <input type="hidden" id="HidObsRed_class@(r["WOUND_ROW"])" name="HidObsRed_class[]" value="" />
+                                        </td>
+                                        <td colspan="2">
+                                            @Html.RadioButton("ObsRed_class" + r["WOUND_ROW"], "無", new { id = "ObsRed_class_A_" + r["WOUND_ROW"] })
+                                            @Html.Label("ObsRed_class_A_" + r["WOUND_ROW"], "無")           @Html.Raw("</br>")
+                                            @Html.RadioButton("ObsRed_class" + r["WOUND_ROW"], "傷口周圍邊緣 < 0.25公分", new { id = "ObsRed_class_B_" + r["WOUND_ROW"] })
+                                            @Html.Label("ObsRed_class_B_" + r["WOUND_ROW"], "傷口周圍邊緣 < 0.25公分")@Html.Raw("</br>")
+                                            @Html.RadioButton("ObsRed_class" + r["WOUND_ROW"], "傷口周圍邊緣 < 0.5公分", new { id = "ObsRed_class_C_" + r["WOUND_ROW"] })
+                                            @Html.Label("ObsRed_class_C_" + r["WOUND_ROW"], "傷口周圍邊緣 < 0.5公分")@Html.Raw("</br>")
+                                            @Html.RadioButton("ObsRed_class" + r["WOUND_ROW"], "傷口周圍邊緣 > 0.5公分", new { id = "ObsRed_class_D_" + r["WOUND_ROW"] })
+                                            @Html.Label("ObsRed_class_D_" + r["WOUND_ROW"], "傷口周圍邊緣 > 0.5公分")@Html.Raw("</br>")
+                                        </td>
+                                    </tr>
+                                    <tr must="Y" subtitle="水腫" rownum="@(r["NUM"])" style="display:@(obs_Y)">
+                                        <td>
+                                            <label class="lab_point">*</label>
+                                            水腫
+                                            <input type="hidden" name="HidObsSwollen_class[]" id="HidObsSwollen_class@(r["WOUND_ROW"])" />
+                                        </td>
+                                        <td>
+                                            <label><input type="radio" name="ObsSwollen_class@(r["WOUND_ROW"])" id="ObsSwollen_class_A_@(r["WOUND_ROW"])" value="無" />無</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsSwollen_class@(r["WOUND_ROW"])" id="ObsSwollen_class_B_@(r["WOUND_ROW"])" value="會陰處 < 1公分" />會陰處 < 1公分</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsSwollen_class@(r["WOUND_ROW"])" id="ObsSwollen_class_C_@(r["WOUND_ROW"])" value="會陰處 1-2公分" />會陰處 1-2公分</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsSwollen_class@(r["WOUND_ROW"])" id="ObsSwollen_class_D_@(r["WOUND_ROW"])" value="會陰處 > 2公分" />會陰處 > 2公分</label>
+                                            @Html.Raw("</br>")
+                                        </td>
+                                        <td>
+                                            <div id="DivObsSwollen@(r["WOUND_ROW"])">
+                                                範圍:
+                                                @Html.TextBox("txt_ObsSwollen_range[]", "", new { id = "txt_ObsSwollen_range" + r["WOUND_ROW"], style = "width:80px;", onchange = "numcheck(this.id,this);" })
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr must="Y" subtitle="瘀血" rownum="@(r["NUM"])" style="display:@(obs_Y)">
+                                        <td>
+                                            <label class="lab_point">*</label>
+                                            瘀血
+                                            <input type="hidden" name="HidObsBruise_class[]" id="HidObsBruise_class@(r["WOUND_ROW"])" />
+                                        </td>
+                                        <td colspan="2">
+                                            <label><input type="radio" name="ObsBruise_class@(r["WOUND_ROW"])" id="ObsBruise_class_A_@(r["WOUND_ROW"])" value="無" />無</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsBruise_class@(r["WOUND_ROW"])" id="ObsBruise_class_B_@(r["WOUND_ROW"])" value="傷口兩側 < 0.25公分" />傷口兩側 < 0.25公分</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsBruise_class@(r["WOUND_ROW"])" id="ObsBruise_class_C_@(r["WOUND_ROW"])" value="傷口兩側 0.25-1公分" />傷口兩側 0.25-1公分</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsBruise_class@(r["WOUND_ROW"])" id="ObsBruise_class_D_@(r["WOUND_ROW"])" value="傷口兩側 > 1公分" />傷口兩側 > 1公分</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsBruise_class@(r["WOUND_ROW"])" id="ObsBruise_class_E_@(r["WOUND_ROW"])" value="左側 < 0.5公分" />左側 < 0.5公分</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsBruise_class@(r["WOUND_ROW"])" id="ObsBruise_class_F_@(r["WOUND_ROW"])" value="左側 0.5-2公分" />左側 0.5-2公分</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsBruise_class@(r["WOUND_ROW"])" id="ObsBruise_class_G_@(r["WOUND_ROW"])" value="左側 > 2公分" />左側 > 2公分</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsBruise_class@(r["WOUND_ROW"])" id="ObsBruise_class_H_@(r["WOUND_ROW"])" value="右側 < 0.5公分" />右側 < 0.5公分</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsBruise_class@(r["WOUND_ROW"])" id="ObsBruise_class_I_@(r["WOUND_ROW"])" value="右側 0.5-2公分" />右側 0.5-2公分</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsBruise_class@(r["WOUND_ROW"])" id="ObsBruise_class_J_@(r["WOUND_ROW"])" value="右側 > 2公分" />右側 > 2公分</label>
+                                            @Html.Raw("</br>")
+                                        </td>
+                                    </tr>
+                                    <tr must="Y" subtitle="分泌物" rownum="@(r["NUM"])" style="display:@(obs_Y)">
+                                        <td>
+                                            <label class="lab_point">*</label>
+                                            分泌物
+                                            <input type="hidden" name="HidObsSecretion_class[]" id="HidObsSecretion_class@(r["WOUND_ROW"])" />
+                                        </td>
+                                        <td colspan="2">
+                                            <label><input type="radio" name="ObsSecretion_class@(r["WOUND_ROW"])" id="ObsSecretion_class_A_@(r["WOUND_ROW"])" value="無" />無</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsSecretion_class@(r["WOUND_ROW"])" id="ObsSecretion_class_B_@(r["WOUND_ROW"])" value="漿液性" />漿液性</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsSecretion_class@(r["WOUND_ROW"])" id="ObsSecretion_class_C_@(r["WOUND_ROW"])" value="漿液性及血濃性" />漿液性及血濃性</label>
+                                            @Html.Raw("</br>")
+                                            <label><input type="radio" name="ObsSecretion_class@(r["WOUND_ROW"])" id="ObsSecretion_class_D_@(r["WOUND_ROW"])" value="血濃性" />血濃性</label>
+                                            @Html.Raw("</br>")
+                                        </td>
+                                    </tr>
+                                <tr must="Y" subtitle="處置" rownum="@(r["NUM"])">
+                                    <td>
+                                        <label class="lab_point">*</label>
+                                        處置
+                                        <input type="hidden" name="HidRbnHandleYN[]" id="HidRbnHandleYN@(r["WOUND_ROW"])" />
+                                        <input type="hidden" name="HidChkHandleItemWound[]" id="HidChkHandleItemWound@(r["WOUND_ROW"])" />
+                                        <input type="hidden" name="HidChkHandleItemBedSore[]" id="HidChkHandleItemBedSore@(r["WOUND_ROW"])" />
+                                        <input type="hidden" name="HidChkHandleItemBabyLabor[]" id="HidChkHandleItemBabyLabor@(r["WOUND_ROW"])" />
+                                    </td>
+                                    <td>
+                                        <label><input type="radio" name="RbnHandleYN@(r["WOUND_ROW"])" id="RbnHandleN_@(r["WOUND_ROW"])" value="否" onclick="CtrlActionFunc('radio', 'DivHandleY@(WoundType)@(r["WOUND_ROW"]),spanHandleItem99Other@(WoundType)@(r["WOUND_ROW"])', false);" />否</label>
+                                        <label><input type="radio" name="RbnHandleYN@(r["WOUND_ROW"])" id="RbnHandleY_@(r["WOUND_ROW"])" value="是" onclick="CtrlActionFunc('radio', 'DivHandleY@(WoundType)@(r["WOUND_ROW"])', true);" />是</label>
+                                    </td>
+                                    <td>
+                                        <div style="display: none; " id="DivHandleYWoundGeneral@(r["WOUND_ROW"])">
+                                            <label><input type="checkbox" name="ChkHandleItemWound@(r["WOUND_ROW"])" id="ChkHandleItemWound1_@(r["WOUND_ROW"])" value="CD" />CD</label>
+                                            <label><input type="checkbox" name="ChkHandleItemWound@(r["WOUND_ROW"])" id="ChkHandleItemWound2_@(r["WOUND_ROW"])" value="Wet" />Wet</label>
+                                            <label><input type="checkbox" name="ChkHandleItemWound@(r["WOUND_ROW"])" id="ChkHandleItemWound3_@(r["WOUND_ROW"])" value="Iodoform" />Iodoform</label>
+                                            <label><input type="checkbox" name="ChkHandleItemWound@(r["WOUND_ROW"])" id="ChkHandleItemWound4_@(r["WOUND_ROW"])" value="Port-A CD" />Port-A CD</label>
+                                            <label><input type="checkbox" name="ChkHandleItemWound@(r["WOUND_ROW"])" id="ChkHandleItemWound5_@(r["WOUND_ROW"])" value="導管引流" />導管引流</label>
+                                            <label><input type="checkbox" name="ChkHandleItemWound@(r["WOUND_ROW"])" id="ChkHandleItemWound6_@(r["WOUND_ROW"])" value="燙傷CD" />燙傷CD</label>
+                                            <label><input type="checkbox" name="ChkHandleItemWound@(r["WOUND_ROW"])" id="ChkHandleItemWound99_@(r["WOUND_ROW"])" value="其他" onclick="CtrlActionFunc('checkbox', 'spanHandleItem99Other@(WoundType)@(r["WOUND_ROW"])', this);" />其他</label>
+                                            <span style="display:none" id="spanHandleItem99OtherWoundGeneral@(r["WOUND_ROW"])">
+                                                <input type="text" name="TxtHandleItemWound99[]" id="TxtHandleItemWound99_@(r["WOUND_ROW"])" style="width: 80px;" />
+                                            </span>
+                                        </div>
+                                        <div style="display: none; " id="DivHandleYBabyLabor@(r["WOUND_ROW"])">
+                                            <label><input type="checkbox" name="ChkHandleItemBabyLabor@(r["WOUND_ROW"])" id="ChkHandleItemBabyLabor1_@(r["WOUND_ROW"])" value="冰敷" />冰敷</label>
+                                            <label><input type="checkbox" name="ChkHandleItemBabyLabor@(r["WOUND_ROW"])" id="ChkHandleItemBabyLabor2_@(r["WOUND_ROW"])" value="溫水坐浴" />溫水坐浴</label>
+                                            <label><input type="checkbox" name="ChkHandleItemBabyLabor@(r["WOUND_ROW"])" id="ChkHandleItemBabyLabor3_@(r["WOUND_ROW"])" value="CD" />CD</label>
+                                            <label><input type="checkbox" name="ChkHandleItemBabyLabor@(r["WOUND_ROW"])" id="ChkHandleItemBabyLabor99_@(r["WOUND_ROW"])" value="其他" onclick="CtrlActionFunc('checkbox', 'spanHandleItem99Other@(WoundType)@(r["WOUND_ROW"])', this);" />其他</label>
+                                            <span style="display:none" id="spanHandleItem99OtherBabyLabor@(r["WOUND_ROW"])">
+                                                <input type="text" name="TxtHandleItemBabyLabor99[]" id="TxtHandleItemBabyLabor99_@(r["WOUND_ROW"])" style="width: 80px;" />
+                                            </span>
+                                        </div>
+                                        <div style="display: none; " id="DivHandleYBedSore@(r["WOUND_ROW"])">
+                                            <label><input type="checkbox" name="ChkHandleItemBedSore@(r["WOUND_ROW"])" id="ChkHandleItemBedSore1_@(r["WOUND_ROW"])" value="N/S清洗" />N/S清洗</label>
+                                            <label><input type="checkbox" name="ChkHandleItemBedSore@(r["WOUND_ROW"])" id="ChkHandleItemBedSore2_@(r["WOUND_ROW"])" value="B/I消毒" />B/I消毒</label>
+                                            <label><input type="checkbox" name="ChkHandleItemBedSore@(r["WOUND_ROW"])" id="ChkHandleItemBedSore3_@(r["WOUND_ROW"])" value="B/I油布覆蓋" />B/I油布覆蓋</label>
+                                            <label><input type="checkbox" name="ChkHandleItemBedSore@(r["WOUND_ROW"])" id="ChkHandleItemBedSore4_@(r["WOUND_ROW"])" value="wet/dressing" />wet/dressing</label>
+                                            <label><input type="checkbox" name="ChkHandleItemBedSore@(r["WOUND_ROW"])" id="ChkHandleItemBedSore5_@(r["WOUND_ROW"])" value="duoderm覆蓋" />duoderm覆蓋</label>
+                                            <label><input type="checkbox" name="ChkHandleItemBedSore@(r["WOUND_ROW"])" id="ChkHandleItemBedSore99_@(r["WOUND_ROW"])" value="其他" onclick="CtrlActionFunc('checkbox', 'spanHandleItem99Other@(WoundType)@(r["WOUND_ROW"])', this);" />其他</label>
+                                            <span style="display:none" id="spanHandleItem99OtherBedSore@(r["WOUND_ROW"])">
+                                                <input type="text" name="TxtHandleItemBedSore99[]" id="TxtHandleItemBedSore99_@(r["WOUND_ROW"])" style="width: 80px;" />
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>上傳照片</td>
+                                    <td>
+                                        <input type="file" name="Wound_Img" accept=".jpg,.png" />
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(r["WOUND_IMG_ID"].ToString()) && !string.IsNullOrWhiteSpace(r["WOUND_IMG_DATA"].ToString()))
+                                        {
+                                            byte[] imageBytes = (byte[])r["WOUND_IMG_DATA"];
+                                            string base64String = Convert.ToBase64String(imageBytes);
+                                            <img src="@String.Format("data:image/png;base64,{0}", base64String)" />
+                                        }
+                                    </td>
+                                </tr>
+                                <tr id="planyn@(r["WOUND_ROW"])">
+                                    <td>
+                                        帶入護理記錄
+                                        <input type="hidden" name="HidChkPlanYN" />
+                                    </td>
+                                    <td>
+                                        <label><input type="checkbox" name="ChkPlanYN" value="Y" checked />帶入護理紀錄</label>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </table>
+                                            i++;
+                                        }
+                        </div>
+                    </td>
+                </tr>
+                <tr style="padding:5px 0 5px 0;text-align:center;">
+                    <td style="padding:5px 0 5px 0;">
+                        <input id="save" type="button" value="傷口紀錄@(ButtonStr)存檔" onclick="SetWoundRecordFunc('@ViewBag.mod'); " />
+                        <input id="cancle" type="button" value="放棄目前編輯資料" onclick="if (confirm('確認放棄?')) window.close();" />
+                        @if (ViewBag.mod == "Update_Record")
+                        {
+                            string del_func = "if(confirm('確認刪除?')) { window.location.href = 'Delete_Record?id=" + DT.Rows[0]["RECORD_ID"].ToString() + "'; }";
+                            <input id="delete" type="button" value="刪除此筆紀錄" onclick="@del_func" />
+                        }
+                    </td>
+                </tr>
+            </table>
+                                        }
+    </div>
+</form>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

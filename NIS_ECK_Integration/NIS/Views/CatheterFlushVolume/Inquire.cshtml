@@ -1,0 +1,501 @@
+﻿@{
+    ViewBag.Title = "Inquire";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "連續尿管沖洗量 查詢";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .popup
+    {
+        width: 450px;
+        height: 250px;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        /*box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;*/
+        top: 50%;
+        left: 50%;
+        margin: -190px 0 0 -130px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    .dataArea td
+    {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    #module_define
+    {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function add_content(obj, txtid) {
+        if (obj.checked)
+            $('#' + txtid).val($('#' + txtid).val() + obj.value + '，');
+        else
+            $('#' + txtid).val($('#' + txtid).val().replace(new RegExp("(" + obj.value + '，' + ")*", "g"), ''));
+    }
+
+    function send_content(txtid) {
+        $.ajax({
+            type: 'post',
+            url: 'Insert_Record',
+            data: { Com: $('#' + txtid).attr('record'), I: $('#' + txtid).val() },
+            success: function (result) {
+                if (result != '')
+                    alert(result);
+            }
+        });
+    }
+
+    function pup_window(url, width, height) {
+        url += '&day=' + $('#date').val();
+        new_window.push(window.open(url, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,resizable=yes,width=' + width + ',height=' + height));
+    }
+</script>
+@using System.Data;
+@{
+    string date = ViewBag.date;
+    DataTable dt_i = ViewBag.dt_i;
+    DataTable dt_o = ViewBag.dt_o;
+    double e_intake = 0, d_intake = 0, n_intake = 0, total_intake = 0;
+    double e_output = 0, d_output = 0, n_output = 0, total_output = 0;
+}
+<form action="Index" method="post">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; padding-bottom: 10px;">
+            <tbody>
+                <tr>
+                    <td>
+                        <div id="module_define">@title</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding-top: 5px;">日期：<input id="txtdate" name="date" style="width: 80px; font-size: 12px;" type="text" value="@DateTime.Now.ToString("yyyy/MM/dd")" readonly="readonly">
+                        @*@WebTool.setDateTime("txtdate", "", "", "", "")*@
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txtdate", "", false, "")
+                        <select name="unit">
+                            <option value="1">mL</option>
+                            <option value="2">次</option>
+                        </select>
+                        @Html.Label("lab_total_interval", "統計區間：")
+                        <select name="ddl_total_interval">
+                            <option value="1">1小時</option>
+                            <option value="2">2小時</option>
+                            <option value="4">4小時</option>
+                            <option value="8">8小時</option>
+                        </select>
+                        <input type="button" value="查詢" style="width: 80px;">
+                        <input type="button" value="範圍查詢" style="width: 80px;" onclick="">@*window.location.href = 'Old_Index';*@
+                        <input type="button" value="新增輸入/輸出" style="width: 120px;" onclick="window.location.href = '../CatheterFlushVolume/Index';">@*window.location.href = 'Insert';*@
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</form>
+<div class="dataHeader" id="dataHeader">
+    <table border="0" cellpadding="4" cellspacing="1" style="table-layout: fixed; white-space: nowrap; width: 100%;" class="dtl_VS">
+        <tbody>
+            <tr>
+                <td style="width: 14.8%;" colspan="2">
+                    <div style="overflow: hidden;">&nbsp;</div>
+                </td>
+
+                <td style="width: 35.5%; text-align: center;" colspan="5">
+                    <div style="overflow: hidden;">輸入</div>
+                </td>
+
+                <td style="width: 35.5%; text-align: center;" colspan="5">
+                    <div style="overflow: hidden;">輸出</div>
+                </td>
+
+                <td style="width: 7.1%; text-align: center;" rowspan="2">合計</td>
+                <td style="width: 7.1%; text-align: center;" rowspan="2">處置</td>
+            </tr>
+            <tr>
+                <td style="width: 7.7%; text-align: center;">班別</td>
+                <td style="width: 7.1%; text-align: center;">時間\部位</td>
+                <td style="width: 7.1%; text-align: center;">點滴</td>
+                <td style="width: 7.1%; text-align: center;">由口進食</td>
+                <td style="width: 7.1%; text-align: center;">管灌飲食</td>
+                <td style="width: 7.1%; text-align: center;">輸血</td>
+                <td style="width: 7.1%; text-align: center;">灌洗</td>
+                <td style="width: 7.1%; text-align: center;">尿液</td>
+                <td style="width: 7.1%; text-align: center;">排便量</td>
+                <td style="width: 7.1%; text-align: center;">其他</td>
+                <td style="width: 7.1%; text-align: center;">引流管</td>
+                <td style="width: 7.1%; text-align: center;">灌洗</td>
+
+            </tr>
+        </tbody>
+    </table>
+</div>
+<div class="dataArea" onscroll="document.getElementById('dataHeader').scrollLeft = this.scrollLeft;" style="height: 280px; /*height: 380px; */ width: 100%;">
+    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%;">
+        <tbody>
+            <tr style="background: rgb(171, 200, 226);">
+                <td class="head" rowspan="5" style="width: 7.6%; background: rgb(133, 165, 204); text-align: center;">大夜班
+                <br />
+                    <input type="button" value="明細" onclick="pup_window('Detail?date=N', '1000', '500');">
+                </td>
+                <td style="width: 7.1%;">
+                    <div style="overflow: hidden;">
+                        23-01
+                    </div>
+                </td>
+                <td style="width: 7.1%;">0</td>
+                <td style="width: 7.1%;">0</td>
+                <td style="width: 7.1%;">0</td>
+                <td style="width: 7.1%;">0</td>
+                <td style="width: 7.1%;">0</td>
+                <td style="width: 7.1%;">0</td>
+                <td style="width: 7.1%;">0</td>
+                <td style="width: 7.1%;">0</td>
+                <td style="width: 7.1%;">0</td>
+                <td style="width: 7.1%;">0</td>
+                <td style="width: 7.1%;">&nbsp;</td>
+                <td style="width: 7.1%;" rowspan="5">&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(225, 230, 250);">
+                <td>
+                    <div style="overflow: hidden;">
+                        01-03
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(171, 200, 226);">
+                <td>
+                    <div style="overflow: hidden;">
+                        03-05
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(225, 230, 250);">
+                <td>
+                    <div style="overflow: hidden;">
+                        05-07
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(225, 230, 250);">
+                <td>小計</td>
+                <td colspan="10">
+                    <div style="overflow: hidden;">
+                        0
+                    </div>
+                </td>
+                <td></td>
+            </tr>
+            <tr style="background: rgb(171, 200, 226);">
+                <td class="head" rowspan="5" style="background: rgb(133, 165, 204); text-align: center;">白班<br />
+                    <input type="button" value="明細" onclick="pup_window('Detail?date=D', '1000', '500');">
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        07-09
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+                <td rowspan="5">&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(225, 230, 250);">
+                <td>
+                    <div style="overflow: hidden;">
+                        09-11
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(171, 200, 226);">
+                <td>
+                    <div style="overflow: hidden;">
+                        11-13
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(225, 230, 250);">
+                <td>
+                    <div style="overflow: hidden;">
+                        13-15
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(225, 230, 250);">
+                <td>小計</td>
+                <td colspan="10">
+                    <div style="overflow: hidden;">
+                        0
+                    </div>
+                </td>
+                <td></td>
+            </tr>
+            <tr style="background: rgb(171, 200, 226);">
+                <td class="head" rowspan="5" style="background: rgb(133, 165, 204); text-align: center;">小夜班<br />
+                    <input type="button" value="明細" onclick="pup_window('Detail?date=E', '1000', '500');">
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        15-17
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+                <td rowspan="5">&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(225, 230, 250);">
+                <td>
+                    <div style="overflow: hidden;">
+                        17-19
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(171, 200, 226);">
+                <td>
+                    <div style="overflow: hidden;">
+                        19-21
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(225, 230, 250);">
+                <td>
+                    <div style="overflow: hidden;">
+                        21-23
+                    </div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background: rgb(225, 230, 250);">
+                <td>小計</td>
+                <td colspan="10">
+                    <div style="overflow: hidden;">
+                        0
+                    </div>
+                </td>
+                <td></td>
+            </tr>
+
+            <tr style="background: rgb(171, 200, 226);">
+                <td colspan="2">
+                    <div style="overflow: hidden; text-align: center;">
+                        輸入/輸出總計
+                    </div>
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        0 / 0 (0)
+
+                    </div>
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        0 / 0 (0)
+
+                    </div>
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        0 / 0 (0)
+
+                    </div>
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        0 / 0 (0)
+
+                    </div>
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        0 / 0 (0)
+
+                    </div>
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        0 / 0 (0)
+
+                    </div>
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        0 / 0 (0)
+
+                    </div>
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        0 / 0 (0)
+
+                    </div>
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        0 / 0 (0)
+
+                    </div>
+                </td>
+                <td>
+                    <div style="overflow: hidden;">
+                        0 / 0 (0)
+
+                    </div>
+                </td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+            </tr>
+        </tbody>
+    </table>
+</div>

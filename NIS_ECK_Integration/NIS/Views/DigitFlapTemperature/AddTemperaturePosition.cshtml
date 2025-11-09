@@ -1,0 +1,352 @@
+﻿@using System.Data;
+@{
+    DataTable DT = ViewBag.dt_temperature_info;
+
+    string TitleMode = "修改";
+    if (ViewBag.ModeVal != "edit")
+    {
+        Layout = "~/Views/Layout/FormLayout.cshtml";
+        TitleMode = "建立";
+    }
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .dataArea {
+        overflow-x: auto;
+        overflow-y: auto;
+        border-top: 2px solid #666;
+        border-bottom: 2px solid #666;
+        border-left: 1px solid rgba(20%,20%,40%,0.5);
+    }
+
+        .dataArea td {
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+            text-align: left;
+        }
+
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+
+<script type="text/javascript">    
+    $(document).ready(function () {
+        // 加入focus事件
+        //$(window).focus(function () {
+        //    window.opener.parent.check_session();
+        //});
+        setGridColor();
+        $(".CloseLimbArea").hide();
+
+        @if (DT != null && DT.Rows.Count > 0)
+        {
+             <text>
+        $("#DDLDFTempCtrlLimb").val('@DT.Rows[0]["DFTEMP_CTRL_LIMB_ID"].ToString()');
+
+        $(".EditHide").attr("style", "display:none");
+        $(".EditClose").attr("disabled", true);
+
+        //資料載入
+        $("#HidDFTEMPID").val('@DT.Rows[0]["DFTEMP_ID"].ToString()');
+        $('#TxtDFTempCreateDate').val('@Convert.ToDateTime(DT.Rows[0]["DFTEMP_CREATE_DTM"].ToString()).ToString("yyyy/MM/dd")');
+        $('#TxtDFTempCreateTime').val('@Convert.ToDateTime(DT.Rows[0]["DFTEMP_CREATE_DTM"].ToString()).ToString("HH:mm")');
+        $("#DDLDFTempType").val('@DT.Rows[0]["DFTEMP_TYPE"].ToString()');
+        $("#DDLDFTempType").trigger('onchange');  //綁定 onchange 事件
+        $("#DDLDFTempPosition").val('@DT.Rows[0]["DFTEMP_POSITION"].ToString()');
+        if ('@DT.Rows[0]["DFTEMP_POSITION"].ToString()' == '99') {
+            $("#TxtDFTempPosition").val('@DT.Rows[0]["DFTEMP_POSITION_CONT"].ToString()');
+            $("#DivPositionTxt").attr('style', 'display:block')
+        }
+        </text>
+        }
+
+    });
+    
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.dataArea th').css('background', '#85A5CC');
+        $('.dataArea th').css('text-align', 'left');
+    }
+
+    //點選圖片改變部位
+    function ChangeSelect(id, num) {
+        $("#" + id).val(num);
+        addposition($("#" + id).val());//紀錄部位代號
+    }
+
+    //紀錄部位代號
+    function addposition(num) {
+        if (num != "99") {
+            $('#DDLDFTempPosition').val(num);
+        }
+        else {
+            $('#DDLDFTempPosition').val('-1');
+            $('#DivPositionTxt').show();
+        }
+    }
+
+    //類別切換
+    function ChangeCategoryDDLContFunc(ObjVal) {
+        var CategoryNum = $(ObjVal).val();
+        $(".CloseLimbArea").hide();
+        $("#Wound1").show();
+
+        switch (CategoryNum) {            
+            case "2":
+                $(".Limb_tr").show();
+                break;
+            case "3":
+                $("#Wound1").hide();
+                $(".CloseLimbArea").hide();
+                break;
+            case "1":
+            default:
+                $(".CloseLimbArea").hide();
+                break;
+        }
+
+        $('#DDLDFTempPosition').find('option').remove().end().append('<option value="-1">請選擇</option>');
+
+        $.ajax({
+            type: "POST",
+            url: "../DigitFlapTemperature/GetCategoryContList",
+            dataType: 'json',
+            data: { CategoryNum: CategoryNum },
+            async: false,
+            success: function (data) {
+                SetDdl(data, 'DDLDFTempPosition');
+            }
+        });
+    }
+
+    function SetDdl(Data, DdlName) {
+        for (var i in Data) {
+            var Attr = Data[i];
+            $('#' + DdlName).append('<option value="' + Attr.Value + '">' + Attr.Text + '</option>');
+        }
+    }
+
+
+    function SetTempPositionFunc(ModeVal) {
+        var BoolVal = true;
+
+        if ($('#DDLDFTempType').val() == "-1") {
+            alert("請選擇類別");
+            BoolVal = false;
+            return;
+        }
+        else if ($('#DDLDFTempType').val() == "2") {
+            if ($('#DDLDFTempCtrlLimb').val() == "-1") {
+                alert("請選擇對照肢");
+                BoolVal = false;
+                return;
+            }
+        }
+        if ($('#DDLDFTempPosition').val() == "-1") {
+            alert("請選擇部位");
+            BoolVal = false;
+            return;
+        }
+
+        if (BoolVal) {
+            $("#HidCtrlLimbText").val($("#DDLDFTempCtrlLimb").find(":selected").text());
+
+            $.ajax({
+                url: '../DigitFlapTemperature/SetTempPositionData',
+                type: 'POST',
+                data: $('form[name=FormTemperaturePositionSet]').serialize(),
+                success: function (data) {
+                    var ResultVal = data.split('|');
+                    if (ModeVal == 'edit') {
+                        if (ResultVal[0] == "Y") {
+                            alert('儲存成功');
+                            $('#DivUpdatePosition,#Block').hide();
+                            window.location.href = 'listTemperature?id=' + ResultVal[1];                            
+                        }
+                        else if (ResultVal[0] == "N") {
+                            alert('儲存失敗');
+                        }
+                        else if (ResultVal[0] == "O") {
+                            alert('請重新選擇病患');
+                        }
+                    }
+                    else {
+                        if (ResultVal[0] == "Y") {
+                            alert('新增成功');
+                            window.opener.location.href = 'listTemperature?id=' + ResultVal[1];
+                            window.close();
+                        }
+                        else if (ResultVal[0] == "N") {
+                            alert('新增失敗');
+                        }
+                        else if (ResultVal[0] == "O") {
+                            alert('請重新選擇病患');
+                        }
+                    }
+                }, complete: function () {
+                }
+            });
+        }
+    }
+
+    function CloseWindowByMode(ModeVal) {
+        if (ModeVal == 'edit') {
+            //修改
+            $('#DivUpdatePosition,#Block').hide();
+        }
+        else {
+            //新增
+            if (confirm('確認放棄?'))
+                window.close();
+        }
+    }
+
+</script>
+
+<form id="FormTemperaturePositionSet" name="FormTemperaturePositionSet" method="post">
+    <div class="funcArea">
+        <table border="1" style="width:100%; height:100%">
+            <tr>
+                <td style="width:60%; height:100%;" class="EditHide">
+                    <div id="Wound1">
+                        <img src="~/Images/DigitFlapTemperature/New2.jpg" alt="" width="535" height="532" border="0" usemap="#Map" longdesc="~/mages/DigitFlapTemperature/New.jpg" />
+                        <map name="Map" id="Map">
+                            <area shape="poly" coords="463,176,473,148,483,126,492,113,491,108,481,108,469,110,460,119,453,127,447,144,450,154,454,166" title="右手拇指" href="#" alt="右手拇指" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="440,123,444,104,448,83,450,62,453,48,453,36,444,35,437,38,434,44,433,52,429,64,425,77,422,93,418,106,421,113,428,120,434,122" title="右手食指" href="#" alt="右手食指" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="410,107,406,96,407,78,407,65,406,50,407,37,407,28,403,18,394,18,387,23,387,41,385,64,385,83,382,107,391,112,399,112" title="右手中指" href="#" alt="右手中指" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="376,105,375,97,368,60,366,46,359,31,349,32,345,42,349,67,352,103,353,112,363,116,371,113" title="右手無名指" href="#" alt="右手無名指" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="348,114,344,103,340,80,333,61,326,52,319,54,315,58,314,73,320,104,325,123,325,127,334,124,340,120" title="右手小指" href="#" alt="右手小指" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="91,144,87,133,82,123,71,112,60,106,50,106,45,108,44,113,51,122,59,137,64,153,72,169,75,177,84,168,90,154" title="左手拇指" href="#" alt="左手拇指" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="121,108,116,98,114,75,106,49,100,36,90,34,85,40,85,50,90,78,92,96,97,119,99,123,106,122,114,115" title="左手食指" href="#" alt="左手食指" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="129,107,129,95,130,64,130,42,131,27,135,19,143,18,149,22,151,37,152,59,153,70,154,98,154,106,145,112,137,112" title="左手中指" href="#" alt="左手中指" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="160,107,162,96,166,71,170,52,174,35,182,29,189,31,192,40,192,53,189,67,188,88,186,99,185,107,180,115,170,115,164,112" title="左手無名指" href="#" alt="左手無名指" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="191,114,194,100,199,79,205,62,211,53,218,53,222,59,223,73,221,89,216,108,215,120,213,126,204,123,195,119" title="左手小指" href="#" alt="左手小指" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="380,311,383,303,382,283,374,278,366,276,359,281,355,289,356,298,358,303,357,309,361,319,366,324,375,323,378,317" title="右腳大拇趾" href="#" alt="右腳大拇趾" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="385,282,391,281,397,284,397,294,397,307,397,315,394,323,389,323,383,316,384,292" title="右腳食趾" href="#" alt="右腳食趾" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="399,286,403,284,408,285,412,289,411,306,410,314,409,321,403,324,399,320,398,298" title="右腳中趾" href="#" alt="右腳中趾" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="415,292,414,300,414,307,413,314,414,319,418,327,422,324,424,318,423,308,424,296,420,291" title="右腳無名趾" href="#" alt="右腳無名趾" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="428,303,424,310,426,316,428,323,431,328,436,328,440,323,441,316,436,305,432,303" title="右腳小趾" href="#" alt="右腳小趾" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="174,307,176,299,177,289,175,282,168,277,156,279,152,285,153,297,152,307,155,316,160,323,164,325,169,322,173,314" title="左腳大拇趾" href="#" alt="左腳大拇趾" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="149,315,150,287,146,280,141,279,135,284,137,294,135,312,138,321,144,325,147,321" title="左腳食趾" href="#" alt="左腳食趾" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="134,313,135,299,135,288,132,283,125,284,122,288,122,297,122,308,122,315,125,322,128,325,134,322,135,317" title="左腳中趾" href="#" alt="左腳中趾" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="120,296,116,291,110,293,109,299,110,309,109,316,109,323,113,327,116,328,119,322,120,312,120,302" title="左腳無名趾" href="#" alt="左腳無名趾" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                            <area shape="poly" coords="107,314,108,307,104,301,99,301,96,306,94,313,94,319,93,321,95,326,100,330,104,326,106,319" title="左腳小趾" href="#" alt="左腳小趾" onclick="ChangeSelect('DDLDFTempPosition',alt);" />
+                        </map>
+                    </div>
+                </td>
+                <td valign="top">
+                    <table border="0" cellpadding="4" cellspacing="1" style="text-align: left;padding-bottom:20px; width:100%" class="dataArea">
+                        <tr>
+                            <td style="text-align:center;" colspan="4">
+                                <span style="font-size:18px;color:blue;">@(TitleMode)部位</span>
+                                <input type="hidden" id="HidDFTEMPID" name="HidDFTEMPID" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                日期：
+                            </td>
+                            <td colspan="3">
+                                @Html.TextBox("TxtDFTempCreateDate", @DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                @Html.TextBox("TxtDFTempCreateTime", @DateTime.Now.ToString("HH:mm"), new { style = "width:80px", @readonly = "readonly" })
+                                @*@WebTool.setDateTime("TxtDFTempCreateDate", "TxtDFTempCreateTime", "", "0", "", "")*@
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "TxtDFTempCreateDate", "TxtDFTempCreateTime", true)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                類別：
+                            </td>
+                            <td colspan="3">
+                                <select id="DDLDFTempType" name="DDLDFTempType" onchange="ChangeCategoryDDLContFunc(this);" class="EditClose">
+                                    <option value="-1">請選擇</option>
+                                    <option value="1">對照肢</option>
+                                    <option value="2">患肢</option>
+                                    <option value="3">皮瓣</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                部位：
+                            </td>
+                            <td colspan="3">
+                                <div style="display:inline-block">
+                                    <select id="DDLDFTempPosition" name="DDLDFTempPosition" onchange="if ($(this).val() == '99') { $('#DivPositionTxt').show(); } else { $('#DivPositionTxt').hide(); }" class="EditClose">
+                                        <option value="-1">請選擇</option>
+                                    </select>
+                                </div>
+                                <div style="display:inline-block">
+                                    <span style="display:none;" id="DivPositionTxt">
+                                        <input type="text" id="TxtDFTempPosition" name="TxtDFTempPosition" class="EditClose" />
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="Limb_tr CloseLimbArea">
+                            <td>
+                                對照肢：
+                            </td>
+                            <td colspan="3">
+                                <input type="hidden" id="HidCtrlLimbText" name="HidCtrlLimbText" />
+                                @Html.DropDownList("DDLDFTempCtrlLimb", (List<SelectListItem>)ViewBag.CtrlLimbList, "請選擇", new { @class = "EditClose" })
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <div style="text-align:center">
+            <input id="save" type="button" value="存檔" onclick="SetTempPositionFunc('@ViewBag.ModeVal');" />
+            @*<input id="save" type="button" value="建立其他部位" onclick="//if (check()) { $('#block,#loading').show(); submit(); }" class="EditHide" />  這個暫時隱藏，咏蓁說等到恩主公要求再改，免得影響到傷口 tag wawa edit *@
+            <input id="cancle" type="button" value="取消" onclick="CloseWindowByMode('@ViewBag.ModeVal');" />
+        </div>
+    </div>
+</form>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

@@ -1,0 +1,244 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string RootDocument = ViewBag.RootDocument;
+}
+
+<style type="text/css">
+  .dataArea td {
+    border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+    text-align: left;
+    white-space:pre-line;
+    word-break:break-all;
+  }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+        setGridColor();
+        var tr = $('tr[name=scored]');
+        $(tr).fadeOut(0);
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.treven').css('background', '#ABC8E2');
+        $('.trodd').css('background', '#E1E6FA');
+    }
+
+    function set_tr(obj) {
+        var click = $(obj).attr('click');
+        var tr = $('tr[name=scored]');
+        if (click == 'true') {
+            $(tr).fadeIn(0);
+            $(obj).attr('click', 'false');
+        }
+        else {
+            $(tr).fadeOut(0);
+            $(obj).attr('click', 'true');
+        }
+    }
+
+    function edit_comply() {
+        var ck = $('input:checked');
+        var ids = '';
+        for (var i = 0; i < ck.length; i++) {
+            ids += ck[i].value + ',';
+        }
+        window.location.href = 'Comply?ids=' + ids.substring(0, ids.length - 1);
+    }
+
+    function send_score() {
+        if ($('input[score=N]:checked').length > 0) { 
+            alert('選擇的項目中有尚未執行的衛教!'); 
+            var ck_list = $('input[score=N]:checked');
+            for (var i = 0; i < ck_list.length; i++) {
+                $(ck_list[i]).click();
+            }
+        } else { 
+            if ($('input:checked').length > 0) { 
+                $("#edu_form").submit();
+            } else { 
+                alert('請選擇衛教!'); 
+            }
+        }
+    }
+    function check(edu_id) {
+      //  alert(edu_id);
+        $.ajax({
+            type: 'post',
+            url: 'Del_Score',
+            data:{ edu_id : edu_id},
+            success: function (result) {
+                if (result == '1') {
+                    alert('儲存成功');  
+                }
+                else
+                    alert('儲存失敗');
+
+                window.location.href = 'List';
+            }
+        });
+    }
+
+    ///計數儲存
+    function setCount(obj)
+    {
+        $.ajax({
+            type: 'post',
+            url: '@Url.Content("../Education/SetCount")',
+            data:{ edu_name : $(obj).attr('data-eduname')},
+            success: function (result) {
+                if (result == '1') {
+                }
+            }
+        });
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+    string feeno = ViewBag.FeeNo;
+}
+<form id="edu_form" action="Score" method="post">
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style=" width:100%; font-size:14px;">
+        <tr><td align="center">
+            <input type="button" value="新增衛教" onclick="document.location.href = './Sel_Item';" />
+            <input type="button" value="修改衛教" onclick="if ($('input:checked').length > 0) { edit_comply(); } else { alert('請選擇衛教!'); }" />
+            <input type="button" value="衛教評值" onclick="send_score();" />
+            <input type="button" value="刪除衛教" onclick="if ($('input:checked').length > 0) { $('form').attr('action', 'Del_Comply');submit(); } else { alert('請選擇衛教!'); }" />
+            <input type="button" value="列印總表" onclick="window.open('@(RootDocument)/Print/GetPDF?HeaderVal=@(Server.UrlEncode("護理指導總表"))&url=@(RootDocument)/Education/List_PDF?1=1&filename=test&feeno=@(feeno)')" />
+            <input type="button" value="範圍列印" onclick="window.open('@Url.Content("~/Education/List_pdf" + "?select=Y&feeno=" + feeno)');" />
+        </td></tr>
+        <tr><td style="padding: 5px 0px 5px 0px">
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;cursor:pointer;" click="true" onclick="set_tr(this);">
+                    <tr>
+                        <td rowspan="2" style="width:6%;">說明<br />類別</td>
+                        <td rowspan="2" colspan="2" style="width:15%;">說明內容<br /><label style="color:blue;">按此展開總覽表</label></td>
+                        <td rowspan="2" style="width:9%;">指導對象</td>
+                        @*<td style="width:9%;">使用語言</td>
+                        <td style="width:12%;">學習動機</td>*@
+                        <td rowspan="2" style="width:11%;">備註</td>
+                        <td style="width:13%;">指導方式</td>
+                        <td style="width:9%;">指導日期</td>
+                        <td style="width:8%;">指導對象</td>
+                        <td rowspan="2" style="width:8%;">評值結果</td>
+                    </tr>
+                    <tr>
+                        @*<td>文化背景</td>
+                        <td>教育程度</td>
+                        <td>學習障礙</td>*@
+                        <td>指導細項</td>
+                        <td>評值日期</td>
+                        <td>指導對象<br />說明</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea">
+                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;background-color: #FFFFFF;table-layout:fixed;">
+                @{string classname = "trodd";
+                foreach (DataRow r in dt.Rows)
+                {
+                    string name = (r["SCORE_TIME"].ToString() != "") ? "scored" : "";
+                    <tr class="@classname" name="@name">
+                        <td rowspan="4" style="width:6%;">
+                            @r["EXPLANATION_NAME"]
+                        </td>
+                        <td rowspan="4" style="width:3%;">
+                            @if (r["SCORE_TIME"].ToString() == "")
+                            {
+                                if(r["OBJECT"].ToString() =="")
+                                {
+                                <input type="checkbox" name="ids" score="N" value="@r["EDU_ID"]" />
+                                }
+                                else
+                                {
+                                <input type="checkbox" name="ids" score="Y" value="@r["EDU_ID"]" />
+                                }
+                            }
+                        </td>
+                        <td rowspan="4" style="width:12%;">
+                            @r["NAME"]
+                            @if (r["ITEM_REFERENCE_URL"].ToString() != "")
+                            {
+                            <input id="btn" type="button" value="衛教單張/影片" data-eduname="@r["NAME"]" onclick="setCount(this);@Java_funcion.pup_window(r["ITEM_REFERENCE_URL"].ToString(), 900, 600, "0")" />
+                            }
+                        </td>
+                        <td rowspan="4" style="width:9%;">@r["OBJECT"].ToString().Replace("99|","其他：")</td>
+                        @*<td rowspan="2" style="width:9%;">@r["LANGUAGE"].ToString().Replace("|",",")</td>
+                        <td rowspan="2" style="width:12%;">@r["MOTIVE"]</td>*@
+                        <td rowspan="4" style="width:11%;">@r["UNDERSTAND"]</td>
+                        <td rowspan="2" style="width:13%;">
+                            @r["DESCRIPTION"].ToString().Replace("|", ",")
+                            @if (r["DESCRIPTION_REPLACE"].ToString() != "")
+                            { @:<br />替代方案：@r["DESCRIPTION_REPLACE"]
+                            }
+                        </td>
+                        <td style="width:9%;">
+                            @Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd")
+                        <br />@Convert.ToDateTime(r["RECORDTIME"]).ToString("HH:mm:ss")
+                        </td>
+                        <td rowspan="2" style="width:8%;">@r["OBJECT_NAME"]</td>
+                        <td rowspan="4" style="width:8%;">
+                            @if (r["SCORE_RESULT"] != null && @r["SCORE_RESULT"].ToString() != "")
+                            { 
+                             @*@r["SCORE_RESULT"].ToString().Replace("|","，")*@
+                          <a style="color: blue;text-decoration:underline" onclick="if(confirm('是否確定刪除評值結果?'))check('@r["edu_id"]')">@r["SCORE_RESULT"].ToString().Replace("|", "，")</a>
+                            }                        
+                        </td>
+                    </tr>
+                    <tr class="@classname" name="@name">
+                        <td style="width:9%;">@r["Creat_User"]</td>
+                    </tr>
+                    <tr class="@classname" name="@name" >
+                        @*<td rowspan="2" style="width:9%;">@r["NATIONALITY"].ToString().Replace("99|","外籍：")</td>
+                        <td rowspan="2" style="width:9%;">@r["EDUCATION"]</td>
+                        <td rowspan="2" style="width:12%;">
+                            @r["OBSTACLE"].ToString().Replace("|", ",")
+                            @if(r["OBSTACLE_REPLACE"].ToString() != "")
+                            { @:<br />替代方案：@r["OBSTACLE_REPLACE"]
+                            }
+                        </td>*@@*@r["INSTRUCT"].ToString().Replace("|", "\n")*@ 
+                        <td rowspan="2" style="width:13%;">
+                        @if (@r["INSTRUCT"] != null && @r["INSTRUCT"].ToString() != "")
+                        { for (int i = 1; i <= r["INSTRUCT"].ToString().Split('|').Length; i++)
+                            {@i
+                              @:.@r["INSTRUCT"].ToString().Split('|').GetValue(i-1).ToString().Trim();                           
+                            }
+                        }
+                        </td>
+                        @if (r["SCORE_TIME"].ToString() != "")
+                        {
+                            <td style="width:9%;">
+                                @Convert.ToDateTime(r["SCORE_TIME"]).ToString("yyyy/MM/dd")
+                                <br />@Convert.ToDateTime(r["SCORE_TIME"]).ToString("HH:mm:ss")
+                            </td>
+                        }
+                        else
+                        {
+                        <td style="width:9%;"></td>
+                        }
+                        <td rowspan="2" style="width:8%;">
+                            @r["ACCOMPANY_NAME"]                      
+                        </td>
+                    </tr>
+                    <tr class="@classname" name="@name" >
+                        <td style="width:9%;">
+                    @r["Score_User"]
+                        </td>
+                    </tr>
+                    if (classname == "trodd")
+                    { classname = "treven";}
+                    else
+                    { classname = "trodd"; }
+                }
+                }
+                </table>
+            </div>
+        </td></tr>
+    </table>
+</div>
+</form>

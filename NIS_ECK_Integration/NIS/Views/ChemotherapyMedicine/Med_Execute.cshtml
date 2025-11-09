@@ -1,0 +1,822 @@
+﻿@{
+    ViewBag.Title = "護理資訊系統-化療給藥";
+    //Layout = "~/Views/Layout/Main.cshtml";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+
+<script type="text/javascript">
+
+    window.onload = function () {
+       
+        $("#btn_chemotherapy_execute").css("background-color", "#666666");
+        $("#btn_chemotherapy_execute").css("color", "#FFFFFF");
+    }
+    $(document).ready(function () { //div中table樣式
+        $("#PatientNo").keypress(function(e){
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if(code == 13) { //Enter keycode
+                if(Trim($("#PatientNo").val().toString()) == "")
+                {   alert("手圈條碼錯誤！");
+                    return false; }
+                else
+                {   
+                    if(Trim($("#PatientNo").val().toString()) != null)
+                        PatientNo_barcode();
+                }
+            }
+        });
+    });
+    function PatientNo_barcode (){
+        $.ajax({
+            type: 'POST',
+            url: "WebS_InHistory",
+            data: "str_Barcode=" + Trim($("#PatientNo").val().toString()),
+            success: function (data) {
+                if(data == "Error")
+                { alert("查無此手圈條碼病患，請重新確認。1"); }
+                else {
+                    top.location.href = data;}
+            },
+            error: function(data){
+                alert("查無此手圈條碼病患，請重新確認。2"); }
+        });
+    }
+    //function showPopup(id) {
+    //    var popup = document.getElementById(id);
+    //    popup.style.display = 'block';
+    //    $("#name").focus();
+    //}
+    function hidePopup(id) {
+        var popup = document.getElementById(id);
+        popup.style.display = 'none';
+    }
+    function ckin(i) {
+        var ck = document.getElementById("ck_"+i);
+        if (ck.checked) {
+
+            $("#ck_" + i).val("true");
+            $("#ck0").val("true");
+            //      alert("true #ck"+i);          
+        }
+        else {
+            $("#ck_" + i).val("false");
+            $("#ck0").val("false");
+            //    alert("false #ck" + i);
+            //     alert(ck)
+        }
+    }
+    function rinput(type) {
+
+        if (type == 'type_notyet') {
+            $("#type_notyet").fadeIn(500);
+            $("#type_early").css("display", "none");
+            $("#type_delay").css("display", "none");
+            $("#type_other").css("display", "inline");
+        } else if (type == 'type_early') {
+            $("#type_early").fadeIn(500);
+            $("#type_notyet").css("display", "none");
+            $("#type_delay").css("display", "none");
+            $("#type_other").css("display", "inline");
+        } else if (type == 'type_delay') {
+            $("#type_delay").fadeIn(500);
+            $("#type_notyet").css("display", "none");
+            $("#type_early").css("display", "none");
+            $("#type_other").css("display", "inline");
+        } else {
+            $("#type_notyet").css("display", "none");
+            $("#type_early").css("display", "none");
+            $("#type_delay").css("display", "none");
+            $("#type_other").css("display", "none");
+        }
+    }
+    function cc(){ 
+        $("#block").hide();
+        $("#bad_"+$("#name").val()).attr("code","N");
+        $("#txt_"+$("#name").val()).text("");
+        $("#reasontype_"+$("#name").val()).val("");
+        $("#textname").val("");
+        $("#name").val("");
+        $("#medmessage").text("");
+        $("#udodrgcode").focus();
+    }
+    function badreaction(flag){
+        if (flag == "Y")
+            $("#badreaction").css("display","inline");
+        else
+            $("#badreaction").css("display","none");
+    }
+    function get_DOSE(amount, unit, idname) {
+        $("#amount").val(amount);
+        $("#unit").val(unit);
+        $("#name").val(idname); //i流水號
+    }
+    function get_DOSE_all(text) {
+        $("#textname").val("all");
+    }
+    function doing(id) {
+        // alert($("#ckname2").val())
+        if ($("#ordstatus_0").val() != "0") {
+            alert("請勾選執行給藥項目");
+            return false;
+        }
+        if (id == "over") {
+            if ($("#checker").val() == null || $("#checker").val() == "") {
+                alert("請先完成給藥覆核");
+                return false;
+            }
+        }
+        else {
+            if ($("#checker").val() != null && $("#checker").val() != "") {
+                alert("已完成覆核，請先結束給藥");
+                return false;
+            }
+        }
+        $("#butname").val(id)
+        return true;
+        //ckin = 覆核 按紐
+        //OK = 完成
+        //over = 結束
+        //note=單筆註解
+        //noteAll=批次註解
+    }
+    function fatherHello(ckname) {
+        if (ckname != "") {
+            $("#checker").val(ckname);
+            alert("覆核者為:" + ckname);
+            $("#butname").val('ckin')
+            document.forms[0].submit();
+            return true;
+        }
+        else {
+            alert("帳號或密碼錯誤");
+            return false;
+        }
+    }
+    function rinput(type) {
+        $("#type_early,#type_delay,#type_overtime,#type_notyet").css("display", "none");
+        $(".TableNote,#type_other").css("display", "inline");
+        $("#"+type).fadeIn(500);
+    }
+    function reason(result, i) {
+        id = $("#name").val();
+        name = $("#name").val();
+        var textname = $("#textname");
+        if(typeof(textname) !== "undefined"){
+            textname = $(textname).val();
+        }
+        var other = $("#other1");
+        if(typeof(other) !== "undefined"){
+            other = $(other).val();
+        }
+        var badreaction = $("#badreaction");
+        if(typeof(badreaction) !== "undefined"){
+            badreaction = $(badreaction).val();
+        }
+
+        rd = $('input:radio[name=injection_execution]:checked').val();
+        if (typeof(rd) == "undefined") { rd = ""; }
+        
+        $("#reasontype_" + id).val(rd);
+        $("#moddose_" + id).val($("#amount").val());                        //修改劑量
+        $("#checker_" + id).val($("#checker").val());                       //覆核人員
+        $("#bad_" + id).attr("value",$("#badreaction").val());              //不良反應
+        $("#bad_" + id).attr("code",$("input:radio[name=baditems]:checked").val());
+        $("#ss_drugname_" + id).val($("#Sliding_List option:selected").text());
+        $("#ss_dose_" + id).val($("#Sliding_dose").val());
+        if($("#Sliding_dose").val() == "" && $("#Sliding_List option:selected").text() != "請選擇")
+        {
+            alert("Sliding Scale 劑量未填寫！");
+            return false;
+        }
+        
+        $("#position_"+id).val($("#Position_List").val());
+        if($("#bad_" + id).attr("code") == "Y" && $("#bad_" + id).val() == "")
+        { alert("不良反應填'有'，需說明。");
+            return;}
+        if (result == 'textbox' && i == "Z" && rd != "" && $("#other1").val() == "")
+        {
+            if($("#udcir_"+id).val() != "STAT")
+            {    alert("執行原因未點選(填寫)");
+                return;
+            }
+        }
+        text = "";
+        //單次備註 A amount
+        if (textname == 'A'){
+            if($("#bad_"+id).attr("code") == "Y")
+                nogood = "" + $("#bad_"+id).val();
+            else
+                nogood = "";
+            if (result == 'textbox') {
+                if (nogood != "") { $("#txt_" + id).text($("#other1").val() + " 不良反應:" + nogood) }
+                else { $("#txt_" + id).text($("#other1").val()) }
+                if($("#udcir_"+id).val() == "STAT" && $("#other1").val() =="")
+                {$("#reasontype_" + id).val("");}
+                $("#reason_" + id).val($("#other1").val()); //原因內容
+            }
+            else {
+                if (nogood != "") { $("#txt_" + id).text(result + " 不良反應:" + nogood) }
+                else { $("#txt_" + id).text(result) }
+                $("#reason_" + id).val(result); //原因內容    
+            }
+            var ck_part = document.getElementById("ck_" + id);
+            if (ck_part.checked == false)
+                ck_part.checked = true;
+
+            if ((i == "B" || rd =='3') && $("#reasontype_" + id).attr("check") == ""){
+                $("#ck_" + id).css("display", "none");
+                $("#ordstatus_" + id).val("2"); //是否勾選 0:true,1:false,2:註記
+            }
+            else{
+                $("#ck_" + id).css("display", "inline");
+                $("#ordstatus_" + id).val("0"); //是否勾選
+            }
+        }
+       
+        $("input[name=baditems]").attr("checked",false);
+        $("#block").hide();
+        $('#dv_type').fadeOut(500);
+        $("#udodrgcode").focus();
+    }   
+    function showPopup(id,flag,type,num) {
+        $("#block").show();
+        if(id == "dv_type")
+        { 
+            if($("#bad_"+num).attr("code") == "Y"){
+                $("#badtype[value=Y]").click();
+            }
+            else if($("#bad_"+num).attr("code") == "N"){
+                $("#badtype[value=N]").click();
+            }
+            $("#badreaction").val($("#bad_" + num).val());
+            $("#textname").val(flag);
+            $("#other1").val($("#reason_"+num).val());
+            $("#injection_execution1,#injection_execution2,#injection_execution3,#injection_execution4").attr("checked",false); 
+            $("#injection_execution1,#injection_execution2,#injection_execution3,#injection_execution4").css("display","inline"); 
+            $(".TableNote,#type_other").css("display", "none");
+            if(type == "S"){
+                $("#injection_execution1").click();
+                $("#injection_execution2,#injection_execution3,#injection_execution4").css("display","none");
+                $(".TableNote,#type_other").css("display", "inline");
+            }
+            if(type == "P"){
+                $("#injection_execution1,#injection_execution2,#injection_execution3,#injection_execution4").css("display","none");
+                $(".TableNote,#type_other").css("display", "none");
+            }
+            if(type == "P1"){
+                $("#injection_execution2").click();
+                $("#injection_execution1,#injection_execution3,#injection_execution4").css("display","none");
+                $(".TableNote,#type_other").css("display", "inline");
+            }
+            if($("#ck_"+num).attr("position") != ""){
+                $("#p_position").css("display", "inline");
+                $("#Position_List option[value="+$("#position_"+num).val()+"]").attr('selected', true);
+                //20140423 總劑量隱藏
+                $("#showtotaldose").css("display", "inline");
+            }
+            else{
+                $("#p_position").css("display", "none");
+                $("#showtotaldose").css("display", "none");
+            }
+
+            if($("#reasontype_"+num).val() != "") {
+                $("#injection_execution"+$("#reasontype_"+num).val()).click();
+
+            }
+            if (flag == "B")
+                $("#p_position").css("display","none");
+        }
+        if(id == "div_login") {
+            $("#checker").attr("name",num);
+            $("#txtid").val("");
+            $("#txtpwd").val("");
+        }
+        $("#" + id).center().fadeIn(200);  
+    }
+</script>
+<link rel="Stylesheet" type="text/css" href="~/Content/StyleSheet/ExecMed.css" />
+<style type="text/css">
+    .popup {
+        width: auto;
+        height: auto;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+       /* margin:-150px 0 0 -300px;*/
+            /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        background-color: #F0F0F0;
+        z-index: 99;
+    }
+      .pdf_list td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        white-space: pre-line;
+    }
+      polygon.scald {
+        fill: red;
+        stroke: none; /* Replace with none if you like */
+        stroke-width: 4;
+        cursor: pointer;
+        opacity: 0.33;
+    }
+    polygon.pressure {
+        fill: blue;
+        stroke: none; /* Replace with none if you like */
+        stroke-width: 4;
+        cursor: pointer;
+        opacity: 0.33;
+    }
+    polygon.other {
+        fill: #9aff9d;
+        stroke: none; /* Replace with none if you like */
+        stroke-width: 4;
+        cursor: pointer;
+        opacity: 0.50;
+    }
+</style>
+@using System.Data;
+@using NIS.Data;
+@{
+    Random rd = new Random();
+    DataTable dt_all = ViewBag.dt_all;
+    DataTable dt = ViewBag.dt;
+    string name1 = ViewBag.name1;
+    string name2 = "";
+    if (ViewBag.name2 != null)
+    {
+        name2 = ViewBag.name2;
+    }
+
+    // List<ChemotherapyDrugOrder> chemoOrderList = ViewData["chemoOrderList"];
+    int i = 0;
+    if (ViewBag.ck != null)
+    {
+        bool ck = ViewBag.ck;
+    }
+    string udodrgcode = ViewBag.udodrgcode;
+
+    // int number = 1;
+    //if (ViewBag.key != null)
+    //{ number = int.Parse(ViewBag.key) + 1; }
+    DateTime start_day = DateTime.Now;
+    DateTime end_day = DateTime.Now;
+    if (ViewBag.start_day != null)
+    { start_day = ViewBag.start_day; }
+    if (ViewBag.end_day != null)
+    { end_day = ViewBag.end_day; }
+    string start_date, start_time, end_date, end_time;
+    if (ViewBag.start_date == null && ViewBag.end_date == null)
+    {
+        start_date = DateTime.Now.AddHours(-8).ToString("yyyy/MM/dd");
+        start_time = DateTime.Now.AddHours(-8).ToString("HH:mm");
+        end_date = DateTime.Now.AddHours(1).ToString("d");
+        end_time = DateTime.Now.AddHours(1).ToString("HH:mm");
+    }
+    else
+    {
+        start_date = ViewBag.start_date;
+        start_time = ViewBag.start_time;
+        end_date = ViewBag.end_date;
+        end_time = ViewBag.end_time;
+    }  
+        
+}
+<form method="post" action="Execute">
+    <div class="funcArea">
+        <input id="execflag" type="hidden" value="" name="execflag" />
+        <label>病人手圈：</label>
+        @Html.TextBox("PatientNo", "", new { style = "width:100px", @id = "PatientNo", tabindex = "1" }) &emsp;&emsp;
+        @Html.TextBox("start_date", @start_date, new { style = "width:60px;", @readonly = "readonly" })
+        @Html.TextBox("start_time", @start_time, new { style = "width:40px;", @readonly = "readonly" })
+        @WebTool.setDateTime("start_date", "start_time", "", "0")
+        @Html.Label("lab", " ~ ")
+        @Html.TextBox("end_date", @end_date, new { style = "width:60px;", @readonly = "readonly" })
+        @Html.TextBox("end_time", @end_time, new { style = "width:40px;", @readonly = "readonly" })
+        @WebTool.setDateTime("end_date", "end_time", "0", "1")
+        <input id="search" class="btn_m" type="button" value="查詢" onclick="if(doit('Zquiry'))tosubmit();" />
+        <input id="search_all" class="btn" type="button" value="查詢所有待執行醫囑" onclick="if(doit('ZquiryAll'))tosubmit();" />
+    </div>
+
+    <div class="funcArea">
+       @* <label>藥包條碼：</label>
+        @Html.TextBox("udodrgcode", udodrgcode, new { style = "width:150px", @id = "udodrgcode", tabindex = "2" }) &emsp;&emsp;   *@
+        <input type="button" class="btn_m" value="復原" onclick="window.location.reload();" />
+        <input type="button" class="btn" value="執行" name="val" onclick="check_point()" />
+        <input type="button" class="btn_m" value="結束" onclick="if(doing('over'))submit();"/>   
+        <input type="hidden" id="checker"  value="" name="cker"/>
+        <label id="l_checker"></label>
+    </div>
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; text-align: left;"> 
+        <tr>
+            <td style="padding: 5px 0px 5px 0px;">           
+                    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; padding: 0px 0px 25px 0px;">
+
+                        <tr class="dataHeader">
+                            <th rowspan="2">身高</th>
+                            <th rowspan="2">體重</th>
+                            <th rowspan="2">BSA</th>
+                            <th rowspan="2">Scr</th>
+                            <th rowspan="2">CCr</th>
+                            <th rowspan="2">WBC(ul)</th>
+                            <th rowspan="2">WBC日期</th>
+                            <th colspan="3">分類</th>
+                            <th rowspan="2">Stage</th>
+                            <th rowspan="2">ANC</th>
+                        </tr>
+                        <tr class="dataHeader">
+                            <th>T</th>
+                            <th>N</th>
+                            <th>M</th>
+                        </tr>
+                        @{             
+                            List<ChemotherapyStatus> ChemotherapyStatusList = (List<ChemotherapyStatus>)ViewData["ChemotherapyStatusList"];
+                            if (ChemotherapyStatusList != null)
+                            {
+                            <tr border="0" cellpadding="0" cellspacing="0" style="width:100%;text-align:center;">
+                                <td rowspan="2">@ChemotherapyStatusList[0].Height</td>
+                                <td rowspan="2">@ChemotherapyStatusList[0].Weight</td>
+                                <td rowspan="2">@ChemotherapyStatusList[0].BSA</td>
+                                <td rowspan="2">@ChemotherapyStatusList[0].Scr</td>
+                                <td rowspan="2">@ChemotherapyStatusList[0].Ccr</td>
+                                <td rowspan="2">@ChemotherapyStatusList[0].WBC</td>
+                                <td rowspan="2">@ChemotherapyStatusList[0].WBCDate</td>
+                                <td rowspan="1">@ChemotherapyStatusList[0].T</td>
+                                <td rowspan="1">@ChemotherapyStatusList[0].N</td>
+                                <td rowspan="1">@ChemotherapyStatusList[0].M</td>
+                                <td rowspan="2">@ChemotherapyStatusList[0].Stage</td>
+                                <td rowspan="2">@ChemotherapyStatusList[0].ANC</td>
+                            </tr>          
+                            }
+                            }
+                    </table>
+                    <div style="height: 300px; overflow: auto;">                    
+                      <div >
+                        <table border="0" cellpadding="0" cellspacing="1" style="width: 100%;">
+                            <tr>
+                                <td colspan="11" style="background-color: #F8BF3A; text-align: center;"><span style="font-weight: bold">Chemotherapy</span></td>
+                            </tr>
+                            <tr>
+                                <th style="width:5%">順序</th>
+                                <th>藥名</th>
+                                <th style="width:15%">使用劑量/泡製溶液/持續時間</th>
+                                <th style="width:5%">途徑</th>
+                                <th style="width:5%">頻率</th>
+                                <th style="width:5%">滴速</th>
+                                <th style="width:10%">生效時間</th>
+                                <th style="width:10%">結束時間</th>
+                                @*<th>速率(mL/小時)</th>*@
+                                <th style="width:5%">狀態</th>
+                            </tr>
+                        </table>
+                    </div >
+                     
+                        <table  style="width: 100%;text-align: center; 
+                         background-color: #eee9bf; border-collapse: collapse;border: 1px solid #FFFFFF;" >
+                         
+                            @if (dt != null && dt.Rows.Count > 0)
+                            {
+                                foreach (DataRow r in dt.Rows)
+                                {                             
+                                <tr>
+                                    <td style="width:5%">@r["SEGUENCE"]</td>
+                                    <td  style="text-align: left; ">@r["DRUGNAME"]</td>
+                                    <td style="width:15%">@r["DOSE"]@r["DOSEUNIT"]
+                                        @if (@r["DUR_TIME"] != null && @r["DUR_TIME"].ToString().Trim() != "")
+                                        {
+                                            @:/
+                                            @r["DUR_TIME"];
+                                        }
+                                        @if (@r["INFUSIONSOLUTION"] != null && @r["INFUSIONSOLUTION"].ToString().Trim() != "")
+                                        {
+                                            @:/
+                                            @r["INFUSIONSOLUTION"];
+                                        }
+                                    </td>
+                                    <td style="width:5%">@r["ROUTE"]</td>
+                                    <td style="width:5%">@r["FEQ"]</td>
+                                    <td style="width:5%"></td>
+                                    <td style="width:10%">@r["ORDERSTARTDATE"]</td>
+                                    <td style="width:10%">@r["ORDERENDDATE"]</td>
+                                    <td style="width:5%">@r["STATUS"]</td>                                   
+                                </tr>
+                                <tr>
+                                    <td colspan="11"  style="text-align: center;">&emsp;醫囑備註:@r["MEMO"] &emsp;執行者:@ViewBag.name1 &emsp;覆核者:@r["CHECK2"]</td>
+                                    @*<th colspan="1">醫囑備註</th>
+                                    <td colspan="5">@r["MEMO"]</td>
+                                    <th colspan="1">執行者</th>
+                                    <td colspan="1">
+                                        <span style="color: red;">@ViewBag.name1</span>
+                                    </td>
+                                    <th colspan="1">覆核者</th>
+                                    <td colspan="1">
+                                        <span style="color: blue;">@r["CHECK2"]</span>
+                                    </td>*@
+                                </tr>
+                                <tr>
+                                    <td colspan="11" style="padding: 5px 0px 5px 0px;background-color:#f5f5f5">
+
+                                      
+
+                                      @*  <input id ="txt_@i" readonly="readonly" style="display:none" />*@
+                                        <label for="@r["SHEETNO"]@i">執行日期時間：</label>
+                                        @Html.TextBox("date", @DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px;", @readonly = "readonly" })
+                                        @Html.TextBox("time", @DateTime.Now.ToString("HH:mm"), new { style = "width:50px;", @readonly = "readonly" })
+                                        @if (@i != 0)
+                                        {
+                                            @:<input type="checkbox" id="ck_@i"  disabled = "disabled" onclick="ckin(@i)" />
+                                          }
+                                        else
+                                        {@:<input type="checkbox" id="ck_0"  onclick="ckin(@i)" />
+                                            @*<input type="button" value="註" onclick = "showPopup('dv_type');get_DOSE('@r["DOSE"]@r["DOSEUNIT"]',@i);"/>*@
+                                              <input class="button_note" type="button" value="註" onclick = "showPopup('dv_type','A','V',@i);get_DOSE('@r["DOSE"]','@r["DOSEUNIT"]',@i);"/>
+                                              <label id ="txt_@i" style="color:#000000;font-size:12px"></label>
+                                        }
+                                      
+                                        <input id="ckname2" type="hidden" value="data[0].CHECK2" name="checker" />
+                                        <input type="hidden" value="@i"  name="data.Index"/>
+                                        <input type="hidden" name="data[@i].ck" id="ordstatus_@i" value="" />
+                                        <input type="hidden" value="@r["ORDSEQ"]"  name="data[@i].ORDSEQ"/>
+                                        <input type="hidden" value="@r["SHEETNO"]"  name="data[@i].SHEETNO"/>
+                                        <input type="hidden" value="@r["SEGUENCE"]"  name="data[@i].SEGUENCE"/>
+                                        <input id="reasontype_@i" type="hidden" value="@r["REASONTYPE"]"  name="data[@i].REASONTYPE"/>
+                                        <input id="reason_@i" type="hidden" value="@r["REASON"]"  name="data[@i].REASON"/>
+                                        <input type="hidden" value="@r["INSDT"]"  name="data[@i].INSDT"/>
+                                        <input type="hidden" value="@r["UDODRGCODE"]"  name="data[@i].UDODRGCODE"/>
+                                        <input type="hidden" value="@r["DOSE"]"  name="data[@i].DOSE"/>
+                                        <input type="hidden" value="@r["DOSEUNIT"]"  name="data[@i].DOSEUNIT"/>
+                                        <input type="hidden" value="@r["STATUS"]"  name="data[@i].STATUS"/>
+                                        <input type="hidden" value="@r["ROUTE"]"  name="data[@i].ROUTE"/>
+                                        <input type="hidden" value="@r["FEQ"]"  name="data[@i].FEQ"/>
+                                        <input type="hidden" value="@r["ORDERSTARTDATE"]"  name="data[@i].ORDERSTARTDATE"/>
+                                        <input type="hidden" value="@r["ORDERENDDATE"]"  name="data[@i].ORDERENDDATE"/>
+                                        <input type="hidden" value="@r["DRUGNAME"]"  name="data[@i].DRUGNAME"/>
+                                        <input type="hidden" value="@r["MEMO"]"  name="data[@i].MEMO"/>
+                                        <input type="hidden" value="@r["GENERICDRUGS"]"  name="data[@i].GENERICDRUGS"/>
+                                        <input type="hidden" value="@r["TOTAL"]"  name="data[@i].TOTAL"/>
+                                        <input type="hidden" value="@r["RATE"]"  name="data[@i].RATE"/>
+                                        <input type="hidden" value="@r["CHECK1"]"  name="data[@i].CHECK1"/>
+                                        <input type="hidden" value="@r["CHECK2"]"  name="data[@i].CHECK2"/>
+                                        <input id="bad_@i"  type="hidden" value=" "  name="data[@i].badreaction"/>
+                                        <input id="moddose_@i" type="hidden" value=" "  name="data[@i].moddose"/>
+                                    </td>
+                                </tr>                  
+                 
+                                        i++;
+                                }
+                            }
+                        </table>                   
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 25px 0px 5px 0px;">
+                <div id="popup" class="popup" style="width: 280px; height: 150px;">
+                    @* <form action="Execute" method="post">*@
+                    <table border="0" cellpadding="0" cellspacing="0" style="padding: 5px 0px 0px 0px; width: 280px; height: 150px;">
+                        <tr>
+                            <td>
+                                <fieldset style="-moz-border-radius: 8px; -webkit-border-radius: 8px; padding: 0px 0px 0px 10px; width: 95%;">
+                                    <legend style="text-align: center;">覆核者登入</legend>
+                                    <table border="0" style="padding: 10px 0px 10px 0px; width: 260px; height: 120px;">
+                                        <tr>
+                                            <td>
+                                                <span>帳號：</span>
+                                                @Html.TextBox("name", "", new { style = " width:150px;" })
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <span>密碼：</span>
+                                                @Html.Password("pwd", "", new { style = " width:150px;" })
+
+                                                <input id="butname" type="hidden" value=" " name="but" />
+                                                <input id="ck0" type="hidden" value="false" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td align="right">
+                                                <input type="button" value="完成" onclick="doing('ckin');submit();" style="width: 50px" />
+                                                <input id="hide" type="button" value="取消" style="width: 50px" onclick="hidePopup('popup');" />
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </fieldset>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+
+    </table>
+</form>
+<div id="dv_type" class="popup" >
+    <span class="p_close">
+        <img src="~/Images/Close.png" alt="關閉" onclick="cc();$('#dv_type').fadeOut(500);" />
+    </span>
+    <table style="border-style: solid; border-width: 2px; width: 100%;">
+        <tr>
+            <td style="text-align:left">
+                <p>單次給藥劑量：
+                @Html.TextBox("txt", "", new { id = "name", style = "display:none" })
+                @Html.TextBox("txt", "", new { id = "textname", style = "display:none" })
+                @*20140423 新增總劑量計算*@
+                @Html.TextBox("txt", "", new { id = "amount", style = "width:50px", onkeyup = "plustotalunit(this);" })
+                @Html.TextBox("lab", "", new { id = "unit", ReadOnly = "readonly", style = "width:30px" })
+                </p>
+                <p id="p_position">
+                    @if (ViewBag.position_list != null)
+                    {
+                        @:部位註記：@Html.DropDownList("Position_List", (IEnumerable<SelectListItem>)ViewBag.position_list, new { style = "width:100px;background-color:pink", @onchange = "position_check(this.value)" })
+                        
+                    }
+                <br />
+                    @if (ViewBag.sliding_list != null)
+                    {  
+                       @:Sliding Scale：@Html.DropDownList("Sliding_List", (IEnumerable<SelectListItem>)ViewBag.sliding_list, new { style = "width:150px", @onchange = "slidingselect()" })
+                        @*20140423 新增總劑量計算*@
+                       @:劑量：@Html.TextBox("Sliding_dose", "", new { id = "Sliding_dose", style = "width:30px", onkeyup = "plustotalunit(this);" })
+                        @Html.TextBox("Sliding_unit_list", "", new { id = "Sliding_unit", ReadOnly = "readonly", style = "width:30px" })
+                    }
+                </p>
+                @*20140422 新增單次給藥劑量及 Sliding Scale 劑量加總*@
+                <p>
+                    <span id="showtotaldose" style="display:none">總劑量：<label id="totaldose"></label> <label id="totaldoseunit"></label></span>
+                </p>
+                @*20140422 新增單次給藥劑量及 Sliding Scale 劑量加總*@
+                <p>
+                不良反應註記：
+                <label><input type="radio" value="N" id="badtype" name="baditems" onclick="badreaction('N')"/>無</label>
+                <label><input type="radio" value="Y" id="badtype" name="baditems" onclick="badreaction('Y')"/>有</label>
+                @Html.TextBox("badreaction", "", new { id = "badreaction", style = "display:none" })
+                </p>
+            </td>
+            <td style="text-align:left; border-left-style: solid; border-left-width: 2px; border-left-color:white; ">
+                <table style="width: 100%;vertical-align: middle;text-align: center;">
+                    <tr>
+                        <td style="text-align:left">
+                            @Html.RadioButton("injection_execution", "1", false, new { id = "injection_execution1", onclick = "rinput('type_notyet')" })
+                            @Html.Label("injection_execution1", "未執行", new { id = "injection_execution1" })
+                        </td><td>
+                            @Html.RadioButton("injection_execution", "2", false, new { id = "injection_execution2", onclick = "rinput('type_early')" })
+                            @Html.Label("injection_execution2", "提早執行", new { id = "injection_execution2" })
+                        </td><td>
+                            @Html.RadioButton("injection_execution", "3", false, new { id = "injection_execution3", onclick = "rinput('type_delay')" })
+                            @Html.Label("injection_execution3", "延遲執行", new { id = "injection_execution3" })
+                        </td>
+                       @* <td>
+                            @Html.RadioButton("injection_execution", "4", false, new { id = "injection_execution4", onclick = "rinput('type_overtime')" })
+                            @Html.Label("injection_execution4", "過時給藥", new { id = "injection_execution4" })
+                        </td>*@
+                        <td>
+                            @Html.RadioButton("injection_execution", "5", false, new { id = "injection_execution5", onclick = "reason('拒絕','Z')" })
+                            @Html.Label("injection_execution5", "拒絕", new { id = "injection_execution5" })
+                        </td><td>
+                            @Html.RadioButton("injection_execution", "6", false, new { id = "injection_execution6", onclick = "reason('暫停','Z')" })
+                            @Html.Label("injection_execution6", "暫停", new { id = "injection_execution6" })
+                        </td>
+                    </tr>
+                </table>
+                <div style="display: none;" id="type_early">
+                    <table class ="TableNote">
+                        <tr>
+                            <th>提早給原因</th>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="A1" onclick="reason('手術','A')">@Html.Label("lab", "手術")</label></td>
+                            <td>
+                                <label id="A2" onclick="reason('洗腎','A')">@Html.Label("lab", "洗腎")</label></td>
+                            <td>
+                                <label id="A3" onclick="reason('請假','A')">@Html.Label("lab", "請假")</label></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="A4" onclick="reason('病人要求','A')">@Html.Label("lab", "病人要求")</label></td>
+                            <td>
+                                <label id="A5" onclick="reason('檢查','A')">@Html.Label("lab", "檢查")</label></td>
+                            <td>
+                                <label id="A6" onclick="reason('病情需求','A')">@Html.Label("lab", "病情需求")</label></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="A7" onclick="reason('自行帶回','A')">@Html.Label("lab", "自行帶回")</label></td>
+                            <td style="background:#DDDDFF"></td>
+                            <td style="background:#DDDDFF"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div style="display: none;" id="type_delay">
+                    <table class ="TableNote">
+                        <tr>
+                            <th>延遲原因</th>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="B1" onclick="reason('手術','B')">@Html.Label("lab", "手術")</label></td>
+                            <td>
+                                <label id="B2" onclick="reason('洗腎','B')">@Html.Label("lab", "洗腎")</label></td>
+                            <td>
+                                <label id="B3" onclick="reason('病人外出','B')">@Html.Label("lab", "病人外出")</label></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="B4" onclick="reason('檢查','B')">@Html.Label("lab", "檢查")</label></td>
+                            <td>
+                                <label id="B5" onclick="reason('請假','B')">@Html.Label("lab", "請假")</label></td>
+                            <td>
+                                <label id="B6" onclick="reason('禁食','B')">@Html.Label("lab", "禁食")</label></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="B7" onclick="reason('見餐給','B')">@Html.Label("lab", "見餐給")</label></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </table>
+                </div>
+                <div style="display: none;" id="type_notyet">
+                    <table class ="TableNote">
+                        <tr>
+                            <th>未執行原因</th>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="C1" onclick="reason('請假未給','C')">@Html.Label("lab", "請假未給")</label></td>
+                            <td>
+                                <label id="C2" onclick="reason('病人拒服','C')">@Html.Label("lab", "病人拒服")</label></td>
+                            <td>
+                                <label id="C3" onclick="reason('禁食','C')">@Html.Label("lab", "禁食")</label></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="C4" onclick="reason('血壓偏低','C')">@Html.Label("lab", "血壓偏低")</label></td>
+                            <td>
+                                <label id="C5" onclick="reason('血糖偏低','C')">@Html.Label("lab", "血糖偏低")</label></td>
+                            <td>
+                                <label id="C6" onclick="reason('返家服用','C')">@Html.Label("lab", "返家服用")</label></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="C7" onclick="reason('暫停使用','C')">@Html.Label("lab", "暫停使用")</label></td>
+                            <td>
+                                <label id="C8" onclick="reason('檢查','C')">@Html.Label("lab", "檢查")</label></td>
+                            <td>
+                                <label id="C9" onclick="reason('近常規時間','C')">@Html.Label("lab", "近常規時間")</label></td>
+                        </tr>
+                    </table>
+                </div>
+                <div style="display: none;" id="type_overtime">
+                    <table class ="TableNote">
+                        <tr>
+                            <th>過時給藥原因</th>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="D1" onclick="reason('手術','D')">@Html.Label("lab", "手術")</label>
+                            </td>
+                            <td>
+                                <label id="D2" onclick="reason('洗腎','D')">@Html.Label("lab", "洗腎")</label>
+                            </td>
+                            <td>
+                                <label id="D3" onclick="reason('病人外出','D')">@Html.Label("lab", "病人外出")</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="D4" onclick="reason('檢查','D')">@Html.Label("lab", "檢查")</label>
+                            </td>
+                            <td>
+                                <label id="D5" onclick="reason('請假','D')">@Html.Label("lab", "請假")</label>
+                            </td>
+                            <td>
+                                <label id="D6" onclick="reason('禁食','D')">@Html.Label("lab", "禁食")</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label id="D7" onclick="reason('藥物未到','D')">@Html.Label("lab", "藥物未到")</label>
+                            </td>
+                            <td>
+                                <label id="D8" onclick="reason('配合醫師使用','D')">@Html.Label("lab", "配合醫師使用")</label>
+                            </td>
+                            <td><label id="D9" onclick="reason('近常規時間','D')">@Html.Label("lab", "近常規時間")</label></td>
+                        </tr>
+                    </table>
+                </div>
+                <div style="display: none;" id="type_other">
+                    其他：@Html.TextBox("other1", "", new { id = "other1" })
+                </div>
+            </td>
+        </tr>
+    </table>
+    <div>
+        <br />
+        <input id="maxid" type="hidden" value="@i"  />
+        <input id="add" type="button" value="確定" onclick="reason('textbox','Z');" />
+        <input id="back" type="button" value="取消" onclick="$('#dv_type').fadeOut(500);$('#block').hide();" />
+        <input id="reset" type="button" value="清除" onclick="cc();$('#dv_type').fadeOut(500);" />
+    </div>
+</div>
+

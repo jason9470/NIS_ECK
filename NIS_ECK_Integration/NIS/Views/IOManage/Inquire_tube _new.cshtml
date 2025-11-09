@@ -1,0 +1,410 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "引流管輸出量 單日查詢";
+    string hour = ViewBag.hour;
+    string unit = ViewBag.unit;
+    int LossCount = ViewBag.LossCount;
+
+    DataTable new_dt = ViewBag.dt_new_io_day_query;
+    DataTable tubes = ViewBag.dtType;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .popup {
+        width: 450px;
+        height: 250px;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        top: 50%;
+        left: 50%;
+        margin: -190px 0 0 -130px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+<link href="../Content/gridviewscroll.css?13" rel="stylesheet" /> <!--問號後面數字是版本(或任意數)，為了避免瀏覽器快取抓不到最新版本的css-->
+<script type="text/javascript" src="~/Scripts/gridviewscroll.js?17"></script>
+<script type="text/javascript" src="~/Scripts/GridViewTable_initialSet.js"></script>
+<script type="text/javascript" src="~/Scripts/IOManage/IOManage_inquire_tube.js?15"></script>
+<!--<script type="text/javascript" src="~/Scripts/jquery.jqGrid.mayaminer.js"></script>-->
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+
+        $("#ddl_total_interval").val('@(hour)');
+        $("#unit").val('@(unit)');
+
+        var div1 = document.getElementById("gvDiv1");
+        var screen_height = parseInt($(".mainContent", parent.document).height()) - 100;
+        var tableTitle = document.getElementById("tableTitle");
+        var screen_width = tableTitle.clientWidth;
+
+        var style = "width:" + screen_width + "px;height:" + screen_height + "px;";
+        div1.setAttribute("style", style);
+
+        GrideViewScrollTable_initial("gvMain", true, false, 2, 2, screen_width, screen_height);
+
+        tube_new(true);
+
+        //SetDatePicker($('#qry_date'), '+1d');
+    });
+    window.onresize = function () {  //視窗大小改變(Chrome除錯模式也會使視窗大小改變)
+        var div1 = document.getElementById("gvDiv1");
+        var screen_height = parseInt($(".mainContent", parent.document).height()) - 100;
+        var tableTitle = document.getElementById("tableTitle");
+        var screen_width = tableTitle.clientWidth;
+
+        var style = "width:" + screen_width + "px;height:" + screen_height + "px;";
+        div1.setAttribute("style", style);
+
+        GrideViewScrollTable_initial("gvMain", true, false, 2, 2, screen_width, screen_height);
+
+        tube_new(false);
+    }
+
+    //限制dateTimePicker 的起迄範圍
+    function ChangeStartDate(pType, TxtNameArr, ObjVal) {
+        var Index = $(".tabArea").tabs("option", "active");
+        var CurrentDate = new Date($('#qry_date').val());
+        var NewDate = new Date(CurrentDate);  //開始日期
+        var NextDateVal = new Date();  //現在日期，給「後一天」的 btn 使用；開始日期不可大於「現在日期 + 1」
+        //var BeforeDateVal = new Date();  //住院日期，給「前一天」的 btn 使用；開始日期不可小於「出院日期」
+        var dd = "", mm = "", yyyy = "";
+
+        if (pType == 'prev')
+            NewDate.setDate(NewDate.getDate() - 1);
+        else if (pType == 'next')
+            NewDate.setDate(NewDate.getDate() + 1);
+
+        //開始日期
+        dd = padLeft(NewDate.getDate().toString(), 2, "0");
+        mm = padLeft((NewDate.getMonth() + 1).toString(), 2, "0");
+        yyyy = NewDate.getFullYear();
+        var RightNowDate = yyyy + '/' + mm + '/' + dd;
+        $('#qry_date').val(RightNowDate);
+
+        //btn 判斷日期，現在日期 or 住院日期
+        //現在日期
+        NextDateVal.setDate(NextDateVal.getDate() + 1);  //現在日期 + 1
+        dd = padLeft(NextDateVal.getDate().toString(), 2, "0");
+        mm = padLeft((NextDateVal.getMonth() + 1).toString(), 2, "0");
+        yyyy = NextDateVal.getFullYear();
+        var NextDStr = yyyy + '/' + mm + '/' + dd;
+
+        //住院日期
+        var BeforeDStr = $(ObjVal).attr("indate");
+
+        var SplitTmp = TxtNameArr.split(',');
+        if (RightNowDate == NextDStr)  //最後一天
+        {
+            $("#" + SplitTmp[0]).attr("disabled", true);
+            $("#" + SplitTmp[1]).attr("disabled", false);
+        }
+        else if (RightNowDate == BeforeDStr)  //第一天
+        {
+            $("#" + SplitTmp[1]).attr("disabled", true);
+            $("#" + SplitTmp[0]).attr("disabled", false);
+        }
+        else {
+            $("#" + SplitTmp[1]).attr("disabled", false);
+            $("#" + SplitTmp[0]).attr("disabled", false);
+        }
+    }
+
+    function SetDatePicker(DateObj, AddDay) {
+        DateObj.prop('readonly', true).css({ 'width': '80px', 'font-size': '12px' });
+        DateObj.datepicker({
+            beforeShowDay: function (date) {
+                switch (date.getDay()) {
+                    case 6:
+                        return [true, 'satday'];
+                        break;
+                    case 0:
+                        return [true, 'sunday'];
+                        break;
+                    default:
+                        return [true, ''];
+                        break;
+                }
+            },
+            inline: true,
+            showAnim: "slideDown",
+            controlType: myControl,
+            maxDate: AddDay,
+            onSelect: function () {
+                ChangeStartDate('', 'BtnNextDay,BtnDayBefore', 'txt');
+            }
+        });
+    }
+    //WebTool月曆，往前往後一天
+    function setDate(pType, DateField) {
+        var NewDate = new Date($("#" + DateField).val());
+        if (pType == 'prev') {
+            NewDate.setDate(NewDate.getDate() - 1);
+            $("#" + DateField).datepicker("setDate", NewDate);
+        } else if (pType == 'next') {
+            NewDate.setDate(NewDate.getDate() + 1);
+            $("#" + DateField).datepicker("setDate", NewDate);
+        }
+        $("#tube_submit").trigger("click");
+    }
+    function add_content(obj, txtid) {
+        if (obj.checked)
+            $('#' + txtid).val($('#' + txtid).val() + obj.value + '，');
+        else
+            $('#' + txtid).val($('#' + txtid).val().replace(new RegExp("(" + obj.value + '，' + ")*", "g"), ''));
+    }
+
+    function send_content(txtid) {
+        $.ajax({
+            type: 'post',
+            url: 'Insert_Record',
+            data: { Com: $('#' + txtid).attr('record'), I: $('#' + txtid).val() },
+            success: function (result) {
+                if (result != '')
+                    alert(result);
+            }
+        });
+    }
+
+    function pup_window(url, width, height) {
+        new_window.push(window.open(url, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=' + width + ',height=' + height));
+    }
+
+    //跟後端取data
+    function tube_new(changeDate) {
+        var date = $("#qry_date").val();  //預設date為目前選擇日期
+        var unit = parseInt($("#unit").val()) - 1;
+        var timeBlock_hours = parseInt($("#ddl_total_interval").val());
+
+        //因為查詢、視窗大小改變都呼叫tube_new(changeDate)來建立表格，所以要判定是否只是視窗大小變更
+        //若只是視窗大小變更，變更前有調整日期，但沒有要查詢，則使用之前暫存的json資料重新繪製表格(無須再進DB撈資料)
+        if (changeDate) {
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content("~/IOManage/Inquire_tube_new")',
+                data: {
+                    date: date,
+                    qry_date: date
+                },
+                success: function (data) {
+                    var jsonResult = data.tubeData.attachment;  //取出來的結果為字串
+                    var inquire_tubes_record = JSON.parse(jsonResult); //引流管json，用JSON.parse()將string轉json
+
+                    var gvMainResult = document.getElementById("gvMain_text");
+                    gvMainResult.innerHTML = jsonResult;  //將 json結果暫存至 <p></p>中，如果是空的json，則 jsonResult 為 "[]" 字串
+
+                    if (jsonResult === "[]") {  //這天沒有引流管資料
+
+                        reBuild("gvDiv1", "gvMain", inquire_tubes_record, date, unit, timeBlock_hours, false);  //沒資料 hasData = false
+                    } else {
+                        reBuild("gvDiv1", "gvMain", inquire_tubes_record, date, unit, timeBlock_hours, true); //有資料 hasData = true
+                    }
+                }
+            });
+        } else { //查詢日期沒變更
+            var jsonResult = document.getElementById("gvMain_text").innerHTML;  //json to string
+
+            if (jsonResult == "[]") { //當天沒資料
+                reBuild("gvDiv1", "gvMain", "", date, unit, timeBlock_hours, false);  //沒資料 hasData = false
+            } else {
+                reBuild("gvDiv1", "gvMain", JSON.parse(jsonResult), date, unit, timeBlock_hours, true); //有資料 hasData = true
+            }
+        }
+
+
+    }
+
+    //帶入護理記錄按扭
+    function Take_CareRecord(classNo, date, typei, className) {
+        //
+        loop_windows("open_cover");
+        $.ajax({
+            type: 'post',
+            url: '@Url.Content("~/IOManage/TakeCareRecord")',
+            data: {
+                Pclass: classNo, PclassName: className, Pdate: date, Ptypei: typei,
+                POValue:  $("#lab_O_txt_" + classNo).text(),PIValue: "0",
+                POTOTAL: $("#lab_O_AllTotal").text(),
+                PclasslossI:"",PclasslossO:"",
+                Ploss: '@(LossCount)',  PclasslossO: parseInt($("#lab_txt_loss_data_O_" + classNo).text()),PlossI: "0",
+                Pdealwith: "", PdealwithALL: $("#texta_dealwith_ALL").val(), Punit: '@(unit)',
+                qry_date: $("#qry_date").val(),
+                SubtotalO: $("#subtotal_by_TempClass_" + classNo).text(),
+                AllTotalO: $("#AllTotal").text(),
+                Func_from: "Inquire_tube"
+            },
+            success: function (data) {
+                if (data == "Y")
+                { alert('帶入護理紀錄成功!'); }
+                else
+                { alert('帶入護理紀錄失敗!'); }
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    function PupWindow(url, width, height, top) {
+        var pURL = url; pURL = pURL.replace('&amp;', '&');
+        new_window.push(window.open(pURL, '_blank', 'menubar=no,status=no,scrollbars=yes,top=Tp,left=200,toolbar=no,width=' + width + ',height=' + height));
+    }
+
+    function reBuild(div_id, table_id, inquire_tubes_record, inputDate, unit, timeBlock_hours, hasData) {
+        //***************初始值***************//
+        var jobBlocks = ["白班", "小夜班", "大夜班"];
+        var shiftClassD = ["07", "08", "09", "10", "11", "12", "13", "14"];//白 7
+        var shiftClassE = ["15", "16", "17", "18", "19", "20", "21", "22"];//小夜	15
+        var shiftClassN = ["23", "00", "01", "02", "03", "04", "05", "06"];//大夜班時間(往後一天的凌晨，不是當天的)23
+        var unitStr = ["mL", "g", "mg"];  //液體單位
+
+        var screen_height = parseInt($(".mainContent", parent.document).height()) - 100;
+        var tableTitle = document.getElementById("tableTitle");
+        var screen_width = tableTitle.clientWidth;
+
+        var style = "width:" + screen_width + "px;height:" + screen_height + "px;";
+
+        //調整div內容及大小
+        var div1 = document.getElementById(div_id);
+        div1.innerHTML = '<table cellspacing="0" id="' + table_id + '" style="width:100%;"></table>';
+        div1.setAttribute("style", style);
+
+        caculateInquireTubes(table_id, inquire_tubes_record, shiftClassD, shiftClassE, shiftClassN, timeBlock_hours, inputDate, unitStr[unit], hasData);//引流管每日攝出page計算
+
+        if (hasData) {
+            buildTable(table_id, inputDate, jobBlocks); //建立表格
+        } else {
+            buildEmptyTable(table_id, inputDate, jobBlocks);//建立空表格
+        }
+
+        GrideViewScrollTable_initial(table_id, true, false, 2, 2, screen_width, screen_height);
+
+        /*********解決表格跑板問題*********/
+        //原始內容的表頭(原本為隱藏)
+        var gvMain = document.getElementById("gvMain");
+        var gvMain_GridViewScrollHeader = gvMain.getElementsByClassName("GridViewScrollHeader")[1];
+        gvMain_GridViewScrollHeader.setAttribute("style", "");  //tr取消隱藏，才取的到表頭寬度，也就是表格內容寬度
+
+        var gvMain_GridViewScrollHeader_tubes = gvMain_GridViewScrollHeader.getElementsByClassName("inquire_tube"); //取得所有引流管表頭的td
+        //console.log("gvMain_GridViewScrollHeader_tubes");
+        //console.log(gvMain_GridViewScrollHeader_tubes);
+
+        //固定的表頭(可見的表頭)
+        var gvMain_Content_Freeze = document.getElementById("gvMain_Header_Fixed_Grid");
+        var gvMain_Content_Freeze_tubes = gvMain_Content_Freeze.getElementsByClassName("inquire_tube");
+        //console.log("gvMain_Content_Freeze");
+        //console.log(gvMain_Content_Freeze_tubes);
+        for (var i = 0 ; i < gvMain_Content_Freeze_tubes.length ; i++) {
+            var gvMain_Content_Freeze_tubes_gridViewScrollHelper = gvMain_Content_Freeze_tubes[i].getElementsByClassName("gridViewScrollHelper")[0];
+            //console.log("gvMain_Content_Freeze_tubes_gridViewScrollHelper");
+            //console.log(gvMain_Content_Freeze_tubes_gridViewScrollHelper);
+
+            var tube_width = gvMain_GridViewScrollHeader_tubes[i].clientWidth - 20;
+            gvMain_Content_Freeze_tubes_gridViewScrollHelper.setAttribute("style", "width :" + tube_width + "px;");
+            //console.log(gvMain_Content_Freeze_tubes_gridViewScrollHelper);
+            //console.log(gvMain_GridViewScrollHeader_tubes[i].clientWidth);
+        }
+
+        gvMain_GridViewScrollHeader.setAttribute("style", "display: none;");
+
+        //只有一個引流管時，引流管標題會因為表格寬度無法置中，所以改成auto
+        if (inquire_tubes.length < 2) {
+            var IT_cell = document.getElementById("inquire_tube0").getElementsByClassName("gridViewScrollHelper");
+            if (IT_cell[0] !== undefined) {
+                IT_cell[0].style.width = "auto";
+            }
+        }
+
+        try {
+            //若有左側凍結欄位，則置中
+            var classDEN = document.getElementById("gvMain_Content_Freeze").getElementsByClassName("GridViewScrollItemFreeze");
+
+            if (classDEN !== null) {
+                for (i = 0; i < classDEN.length; i++) {
+                    var freezeRightCloumn = classDEN[i].getElementsByClassName("gridViewScrollHelper");
+                    var freezeRightCloumn_text = freezeRightCloumn[0].innerHTML;
+
+                    if (freezeRightCloumn !== undefined && freezeRightCloumn_text.indexOf("班") != -1 && freezeRightCloumn_text.indexOf("班別") == -1) {
+                        freezeRightCloumn[0].style.height = "auto";
+                    }
+                }
+            }
+
+            //解決表格次標題，在IE顯示上的問題
+            var jobBlocksTitle = document.getElementsByClassName("jobBlocksTitle");
+            //console.log(jobBlocksTitle);
+            jobBlocksTitle[1].style.height = "22px";
+
+
+
+        } catch (err) {
+        }
+    }
+</script>
+@using System.Data;
+@{
+    string date = ViewBag.date;
+    DataTable dtType = ViewBag.dtType;
+    //DateTime dateStrStartE = Convert.ToDateTime(date + " 23:00:00").AddDays(-1);//舊
+    DateTime dateStrStartE = Convert.ToDateTime(date + " 07:01:00");//新
+
+}
+<form action="Inquire_tube" method="post">
+    <div class="funcArea">
+        <table id="tableTitle" border="0" cellpadding="0" cellspacing="0" style="width: 100%; padding-bottom: 10px;">
+            <tbody>
+                <tr>
+                    <td>
+                        <div id="module_define">@title</div>
+                    </td>
+                </tr>
+                <tr>
+                    @*<input type="button" value="前一天" id="BtnDayBefore" onclick="ChangeStartDate('prev', 'BtnNextDay,BtnDayBefore', this);" indate="@(ViewBag.InDate)" />*@
+                    <input type="button" value="前一天" id="BtnDayBefore" onclick="setDate('prev', 'qry_date');" indate="@(ViewBag.InDate)" />
+                    <input id="qry_date" name="qry_date" style="width: 80px; font-size: 12px;" type="text" value="@(ViewBag.date)" readonly="readonly">
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "qry_date", "", false, "1")
+                    @*<input type="button" value="後一天" id="BtnNextDay" onclick="ChangeStartDate('next', 'BtnNextDay,BtnDayBefore', this);" />*@
+                    <input type="button" value="後一天" id="BtnNextDay" onclick="setDate('next', 'qry_date');" />
+                    <select id="unit" name="unit" style="display: none;">
+                        <option value="1" selected>mL</option>
+                        <option value="2">g</option>
+                        <option value="3">mg</option>
+                    </select>
+                    @Html.Label("lab_total_interval", " 統計區間：")
+                    <select id="ddl_total_interval" name="ddl_total_interval">
+                        <option value="1">1小時</option>
+                        <option value="2" selected>2小時</option>
+                        <option value="4">4小時</option>
+                    </select>
+                    <input type="button" id="tube_submit" value="查詢" style="width: 80px;" onclick="submit();">
+                    <input type="button" value="新增攝入/輸出" style="width: 120px;" onclick="window.location.href = '../IOManage/IO_Insert_List';">@*window.location.href = 'Insert';*@
+                    <input type="button" value="IO總量統計" style="width: 140px;" onclick="window.location.href = '../IOManage/Inquire';">
+                    @*
+                        <input type="button" value="引流管統計_new" style="width: 140px;" onclick="tube_new(true);">*@
+                </tr>
+                <tr></tr>
+            </tbody>
+        </table>
+
+    </div>
+    <p id="gvMain_text" style="display:none;">[]</p>
+    <div id="gvDiv1">
+        <table cellspacing="0" id="gvMain" style="table-layout: fixed; width: 100%;"></table>
+    </div>
+</form>

@@ -1,0 +1,90 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    List<Dictionary<string, string>> dt = (List<Dictionary<string, string>>)ViewData["dt"];
+}
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+</style>
+
+<div class="dataHeader">
+    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+        <tr>
+            <td style="width:40%;">管路名稱</td>
+            <td style="width:30%;">管路種類</td>
+            <td style="width:30%;">評估種類</td>
+        </tr>
+    </table>
+</div>
+<div class="dataArea" style="height:360px;">
+    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+    @if (dt.Count > 0)
+    {
+        foreach (var item in dt)
+        {
+        <tr>
+            <td style="width:40%;">@item["KINDNAME"]</td>
+            <td style="width:30%;">@item["TUBE_GROUP"]</td>
+            <td style="width:30%;">
+                <select name="AssessType" data-kindID="@item["KINDID"]" data-value="@item["ASSESS_TYPE"]">
+                    <option value="1">動靜脈類管路</option>
+                    <option value="2">非縫線類管路</option>
+                    <option value="0">有縫線類管路</option>
+                    <option value="-1">不需評估</option>
+                </select>
+            </td>
+        </tr>
+        }
+    }
+    </table>
+</div>
+<div class="funcArea" style="padding:5px 0 5px 0;text-align:center;">
+    <input type="button" value="儲存" style="width:60px;" onclick="SaveData();" />
+    <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) { location.reload(); }" />
+</div>
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        $("select").each(function () {
+            $(this).val($(this).attr('data-value'))
+        });
+
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 100);
+        }).trigger("resize");
+
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    });
+
+    function SaveData() {
+        loop_windows("open_cover");
+        var JsonList = [];
+        var JsonObj;
+        $.each($('select[name=AssessType]'), function (i, item) {
+            JsonObj = new Object();
+            JsonObj["AssessType"] = $(item).val();
+            JsonObj["KindID"] = $(item).attr('data-kindID');
+            JsonList.push(JsonObj);
+        });
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/TubeManage/Tube_Kind_Maintain")',
+            data: { 'JsonString': JSON.stringify(JsonList) },
+            success: function (data) {
+                alert(data);
+                window.location.href = 'Tube_Kind_Maintain';
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+</script>

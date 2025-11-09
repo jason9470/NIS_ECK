@@ -1,0 +1,191 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+    string RootDocument = ViewBag.RootDocument;
+}
+
+
+<script type="text/javascript">
+    $(function () {
+        //格行換色
+        $('.treven').css('background', '#ABC8E2');
+        $('.trodd').css('background', '#E1E6FA');
+        @if (string.IsNullOrWhiteSpace(ViewBag.Select))
+        {
+        @:$('.Select').remove();
+        }
+        
+    });
+
+    function PrintPDF() {
+        if ($('input[type=checkbox][name=ID]:checked').length > 0) {
+            var u = '@(RootDocument)/Print/GetPDF?HeaderVal=@(Server.UrlEncode("護理指導總表"))&FooterVal_local=left&FooterVal=@(Server.UrlEncode("(105_Q3)恩主公醫院BAIA000-036-02"))&url=@(RootDocument)/Education/List_PDF?1=1&filename=test&feeno=@(ptinof.FeeNo)';
+            window.open(u + '&id_list=' + $('input[type=checkbox][name=ID]:checked').map(function () { return $(this).val(); }).get().join(','));
+        }
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+<div class="funcArea" style="text-align:center;">
+<input type="button" class="Select" value="列印" onclick="PrintPDF();" />
+</div>
+<div class="funcArea">
+    <table border="0" style="width:100%;">
+        <tr>
+            <td>病歷號碼：@ptinof.ChartNo</td>
+            @{
+                var sex = "";
+                if (!string.IsNullOrEmpty(ptinof.PatientGender))
+                {
+                    sex = ptinof.PatientGender;
+                }
+                //switch (ptinof.PatientGender)
+                //{
+                //    case "男":
+                //        sex = "M";
+                //        break;
+                //    case "女":
+                //        sex = "F";
+                //        break;
+                //    default:
+                //        sex = "";
+                //        break;
+                //}
+                if (ptinof.Age != null)
+                {
+                    <td colspan="2">姓名：@(ptinof.PatientName)  @(sex)    @(ptinof.Age)歲</td>
+                }
+                else
+                {
+                    <td colspan="2">姓名：@(ptinof.PatientName)  @(sex)  </td>
+                }
+            }
+
+            @if (ptinof.InDate != null)
+            {
+                <td>住院日期：@Convert.ToDateTime(ptinof.InDate).ToString("yyyy/MM/dd HH:mm") (@ptinof.InDay)</td>
+            }
+            else
+            {
+                <td>住院日期：</td>
+            }
+        </tr>
+        <tr>
+            @{
+                var bool_Allergy = "";
+                switch (ptinof.Allergy)
+                {
+                    case "Y":
+                        bool_Allergy = "是";
+                        break;
+                    case "N":
+                        bool_Allergy = "否";
+                        break;
+                    default:
+                        bool_Allergy = "";
+                        break;
+                }
+            }
+            <td colspan="2">過敏藥物：@bool_Allergy</td>
+            <td colspan="2">床號：@ptinof.BedNo</td>
+        </tr>
+    </table>
+
+    <div style="padding: 5px 0px 5px 0px">
+        <div class="dataHeader" style="margin-right:0px;">
+            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;cursor:pointer;">
+                <tr>
+                    <td rowspan="2" class="Select" style="width:6%;">
+                        <label><input type="checkbox" onclick="if ($(this).prop('checked')) { $('input[type=checkbox][name=ID]').prop('checked', true); } else { $('input[type=checkbox][name=ID]:checked').prop('checked', false); }" />全選</label>
+                    </td>
+                    <td rowspan="2" style="width:6%;">說明<br />類別</td>
+                    <td rowspan="2" colspan="2" style="width:15%;">說明內容</td>
+                    <td rowspan="2" style="width:9%;">指導對象</td>
+                    <td rowspan="2" style="width:11%;">備註</td>
+                    <td style="width:13%;">指導方式</td>
+                    <td style="width:9%;">指導日期</td>
+                    <td style="width:8%;">指導對象</td>
+                    <td rowspan="2" style="width:8%;">評值結果</td>
+                </tr>
+                <tr>
+                    <td>指導細項</td>
+                    <td>評值日期</td>
+                    <td>指導對象<br />說明</td>
+                </tr>
+            </table>
+        </div>
+        <div class="dataArea_PDF">
+            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;background-color: #FFFFFF;table-layout:fixed;">
+                @{string classname = "trodd";
+                    foreach (DataRow r in dt.Rows)
+                    {
+                        string name = (r["SCORE_TIME"].ToString() != "") ? "scored" : "";
+                        <tr class="@classname" name="@name">
+                            <td rowspan="4" class="Select" style="width:6%;text-align:center;"><label><input type="checkbox" name="ID" value="@r["EDU_ID"]" /></label></td>
+                            <td rowspan="4" style="width:6%;">
+                                @r["EXPLANATION_NAME"]
+                            </td>
+                            <td rowspan="4" style="width:15%;">
+                                @r["NAME"]
+                                @if (r["ITEM_REFERENCE_URL"].ToString() != "")
+                                {
+                                    <input id="btn" type="button" value="衛教單張/影片" onclick="@Java_funcion.pup_window(r["ITEM_REFERENCE_URL"].ToString(), 900, 600, "0")" />
+                                }
+                            </td>
+                            <td rowspan="4" style="width:9%;">@r["OBJECT"].ToString().Replace("99|", "其他：")</td>
+                            <td rowspan="4" style="width:11%;">@r["UNDERSTAND"]</td>
+                            <td rowspan="2" style="width:13%;">
+                                @r["DESCRIPTION"].ToString().Replace("|", ",")
+                                @if (r["DESCRIPTION_REPLACE"].ToString() != "")
+                                { @:<br />替代方案：@r["DESCRIPTION_REPLACE"]
+                            }
+                            </td>
+                            <td style="width:9%;">
+                                @Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd")
+                            <br />@Convert.ToDateTime(r["RECORDTIME"]).ToString("HH:mm:ss")
+                        </td>
+                        <td rowspan="2" style="width:8%;">@r["OBJECT_NAME"]</td>
+                        <td rowspan="4" style="width:8%;">
+                            @if (r["SCORE_RESULT"] != null && @r["SCORE_RESULT"].ToString() != "")
+                            {
+                                @r["SCORE_RESULT"].ToString().Replace("|", "，")
+                            }
+                        </td>
+                    </tr>
+                            <tr class="@classname" name="@name">
+                                <td style="width:9%;">@r["Creat_User"]</td>
+                            </tr>
+                            <tr class="@classname" name="@name">
+                                <td rowspan="2" style="width:13%;">@r["INSTRUCT"].ToString().Replace("|", "\n")</td>
+                                @if (r["SCORE_TIME"].ToString() != "")
+                                {
+                                    <td style="width:9%;">
+                                        @Convert.ToDateTime(r["SCORE_TIME"]).ToString("yyyy/MM/dd")
+                                    <br />@Convert.ToDateTime(r["SCORE_TIME"]).ToString("HH:mm:ss")
+                                </td>
+                                }
+                                else
+                                {
+                                    <td style="width:9%;"></td>
+                                }
+                                <td rowspan="2" style="width:8%;">@r["ACCOMPANY_NAME"]</td>
+                            </tr>
+                            <tr class="@classname" name="@name">
+                                <td style="width:9%;">@r["Score_User"]</td>
+                            </tr>
+                        if (classname == "trodd")
+                        { classname = "treven"; }
+                        else
+                        { classname = "trodd"; }
+                    }
+                }
+            </table>
+        </div>
+    </div>
+</div>
+<div class="funcArea" style="text-align:center;">
+<input type="button" class="Select" value="列印" onclick="PrintPDF();" />
+</div>

@@ -1,0 +1,156 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+<link rel="Stylesheet" type="text/css" href="~/Content/StyleSheet/naStyle.css" />
+<script type="text/javascript">
+
+    function resetfuntion() {
+        $("#new_tag").find("input[type=text], input[type=hidden]").each(function () {
+            $(this).val("");
+        });
+        $('#new_tag').slideUp(500);
+        $("#but_new_na").val("新增評估單版本").css("background-color", "");
+    }
+
+    $(document).ready(function () {
+
+        $('#new_tag tr:even').css('background', '#ABC8E2');
+        $('#new_tag tr:odd').css('background', '#E1E6FA');
+
+        $("#na_type").change(function () {
+            resetfuntion();
+            $.ajax({
+                url: "../Function/Na_Main",
+                timeout: 5000,
+                type: "post",
+                data: "na_type=" + $("#na_type").val(),
+                success: function (data) {
+                    $("#na_content").html(data);
+                    if (document.getElementById("temp_zone")) {
+                        $("#but_new_na").prop("disabled", true);
+                    } else {
+                        $("#but_new_na").prop("disabled", false);
+                    }
+                }
+            });
+        }).trigger('change');
+
+        //tooltip
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+
+        $("#but_new_na").click(function () {
+            var top = $(this).position().top + $(this).height() + 10;
+            var left = $(this).position().left;
+            $("#new_tag").css({
+                "top": top,
+                "left": left
+            });
+
+            $("#inc_na_name").html($("#na_type option:selected").text());
+            $("input[name=inc_na_type]").val($("#na_type").val());
+
+            //如果有可以拷貝的資料就拷貝
+            if ($("#copy_zone").length > 0) {
+                var copy = $("#copy_zone").clone();
+                var oid = $("input[name=na_id]", copy).val();
+                var ver = oid.replace($("#na_type").val(), "");
+                ver = $("#na_type").val() + padLeft((parseInt(ver) + 1).toString(), 2, "0");
+                $("input[name=inc_na_id]").val(ver);
+                $("input[name=inc_na_desc]").val($("input[name=" + oid + "_na_desc]", copy).val());
+                $("input[name=inc_na_iso]").val($("input[name=" + oid + "_na_iso]", copy).val());
+                //修改版本
+                c_version = addition(parseFloat($("input[name=" + oid + "_na_version]", copy).val()), "0.1");
+                $("input[name=inc_na_version]").val(c_version);
+
+            } else {
+                $("input[name=inc_na_id]").val($("#na_type").val() + "01");
+                $("input[name=inc_na_version]").val("1.0");
+            }
+
+            if (!$("#new_tag").is(":visible")) {
+                $('#new_tag').slideDown(500);
+                $(this).val("關閉新增版本").css("background-color", "#FFFFCC");
+            } else {
+                resetfuntion();
+            }
+        });
+
+        // 新增標籤按鈕
+        $("#but_inc_na").click(function () {
+            var dataStr = "na_id=" + encodeURIComponent($("input[name=inc_na_id]").val());
+            dataStr += "&na_iso=" + encodeURIComponent($("input[name=inc_na_iso]").val());
+            dataStr += "&na_desc=" + encodeURIComponent($("input[name=inc_na_desc]").val());
+            dataStr += "&na_status=T";
+            dataStr += "&na_version=" + encodeURIComponent($("input[name=inc_na_version]").val());
+            dataStr += "&na_type=" + encodeURIComponent($("input[name=inc_na_type]").val());
+
+            $.ajax({
+                url: '../Function/Na_Main_Add',
+                type: 'post',
+                data: dataStr,
+                success: function (data) {
+                    if (data == "Y") {
+                        location.href = "../Function/Na_Index?na_type=" + $("#na_type").val();
+                    } else {
+                        showHint("新增評估單失敗，請聯絡系統負責人");
+                    }
+                }
+            });
+        });
+
+        @{
+            if(Request["message"] != null){
+                @Html.Raw("showHint(\""+ Request["message"] +"\");")
+            }
+        }
+
+    });
+</script>
+
+<form name="na_form" method="post" action="NaMain_Save">
+    <p>
+        請選擇護理評估單：@(Html.DropDownList("na_type", (List<SelectListItem>)ViewData["na_list"]))
+    </p>
+    <p>
+        <input type="button" id="but_na_item" value="護理評估單維護" onclick="location.href = '../Function/Na_Item'" />
+        <input type="button" id="but_new_na" value="新增評估單版本" />  
+        <input type="button" id="but_save" value="儲存" onclick="$('form[name=na_form]').submit();"/>
+        <a href="javascript:void(0);" class="tooltip"
+                title="<font color='red'>注意：一次僅能新增一個版本</font><br />儲存：儲存後將會已最新版本列為正式版本<br/>">操作說明</a>
+    </p>
+    <div id="na_content"></div>
+</form>
+
+<div id="new_tag">
+    <p>
+        <input type="button" name="but_inc_na" id="but_inc_na" value="新增評估單" />
+        <a class="tooltip" href="javascript:void(0);" title="新增護理評估單評估單">說明</a>
+    </p>
+    <table border="0" cellpadding="4" cellspacing="1">
+        <tr>
+            <td width="100">評估單名稱</td>
+            <td align="left">
+                <label id="inc_na_name"></label>
+                <input type="hidden" name="inc_na_id" value="" />
+                <input type="hidden" name="inc_na_type" value="" />
+                <input type="hidden" name="inc_na_version" value="" />
+            </td>
+        </tr>
+        <tr>
+            <td width="100">版本描述</td>
+            <td align="left">
+                <input type="text" name="inc_na_desc" size="70" maxlength="100" />
+            </td>
+        </tr>
+        <tr>
+            <td>ISO文號</td>
+            <td align="left">
+                <input type="text" name="inc_na_iso" maxlength="100" />
+            </td>
+        </tr>
+    </table>
+
+</div>

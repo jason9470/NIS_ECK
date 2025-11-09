@@ -1,0 +1,144 @@
+﻿@using System.Data;
+@using NIS.Data
+@using NIS.Controllers;
+@using Newtonsoft.Json;
+
+@{
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    PatientInfo ptInfo = (PatientInfo)Session["PatInfo"];
+    DataTable EmergencyTreatmentList = ViewBag.EmergencyTreatmentList;
+    //string JsonEmergencyTreatmentList = JsonConvert.SerializeObject(EmergencyTreatmentList);
+    DataTable TemplateList = ViewBag.TemplateList;
+    string JsonTemplateList = JsonConvert.SerializeObject(TemplateList);
+}
+<style type="text/css" scoped>
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: center;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+<script type="text/javascript">
+    var TemplateList = @Html.Raw(JsonTemplateList);
+
+    $(document).ready(function () {
+        setGridColor();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 140);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    // 開啟編輯畫面
+    function OpenEditView(Type, MasterID, TemplateID) {
+        var url = 'Edit_Information_' + Type + '?MasterID=' + MasterID + '&&TemplateID=' + TemplateID;
+        window.location.href = url;
+    }
+
+</script>
+<div class="dataArea">
+    @if (EmergencyTreatmentList != null && EmergencyTreatmentList.Rows.Count > 0)
+    {
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:16px;">
+            @foreach (DataRow r in EmergencyTreatmentList.Rows)
+            {
+                string MasterID = r["ID"].ToString();
+                string StartTime = "";
+                string EndTime = "";
+                if (!string.IsNullOrEmpty(r["START_TIME"].ToString()))
+                {
+                    DateTime StartTimeDT = new DateTime();
+                    if (DateTime.TryParse(r["START_TIME"].ToString(), out StartTimeDT))
+                    {
+                        StartTime = StartTimeDT.ToString("yyyy/MM/dd HH:mm");
+                    }
+                }
+                if (!string.IsNullOrEmpty(r["END_TIME"].ToString()))
+                {
+                    DateTime EndTimeDT = new DateTime();
+                    if (DateTime.TryParse(r["END_TIME"].ToString(), out EndTimeDT))
+                    {
+                        EndTime = EndTimeDT.ToString("yyyy/MM/dd HH:mm");
+                    }
+                }
+                var before = TemplateList.AsEnumerable().FirstOrDefault(x => x["MASTER_ID"].ToString() == MasterID && x["TYPE"].ToString() == "Before");
+                var after = TemplateList.AsEnumerable().FirstOrDefault(x => x["MASTER_ID"].ToString() == MasterID && x["TYPE"].ToString() == "After");
+                <tr>
+                    <td style="width: 12%;">
+                        <div class="funcArea" style="overflow: hidden; width: 100%; text-align: center;">
+                            <input type="button" class="fun_btn check_btn" value="查詢" onclick="window.location.href = 'Insert?MasterID=@MasterID';" />
+                            <input type="button" class="fun_btn delete_btn" onclick="if(confirm('此紀錄為多人編輯，是否確定刪除?')) {DeleteEmergencyTreatment('@MasterID')}" value="刪除" />
+                        </div>
+                    </td>
+                    <td style="width: 25%; ">
+                        <label id="IncidentTime_@MasterID">
+                            @StartTime
+                        </label>
+                        <label> ~ </label>
+                        <label id="EndEmergencyTreatmentTime_@MasterID">
+                            @EndTime
+                        </label>
+                    </td>
+                    <td style="width: 21%;">
+                        <label>醫師到達時間：@before["DoctorArrivalDate"].ToString() @before["DoctorArrivalTime"].ToString()</label>
+                        <br>
+                        <label>CPCR時間：@before["CPCRDate"].ToString() @before["CPCRTime"].ToString()</label>
+                        <br>
+                        <label>電擊開始時間：@before["DefibrillationDate"].ToString() @before["DefibrillationTime"].ToString()</label>
+                    </td>
+                    <td id="Confirm_Before_@MasterID" style="width: 12%;">
+                        @if (before != null)
+                        {
+                            if (before["CREATE_USER"].ToString() == ui.EmployeesNo)
+                            {
+                                <input type="button" class="fun_btn modify_btn" id="Edit_Before" value="編輯" style="width:50px;" onclick="OpenEditView('Before','@MasterID','@before["ID"]')" />
+                                <input type="button" class="fun_btn delete_btn" id="Delete_Before" value="刪除" style="width:50px;" onclick="if (confirm('確定刪除?')) { DeleteInformation('@before["ID"]', 'Before','@MasterID') }" />
+                            }
+                        }
+                        else
+                        {
+                            <input type="button" class="fun_btn add_btn" id="Add_Before" value="新增" style="width:50px;" onclick="OpenEditView('Before','@MasterID','')" />
+                        }
+                    </td>
+                    <td style="width: 18%;">
+                        <input type="button" class="fun_btn check_btn" value="清單" onclick="window.location.href = 'NoteList?MasterID=@MasterID';" />
+                        <input type="button" class="fun_btn add_btn" id="Add_Note" value="新增" style="width:50px;" onclick="OpenEditView('Note','@MasterID','')" />
+                        <input type="button" class="fun_btn delete_btn" onclick="if(confirm('此紀錄為多人編輯，是否確定刪除?')) {DeleteAllNote('@MasterID')}" value="刪除" />
+                    </td>
+                    <td id="Confirm_After_@MasterID" style="width: 12%;">
+                        @if (after != null)
+                        {
+                            if (after["CREATE_USER"].ToString() == ui.EmployeesNo)
+                            {
+                                <input type="button" class="fun_btn modify_btn" id="Edit_After" value="編輯" style="width:50px;" onclick="OpenEditView('After','@MasterID','@after["ID"]')" />
+                                <input type="button" class="fun_btn delete_btn" id="Delete_After" value="刪除" style="width:50px;" onclick="if (confirm('確定刪除?')) { DeleteInformation('@after["ID"]', 'After','@MasterID') }" />
+                            }
+                        }
+                        else
+                        {
+                            <input type="button" class="fun_btn add_btn" id="Add_After" value="新增" style="width:50px;" onclick="OpenEditView('After','@MasterID','')" />
+                        }
+                    </td>
+                </tr>
+                <tr></tr>
+            }
+        </table>
+    }
+</div>

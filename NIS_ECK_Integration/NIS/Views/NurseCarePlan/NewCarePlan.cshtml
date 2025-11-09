@@ -1,0 +1,154 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "護理計畫";
+}
+
+@*<link rel="stylesheet" type="text/css" href="~/Content/StyleSheet/CarePlan_Dtl.css" />*@
+
+<style type="text/css">
+    label, select, input
+    {
+        vertical-align: middle;
+    }
+
+    .dataArea td
+    {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define
+    {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        to_Search(null, null, null);
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $("#careplan_panel").outerHeight(height - 120);
+        }).trigger("resize");
+    });
+
+    //關鍵字搜尋 計畫內容
+    function Search() {
+        var rd = $('input:radio[name=Item]:checked').val(),
+            sub = $("#type_list").val(),
+            txtid = $("#txtid").val();
+
+        //其他查詢--稽核關鍵字
+        if (rd != "SUBJECT" && txtid == "")
+            alert("請輸入查詢內容");
+        //科別查詢bt--稽核是否選取科別
+        else if (rd == "SUBJECT" && sub == "")
+            alert("請選擇 Nanda 領域");
+        else
+        to_Search(rd, sub, txtid);
+    }
+
+    function to_Search(rd, sub, txtid) {
+        loop_windows("open_cover");
+        $.ajax({
+            type: 'POST',
+            url: "NewCarePlanSearch",
+            data: { "rd": rd, "sub": sub, "text": txtid },
+            success: function (data) {
+                $("#careplan_panel").html(data);
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    function AddNewPlan(f_id) {
+        $('#f_id').val(f_id);
+        $('#Search_form').submit();
+    }
+
+    //以radiobtn,改變顯示的textbox或DDL,使用於上方radiobtn控制搜尋項目
+    function show_hide(id) {
+        $("#divtypeList").hide(); //科別
+        $("#divtxtid").hide();  //查詢關鍵字
+        $("#" + id).show();
+    }
+
+</script>
+
+
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%">
+        <tr>
+            <td>
+                <div id="module_define">@title</div>
+            </td>
+        </tr>
+        <tr>
+            <td style="width: 100%; text-align: left; padding: 0 0 5px 0;">
+                <div class="funcArea">
+                    <input type="hidden" name="case_no_i" id="case_no_i" />
+                    <table>
+                        <tr>
+                            <td>
+                                <div>
+                                    @*<label><input type="radio" name="Item" id="NANDA" value="NANDA" onclick="show_hide('divtxtid');">依NANDA分類</label>*@
+                                    <label><input type="radio" name="Item" id="SUBJECT" value="SUBJECT" onclick="show_hide('divtypeList');">依 Nanda 領域</label>
+                                    @*<label><input type="radio" name="Item" id="DIAGNOSIS" value="DIAGNOSIS" onclick="show_hide('divtxtid');">依診斷碼</label>*@
+                                    <label><input type="radio" name="Item" id="ITEM" value="ITEM" onclick="show_hide('divtxtid');">依關鍵字</label>
+                                    @*關鍵字:*@
+                                </div>
+                            </td>
+                            <td>
+                                <div id="divtypeList" style="display:none;">
+                                    @Html.DropDownList("typeList", (List<SelectListItem>)ViewData["typeList"], "請選擇 Nanda 領域", new { id = "type_list", style = "display:inline-block;width:160px;", @class = "form-control input-sm" })
+                                </div>
+                                <div id="divtxtid" style="display:none;">
+                                    <input id="txtid" type="text" name="txtquriy" style="width: 160px; display: inline-block;" class="form-control input-sm" />
+                                </div>
+                            </td>
+                            <td>
+                                <span style="margin-left: 10px;">
+                                    <input type="button" value="查詢" onclick="Search();">
+                                    <input type="button" value="全部護理問題" onclick="window.location.href = 'NewCarePlan';" />
+                                    <input type="button" value="返回" onclick="window.location.href = 'Index'" />
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div style="background-color: white;">
+                    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+                        <tr>
+                            <td style="padding: 0px;">
+                                <div class="box col-md-12">
+                                    <div class="box-inner">
+                                        <div class="box-header well" data-original-title="" onclick="">
+                                            <h2 style="font-size: 18px; font-weight: bold;">護理問題(危險因子)</h2>
+                                        </div>
+                                        <div class="box-content" style="height:300px;">
+                                            <div id="careplan_panel" style="height: 100%;height:299px;">
+                                            </div>
+                                            <form id="Search_form" action="NewCarePlanItem" method="post">
+                                                <input type="hidden" name="f_id" id="f_id" />
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>

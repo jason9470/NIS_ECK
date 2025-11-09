@@ -1,0 +1,580 @@
+﻿@{
+    //Layout = "~/Views/Layout/Main.cshtml";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+@using System.Text.RegularExpressions;
+
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+</style>
+
+<script type="text/javascript">
+    window.onload = function () {
+        setGridColor();
+    }
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:even').css('background', '#ABC8E2');
+        $('.dataArea tr:odd').css('background', '#E1E6FA');
+    }
+
+    function add() {
+        var ck = $('input[type=checkbox]:checked');
+        var content = '';
+        var date = '';
+        for (var i = 0; i < ck.length; i++) {
+            var ck_list = document.getElementsByName(ck[i].id);
+            content = content + ck[i].value + ' ';
+            for (var j = 1; j < ck_list.length; j++) {
+                content = content + ck_list[j].value + ',';
+            }
+        }
+        if (content != '')
+            content = content.substring(0, content.length - 1) + '。 ';
+        window.opener.document.getElementById('span_@ViewBag.id').innerText = window.opener.document.getElementById('span_@ViewBag.id').innerText + content;
+        window.opener.document.getElementById('hid_@ViewBag.id').value = window.opener.document.getElementById('hid_@ViewBag.id').value + content;
+        return true;
+    }
+
+    function ck_cancle_by_id(obj) {
+        //var ck_list = document.getElementsByName(obj.id);
+        //for (var i = 0; i < ck_list.length; i++) {
+        //    if (obj.checked) {
+        //        ck_list[i].checked = false;
+        //    }
+        //}
+    }
+
+    function ck_cancle_by_name(obj) {
+        document.getElementById($(obj).attr('name')).checked = false;
+    }
+</script>
+
+@using NIS.Controllers;
+@{
+    DateTime start = Convert.ToDateTime(ViewBag.start);
+    DateTime end = Convert.ToDateTime(ViewBag.end);
+}
+<div class="funcArea">
+    <table width="100%">
+        <tr>
+            <td>
+                <fieldset>
+                    <legend>查詢區間</legend>
+                    @(Html.TextBox("stDate", start.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                    @(Html.TextBox("stTime", start.ToString("HH:mm"), new { @style = "width:35px" }))
+                    ~
+                    @(Html.TextBox("edDate", end.ToString("yyyy/MM/dd"), new { @style = "width:70px" }))
+                    @(Html.TextBox("edTime", end.ToString("HH:mm"), new { @style = "width:35px" }))
+                    <input type="hidden" id="text_id" name="id" value="@ViewBag.id" />
+                    @*@WebTool.setDateTime("stDate", "stTime")
+                    @WebTool.setDateTime("edDate", "edTime")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "stDate", "stTime", false)
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "edDate", "edTime", false)
+                    <input type="button" value="查詢" onclick="window.location.href = 'Vital_Sign?starttime=' + $('#stDate').val() + ' ' + $('#stTime').val() + '&endtime=' + $('#edDate').val() + ' ' + $('#edTime').val() + '&id=' + $('#text_id').val()" />
+                    <input type="button" value="確定" onclick="if (add()) window.close();";
+                </fieldset>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="dataHeader" id="dataHeader">
+    <table border="0" cellpadding="4" cellspacing="1" width="2350" style="table-layout: fixed; white-space: nowrap;font-size:14px;" class="dtl_VS">
+        <tr>
+            <td width="120">日期時間</td>
+            <td width="40">體溫</td>
+            <td width="40">心跳</td>
+            <td width="40">呼吸</td>
+            <td width="60">血壓(H/L)</td>
+            <td width="40">血氧</td>
+            <td width="80">排便</td>
+            <td width="140">疼痛</td>
+            <td width="150">GCS/瞳孔指標(左、右)</td>
+            <td width="200">肌力測量(左、右)</td>
+            <td width="80">身高</td>
+            <td width="80">體重</td>
+            <td width="80">痰</td>
+            <td width="80">水腫</td>
+            <td width="80">圍長</td>
+            <td width="80">CVP</td>
+            <td width="80">ICP</td>
+            <td width="80">ABP</td>
+            <td width="80">PAR</td>
+            <td width="80">腦灌流壓</td>
+            <td width="100">足背動脈(左/右)</td>
+            <td width="80">CO</td>
+            <td width="80">CI</td>
+            <td width="80">SVO2</td>
+        </tr>
+    </table>
+</div>
+<!-- 表頭隨著資料內容一起動 -->
+<div class="dataArea" onscroll="document.getElementById('dataHeader').scrollLeft = this.scrollLeft;">
+    <table border="0" cellpadding="4" cellspacing="1" width="2350" style="table-layout: fixed; white-space: nowrap;" class="dtl_VS">
+        @{
+            if (ViewData["VSData"] != null)
+            {
+                List<VitalSignDataList> vsDataList = (List<VitalSignDataList>)ViewData["VSData"];
+                for (int i = 0; i <= vsDataList.Count - 1; i++)
+                {
+                    List<VitalSignData> vsd = vsDataList[i].DataList;
+            <tr>
+                <td width="120" align="center">
+                    <!-- 維護時間 -->
+                    <label>
+                    <input type="checkbox" id="@vsDataList[i].vsid" name="@vsDataList[i].vsid" value="@Convert.ToDateTime(vsd[0].modify_date).ToString("yyyy/MM/dd HH:mm")" onclick="ck_cancle_by_id(this);" />
+                    @Convert.ToDateTime(vsd[0].modify_date).ToString("yyyy/MM/dd HH:mm")
+                    </label>
+                </td>
+                <td width="40" align="center">
+                    <!-- 體溫 -->
+                    @{string bt = ViewBag.set_record(vsd, "bt");
+                      if (bt != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("體溫：" + bt + "℃")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @bt
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="40" align="center">
+                    <!-- 心跳 -->
+                    @{string mp = ViewBag.set_record(vsd, "mp");
+                      if (mp != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("心跳：" + mp + " 次/分")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @mp
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="40" align="center">
+                    <!-- 呼吸 -->
+                    @{string bf = ViewBag.set_record(vsd, "bf");
+                      if (bf != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("呼吸：" + bf + "次/分")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @bf
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="60" align="center">
+                    <!-- 血壓 -->
+                    @{string bp = ViewBag.set_record(vsd, "bp");
+                      if (bp != "")
+                      {
+                          bp = bp.Replace("|", " / ");
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("血壓：" + bp + "mmHg")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @bp
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="40" align="center">
+                    <!-- SPO2 -->
+                    @{string sp = ViewBag.set_record(vsd, "sp");
+                      if (sp != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("SPO2：" + sp + "%")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @sp
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- 排便 -->
+                    @{string st = ViewBag.set_record(vsd, "st");
+                      if (st != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("排便：" + st)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @st
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="140">
+                    <!-- 疼痛 -->
+                    @{
+                        if (VitalSignData.getItem(vsd, "ps", VitalSignDataField.Record).ToString().Trim() != "")
+                        {
+                            string ps_content = "";
+                            string[] ps = VitalSignData.getItem(vsd, "ps", VitalSignDataField.Record).ToString().Split('|');
+                            int ps_value = 0;
+                            Regex rgx = new Regex(@"^([(]\d+[)])|^(\d+)");
+                            for (int k = 0; k < ps.Length; k++)
+                            {
+                                if (ps[k] != "")
+                                {
+                                    ps_value += int.Parse(rgx.Match(ps[k]).ToString().Replace("(", "").Replace(")", ""));
+                                }
+                            }
+                            ps_content = VitalSignData.getItem(vsd, "ps", VitalSignDataField.Part) + "  " + ps_value.ToString() + "分";
+                        <input type="checkbox" name="@vsDataList[i].vsid" value="@("疼痛：" + ps_content)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                        <label>
+                            @Html.Raw(ps_content)
+                        </label>
+                      }
+                    }
+                </td>
+                <td width="150">
+                    <!-- GCS -->
+                    @{string[] record = ViewBag.set_record(vsd, "gc").ToString().Split('|');
+                      if (record.Length > 1)
+                      {
+                          string content = "";
+                          string content_html = "";
+                          if (record[0] != "")
+                          { content_html += "E" + record[0].Substring(1, 1); }
+                          if (record[1] != "")
+                          { content_html += "V" + record[1].Substring(1, 1); }
+                          if (record[2] != "")
+                          { content_html += "M" + record[2].Substring(1, 1); }
+                          if (record[4] != "")
+                          { content_html += " / " + record[4]; }
+                          if (record[3] != "")
+                          { content_html += record[3]; }
+                          if (record[6] != "")
+                          { content_html += " / " + record[6]; }
+                          if (record[5] != "")
+                          { content_html += record[5]; }
+                          
+                          if (record[0] != "" || record[1] != "" || record[2] != "")
+                          {
+                              content += "昏迷指數：";
+                              if (record[0] != "")
+                              { content += "E" + record[0].Substring(1, 1); }
+                              if (record[1] != "")
+                              { content += "V" + record[1].Substring(1, 1); }
+                              if (record[2] != "")
+                              { content += "M" + record[2].Substring(1, 1); }
+                              content += ",";
+                          }
+                          if (record[4] != "" || record[6] != "")
+                          {
+                              content += "瞳孔大小(左/右)："; 
+                              if (record[4] != "")
+                              { content += record[4] + " / "; }
+                              if (record[6] != "")
+                              { content += record[6]; }
+                              content += ",";
+                          }
+                          if (record[3] != "" || record[5] != "")
+                          {
+                              content += "光反射(左/右)："; 
+                              if (record[3] != "")
+                              { content += record[3] + " / "; }
+                              if (record[5] != "")
+                              { content += record[5]; }
+                              content += ",";
+                          }
+                          if(content != "")
+                          { content = content.Substring(0, content.Length - 1); }
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@(content)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @content_html
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="200">
+                    <!-- 肌力測量 -->
+                    @{string[] ms = ViewBag.set_record(vsd, "ms").ToString().Split('|');
+                      if (ms.Length > 1)
+                      {
+                          string content_ms = "";
+                          string content_ms_html = "";
+                          if (ms[0] != "" || ms[1] != "")
+                          { content_ms_html += "上臂：" + ms[0] + "，" + ms[1]; }
+                          else
+                          { content_ms_html += "無"; }
+                          if (ms[2] != "" || ms[3] != "")
+                          { content_ms_html += " / 前臂：" + ms[2] + "，" + ms[3]; }
+                          else
+                          { content_ms_html += " / 無"; }
+                          if (ms[4] != "" || ms[5] != "")
+                          { content_ms_html += "<br /> 大腿：" + ms[4] + "，" + ms[5]; }
+                          else
+                          { content_ms_html += "<br /> 無"; }
+                          if (ms[6] != "" || ms[7] != "")
+                          { content_ms_html += " / 小腿：" + ms[6] + "，" + ms[7]; }
+                          else
+                          { content_ms_html += " / 無"; }
+
+                          if (ms[0] != "")
+                          { content_ms += "左上臂肌肉：" + ms[0] + ","; }
+                          if (ms[1] != "")
+                          { content_ms += "右上臂肌肉：" + ms[1]+ ","; }
+                          if (ms[2] != "")
+                          { content_ms += "左前臂肌肉：" + ms[2]+ ","; }
+                          if (ms[3] != "")
+                          { content_ms += "右前臂肌肉：" + ms[3]+ ","; }
+                          if (ms[4] != "")
+                          { content_ms += "左大腿肌肉：" + ms[4]+ ","; }
+                          if (ms[5] != "")
+                          { content_ms += "右大腿肌肉：" + ms[5]+ ","; }
+                          if (ms[6] != "")
+                          { content_ms += "左小腿肌肉：" + ms[6]+ ","; }
+                          if (ms[7] != "")
+                          { content_ms += "右小腿肌肉：" + ms[7]+ ","; }
+                          if(content_ms  != "")
+                          { content_ms = content_ms.Substring(0, content_ms.Length - 1); }
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@(content_ms)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @Html.Raw(content_ms_html)
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- 身高 -->
+                    @{string bh = ViewBag.set_record(vsd, "bh");
+                      if (bh != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("身高：" + bh + "cm")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @bh
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- 體重 -->
+                    @{string bw = ViewBag.set_record(vsd, "bw");
+                      if (bw != "")
+                      {
+                          bw = bw.Replace("|", " ");
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("體重：" + bw)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @bw
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- 痰 -->
+                    @{string su = ViewBag.set_record(vsd, "su");
+                      if (su != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("痰：" + su)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @su
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- 水腫 -->
+                    @{string ed = ViewBag.set_record(vsd, "ed");
+                      if (ed != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("水腫：" + ed)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @ed
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- 圍長 -->
+                    @{string value = "", new_value = "", temp = "";
+                      value += ViewBag.set_record(vsd, "gtwl") + ",";
+                      temp = ViewBag.set_record(vsd, "gtwl");
+                      if (temp != "")
+                      { new_value += "腰圍:" + ViewBag.set_record(vsd, "gtwl") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gthr") + ",";
+                      temp = ViewBag.set_record(vsd, "gthr");
+                      if (temp != "")
+                      { new_value += "頭圍:" + ViewBag.set_record(vsd, "gthr") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtbu") + ",";
+                      temp = ViewBag.set_record(vsd, "gtbu");
+                      if (temp != "")
+                      { new_value += "胸圍:" + ViewBag.set_record(vsd, "gtbu") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtbl") + ",";
+                      temp = ViewBag.set_record(vsd, "gtbl");
+                      if (temp != "")
+                      { new_value += "腹圍:" + ViewBag.set_record(vsd, "gtbl") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gthl") + ",";
+                      temp = ViewBag.set_record(vsd, "gthl");
+                      if (temp != "")
+                      { new_value += "臀圍:" + ViewBag.set_record(vsd, "gthl") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtlf") + ",";
+                      temp = ViewBag.set_record(vsd, "gtlf");
+                      if (temp != "")
+                      { new_value += "左前臂:" + ViewBag.set_record(vsd, "gtlf") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtrf") + ",";
+                      temp = ViewBag.set_record(vsd, "gtrf");
+                      if (temp != "")
+                      { new_value += "右前臂:" + ViewBag.set_record(vsd, "gtrf") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtlua") + ",";
+                      temp = ViewBag.set_record(vsd, "gtlua");
+                      if (temp != "")
+                      { new_value += "左上臂:" + ViewBag.set_record(vsd, "gtlua") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtrua") + ",";
+                      temp = ViewBag.set_record(vsd, "gtrua");
+                      if (temp != "")
+                      { new_value += "右上臂:" + ViewBag.set_record(vsd, "gtrua") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtlt") + ",";
+                      temp = ViewBag.set_record(vsd, "gtlt");
+                      if (temp != "")
+                      { new_value += "左大腿:" + ViewBag.set_record(vsd, "gtlt") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtrt") + ",";
+                      temp = ViewBag.set_record(vsd, "gtrt");
+                      if (temp != "")
+                      { new_value += "右大腿:" + ViewBag.set_record(vsd, "gtrt") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtll") + ",";
+                      temp = ViewBag.set_record(vsd, "gtll");
+                      if (temp != "")
+                      { new_value += "左小腿:" + ViewBag.set_record(vsd, "gtll") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtrl") + ",";
+                      temp = ViewBag.set_record(vsd, "gtrl");
+                      if (temp != "")
+                      { new_value += "右小腿:" + ViewBag.set_record(vsd, "gtrl") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtla") + ",";
+                      temp = ViewBag.set_record(vsd, "gtla");
+                      if (temp != "")
+                      { new_value += "左足踝:" + ViewBag.set_record(vsd, "gtla") + "cm,"; }
+                      value += ViewBag.set_record(vsd, "gtra");
+                      temp = ViewBag.set_record(vsd, "gtra");
+                      if (temp != "")
+                      { new_value += "右足踝:" + ViewBag.set_record(vsd, "gtra") + "cm,"; }
+                      if (value.Replace(",", "") != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@new_value.Substring(0, new_value.Length - 1)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    </label>
+                    <input type="button" value="詳細資料" onclick="@Java_funcion.pup_window("../VitalSign/VitalSign_GW?value_list=" + value, 450, 450, "")" />
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- CVP -->
+                    @{string cv = ViewBag.set_record(vsd, "cv");
+                      if (cv != "")
+                      {
+                          cv = cv.Replace("|", " ");
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("CVP值：" + cv)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @cv
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- ICP -->
+                    @{string ic = ViewBag.set_record(vsd, "ic");
+                      if (ic != "")
+                      {
+                          ic = ic.Replace("|", " ");
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("ICP：" + ic)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @ic
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- ABP -->
+                    @{string ab = ViewBag.set_record(vsd, "ab");
+                      if (ab != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("ABP：" + ab + "mmHg")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @ab
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- PAR -->
+                    @{string pa = ViewBag.set_record(vsd, "pa");
+                      if (pa != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("PAR：" + pa + "mmHg")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @pa
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- 腦灌流壓 -->
+                    @{string cp = ViewBag.set_record(vsd, "cp");
+                      if (cp != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("腦灌流壓：" + cp + "mmHg")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @cp
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="100">
+                    <!-- 足背動脈 -->
+                    @{string fb = ViewBag.set_record(vsd, "fb");
+                      if (fb != "")
+                      {
+                          fb = fb.Replace("|", " / ");
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("足背動脈(左/右)：" + fb)" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @fb
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- CO -->
+                    @{string co = ViewBag.set_record(vsd, "co");
+                      if (co != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("CO：" + co +"L/min")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @co
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- CI -->
+                    @{string ci = ViewBag.set_record(vsd, "ci");
+                      if (ci != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("CI：" + ci +"L/min/m2")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @ci
+                    </label>
+                      }
+                    }
+                </td>
+                <td width="80">
+                    <!-- ICP -->
+                    @{string sv = ViewBag.set_record(vsd, "sv");
+                      if (sv != "")
+                      {
+                    <input type="checkbox" name="@vsDataList[i].vsid" value="@("SVO2：" + sv +"%")" onclick="ck_cancle_by_name(this);" style="display:none;" />
+                    <label>
+                    @sv
+                    </label>
+                      }
+                    }
+                </td>
+            </tr>
+                }
+            }
+        }
+    </table>
+</div>

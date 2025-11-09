@@ -1,0 +1,1788 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+@using System.Data;
+@using NIS.Data;
+@{
+    PatientInfo ptinfo = (PatientInfo)ViewData["ptinfo"];
+    BaByPatInfo_FeeNo BaByPatInfo = (BaByPatInfo_FeeNo)ViewBag.BaByPatInfo;
+    DataTable dt = ViewBag.dt;
+    string Career = ViewBag.Career;
+
+    string BornHistory_G = ViewBag.BornHistory_G;
+    string BornHistory_P = ViewBag.BornHistory_P;
+    string BornHistory_A = ViewBag.BornHistory_A;
+    string BornHistory_E = ViewBag.BornHistory_E;
+    string BornHistory_W = ViewBag.BornHistory_W;
+    string BornHistory_T = ViewBag.BornHistory_T;
+
+    string Med = ViewBag.Med;
+    string Med_Name = ViewBag.Med_Name;
+
+    BabyLab HBsAg = ViewBag.HBsAg;
+    BabyLab HBeAg = ViewBag.HBeAg;
+    BabyLab VDRL1 = ViewBag.VDRL1;
+    BabyLab VDRL2 = ViewBag.VDRL2;
+    BabyLab IgG = ViewBag.IgG;
+    BabyLab HIV = ViewBag.HIV;
+    BabyLab IgE = ViewBag.IgE;
+    BabyLab GBS = ViewBag.GBS;
+
+    bool IsHisView = ViewBag.IsHisView;
+    bool? IsEMR = ViewBag.IsEMR;
+
+    string GBS_AB = ViewBag.GBS_AB;
+    string O_GBS_AB = ViewBag.O_GBS_AB;
+    string O_GBS_AB_TYPE = ViewBag.O_GBS_AB_TYPE;
+}
+<style type="text/css">
+    .head {
+        width: 18%;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        white-space: pre-line;
+        word-break: break-all;
+    }
+
+    .title_area td {
+        border-style: hidden hidden groove groove;
+        border-width: 0.1px;
+    }
+
+    .dataHeader td {
+        height: 10px;
+    }
+
+    .ui-tabs .ui-tabs-nav li a {
+        font-size: 16px;
+        padding: 3px 5px 3px 5px;
+    }
+
+    .ui-tabs {
+        font-size: 16px;
+    }
+
+    .funcArea[type=button] {
+        background-color: #9CB7CF;
+        border: 2px solid #FFFFFF;
+        border-radius: 5px;
+        color: #000000;
+        font-family: "微軟正黑體";
+        font-size: 14px;
+        padding: 2px 3px 2px 3px;
+        box-shadow: 2px 2px 3px rgba(20%,20%,40%,0.5);
+        cursor: pointer;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+        //設定高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 600);
+            $(".dataArea2").outerHeight(height - 400);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var tr2 = $('.dataArea2 tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+
+            if ($(tr2[i]).css('display') != 'none') {
+                $(tr2[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue != 'undefined') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+            }
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = document.getElementsByName(ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+    function get_employee_name(obj, name) {
+        var userno = $(obj).attr('id')
+        $.ajax({
+            url: "Get_Employee_Name",
+            type: "GET",
+            data: { userno: document.getElementById(userno).value },
+            success: function (data, textStatus, jqXHR) {
+                var userNameId = userno.replace("TXT_" + name, "LB_" + name);
+                if (data == "") {
+                    alert("查無此執行者員工編號!");
+                    $("#" + userNameId).html('請輸入員工編號');
+                }
+                else {
+                    $("#" + userNameId).html(data);
+                }
+            },
+            error: function (err) {
+            },
+            dataType: 'text'
+        });
+    }
+
+    function GetINSPTList(obj, name) {
+        var INSPTNo = $(obj).val();
+
+        $.ajax({
+            url: "Get_INSPTList",
+            type: "GET",
+            data: { INSPTNo: INSPTNo },
+            success: function (data, textStatus, jqXHR) {
+                if (data == "") {
+                    alert("查無此代碼之檢驗院所!");
+                }
+                else {
+                    $("#" + name).val(data);
+                }
+            },
+            error: function (err) {
+            },
+            dataType: 'text'
+        });
+    }
+
+    function set_for_selEDU(sel_name, dvalue) {
+        if (dvalue != 'undefined') {
+            var sel = document.getElementsByName(sel_name);
+            if (sel.length > 0) {
+                for (var i = 0; i < sel[0].length; i++) {
+                    if (sel[0][i].value == dvalue)
+                        $(sel[0][i]).attr("selected", "true");
+                }
+            }
+        }
+    }
+
+    function set_for_sel(sel_name, dvalue)
+    {
+        if (dvalue != 'undefined') {
+            var sel = document.getElementsByName(sel_name);
+            if (sel.length > 0) {
+                for (var i = 0; i < sel[0].length; i++) {
+                    if (sel[0][i].value == dvalue)
+                        $(sel[0][i]).attr("selected", "true");
+                }
+            }
+        }
+
+        if ($("select[name='DDL_GBS'] :selected").val() == "0") {
+            //$('.span_GBS').fadeIn(500);
+            $('.lbl_GBS').css("color", "Red");
+        }
+
+        if ($("select[name='DDL_HIV'] :selected").val() == "0") {
+            $('.lbl_HIV').css("color", "Red");
+        }
+
+        if ($("select[name='DDL_VDRL1'] :selected").val() == "0") {
+            $('.lbl_VDRL1').css("color", "Red");
+        }
+
+        if ($("select[name='DDL_VDRL2'] :selected").val() == "0") {
+            $('.lbl_VDRL2').css("color", "Red");
+        }
+
+        if ($("select[name='DDL_RUBELLA'] :selected").val() == "0") {
+            $('.lbl_RUBELLA').css("color", "Red");
+        }
+
+        if ($("select[name='DDL_HBEAG'] :selected").val() == "0") {
+            $('.lbl_HBEAG').css("color", "Red");
+        }
+
+        if ($("select[name='DDL_HBSAG'] :selected").val() == "0") {
+            $('.lbl_HBSAG').css("color", "Red");
+        }
+
+        if ($("select[name='DDL_MAT_STA'] :selected").val() == "2")
+        {
+            $("#TXT_MAT_ID").removeAttr("disabled");
+            $("#TXT_MAT_NAME").removeAttr("disabled");
+            $("#TXT_MAT_BIRTH").removeAttr("disabled");
+            $("#TXT_MAT_ZONE").removeAttr("disabled");
+            $("#TXT_MAT_ZONEC").removeAttr("disabled");
+            $("#TXT_MAT_AGE").removeAttr("disabled");
+            $("#TXT_MAT_NAT").removeAttr("disabled");
+            $("#TXT_MAT_TEL").removeAttr("disabled");
+            $("#TXT_MAT_OCU").removeAttr("disabled");
+            $("#DDL_MAT_EDU").removeAttr("disabled");
+            $("#TXT_MAT_BT").removeAttr("disabled");
+            $("input[name=RB_MAT_BT_N]").removeAttr('disabled');
+            $("input#BTN_MAT_ZONE").removeAttr("disabled");
+
+            //塞資料
+            @{
+                if (dt != null && dt.Rows.Count > 0)
+                {
+                    var r = dt.Rows[0];
+                    @:$("#TXT_MAT_ID").val('@r["MAT_ID"]');
+                    @:$("#TXT_MAT_NAME").val('@r["MAT_NAME"]');
+                    if(r["MAT_BIRTH"].ToString() != "") {
+                        @:$("#TXT_MAT_BIRTH").val('@Convert.ToDateTime(r["MAT_BIRTH"].ToString()).ToString("yyyy/MM/dd")');
+                    }
+                    @:$("#TXT_MAT_ZONE").val('@r["MAT_ZONE"]');
+                    @:$("#TXT_MAT_ZONEC").val('@r["MAT_ZONEC"]');
+                    @:$("#TXT_MAT_AGE").val('@r["MAT_AGE"]');
+                    @:$("#TXT_MAT_NAT").val('@r["MAT_NAT"]');
+                    @:$("#TXT_MAT_TEL").val('@r["MAT_TEL"]');
+                    @:$("#TXT_MAT_OCU").val('@r["MAT_OCU"]');
+                    @:$("#DDL_MAT_EDU").val('@r["MAT_EDU"]');
+                    @:$("#TXT_MAT_BT").val('@r["MAT_BT"]');
+                    @:$("#RB_MAT_BT_N").val('@r["MAT_BT_N"]');
+                }
+            }
+        }
+    }
+
+    function hasCapital(str) {
+        var result = str.match(/^.*[A-Z]+.*$/);
+        if (result == null) return false;
+        return true;
+    }
+
+    function GetBabyMatInfo(obj) {
+        var IDNo = $(obj).val();
+
+        if (IDNo != "" && IDNo != undefined) {
+                $.ajax({
+                    url: "Get_BabyMatInfo",
+                    type: "GET",
+                    data: { IID: IDNo },
+                    success: function (data, textStatus, jqXHR) {
+                        if (data != "") {
+                            switch (data.PATEducation) {
+                                case "不識字":
+                                    set_for_selEDU('DDL_MAT_EDU', '0');
+                                    break;
+                                case "國小":
+                                    set_for_selEDU('DDL_MAT_EDU', '1');
+                                    break;
+                                case "國中":
+                                    set_for_selEDU('DDL_MAT_EDU', '2');
+                                    break;
+                                case "高中":
+                                    set_for_selEDU('DDL_MAT_EDU', '3');
+                                    break;
+                                case "大專以上":
+                                    set_for_selEDU('DDL_MAT_EDU', '4');
+                                    break;
+                                case "不詳":
+                                    set_for_selEDU('DDL_MAT_EDU', '5');
+                                    break;
+                                default:
+                                    break;
+                            }
+
+                            $("#TXT_MAT_ID").val(IDNo);
+                            $("#TXT_MAT_NAME").val(data.PATName);
+                            $("#TXT_MAT_BIRTH").val(data.PATBirthday);
+                            $("#TXT_MAT_ZONE").val(data.PATBirthPlace);
+                            $("#TXT_MAT_ZONEC").val(data.PATBirthPlaceC);
+                            $("#TXT_MAT_NAT").val(data.PATNational);
+
+                            var today = new Date();
+                            $("#TXT_MAT_AGE").val(today.getFullYear() - data.PATBirthday.substr(0, 4));
+                            $("#TXT_MAT_BT").val(data.Blood_Type);
+
+                            $("#TXT_MAT_TEL").val(data.PATHomeNo);
+                            $("#TXT_MAT_OCU").val(data.PATOcc);
+
+                        } else {
+                $("#TXT_MAT_NAME").val('');
+                $("#TXT_MAT_BIRTH").val('');
+                $("#TXT_MAT_ZONE").val('');
+                $("#TXT_MAT_ZONEC").val('');
+                $("#TXT_MAT_AGE").val('');
+                $("#TXT_MAT_NAT").val('');
+                $("#TXT_MAT_TEL").val('');
+                $("#TXT_MAT_OCU").val('');
+                $("#DDL_MAT_EDU").val('');
+                $("#TXT_MAT_BT").val('');
+                $("#RB_MAT_BT_N").val('');
+                        }
+                    },
+                    error: function (err) {
+                    },
+                    dataType: 'json'
+                });
+        }
+    }
+
+    //GBS(乙型鏈球菌)下拉
+    $("select[name='DDL_GBS']").change(function () {
+        var value = $("select[name='DDL_GBS'] :selected").val();
+        if (value === "0") {
+            $('.lbl_GBS').css("color", "Red");
+        }
+        else {
+            $('.lbl_GBS').css("color", "Black");
+        }
+    }).trigger("change");
+
+    //Anti-HIV Test(愛滋病抗體)下拉
+    $("select[name='DDL_HIV']").change(function () {
+        var value = $("select[name='DDL_HIV'] :selected").val();
+        if (value === "0") {
+            $('.lbl_HIV').css("color", "Red");
+        }
+        else
+            $('.lbl_HIV').css("color", "Black");
+    }).trigger("change");
+
+    //VDRL(梅毒)第一次下拉
+    $("select[name='DDL_VDRL1']").change(function () {
+        var value = $("select[name='DDL_VDRL1'] :selected").val();
+        if (value === "0") {
+            $('.lbl_VDRL1').css("color", "Red");
+        }
+        else
+            $('.lbl_VDRL1').css("color", "Black");
+    }).trigger("change");
+
+    //VDRL(梅毒)第二次下拉
+    $("select[name='DDL_VDRL2']").change(function () {
+        var value = $("select[name='DDL_VDRL2'] :selected").val();
+        if (value === "0") {
+            $('.lbl_VDRL2').css("color", "Red");
+        }
+        else
+            $('.lbl_VDRL2').css("color", "Black");
+    }).trigger("change");
+
+    //Rubella lgG(德國麻疹)下拉
+    $("select[name='DDL_RUBELLA']").change(function () {
+        var value = $("select[name='DDL_RUBELLA'] :selected").val();
+        if (value === "0") {
+            $('.lbl_RUBELLA').css("color", "Red");
+        }
+        else
+            $('.lbl_RUBELLA').css("color", "Black");
+    }).trigger("change");
+
+    //HBeAg(e抗原)下拉
+    $("select[name='DDL_HBEAG']").change(function () {
+        var value = $("select[name='DDL_HBEAG'] :selected").val();
+        if (value === "0") {
+            $('.lbl_HBEAG').css("color", "Red");
+        }
+        else
+            $('.lbl_HBEAG').css("color", "Black");
+    }).trigger("change");
+
+    //HBsAg(B型肝炎表面抗原)下拉
+    $("select[name='DDL_HBSAG']").change(function () {
+        var value = $("select[name='DDL_HBSAG'] :selected").val();
+        if (value === "0") {
+            $('.lbl_HBSAG').css("color", "Red");
+        }
+        else
+            $('.lbl_HBSAG').css("color", "Black");
+    }).trigger("change");
+
+
+
+    //配偶
+    $("select[name='DDL_MAT_STA']").change(function () {
+        var value = $("select[name='DDL_MAT_STA'] :selected").val();
+        if (value === "2") {
+            $("#TXT_MAT_ID").removeAttr("disabled");
+            $("#TXT_MAT_NAME").removeAttr("disabled");
+            $("#TXT_MAT_BIRTH").removeAttr("disabled");
+            $("#TXT_MAT_ZONE").removeAttr("disabled");
+            $("#TXT_MAT_ZONEC").removeAttr("disabled");
+            $("#TXT_MAT_AGE").removeAttr("disabled");
+            $("#TXT_MAT_NAT").removeAttr("disabled");
+            $("#TXT_MAT_TEL").removeAttr("disabled");
+            $("#TXT_MAT_OCU").removeAttr("disabled");
+            $("#DDL_MAT_EDU").removeAttr("disabled");
+            $("#TXT_MAT_BT").removeAttr("disabled");
+            $("input[name=RB_MAT_BT_N]").removeAttr('disabled');
+            $("input#BTN_MAT_ZONE").removeAttr("disabled");
+        }
+        else {
+            $("#TXT_MAT_ID").val('');
+            $("#TXT_MAT_NAME").val('');
+            $("#TXT_MAT_BIRTH").val('');
+            $("#TXT_MAT_ZONE").val('');
+            $("#TXT_MAT_ZONEC").val('');
+            $("#TXT_MAT_AGE").val('');
+            $("#TXT_MAT_NAT").val('');
+            $("#TXT_MAT_TEL").val('');
+            $("#TXT_MAT_OCU").val('');
+            $("#DDL_MAT_EDU").val('');
+            $("#TXT_MAT_BT").val('');
+            $("#RB_MAT_BT_N").val('');
+
+            $("#TXT_MAT_ID").attr('disabled', 'disabled');
+            $("#TXT_MAT_NAME").attr('disabled', 'disabled');
+            $("#TXT_MAT_BIRTH").attr('disabled', 'disabled');
+            $("#TXT_MAT_ZONE").attr('disabled', 'disabled');
+            $("#TXT_MAT_ZONEC").attr('disabled', 'disabled');
+            $("#TXT_MAT_AGE").attr('disabled', 'disabled');
+            $("#TXT_MAT_NAT").attr('disabled', 'disabled');
+            $("#TXT_MAT_TEL").attr('disabled', 'disabled');
+            $("#TXT_MAT_OCU").attr('disabled', 'disabled');
+            $("#TXT_MAT_BT").attr('disabled', 'disabled');
+            $("input[name=RB_MAT_BT_N]").attr('disabled', 'disabled');
+            $("input#BTN_MAT_ZONE").attr("disabled", "disabled");
+            $("#DDL_MAT_EDU").attr('disabled', 'disabled');
+        }
+    }).trigger("change");
+
+    function sendCheck(source) {
+        if (source != true)
+            return;
+
+        var ok = false;
+
+        var input_list = $("#tabs-1").find("select, input");
+        for (var j = 0; j < input_list.length; j++) {
+            if (input_list[j].type != "button" && input_list[j].name.indexOf("_MAT_") < 0 && input_list[j].name.indexOf("RB_HIVPT_R") < 0 && input_list[j].name.indexOf("RB_GBS_AB_TYP") < 0) {
+                var name = $(input_list[j]).attr('name');
+                //妊娠併發症-原因
+                if (name.indexOf('CK_PREG_ITM') >= 0) {
+                    if ($('input[name=' + name.replace('CK_PREG_ITM', 'RB_PREG') + ']:checked').val() == "0")
+                        continue;
+                }
+                //疾病史-原因
+                else if (name.indexOf('CK_DISE_ITM') >= 0) {
+                    if ($('input[name=' + name.replace('CK_DISE_ITM', 'RB_DISE') + ']:checked').val() == "0")
+                        continue;
+                }
+                if (input_list[j].type == 'text' || input_list[j].type == 'textarea') {
+                    var input_val = $.trim(input_list[j].value);
+                    if (input_val != '' && input_val != undefined) {
+                        ok = true;
+                    } else {
+                        if (name.indexOf("_INST_NAME") >= 0) {
+                            if ($("select[name='DDL_" + name.replace('TXT_', '').replace('_INST_NAME', '') + "']").val() != "3") {
+                                alert('[' + $('#HD_' + name.replace('_INST_NAME', '')).html() + '-檢驗院所]未填寫!');
+                                $(input_list[j]).focus();
+                                ok = false;
+                                break;
+                            }
+                            else
+                                continue;
+                        }
+                        else if (name.indexOf("_INST") >= 0) {
+                            if ($("select[name='DDL_" + name.replace('TXT_','').replace('_INST', '') + "']").val() != "3") {
+                                alert('[' + $('#HD_' + name.replace('_INST', '')).html() + '-檢驗院所]未填寫!');
+                                $(input_list[j]).focus();
+                                ok = false;
+                                break;
+                            }
+                            else
+                                continue;
+                        }
+
+                        //妊娠併發症-原因-其他
+                        else if (name.indexOf('TXT_PREG_OTH') >= 0) {
+                            var checked = $('input:checkbox:checked[name=' + name.replace('TXT_PREG_OTH', 'CK_PREG_ITM') + ']').map(function () { return $(this).val(); }).get();;
+                            if (checked != undefined && checked.indexOf('11') >= 0) {
+                                ok = false;
+                                $(input_list[j]).focus();
+                                alert('[妊娠併發症-原因-其他]未填寫!');
+                                break;
+                            }
+                            else
+                                continue;
+                        }
+                        //疾病史-原因-其他
+                        else if (name.indexOf('TXT_DISE_OTH') >= 0) {
+                            var checked = $('input:checkbox:checked[name=' + name.replace('TXT_DISE_OTH', 'CK_DISE_ITM') + ']').map(function () { return $(this).val(); }).get();;
+                            if (checked != undefined && checked.indexOf('13') >= 0) {
+                                ok = false;
+                                $(input_list[j]).focus();
+                                alert('[疾病史-原因-其他]未填寫!');
+                                break;
+                            }
+                            else
+                                continue;
+                        }
+                        //用藥紀錄
+                        else if (name.indexOf('TXT_MED_REC') >= 0) {
+                            if ($("input[name='" + name.replace("TXT_MED_REC", "RB_MED_REC_YN") + "']:checked").val() != "0") {
+                                alert('用藥紀錄未填寫!');
+                                $(input_list[j]).focus();
+                                ok = false;
+                                break;
+                            }
+                            else
+                                continue;
+                        }
+                        else if (name.indexOf('TXT_GBS_AB_') >= 0) {
+                                continue;
+                        }
+                        else if (name.indexOf('TXT_CREATNO2') >= 0) {
+                            continue;
+                        }
+                        else {
+                            ok = false;
+                            $(input_list[j]).focus();
+                            if (name.indexOf("TXT_GA_D") >= 0) {
+                                alert('[生產天數]未填寫!');
+                            }
+                            else {
+                                alert('[' + $('#HD_' + name).html() + ']未填寫!');
+                            }
+                            break;
+                        }
+                    }
+                }
+                else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                    var input_val = $('input[name=' + name + ']:checked').val();
+                    if (input_val != '' && input_val != undefined) {
+                        ok = true;
+                    } else {
+                        ok = false;
+                        $(input_list[j]).focus();
+
+                        if (name.indexOf("CK_PREG_ITM") >= 0) {
+                            alert('[妊娠併發症-原因]未填寫!');
+                        }
+                        else if (name.indexOf("CK_DISE_ITM") >= 0) {
+                            alert('[疾病史-原因]未填寫!');
+                        }
+                        else if (name.indexOf("RB_MED_REC_YN") >= 0) {
+                            alert('[是否用藥]未填寫!');
+                        }
+
+                        else {
+                            alert('[' + $('#HD_' + name).html() + ']未填寫!');
+                        }
+                        break;
+                    }
+                }
+                else if (input_list[j].tagName == 'SELECT') {
+                    var input_val = $.trim(input_list[j].value);
+                    if (input_val != '' && input_val != undefined) {
+                        ok = true;
+                    }
+                    else {
+                        ok = false;
+                        $(input_list[j]).focus();
+                        alert('[' + $('#HD_' + name.replace('DDL', 'TXT')).html() + ']未填寫!');
+                        break;
+                    }
+                }
+            }
+        }
+        return ok;
+    }
+
+    function birthdayCheck(obj, length) {
+        var value = $(obj).val();
+        if (value.length != length) {
+            alert("長度需為" + length + "碼!(ex.西元：20191230/民國：01091230)");
+            $(obj).val('');
+            $(obj).focus();
+            return;
+        }
+
+        var year = value.substr(0, 4);
+        var month = value.substr(4, 2);
+        var date = value.substr(6, 2);
+
+        if (month > 12 || month < 1) {
+            alert("[" + month + "]不是合法的月份");
+            return;
+        }
+
+        if (date > 31 || date < 1) {
+            alert("[" + date + "]不是合法的日期");
+            return;
+        }
+
+        if (year < 1911) {
+            var wYear = (Number(year) + 1911).toString() + month.toString() + date.toString();
+            $(obj).val(wYear);
+        }
+    }
+
+    $(document).ready(function () {
+        window.setTimeout(function () {
+            if ('@IsHisView'.toLowerCase() != 'true' && '@IsEMR'.toLowerCase() != 'true') {
+                    if ('@ViewBag.O_GBS_AB_TYPE' != '1' && '@ViewBag.GBS_AB' != ""
+                        && '@ViewBag.GBS_AB' != '@ViewBag.O_GBS_AB') {
+                        if (confirm("是否更新抗生素時間?")) {
+                            $('#TXT_GBS_AB_DAY').val('@Convert.ToDateTime(ViewBag.GBS_AB).ToString("yyyy/MM/dd")');
+                            $('#TXT_GBS_AB_TIME').val('@Convert.ToDateTime(ViewBag.GBS_AB).ToString("HH:mm")');
+                            $('input[name="RB_GBS_AB_TYP"]')[0].checked = true;
+                            alert('記得儲存確保資料更新!')
+                        } else {
+
+                        }
+                    }
+            }
+        }, 500);
+    });
+
+
+</script>
+
+
+@{
+    if (dt == null || dt.Rows.Count == 0)
+    {
+        <form action="Insert_Before_Birth_History" method="post">
+            <div>
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;">
+                    <tr>
+                        <td style="padding:5px 0 5px 0;text-align:center;">
+                            <div class="funcArea">
+                                <table class="title_area" style="text-align:center;width:100%;font-size:12px;" border="0" cellpadding="4" cellspacing="1">
+                                    <tr>
+                                        <th class="head" rowspan="2" style="width:10%;"></th>
+                                        <th id="HD_TXT_PAT_ID" class="head" rowspan="2" style="width:10%;">身分證字號</th>
+                                        <th id="HD_TXT_PAT_NAME" class="head" rowspan="2" style="width:10%;">姓名</th>
+                                        <th id="HD_TXT_PAT_BIRTH" class="head" style="width:10%;">出生年月日</th>
+                                        <th id="HD_TXT_PAT_ZONEC" class="head" style="width:10%;">居住地</th>
+                                        <th id="HD_TXT_PAT_BT" class="head" rowspan="2" style="width:15%;">血型</th>
+                                        <th id="HD_TXT_PAT_EDU" class="head" rowspan="2" style="width:10%;">教育程度</th>
+                                        <th id="HD_TXT_PAT_TEL" class="head" style="width:10%;">電話</th>
+                                    </tr>
+                                    <tr>
+                                        <th id="HD_TXT_PAT_AGE" class="head" style="width:10%;">年齡</th>
+                                        <th id="HD_TXT_PAT_NAT" class="head" style="width:10%;">國籍</th>
+                                        <th id="HD_TXT_PAT_OCU" class="head" style="width:10%;">職業</th>
+                                    </tr>
+                                    <tr>
+                                        <th class="head" rowspan="2">產婦</th>
+                                        <td rowspan="2">@Html.TextBox("TXT_PAT_ID", BaByPatInfo != null ? BaByPatInfo.PATID : "", new { id = "TXT_PAT_ID", style = "width:80px" })</td>
+                                        <td rowspan="2">@Html.TextBox("TXT_PAT_NAME", ptinfo.PatientName, new { id = "TXT_PAT_NAME", style = "width:80px" })</td>
+                                        <td>
+                                            @Html.TextBox("TXT_PAT_BIRTH", ptinfo.Birthday.ToString("yyyy/MM/dd"), new { id = "TXT_PAT_BIRTH", style = "width:80px" })
+                                        </td>
+                                        <td>
+                                            @Html.TextBox("TXT_PAT_ZONEC", BaByPatInfo != null ? BaByPatInfo.PATBirthPlaceC : "", new { id = "TXT_PAT_ZONEC", style = "width:70px", @readonly = "readonly" })
+                                            @if (BaByPatInfo != null)
+                                            {
+                                                <input type="hidden" name="TXT_PAT_ZONE" id="TXT_PAT_ZONE" value="@BaByPatInfo.PATBirthPlace" />
+                                            }
+                                            else
+                                            {
+                                                <input type="hidden" name="TXT_PAT_ZONE" id="TXT_PAT_ZONE" />
+                                            }
+                                            <input class="funcArea" type="button" value="選取" onclick="window.open('./Select_AREA_List?name=PAT_ZONE' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+                                        <td rowspan="2">
+                                            @Html.TextBox("TXT_PAT_BT", BaByPatInfo != null ? BaByPatInfo.Blood_Type : "", new { id = "TXT_PAT_BT", style = "width:80px" })
+                                        </td>
+                                        <td rowspan="2">
+                                            <select name="DDL_PAT_EDU">
+                                                <option value="">請選擇</option>
+                                                <option value="0">不識字</option>
+                                                <option value="1">國小</option>
+                                                <option value="2">國中</option>
+                                                <option value="3">高中</option>
+                                                <option value="4">大專以上</option>
+                                                <option value="5">不詳</option>
+                                            </select>
+                                            <script>
+                                            @if (BaByPatInfo != null)
+                                            {
+                                                switch (BaByPatInfo.PATEducation)
+                                                {
+                                                    case "不識字":
+                                                        @:set_for_sel('DDL_PAT_EDU', '0');
+                                                        break;
+                                                    case "國小":
+                                                        @:set_for_sel('DDL_PAT_EDU', '1');
+                                                        break;
+                                                    case "國中":
+                                                        @:set_for_sel('DDL_PAT_EDU', '2');
+                                                        break;
+                                                    case "高中":
+                                                        @:set_for_sel('DDL_PAT_EDU', '3');
+                                                        break;
+                                                    case "大專以上":
+                                                        @:set_for_sel('DDL_PAT_EDU', '4');
+                                                        break;
+                                                    case "不詳":
+                                                        @:set_for_sel('DDL_PAT_EDU', '5');
+                                                        break;
+                                                    default:
+                                                        break;
+                                                }
+                                            }
+                                            </script>
+                                        </td>
+                                        <td>@Html.TextBox("TXT_PAT_TEL", BaByPatInfo != null ? BaByPatInfo.PATHomeNo : "", new { id = "TXT_PAT_TEL", style = "width:80px" })</td>
+                                    </tr>
+                                    <tr>
+                                        <td>@Html.TextBox("TXT_PAT_AGE", Convert.ToInt32(DateTime.Now.ToString("yyyy")) - Convert.ToInt32(ptinfo.Birthday.ToString("yyyy")), new { id = "TXT_PAT_AGE", style = "width:50px" })歲</td>
+                                        <td>@Html.TextBox("TXT_PAT_NAT", BaByPatInfo != null ? BaByPatInfo.PATNational : "", new { id = "TXT_PAT_NAT", style = "width:70px" })</td>
+                                        <td>@Html.TextBox("TXT_PAT_OCU", Career, new { id = "TXT_PAT_OCU", style = "width:80px" })</td>
+                                    </tr>
+                                    <tr>
+                                        <th rowspan="2" class="head">
+                                            配偶<br />
+                                            <select name="DDL_MAT_STA">
+                                                <option value="">請選擇</option>
+                                                <option value="0">身分證配偶欄空白</option>
+                                                <option value="1">產婦口述無配偶</option>
+                                                <option value="2">有配偶</option>
+                                                <option value="3">同性婚姻</option>
+                                            </select>
+                                        </th>
+                                        <td rowspan="2">@Html.TextBox("TXT_MAT_ID", "", new { id = "TXT_MAT_ID", style = "width:80px", onchange = "GetBabyMatInfo(this)" })</td>
+                                        <td rowspan="2">@Html.TextBox("TXT_MAT_NAME", "", new { id = "TXT_MAT_NAME", style = "width:80px" })</td>
+                                        <td>
+                                            @Html.TextBox("TXT_MAT_BIRTH", "", new { id = "TXT_MAT_BIRTH", style = "width:80px", maxLength = 8, onchange = "numcheck(this); birthdayCheck(this, 8);" })
+                                        </td>
+
+                                        <td>
+                                            @Html.TextBox("TXT_MAT_ZONEC", "", new { id = "TXT_MAT_ZONEC", style = "width:70px", @readonly = "readonly" })
+                                            <input type="hidden" name="TXT_MAT_ZONE" id="TXT_MAT_ZONE" />
+                                            <input class="funcArea" type="button" id="BTN_MAT_ZONE" value="選取" onclick="window.open('./Select_AREA_List?name=MAT_ZONE' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+
+                                        <td rowspan="2">
+                                            @Html.TextBox("TXT_MAT_BT", "", new { id = "TXT_MAT_BT", style = "width:80px" })
+                                            <label><input type="radio" name="RB_MAT_BT_N" value="0" />口述</label>
+                                            <label><input type="radio" name="RB_MAT_BT_N" value="1" />不詳</label>
+                                        </td>
+                                        <td rowspan="2">
+                                            <select name="DDL_MAT_EDU" id="DDL_MAT_EDU">
+                                                <option value="">請選擇</option>
+                                                <option value="0">不識字</option>
+                                                <option value="1">國小</option>
+                                                <option value="2">國中</option>
+                                                <option value="3">高中</option>
+                                                <option value="4">大專以上</option>
+                                                <option value="5">不詳</option>
+                                            </select>
+                                        </td>
+                                        <td>@Html.TextBox("TXT_MAT_TEL", "", new { id = "TXT_MAT_TEL", style = "width:80px" })</td>
+                                    </tr>
+                                    <tr>
+                                        <td>@Html.TextBox("TXT_MAT_AGE", "", new { id = "TXT_MAT_AGE", style = "width:50px" })歲</td>
+                                        <td>@Html.TextBox("TXT_MAT_NAT", "", new { id = "TXT_MAT_NAT", style = "width:70px" })</td>
+                                        <td>@Html.TextBox("TXT_MAT_OCU", "", new { id = "TXT_MAT_OCU", style = "width:80px" })</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 0 5px 0;">
+                            <div class="dataArea2" style="height:450px;">
+                                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                    <tr>
+                                        <td colspan="2" style="padding-bottom:5px;text-align:center;">
+                                            <span style="text-align:center;color:blue;font-size:16px;">基本資料</span>
+                                        </td>
+                                        <td colspan="2" style="padding-bottom:5px;text-align:center;">
+                                            <span style="color:blue;font-size:16px;">產前檢查</span>
+                                            <input class="funcArea" type="button" value="檢驗" style="width: 60px;" onclick="@Java_funcion.pup_window("../CareRecord/LabButton?id=record_com", 700, 700, "0")" />
+                                            <input class="funcArea" type="button" value="檢查" style="width: 60px;" onclick="@Java_funcion.pup_window("../CareRecord/ExamButton?id=record_com", 700, 700, "0")" />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_EDC" class="head" style="width:20%;">EDC預產期</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_EDC", null, new { style = "width:80px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_EDC", "", "", "800")
+                                        </td>
+                                        <td id="HD_TXT_HBSAG" class="head lbl_HBSAG" style="width:20%;">HBsAg(B型肝炎表面抗原)</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_HBSAG">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_HBSAG_INST", HBsAg == null ? "" : HBsAg.INSPTNo, new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_HBSAG_INST_NAME')" })
+                                            @Html.TextBox("TXT_HBSAG_INST_NAME", HBsAg == null ? "" : HBsAg.INSPTName, new { id = "TXT_HBSAG_INST_NAME", style = "width:180px" })
+                                            <br />
+                                            <input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=HBSAG_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                            <script>
+                                                @if (HBsAg != null) {
+                                                    if (HBsAg.LabValue.IndexOf("Positive") > -1 || HBsAg.LabValue.IndexOf("Reactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_HBSAG', '0');
+                                                    }
+                                                    else if (HBsAg.LabValue.IndexOf("Negative") > -1 || HBsAg.LabValue.IndexOf("Nonreactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_HBSAG', '1');
+                                                    }
+                                                }
+                                            </script>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_GA_W" class="head" style="width:20%;">生產週數</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_GA_W", BornHistory_W, new { style = "width:100px", onchange = "numcheck(this);" })週
+                                            @Html.TextBox("TXT_GA_D", "", new { style = "width:100px", onchange = "numcheck(this);" })天
+                                        </td>
+                                        <td id="HD_TXT_HBEAG" class="head lbl_HBEAG" style="width:20%;">HBeAg(e抗原)</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_HBEAG">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_HBEAG_INST", HBeAg == null ? "" : HBeAg.INSPTNo, new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_HBEAG_INST_NAME')" })
+                                            @Html.TextBox("TXT_HBEAG_INST_NAME", HBeAg == null ? "" : HBeAg.INSPTName, new { id = "TXT_HBEAG_INST_NAME", style = "width:180px" })
+                                            <br />
+                                            <input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=HBEAG_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                            <script>
+                                                @if (HBeAg != null) {
+                                                    if (HBeAg.LabValue.IndexOf("Positive") > -1 || HBeAg.LabValue.IndexOf("Reactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_HBEAG', '0');
+                                                    }
+                                                    else if (HBeAg.LabValue.IndexOf("Negative") > -1 || HBeAg.LabValue.IndexOf("Nonreactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_HBEAG', '1');
+                                                    }
+                                                }
+                                            </script>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_GRAVIDA" class="head" style="width:20%;">G(孕次)</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_GRAVIDA", BornHistory_G, new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td id="HD_TXT_RUBELLA" class="head lbl_RUBELLA" style="width:20%;">Rubella lgG(德國麻疹)</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_RUBELLA">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_RUBELLA_INST", IgG == null ? "" : IgG.INSPTNo, new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_RUBELLA_INST_NAME')" })
+                                            @Html.TextBox("TXT_RUBELLA_INST_NAME", IgG == null ? "" : IgG.INSPTName, new { id = "TXT_RUBELLA_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=RUBELLA_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                                  <script>
+                                                @if (IgG != null) {
+                                                    if (IgG.LabValue.IndexOf("Negative") > -1 || IgG.LabValue.IndexOf("Non-Reactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_RUBELLA', '1');
+                                                    }
+                                                    else if (IgG.LabValue.IndexOf("Positive") > -1 || IgG.LabValue.IndexOf("Reactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_RUBELLA', '0');
+                                                    }
+                                                    else if (IgG.LabValue.IndexOf("GRAYZONE") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_RUBELLA', '2');
+                                                    }
+                                                }
+                                                  </script>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_PARITY" class="head" style="width:20%;">P(產次)</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_PARITY", BornHistory_P, new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td id="HD_TXT_VDRL1" class="head lbl_VDRL1" style="width:20%;">VDRL(梅毒)第一次</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_VDRL1">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_VDRL1_INST", VDRL1 == null ? "" : VDRL1.INSPTNo, new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_VDRL1_INST_NAME')" })
+                                            @Html.TextBox("TXT_VDRL1_INST_NAME", VDRL1 == null ? "" : VDRL1.INSPTName, new { id = "TXT_VDRL1_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=VDRL1_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                            <script>
+                                                @if (VDRL1 != null) {
+                                                    if (VDRL1.LabValue.IndexOf("Non-Reactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_VDRL1', '1');
+                                                    }
+                                                    else if (VDRL1.LabValue.IndexOf("Reactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_VDRL1', '0');
+                                                    }
+                                                }
+                                            </script>
+                                        </td>
+
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_ABORTION" class="head" style="width:20%;">A(流產)</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_ABORTION", BornHistory_A, new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td id="HD_TXT_VDRL2" class="head lbl_VDRL2" style="width:20%;">VDRL(梅毒)第二次</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_VDRL2">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_VDRL2_INST", VDRL2 == null ? "" : VDRL2.INSPTNo, new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_VDRL2_INST_NAME')" })
+                                            @Html.TextBox("TXT_VDRL2_INST_NAME", VDRL2 == null ? "" : VDRL2.INSPTName, new { id = "TXT_VDRL2_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=VDRL2_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                            <script>
+                                                @if (VDRL2 != null) {
+                                                    if (VDRL2.LabValue.IndexOf("Non-Reactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_VDRL2', '1');
+                                                    }
+                                                    else if (VDRL2.LabValue.IndexOf("Reactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_VDRL2', '0');
+                                                    }
+                                                }
+                                            </script>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td rowspan="2" id="HD_TXT_ECCYESIS" class="head" style="width:20%;">E(子宮外孕)</td>
+                                        <td rowspan="2" style="width:30%;">
+                                            @Html.TextBox("TXT_ECCYESIS", BornHistory_E, new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td id="HD_TXT_HIV" class="head lbl_HIV" rowspan="2" style="width:20%;">Anti-HIV Test(愛滋病抗體)</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_HIV">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_HIV_INST", HIV == null ? "" : HIV.INSPTNo, new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_HIV_INST_NAME')" })
+                                            @Html.TextBox("TXT_HIV_INST_NAME", HIV == null ? "" : HIV.INSPTName, new { id = "TXT_HIV_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=HIV_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                            <script>
+                                                @if (HIV != null) {
+                                                    if (HIV.LabValue.IndexOf("Positive") > -1 || HIV.LabValue.IndexOf("Reactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_HIV', '0');
+                                                    }
+                                                    else if (HIV.LabValue.IndexOf("Negative") > -1 || HIV.LabValue.IndexOf("Nonreactive") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_HIV', '1');
+                                                    }
+                                                }
+                                            </script>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width:30%;">
+                                            快篩值
+                                            <input type="radio" name="RB_HIVPT_R" value="0" />+
+                                            <input type="radio" name="RB_HIVPT_R" value="1" />-
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_LB_TOTAL" class="head" style="width:20%;">總活產數(不含本次)</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_LB_TOTAL", BornHistory_T, new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td id="HD_TXT_GBS" class="head lbl_GBS" style="width:20%;">GBS(乙型鏈球菌)</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_GBS">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_GBS_INST", GBS == null ? "" : GBS.INSPTNo, new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_GBS_INST_NAME')" })
+                                            @Html.TextBox("TXT_GBS_INST_NAME", GBS == null ? "" : GBS.INSPTName, new { id = "TXT_GBS_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=GBS_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                            <script>
+                                                @if (GBS != null) {
+                                                    if (GBS.LabValue.IndexOf("長菌") > -1)
+                                                    {
+                                                        @:set_for_sel('DDL_GBS', '0');
+                                                    }
+                                                    else
+                                                    {
+                                                        @:set_for_sel('DDL_GBS', '1');
+                                                    }
+                                                }
+                                            </script>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_VBAC" class="head">嘗試VBAC</td>
+                                        <td>
+                                            <input type="radio" name="RB_VBAC" value="0" />有
+                                            <input type="radio" name="RB_VBAC" value="1" />無
+                                            <input type="radio" name="RB_VBAC" value="2" />未曾剖腹產或初產婦
+                                        </td>
+                                        <td id="HD_TXT_GBS_AB_DAY" class="head">打抗生素日期時間</td>
+                                        <td>
+                                            <input type="radio" name="RB_GBS_AB_TYP" value="0" checked onclick="$('#TXT_GBS_AB_DAY').removeAttr('readonly');$('#TXT_GBS_AB_DAY').attr('disabled','disabled');$('#TXT_GBS_AB_TIME').removeAttr('readonly');$('#TXT_GBS_AB_TIME').attr('disabled','disabled');" />住院
+                                            <input type="radio" name="RB_GBS_AB_TYP" value="1" onclick="$('#TXT_GBS_AB_DAY').removeAttr('disabled');$('#TXT_GBS_AB_DAY').attr('readonly','readonly');$('#TXT_GBS_AB_TIME').removeAttr('disabled');$('#TXT_GBS_AB_TIME').attr('readonly','readonly');" />急診
+                                            @if (GBS_AB != "" && GBS_AB != null)
+                                            {
+                                                @Html.TextBox("TXT_GBS_AB_DAY", Convert.ToDateTime(GBS_AB).ToString("yyyy/MM/dd"), new { style = "width:80px", @disabled = "disabled" })
+                                                @Html.TextBox("TXT_GBS_AB_TIME", Convert.ToDateTime(GBS_AB).ToString("HH:mm"), new { style = "width:50px", @disabled = "disabled" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_GBS_AB_DAY", "", new { style = "width:80px", @disabled = "disabled" })
+                                                @Html.TextBox("TXT_GBS_AB_TIME", "", new { style = "width:50px", @disabled = "disabled" })
+                                            }
+                                            @WebTool.setDateTime("TXT_GBS_AB_DAY", "TXT_GBS_AB_TIME", "", "30")
+                                            <input class="funcArea" type="button" value="清空" onclick="$('input[name^=RB_GBS_AB_TYP]').attr('checked', false);$('#TXT_GBS_AB_DAY').val(''); $('#TXT_GBS_AB_TIME').val('');">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_PREG" class="head" style="width:20%;">妊娠併發症</td>
+                                        <td style="width:30%;">
+                                            <input type="radio" name="RB_PREG" value="0" onclick="$('.span_preg_y').fadeOut(500);" />無
+                                            <input type="radio" name="RB_PREG" value="1" onclick="$('.span_preg_y').fadeIn(500);" />有
+                                            <span class="span_preg_y" style="display:none;">
+                                                ，
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="6" />妊娠高血壓</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="7" />嚴重妊娠高血壓</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="0" />子癲前症</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="5" />中度子癲前症</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="4" />重度子癲前症</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="3" />絨毛膜羊膜囊炎</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="2" />前置胎盤</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="1" />胎盤早期剝離</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="12" />妊娠糖尿病</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="8" />心臟病</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="9" />腎臟疾病</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="10" />免疫性疾病(SLE)</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="11" onclick="$('.span_preg_itm_other').fadeToggle(500);" />其他</label>
+                                                <span class="span_preg_itm_other" style="display:none;">
+                                                    ，@Html.TextBox("TXT_PREG_OTH", "", new { style = "width:100px" })
+                                                </span>
+                                            </span>
+                                        </td>
+                                        <td id="HD_RB_ROOM_IN" class="head">決定實施親子同室的方式</td>
+                                        <td>
+                                            @ViewBag.SDMROOM_IN<br />
+                                            <input type="radio" name="RB_ROOM_IN" value="0" />24小時
+                                            <input type="radio" name="RB_ROOM_IN" value="1" />部分時段
+                                            <input type="radio" name="RB_ROOM_IN" value="2" />分離照顧
+                                            <input type="radio" name="RB_ROOM_IN" value="3" />尚未決定
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_DISE" class="head" style="width:20%;">疾病史</td>
+                                        <td style="width:30%;">
+                                            <input type="radio" name="RB_DISE" value="0" onclick="$('.span_dise_y').fadeOut(500);" />無
+                                            <input type="radio" name="RB_DISE" value="1" onclick="$('.span_dise_y').fadeIn(500);" />有
+                                            <span class="span_dise_y" style="display:none;">
+                                                ，
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="0" />肝炎</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="1" />梅毒</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="2" />驚厥</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="3" />腫瘤</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="4" />氣喘</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="5" />結核病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="6" />高血壓</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="7" />心臟病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="8" />肝臟疾病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="9" />腎臟疾病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="10" />痛風</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="11" />糖尿病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="14" />甲狀腺疾病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="12" />中風</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="13" onclick="$('.span_dise_itm_other').fadeToggle(500);" />其他</label>
+                                                <span class="span_dise_itm_other" style="display:none;">
+                                                    ，@Html.TextBox("TXT_DISE_OTH", "", new { style = "width:100px" })
+                                                </span>
+                                            </span>
+                                        </td>
+                                        <td id="HD_RB_FEED" class="head">新生兒餵食的選擇</td>
+                                        <td>
+                                            @ViewBag.SDMFEED<br />
+                                            <input type="radio" name="RB_FEED" value="0" />純母乳
+                                            <input type="radio" name="RB_FEED" value="1" />混合乳
+                                            <input type="radio" name="RB_FEED" value="2" />配方奶
+                                            <input type="radio" name="RB_FEED" value="3" />尚未決定
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_MED_REC" class="head" style="width:20%;">用藥紀錄</td>
+                                        <td colspan="3" style="width:30%;">
+                                            <input type="radio" name="RB_MED_REC_YN" value="0" onclick="$('.MED_REC_YN').fadeOut(500);" />無
+                                            <input type="radio" name="RB_MED_REC_YN" value="1" onclick="$('.MED_REC_YN').fadeIn(500);" />有
+                                            <span class="MED_REC_YN" style="display:none;">
+                                                @Html.TextBox("TXT_MED_REC", Med_Name, new { style = "width:300px" })
+                                            </span>
+                                            <script>
+                                                if ('@Med' ==  '有') {
+                                                    set_for_rb('RB_MED_REC_YN','1');
+                                                }
+                                                if ('@Med' ==  '無') {
+                                                    set_for_rb('RB_MED_REC_YN','0');
+                                                }
+                                            </script>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_CREATNO" class="head" style="width:20%;">紀錄者</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_CREATNO", "", new { id = "TXT_CREATNO", style = "width:100px", onchange = "get_employee_name(this, 'CREATNO');" })
+                                            <br />
+                                            @Html.Label("LB_CREATNO", "請輸入員工編號", new { id = "LB_CREATNO", style = "width:100px" })
+                                        </td>
+                                        <td id="HD_TXT_CREATNO2" class="head" style="width:20%;">紀錄者2</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_CREATNO2", "", new { id = "TXT_CREATNO2", style = "width:100px", onchange = "get_employee_name(this, 'CREATNO2');" })
+                                            <br />
+                                            @Html.Label("LB_CREATNO2", "請輸入員工編號", new { id = "LB_CREATNO2", style = "width:100px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="4" style="padding:5px 0 5px 0;text-align:center;">
+                                            <div class="funcArea" style="text-align:center;">
+                                                <input type="button" value="儲存" style="width:60px;" onclick="if (sendCheck(true)) { $('#TXT_GBS_AB_DAY').removeAttr('disabled'); $('#TXT_GBS_AB_TIME').removeAttr('disabled');submit(); }" />
+                                                <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) window.close();" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </form>
+    }
+    else
+    {
+        var r = dt.Rows[0];
+        <form action="Upd_Before_Birth_History" method="post">
+            <div>
+                <input type="hidden" name="IID" value="@r["IID"]" />
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size:12px;">
+                    <tr>
+                        <td style="padding:5px 0 5px 0;text-align:center;">
+                            <div class="funcArea">
+                                <table class="title_area" style="text-align:center;width:100%;font-size:12px;" border="0" cellpadding="4" cellspacing="1">
+                                    <tr>
+                                        <th class="head" rowspan="2" style="width:10%;"></th>
+                                        <th id="HD_TXT_PAT_ID" class="head" rowspan="2" style="width:10%;">身分證字號</th>
+                                        <th id="HD_TXT_PAT_NAME" class="head" rowspan="2" style="width:10%;">姓名</th>
+                                        <th id="HD_TXT_PAT_BIRTH" class="head" style="width:10%;">出生年月日</th>
+                                        <th id="HD_TXT_PAT_ZONEC" class="head" style="width:10%;">居住地</th>
+                                        <th id="HD_TXT_PAT_BT" class="head" rowspan="2" style="width:15%;">血型</th>
+                                        <th id="HD_TXT_PAT_EDU" class="head" rowspan="2" style="width:10%;">教育程度</th>
+                                        <th id="HD_TXT_PAT_TEL" class="head" style="width:10%;">電話</th>
+                                    </tr>
+                                    <tr>
+                                        <th id="HD_TXT_PAT_AGE" class="head" style="width:10%;">年齡</th>
+                                        <th id="HD_TXT_PAT_NAT" class="head" style="width:10%;">國籍</th>
+                                        <th id="HD_TXT_PAT_OCU" class="head" style="width:10%;">職業</th>
+                                    </tr>
+                                    <tr>
+                                        <th class="head" rowspan="2">產婦</th>
+                                        <td rowspan="2">@Html.TextBox("TXT_PAT_ID", r["PAT_ID"], new { style = "width:80px" })</td>
+                                        <td rowspan="2">@Html.TextBox("TXT_PAT_NAME", r["PAT_NAME"], new { style = "width:80px" })</td>
+                                        <td>
+                                            @if (r["PAT_BIRTH"].ToString() != "")
+                                            {
+                                                @Html.TextBox("TXT_PAT_BIRTH", Convert.ToDateTime(r["PAT_BIRTH"]).ToString("yyyy/MM/dd"), new { style = "width:80px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_PAT_BIRTH", "", new { style = "width:80px" })
+                                            }
+                                        </td>
+                                        <td>
+                                            @Html.TextBox("TXT_PAT_ZONEC", r["PAT_ZONEC"], new { id = "TXT_PAT_ZONEC", style = "width:70px" })
+                                            <input type="hidden" name="TXT_PAT_ZONE" id="TXT_PAT_ZONE" value="@r["PAT_ZONE"]" />
+                                            <input class="funcArea" type="button" value="選取" onclick="window.open('./Select_AREA_List?name=PAT_ZONE' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+                                        <td rowspan="2">
+                                            @Html.TextBox("TXT_PAT_BT", r["PAT_BT"], new { style = "width:80px" })
+                                        </td>
+                                        <td rowspan="2">
+                                            <select name="DDL_PAT_EDU">
+                                                <option value="">請選擇</option>
+                                                <option value="0">不識字</option>
+                                                <option value="1">國小</option>
+                                                <option value="2">國中</option>
+                                                <option value="3">高中</option>
+                                                <option value="4">大專以上</option>
+                                                <option value="5">不詳</option>
+                                            </select>
+                                        </td>
+                                        <td>@Html.TextBox("TXT_PAT_TEL", r["PAT_TEL"], new { style = "width:80px" })</td>
+                                    </tr>
+                                    <tr>
+                                        <td>@Html.TextBox("TXT_PAT_AGE", Convert.ToInt32(DateTime.Now.ToString("yyyy")) - Convert.ToInt32(ptinfo.Birthday.ToString("yyyy")), new { style = "width:50px" })歲</td>
+                                        <td>@Html.TextBox("TXT_PAT_NAT", r["PAT_NAT"], new { style = "width:70px" })</td>
+                                        <td>@Html.TextBox("TXT_PAT_OCU", r["PAT_OCU"], new { style = "width:80px" })</td>
+                                    </tr>
+                                    <tr>
+                                        <th rowspan="2" class="head">
+                                            配偶<br />
+                                            <select name="DDL_MAT_STA">
+                                                <option value="">請選擇</option>
+                                                <option value="0">身分證配偶欄空白</option>
+                                                <option value="1">產婦口述無配偶</option>
+                                                <option value="2">有配偶</option>
+                                                <option value="3">同性婚姻</option>
+                                            </select>
+                                        </th>
+                                        <td rowspan="2">@Html.TextBox("TXT_MAT_ID", r["MAT_ID"], new { id = "TXT_MAT_ID", style = "width:80px", onchange = "GetBabyMatInfo(this)" })</td>
+                                        <td rowspan="2">@Html.TextBox("TXT_MAT_NAME", r["MAT_NAME"], new { id = "TXT_MAT_NAME", style = "width:80px" })</td>
+                                        <td>
+                                            @if (r["MAT_BIRTH"].ToString() == "")
+                                            {
+                                                @Html.TextBox("TXT_MAT_BIRTH", "", new { style = "width:80px", onchange = "numcheck(this);birthdayCheck(this, 8)" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_MAT_BIRTH", Convert.ToDateTime(r["MAT_BIRTH"]).ToString("yyyy/MM/dd"), new { style = "width:80px", onchange = "numcheck(this);birthdayCheck(this, 8)" })
+                                            }
+                                        </td>
+                                        <td>
+                                            @Html.TextBox("TXT_MAT_ZONEC", r["MAT_ZONEC"], new { id = "TXT_MAT_ZONEC", style = "width:70px" })
+                                            <input type="hidden" name="TXT_MAT_ZONE" id="TXT_MAT_ZONE" value="@r["MAT_ZONE"]" />
+                                            <input class="funcArea" id="BTN_MAT_ZONE" type="button" value="選取" onclick="window.open('./Select_AREA_List?name=MAT_ZONE' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+                                        <td rowspan="2">
+                                            @Html.TextBox("TXT_MAT_BT", r["MAT_BT"], new { style = "width:80px" })
+                                            <label><input type="radio" name="RB_MAT_BT_N" value="0" />口述</label>
+                                            <label><input type="radio" name="RB_MAT_BT_N" value="1" />不詳</label>
+                                        </td>
+                                        <td rowspan="2">
+                                            <select name="DDL_MAT_EDU" id="DDL_MAT_EDU">
+                                                <option value="">請選擇</option>
+                                                <option value="0">不識字</option>
+                                                <option value="1">國小</option>
+                                                <option value="2">國中</option>
+                                                <option value="3">高中</option>
+                                                <option value="4">大專以上</option>
+                                                <option value="5">不詳</option>
+                                            </select>
+                                        </td>
+                                        <td>@Html.TextBox("TXT_MAT_TEL", r["MAT_TEL"], new { style = "width:80px" })</td>
+                                    </tr>
+                                    <tr>
+                                        @if (r["MAT_BIRTH"].ToString() != "")
+                                        {
+                                            <td>@Html.TextBox("TXT_MAT_AGE", Convert.ToInt32(DateTime.Now.ToString("yyyy")) - Convert.ToInt32(Convert.ToDateTime(r["MAT_BIRTH"]).ToString("yyyy")), new { style = "width:50px" })歲</td>
+                                        }
+                                        else
+                                        {
+                                            <td>@Html.TextBox("TXT_MAT_AGE", "", new { style = "width:50px" })歲</td>
+                                        }
+                                        <td>@Html.TextBox("TXT_MAT_NAT", r["MAT_NAT"], new { style = "width:70px" })</td>
+                                        <td>@Html.TextBox("TXT_MAT_OCU", r["MAT_OCU"], new { style = "width:80px" })</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 0 5px 0;">
+                            <div class="dataArea2" style="height:450px;">
+                                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                    <tr>
+                                        <td colspan="2" style="padding-bottom:5px;text-align:center;">
+                                            <span style="text-align:center;color:blue;font-size:16px;">基本資料</span>
+                                        </td>
+                                        <td colspan="2" style="padding-bottom:5px;text-align:center;">
+                                            <span style="color:blue;font-size:16px;">產前檢查</span>
+                                            <input class="funcArea" type="button" value="檢驗" style="width: 60px;" onclick="@Java_funcion.pup_window("../CareRecord/LabButton?id=record_com", 700, 700, "0")" />
+                                            <input class="funcArea" type="button" value="檢查" style="width: 60px;" onclick="@Java_funcion.pup_window("../CareRecord/ExamButton?id=record_com", 700, 700, "0")" />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_EDC" class="head" style="width:20%;">EDC預產期</td>
+                                        <td style="width:30%;">
+                                            @if (r["EDC"].ToString() == "")
+                                            {
+                                                @Html.TextBox("TXT_EDC", "", new { style = "width:80px", @readonly = "readonly" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_EDC", Convert.ToDateTime(r["EDC"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            }
+                                            @WebTool.setDateTime("TXT_EDC", "", "", "800")
+                                        </td>
+                                        <td id="HD_TXT_HBSAG" class="head lbl_HBSAG" style="width:20%;">HBsAg(B型肝炎表面抗原)</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_HBSAG">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_HBSAG_INST", r["HBSAG_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_HBSAG_INST_NAME')" })
+                                            @Html.TextBox("TXT_HBSAG_INST_NAME", r["HBSAG_INST_NAME"], new { id = "TXT_HBSAG_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=HBSAG_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_GA_W" class="head" style="width:20%;">生產週數</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_GA_W", r["GA_W"], new { style = "width:100px", onchange = "numcheck(this);" })週
+                                            @Html.TextBox("TXT_GA_D", r["GA_D"], new { style = "width:100px", onchange = "numcheck(this);" })天
+                                        </td>
+                                        <td id="HD_TXT_HBEAG" class="head lbl_HBEAG" style="width:20%;">HBeAg(e抗原)</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_HBEAG">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_HBEAG_INST", r["HBEAG_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_HBEAG_INST_NAME')" })
+                                            @Html.TextBox("TXT_HBEAG_INST_NAME", r["HBEAG_INST_NAME"], new { id = "TXT_HBEAG_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=HBEAG_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_GRAVIDA" class="head" style="width:20%;">G(孕次)</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_GRAVIDA", r["GRAVIDA"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td id="HD_TXT_RUBELLA" class="head lbl_RUBELLA" style="width:20%;">Rubella lgG(德國麻疹)</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_RUBELLA">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_RUBELLA_INST", r["RUBELLA_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_RUBELLA_INST_NAME')" })
+                                            @Html.TextBox("TXT_RUBELLA_INST_NAME", r["RUBELLA_INST_NAME"], new { id = "TXT_RUBELLA_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=RUBELLA_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_PARITY" class="head" style="width:20%;">P(產次)</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_PARITY", r["PARITY"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td id="HD_TXT_VDRL1" class="head lbl_VDRL1" style="width:20%;">VDRL(梅毒)第一次</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_VDRL1">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_VDRL1_INST", r["VDRL1_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_VDRL1_INST_NAME')" })
+                                            @Html.TextBox("TXT_VDRL1_INST_NAME", r["VDRL1_INST_NAME"], new { id = "TXT_VDRL1_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=VDRL1_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_ABORTION" class="head" style="width:20%;">A(流產)</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_ABORTION", r["ABORTION"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td id="HD_TXT_VDRL2" class="head lbl_VDRL2" style="width:20%;">VDRL(梅毒)第二次</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_VDRL2">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_VDRL2_INST", r["VDRL2_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_VDRL2_INST_NAME')" })
+                                            @Html.TextBox("TXT_VDRL2_INST_NAME", r["VDRL2_INST_NAME"], new { id = "TXT_VDRL2_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=VDRL2_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td rowspan="2" id="HD_TXT_ECCYESIS" class="head" style="width:20%;">E(子宮外孕)</td>
+                                        <td rowspan="2" style="width:30%;">
+                                            @Html.TextBox("TXT_ECCYESIS", r["ECCYESIS"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+
+                                        <td id="HD_TXT_HIV" class="head lbl_HIV" rowspan="2" style="width:20%;">Anti-HIV Test(愛滋病抗體)</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_HIV">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_HIV_INST", r["HIV_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_HIV_INST_NAME')" })
+                                            @Html.TextBox("TXT_HIV_INST_NAME", r["HIV_INST_NAME"], new { id = "TXT_HIV_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=HIV_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width:30%;">
+                                            快篩值
+                                            <input type="radio" name="RB_HIVPT_R" value="0" />+
+                                            <input type="radio" name="RB_HIVPT_R" value="1" />-
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_LB_TOTAL" class="head" style="width:20%;">總活產數(不含本次)</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_LB_TOTAL", r["LB_TOTAL"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                        </td>
+                                        <td id="HD_TXT_GBS" class="head lbl_GBS" style="width:20%;">GBS(乙型鏈球菌)</td>
+                                        <td style="width:30%;">
+                                            <select name="DDL_GBS">
+                                                <option value="">請選擇</option>
+                                                <option value="0">+陽性</option>
+                                                <option value="1">-陰性</option>
+                                                <option value="2">F偽陽</option>
+                                                <option value="3">X未驗</option>
+                                                <option value="4">外院</option>
+                                            </select>
+                                            <br />檢驗院所
+                                            @Html.TextBox("TXT_GBS_INST", r["GBS_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_GBS_INST_NAME')" })
+                                            @Html.TextBox("TXT_GBS_INST_NAME", r["GBS_INST_NAME"], new { id = "TXT_GBS_INST_NAME", style = "width:180px" })
+                                            <br /><input class="funcArea" type="button" value="選取院所" onclick="window.open('./Select_INSPT_List?name=GBS_INST' , 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_VBAC" class="head">嘗試VBAC</td>
+                                        <td>
+                                            <input type="radio" name="RB_VBAC" value="0" />有
+                                            <input type="radio" name="RB_VBAC" value="1" />無
+                                            <input type="radio" name="RB_VBAC" value="2" />未曾剖腹產或初產婦
+                                        </td>
+                                        <td id="HD_TXT_GBS_AB_DAY" class="head">打抗生素日期時間</td>
+                                        <td>
+                                            <input type="radio" name="RB_GBS_AB_TYP" value="0" onclick="$('#TXT_GBS_AB_DAY').removeAttr('readonly');$('#TXT_GBS_AB_DAY').attr('disabled','disabled');$('#TXT_GBS_AB_TIME').removeAttr('readonly');$('#TXT_GBS_AB_TIME').attr('disabled','disabled');" />住院
+                                            <input type="radio" name="RB_GBS_AB_TYP" value="1" onclick="$('#TXT_GBS_AB_DAY').removeAttr('disabled');$('#TXT_GBS_AB_DAY').attr('readonly','readonly');$('#TXT_GBS_AB_TIME').removeAttr('disabled');$('#TXT_GBS_AB_TIME').attr('readonly','readonly');" />急診
+                                            @if (r["GBS_AB"].ToString() == "")
+                                            {
+                                                @Html.TextBox("TXT_GBS_AB_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_GBS_AB_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            else
+                                            {
+                                                @Html.TextBox("TXT_GBS_AB_DAY", Convert.ToDateTime(r["GBS_AB"].ToString()).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                @Html.TextBox("TXT_GBS_AB_TIME", Convert.ToDateTime(r["GBS_AB"].ToString()).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            }
+                                            @WebTool.setDateTime("TXT_GBS_AB_DAY", "TXT_GBS_AB_TIME", "", "30")
+                                            <input class="funcArea" type="button" value="清空" onclick="$('input[name^=RB_GBS_AB_TYP]').attr('checked', false);$('#TXT_GBS_AB_DAY').val(''); $('#TXT_GBS_AB_TIME').val('');">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_PREG" class="head" style="width:20%;">妊娠併發症</td>
+                                        <td style="width:30%;">
+                                            <input type="radio" name="RB_PREG" value="0" onclick="$('.span_preg_y').fadeOut(500);" />無
+                                            <input type="radio" name="RB_PREG" value="1" onclick="$('.span_preg_y').fadeIn(500);" />有
+                                            <span class="span_preg_y" style="display:none;">
+                                                ，
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="6" />妊娠高血壓</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="7" />嚴重妊娠高血壓</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="0" />子癲前症</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="5" />中度子癲前症</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="4" />重度子癲前症</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="3" />絨毛膜羊膜囊炎</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="2" />前置胎盤</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="1" />胎盤早期剝離</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="12" />妊娠糖尿病</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="8" />心臟病</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="9" />腎臟疾病</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="10" />免疫性疾病(SLE)</label>
+                                                <label><input type="checkbox" name="CK_PREG_ITM" value="11" onclick="$('.span_preg_itm_other').fadeToggle(500);" />其他</label>
+                                                <span class="span_preg_itm_other" style="display:none;">
+                                                    ，@Html.TextBox("TXT_PREG_OTH", r["PREG_OTH"], new { style = "width:100px" })
+                                                </span>
+                                            </span>
+                                        </td>
+                                        <td id="HD_RB_ROOM_IN" class="head">決定實施親子同室的方式</td>
+                                        <td>
+                                            @ViewBag.SDMROOM_IN<br />
+                                            <input type="radio" name="RB_ROOM_IN" value="0" />24小時
+                                            <input type="radio" name="RB_ROOM_IN" value="1" />部分時段
+                                            <input type="radio" name="RB_ROOM_IN" value="2" />分離照顧
+                                            <input type="radio" name="RB_ROOM_IN" value="3" />尚未決定
+                                        </td>
+
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_RB_DISE" class="head" style="width:20%;">疾病史</td>
+                                        <td style="width:30%;">
+                                            <input type="radio" name="RB_DISE" value="0" onclick="$('.span_dise_y').fadeOut(500);" />無
+                                            <input type="radio" name="RB_DISE" value="1" onclick="$('.span_dise_y').fadeIn(500);" />有
+                                            <span class="span_dise_y" style="display:none;">
+                                                ，
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="0" />肝炎</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="1" />梅毒</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="2" />驚厥</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="3" />腫瘤</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="4" />氣喘</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="5" />結核病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="6" />高血壓</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="7" />心臟病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="8" />肝臟疾病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="9" />腎臟疾病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="10" />痛風</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="11" />糖尿病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="14" />甲狀腺疾病</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="12" />中風</label>
+                                                <label><input type="checkbox" name="CK_DISE_ITM" value="13" onclick="$('.span_dise_itm_other').fadeToggle(500);" />其他</label>
+                                                <span class="span_dise_itm_other" style="display:none;">
+                                                    ，@Html.TextBox("TXT_DISE_OTH", r["DISE_OTH"], new { style = "width:100px" })
+                                                </span>
+                                            </span>
+                                        </td>
+                                        <td id="HD_RB_FEED" class="head">新生兒餵食的選擇</td>
+                                        <td>
+                                            @ViewBag.SDMFEED<br />
+                                            <input type="radio" name="RB_FEED" value="0" />純母乳
+                                            <input type="radio" name="RB_FEED" value="1" />混合乳
+                                            <input type="radio" name="RB_FEED" value="2" />配方奶
+                                            <input type="radio" name="RB_FEED" value="3" />尚未決定
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_MED_REC" class="head" style="width:20%;">用藥紀錄</td>
+                                        <td colspan="3" style="width:30%;">
+                                            <input type="radio" name="RB_MED_REC_YN" value="0" onclick="$('.MED_REC_YN').fadeOut(500);" />無
+                                            <input type="radio" name="RB_MED_REC_YN" value="1" onclick="$('.MED_REC_YN').fadeIn(500);" />有
+                                            <span class="MED_REC_YN" style="display:none;">
+                                                @Html.TextBox("TXT_MED_REC", r["MED_REC"], new { style = "width:300px" })
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td id="HD_TXT_CREATNO" class="head" style="width:20%;">紀錄者</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_CREATNO", r["CREATNO"], new { id = "TXT_CREATNO", style = "width:100px", onchange = "get_employee_name(this, 'CREATNO');" })
+                                            <br />
+                                            @if (r["CREATNO_NAME"].ToString() != "")
+                                            {
+                                                @Html.Label("LB_CREATNO", r["CREATNO_NAME"].ToString(), new { id = "LB_CREATNO", style = "width:100px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.Label("LB_CREATNO", "請輸入員工編號", new { id = "LB_CREATNO", style = "width:100px" })
+                                            }
+                                        </td>
+                                        <td id="HD_TXT_CREATNO2" class="head" style="width:20%;">紀錄者2</td>
+                                        <td style="width:30%;">
+                                            @Html.TextBox("TXT_CREATNO2", r["CREATNO2"], new { id = "TXT_CREATNO2", style = "width:100px", onchange = "get_employee_name(this, 'CREATNO2');" })
+                                            <br />
+                                            @if (r["CREATNO2_NAME"].ToString() != "")
+                                            {
+                                                @Html.Label("LB_CREATNO2", r["CREATNO2_NAME"].ToString(), new { id = "LB_CREATNO2", style = "width:100px" })
+                                            }
+                                            else
+                                            {
+                                                @Html.Label("LB_CREATNO2", "請輸入員工編號", new { id = "LB_CREATNO2", style = "width:100px" })
+                                            }
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="4" style="padding:5px 0 5px 0;text-align:center;">
+                                            <div class="funcArea" style="text-align:center;">
+                                                @if (IsHisView != true)
+                                                {
+                                                    <input type="button" value="修改" style="width:60px;" onclick="if (sendCheck(true)) { $('#TXT_GBS_AB_DAY').removeAttr('disabled'); $('#TXT_GBS_AB_TIME').removeAttr('disabled');submit(); }" />
+                                                    <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) window.close();" />
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <script>
+                                        @if(r["PAT_EDU"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_PAT_EDU', '@r["PAT_EDU"]');
+                                        }
+                                        @if(r["MAT_STA"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_MAT_STA', '@r["MAT_STA"]');
+                                        }
+                                        @if(r["MAT_BT_N"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_MAT_BT_N', '@r["MAT_BT_N"]');
+                                        }
+                                        @if(r["MAT_EDU"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_MAT_EDU', '@r["MAT_EDU"]');
+                                        }
+                                        @if(r["VBAC"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_VBAC', '@r["VBAC"]');
+                                        }
+                                        @if(r["HBSAG"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_HBSAG', '@r["HBSAG"]');
+                                        }
+                                        @if(r["HBEAG"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_HBEAG', '@r["HBEAG"]');
+                                        }
+                                        @if(r["RUBELLA"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_RUBELLA', '@r["RUBELLA"]');
+                                        }
+                                        @if(r["VDRL1"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_VDRL1', '@r["VDRL1"]');
+                                        }
+                                        @if(r["VDRL2"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_VDRL2', '@r["VDRL2"]');
+                                        }
+                                        @if(r["HIV"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_HIV', '@r["HIV"]');
+                                        }
+                                        @if(r["HIVPT_R"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_HIVPT_R', '@r["HIVPT_R"]');
+                                        }
+                                        @if(r["GBS"].ToString() != "")
+                                        {
+                                            @:set_for_sel('DDL_GBS', '@r["GBS"]');
+                                        }
+                                        @if(r["GBS_AB_TYP"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_GBS_AB_TYP', '@r["GBS_AB_TYP"]');
+                                        }
+                                        @if(r["ROOM_IN"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_ROOM_IN', '@r["ROOM_IN"]');
+                                        }
+                                        @if(r["FEED"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_FEED', '@r["FEED"]');
+                                        }
+                                        @if(r["PREG"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_PREG', '@r["PREG"]');
+
+                                            if(r["PREG_ITM"].ToString() != "")
+                                            {
+                                                var PREG_ITM = r["PREG_ITM"].ToString();
+                                                var PREG_ITMV = new List<string>();
+
+                                                for (var i = 0; i < PREG_ITM.ToString().Length; i++)
+                                                {
+                                                    if (PREG_ITM[i] == '1')
+                                                    {
+                                                        PREG_ITMV.Add(i.ToString());
+                                                    }
+                                                }
+                                                 @:set_for_ck('CK_PREG_ITM', '@String.Join(",", PREG_ITMV)');
+                                             }
+                                        }
+                                        @if(r["MED_REC_YN"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_MED_REC_YN', '@r["MED_REC_YN"]');
+                                        }
+                                        @if(r["DISE"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_DISE', '@r["DISE"]');
+
+                                            if(r["DISE_ITM"].ToString() != "")
+                                            {
+                                                var DISE_ITM = r["DISE_ITM"].ToString();
+                                                var DISE_ITMV = new List<string>();
+
+                                                for (var i = 0; i < DISE_ITM.ToString().Length; i++)
+                                                {
+                                                    if (DISE_ITM[i] == '1')
+                                                    {
+                                                        DISE_ITMV.Add(i.ToString());
+                                                    }
+                                                }
+                                                 @:set_for_ck('CK_DISE_ITM', '@String.Join(",", DISE_ITMV)');
+                                             }
+                                        }
+                            </script>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </form>
+    }
+}
+
+<script>
+    $('form').on('keyup keypress', function (e) {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode === 13) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>

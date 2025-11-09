@@ -1,0 +1,208 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+<style type="text/css">
+    #maintb {
+        table-layout: fixed;
+    }
+
+    #member_list {
+        display: inline-block;
+        border: none;
+        width: 150px;
+        height: 320px;
+        overflow-y: scroll;
+        overflow-x: hidden;
+    }
+
+        #member_list span {
+            display: inline-block;
+            width: 130px;
+            background-color: #b8f1e8;
+            border: 1px solid #0094ff;
+            margin-top: 2px;
+        }
+
+    #funcContent .normal {
+        display: inline-block;
+        width: 200px;
+        line-height: 24px;
+        margin-top: 2px;
+        background-color: #eeddff;
+        border: 1px solid #cc33ff;
+    }
+
+    #funcContent .defaultpage {
+        display: inline-block;
+        width: 200px;
+        line-height: 24px;
+        margin-top: 2px;
+        background-color: #FFFFCC;
+        border: 1px solid #FFCC33;
+    }
+
+    #funcContent {
+        border-top: 2px solid #666;
+        border-bottom: 2px solid #666;
+        height: 340px;
+        overflow-y: scroll;
+        overflow-x: hidden;
+    }
+
+    #funcList {
+        width: 100%;
+    }
+
+    input[type=button] {
+        margin: 1px;
+    }
+</style>
+<script type="text/javascript">
+
+    $(document).ready(function () {
+
+        // 各單位人員
+        //$("#station").change(function () {
+        //    var urlstr = "../Function/CostCenterUserList?costcenter=" + $(this).val();
+        //    $("#member_list").css("overflow-y", "hidden").hide('slide', {
+        //        direction: 'left',
+        //        complete: function () {
+        //            $.ajax({
+        //                url: urlstr,
+        //                success: function (data) {
+        //                    $("#member_list").html(data).css("overflow-y", "scroll").show('slide', { direction: 'right' });
+        //                }
+        //            });
+        //        }
+        //    });
+        //});
+
+        //$("#station").trigger("change");
+
+        $("input[type=button]").click(function () {
+            switch ($(this).attr("value")) {
+                case "全選":
+                    $("#funcContent").find("input[type=checkbox]").prop("checked", true);
+                    break;
+                case "儲存權限":
+                    var default_page = "";
+                    var model_list = new Array();
+                    var emp_no = $("input[type=radio]:checked").val();
+                    $("#funcContent").find("input[type=checkbox]:checked").each(function (i) {
+                        model_list[i] = $(this).val();
+                        if ($(this).attr("set_default_page") == "Y") {
+                            default_page = $(this).val();
+                        }
+                    });
+                    $.ajax({
+                        url: '../Function/FunctionSave',
+                        type: 'post',
+                        data: "default_page=" + default_page + "&model_list=" + model_list.join(",") + "&emp_no=" + emp_no,
+                        timeout: 5000,
+                        success: function (data) {
+                            showHint(data);
+                        }
+                    });
+                    $("input[type=button][value='查詢權限']").trigger("click");
+
+                    break;
+                case "取消全選":
+                    $("#funcContent").find("input[type=checkbox]").prop("checked", false);
+                    break;
+                case "刪除權限":
+                    if ($("input[type=radio]:checked").length == 0)
+                        showHint("請選擇要刪除權限的人員");
+                    else
+                    {
+                        var emp_no = $("input[type=radio]:checked").val();
+
+                        $.ajax({
+                            url: "../Function/FunctionDelete",
+                            type: "post",
+                            data: "del_emp_no=" + emp_no,
+                            success: function (data) {
+                                showHint(data);
+                            }
+                        });
+                    }
+                    break;
+                case "查詢權限":
+                    if ($("input[name=selectuser]:checked").val() != null) {
+                        var web_url = "../Function/FunctionList?emp_no=" + $("input[name=selectuser]:checked").val();
+                        $("#funcContent").hide();
+                        $.ajax({
+                            url: web_url,
+                            type: "post",
+                            timeout: 5000,
+                            success: function (data) {
+                                $("#funcContent").html(data).fadeIn(500);
+                                $("#funcContent").find("span").each(function () {
+                                    $(this).contextmenu(function () {
+                                        var cObj = $(this).clone();
+                                        $("input[type=checkbox]", cObj).remove();
+                                        var showText = $(cObj).html();
+                                        if (confirm("確認要將【" + Trim(showText) + "】設定為預設首頁?")) {
+                                            $("#funcContent").find("input[set_default_page=Y]").each(function () {
+                                                $(this).attr("set_default_page", "N");
+                                                $(this).parent("span").attr("class", "normal");
+                                            });
+                                            $(this).attr("class", "defaultpage").find("input[type=checkbox]").attr("set_default_page", "Y");
+                                        }
+                                        return false;
+                                    });
+                                });
+                            }
+                        });
+                    } else {
+                        showHint("請選擇護理人員");
+                    }
+                    break;
+            }
+        });
+    });
+</script>
+<p>
+    <input type="button" value="查詢權限" />
+    <input type="button" value="刪除權限" />
+    <input type="button" value="儲存權限" />
+</p>
+<div id="workspace">
+    <table width="820" id="maintb">
+        <tr>
+            <td width="150" valign="top">
+                @*@(Html.DropDownList("station", (List<SelectListItem>)ViewData["costlist"]))*@
+                <span style="display:block">
+                    <label> <input type="radio" value="AD" name="selectuser" />管理者</label>
+                </span>
+                <span style="display:block">
+                    <label> <input type="radio" value="ND" name="selectuser" />護理部主管</label></span>
+                <span style="display:block">
+                    <label> <input type="radio" value="RN" name="selectuser" />護理師</label></span>
+                <span style="display:block">
+                    <label> <input type="radio" value="SN" name="selectuser" />實習護理師</label></span>
+                <span style="display:block">
+                    <label> <input type="radio" value="ER" name="selectuser" />急診護理師</label></span>
+                <span style="display:block">
+                    <label> <input type="radio" value="NA" name="selectuser" />非護理單位</label>
+                </span>
+</td>
+            <td rowspan="2" valign="top">
+                <div id="funcList">
+                    功能清單
+                    <input type="button" value="全選" />
+                    <input type="button" value="取消全選" />
+                    <br />
+                    <div id="funcContent"></div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">
+                @*<div id="member_list"></div>*@
+            </td>
+        </tr>
+    </table>
+
+
+
+</div>

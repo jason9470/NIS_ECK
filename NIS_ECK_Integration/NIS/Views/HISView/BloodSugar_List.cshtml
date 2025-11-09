@@ -1,0 +1,1243 @@
+﻿@{
+    ViewBag.Title = "護理資訊系統-血糖";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string feeno = ViewBag.feeno;
+    bool print_df = ViewBag.print_df;
+    string RootDocument = ViewBag.RootDocument;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<script type="text/javascript">
+    window.onload = function () {
+        close_pup_window();
+        //$("#btn_blood_list").css("background-color", "#666666");
+        //$("#btn_blood_list").css("color", "#FFFFFF");
+    }
+
+    $(document).ready(function () { //div中table樣式
+        setGridColor();
+        //$(".gridview tr:odd").addClass("odd");     //奇數行設定為 "odd" 樣式
+        //$(".gridview tr:even").addClass("even");   //偶數行設定為 "even" 樣式
+        //$(".gridview tr").mouseover(function () { $(this).addClass("over"); })     //當 mouseover 時加入 "over" 樣式
+        //                 .mouseout(function () { $(this).removeClass("over"); })   //當 mouseout 時移除 "over" 樣式
+        $("#QueryStatus").val("");
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+    
+    //彈出div
+    function showPopup(id) {
+       //// $('#'+ id).css("display", "inline");
+       // var popup = document.getElementById(id);
+       // popup.style.display = 'block';
+        //// alert(id);
+        $('#block').fadeIn(300);
+        $("#" + id).fadeIn(300);
+    }
+    //新增選項函數
+    function innerlist(id, content, values) {
+        var newlist = document.getElementById(id);  
+        //建立option
+        var np = document.createElement("option");
+        with (np) {
+            text = content;
+            value = values;
+        }
+        newlist.options.add(np, 0);        
+    }
+    //AddItem 新增"症狀" "處置"按下確認鍵
+    function AddItem(id) {
+        //清空
+        var list = document.getElementById(id);
+            list.innerHTML = "";
+         $("#tb"+ id +" input:checkbox:checked").each(function(){
+             innerlist(id, $(this).val(), $(this).attr("id"));
+         	});
+    }
+
+    function ItemCopyToSymptom (id) {
+        $("#SymptomContent").val('');
+        var ContentText = "";
+        $("#tb"+ id +" input:checkbox:checked").each(function(){
+            ContentText += this.id+",";
+        });
+        $("#SymptomContent").val(ContentText)
+    }
+
+    function ItemCopyToHandle (id) {
+        $("#HandleContent").val('');
+        var ContentText = "";
+        $("#tb"+ id +" input:checkbox:checked").each(function(){
+            ContentText += this.id+",";
+        });
+        $("#HandleContent").val(ContentText);
+    }
+
+     //取的按鈕rowID
+     function getrow(sta,id) {
+         $("#chk_row").val(id);
+         $("#STATUS").val(sta);
+         $("#_STATUS").val(sta);
+         $("#SubmitStatus").val(sta);
+         $("#SubmitBSID").val(id);
+     }
+    //將血糖值標記為刪除
+     function MarkDel(status,id)
+     {
+         if(confirm("是否確認要刪除血糖紀錄？"))
+         {
+             getrow(status,id);
+             alert("紀錄已刪除");
+             $('#BloodSugar_List').submit();
+         }
+         else
+         {
+             $("#STATUS").val('');
+             $("#_STATUS").val('');
+             $("#SubmitStatus").val('');
+         }
+     }
+
+    //新增血糖監測紀錄"存檔"
+    //20131228 停用
+     function exist(id) {
+
+         var indate = $('#now_day').val();
+         indate += " " + $('#now_time').val();
+         var list = $('#List').val();
+         var list2 = $('#List2').val();
+         var list3 = $('#List3').val();        
+         var list4 = $('#List4').val();
+         var list5 = $('#List5').val();
+         var CC = $('#CC').val();
+         var BLOODSUGAR = $('#BLOODSUGAR').val();
+         var note = $('#note').val();
+         var SYMPTOM = ""
+         var DEALWITH = ""
+         var item = "l"
+       
+        
+         //  if (BLOODSUGAR > 70 || $('input:radio[name=low]:checked').val()=="1") {item = "h"; }
+         //如果血糖大於70 或是點高血壓時 存高血壓處置項目
+         if ( $('input:radio[name=low]:checked').val()=="1") {item = "h"; }
+
+         $("#"+item +"s_content").find("option").each(function () {
+             if ($(this).val() != null) {
+                 SYMPTOM += $(this).val() + ",";
+             }
+         });
+      
+         SYMPTOM = $.trim(SYMPTOM);
+         $("#" + item + "d_content").find("option").each(function () {
+             if ($(this).val() != null) {
+                 DEALWITH += $(this).val() + ",";
+             }
+         });
+
+         $("#_BLOODSUGAR").val(BLOODSUGAR);
+         $("#_INDATE").val(indate);
+         $("#_NOTE").val(note);
+         $("#_SYMPTOM").val(SYMPTOM);
+         $("#_DEALWITH").val(DEALWITH);
+         //  $("#_STATUS").val('new');
+         
+         $("#_MONITOR").val(list2);
+         $("#_DRUGNAME").val(list3);
+         $("#_ROUTE").val(list4);//途徑
+         $("#_DOSE").val(CC);//劑量
+         $("#_DOSEUNIT").val(list5);//單位
+
+     }
+     function cptonote()
+     {
+         $('#note').val($('#List2 :selected').text());
+     }
+     //查詢(刪除按鈕是否打勾)
+     function quiry() {
+         if (document.getElementById("ck_del").checked == true) {
+             $("#ck_delck").val('true');
+         } else {
+             $("#ck_delck").val('false');
+         }
+         @if (feeno != "")
+         {
+            @:$("#getfeeno").val("@feeno");
+         }
+         $("#QueryStatus").val("True");
+     }    
+
+     // 將跳出視窗的值清空
+     function clearItem() {
+//         day = $("#" + row + "_INDATE").val().split(" ");
+//         if (day != null) {
+       //    $("#now_day").val(now.toString('yyyy/dd/mm'));
+        //   $("#now_time").val(now.toString('hh:mm'));
+         //         }
+         document.getElementById('ls_content').innerHTML = "";
+         document.getElementById('ld_content').innerHTML = "";
+         document.getElementById('hs_content').innerHTML = "";
+         document.getElementById('hd_content').innerHTML = "";
+         $("#body").css("display", "none");
+         $("#dv_high").css("display", "none");   
+         $("#dv_low").css("display", "none");  
+         $("#BLOODSUGAR").val('');
+         $("#note").val('');
+         $("#_STATUS").val('new');
+         $("#SubmitBSID").val('');
+     }
+
+     function setDateTime(id) {
+         $('#' + id).datetimepicker({
+             showTimepicker: true, 
+             beforeShowDay: function (date) {
+                 switch (date.getDay()) {
+                     case 6:
+                         return [true, 'satday'];
+                         break;
+                     case 0:
+                         return [true, 'sunday'];
+                         break;
+                     default:
+                         return [true, ''];
+                         break;
+                 }
+             }
+         });
+     }
+     //取的按鈕rowID 將更新的值帶入
+     function getrowtoupdate(row) {
+         //無法測量原因
+         $("#List2").children().each(function () {
+             if ($(this).text() == $("#" + row + "_MONITOR").val()) //jQuery給法  
+             { $(this).attr("selected", "true"); } //或是給"selected"也可            
+         });
+
+         if ($("#" + row + "_STATUS").val() == "Low")
+         {
+             $("#rd_low").attr('checked',true);;
+         }
+
+         if ($("#" + row + "_STATUS").val() == "High")
+         {
+             $("#rd_high").attr('checked',true);;
+         }
+
+         if ($("#" + row + "_MEAL_STATUS").val() == "A") {
+             $("#rbn_meal_statusA").attr('checked', true);;
+         }
+
+         if ($("#" + row + "_MEAL_STATUS").val() == "B") {
+             $("#rbn_meal_statusB").attr('checked', true);;
+         }
+         if ($("#" + row + "_MEAL_STATUS").val() == "C") {
+             $("#rbn_meal_statusC").attr('checked', true);;
+         }
+
+         day = $("#" + row + "_INDATE").val().split(" ");
+         if (day != null) {
+             $("#now_day").val(day[0]);
+             $("#now_time").val(day[1]);
+         }
+         document.getElementById('ls_content').innerHTML = "";
+         document.getElementById('ld_content').innerHTML = "";
+         document.getElementById('hs_content').innerHTML = "";
+         document.getElementById('hd_content').innerHTML = "";
+        // if ($("#" + row + "_BLOODSUGAR").val()!='1' &&$("#" + row + "_BLOODSUGAR").val()!='999')
+         $("#BLOODSUGAR").val($("#" + row + "_BLOODSUGAR").val());
+         if ($("#" + row + "_BLOODSUGAR").val() < 70 || $("#" + row + "_STATUS").val() == "Low") {
+             $("#body").css("display", "inline");
+             $("#dv_low").css("display", "inline");
+             $("#dv_high").css("display", "none");
+             var lst = $("#" + row + "_SYMPTOM").val().split(";");
+             var lsv = $("#" + row + "_SYval").val().split(",");
+
+              for (var i = 0; i <lst.length-1; i++) {
+                  innerlist("ls_content", lst[i], lsv[i]);              }
+              var ldt = $("#" + row + "_DEALWITH").val().split(";");
+              var ldv = $("#" + row + "_DWval").val().split(",");
+              for (var i = 0; i < ldt.length - 1; i++) {
+                  innerlist("ld_content", ldt[i], ldv[i]);
+              }
+          }
+         if ($("#" + row + "_BLOODSUGAR").val() > 110 || $("#" + row + "_STATUS").val() == "High") {
+              $("#body").css("display", "inline");
+              $("#dv_high").css("display", "inline");
+              $("#dv_low").css("display", "none");
+              var hst = $("#" + row + "_SYMPTOM").val().split(";");
+              var hsv = $("#" + row + "_SYval").val().split(",");
+              for (var i = 0; i < hst.length - 1; i++) {
+                  innerlist("hs_content", hst[i], hsv[i]);
+              }
+              var hdt = $("#" + row + "_DEALWITH").val().split(";");
+              var hdv = $("#" + row + "_DWval").val().split(",");
+              for (var i = 0; i < hdt.length - 1; i++) {
+                  innerlist("hd_content", hdt[i], hdv[i]);
+              }
+          }
+
+          $("#note").val($("#" + row + "_NOTE").val());
+          $("#_BSID").val($("#" + row + "_BSID").val());
+          $("#SubmitBSID").val($("#" + row + "_BSID").val());
+          $("#_STATUS").val('upd');
+         //若血糖值為自動上傳則禁止修改
+          if($("#BLOODSUGAR").val().charAt(0) == "#")
+          {
+              $('#BLOODSUGAR').attr("readonly","readonly");
+              $('#now_day').attr("readonly","readonly");
+              $('#now_time').attr("readonly","readonly");
+              //$('#now_day').datepicker( "destroy" );
+              //$('#now_time').datepicker("destroy");
+              $('#now_day').datetimepicker("destroy");
+              $('#now_time').datetimepicker("destroy");
+              $('#range').hide();
+              if($("#BLOODSUGAR").val().replace('#','') < 110 && $("#BLOODSUGAR").val().replace('#','') > 70)
+              {
+                  $("#dv_low").hide();
+                  $("#dv_high").hide();
+              }else
+              {
+                  if($("#BLOODSUGAR").val().replace('#','') > 110)
+                  {
+                      $("#dv_low").hide();
+                      $("#dv_high").show();
+                  }
+                  if($("#BLOODSUGAR").val().replace('#','') < 70)
+                  {
+                      $("#dv_low").show();
+                      $("#dv_high").hide();
+                  }
+              }
+          }
+          else
+          {
+              $('#BLOODSUGAR').removeAttr("readonly");
+              $('#now_day').attr("readonly","readonly");
+              $('#now_time').attr("readonly","readonly");
+              setDateTime('now_day');
+              setDateTime('now_time');
+              $('#range').show();
+              if($("#BLOODSUGAR").val().replace('#','') < 110 && $("#BLOODSUGAR").val().replace('#','') > 70)
+              {
+                  $("#dv_low").hide();
+                  $("#dv_high").hide();
+              }else
+              {
+                  if($("#BLOODSUGAR").val().replace('#','') > 110)
+                  {
+                      $("#dv_low").hide();
+                      $("#dv_high").show();
+                  }
+                  if($("#BLOODSUGAR").val().replace('#','') < 70)
+                  {
+                      $("#dv_low").show();
+                      $("#dv_high").hide();
+                  }
+              }
+          }
+          if ($("#" + row + "_BLOODSUGAR").val() =='1' || $("#" + row + "_BLOODSUGAR").val()=='999')
+          {$("#BLOODSUGAR").val('');
+           if ($("#" + row + "_BLOODSUGAR").val() =='1')
+          {
+              set_for_rb('low', 0);
+            
+          } else if ($("#" + row + "_BLOODSUGAR").val() =='999')
+          {
+              set_for_rb('low', 1);
+          }
+ 
+         
+        }      
+     }
+     function set_for_rb(id, default_val) {
+         var rb = document.getElementsByName(id);
+         for (var i = 0; i < rb.length; i++) {
+             if (rb[i].value == default_val)
+                 rb[i].checked = true;
+         }}
+     function OverLowDesc()
+     {
+         showPopup('dv_ls');
+         $("#body").css("display", "inline");
+         $("#dv_low").css("display", "inline");
+         $("#dv_high").css("display", "none");       
+     }
+
+     function OverHighDesc()
+     {
+         showPopup('dv_hs');
+         $("#body").css("display", "inline");
+         $("#dv_high").css("display", "inline");
+         $("#dv_low").css("display", "none");    
+     }
+    //20141222檢查是否有輸入測量原因
+     function ck_num()
+     {
+         if ($('#List2').val() == "" && $('#BLOODSUGAR').val() == " " ) 
+         {
+             alert('請輸入血糖值或選擇無法測量原因');
+             return false;
+         }
+        
+         if (  $('input[name=low]:checked').val() != "undefined"  ) 
+         {
+             if ($('input[name=low]:checked').val()=='0')
+                 $('#BLOODSUGAR').val('1');
+             if ($('input[name=low]:checked').val()=='1')
+                 $('#BLOODSUGAR').val('999');
+         } 
+         return true;
+     }
+     //如果數值低於或高於某值 自動選擇高低血壓 並跳出護理措施
+     function selectRB(obj) {
+         var re = /^[0-9]+$/;
+         if (!re.test(obj.value) && obj.value != "") {
+             alert("血糖值請輸入整數");
+             $("#BLOODSUGAR").val('');
+         }
+         else
+         {
+             $('input[name=low]').attr('checked', false);
+             var rb = document.getElementsByName("low");//0為低1為高         
+             if (obj.value <= 70)
+             {//小於70為低血壓(暫定)
+                 //rb[0].checked = true;
+                 showPopup('dv_ls');
+                 $("#body").css("display", "inline");
+                 $("#dv_low").css("display", "inline");
+                 $("#dv_high").css("display", "none");              
+             }
+             if (obj.value > 110)
+             {//大於110為高血壓(暫定)
+                 //rb[1].checked = true;
+                 showPopup('dv_hs');
+                 $("#body").css("display", "inline");
+                 $("#dv_high").css("display", "inline");
+                 $("#dv_low").css("display", "none");              
+             }
+         }
+
+         //var num= $("#BLOODSUGAR").val();     
+         //if (isNaN(num)) 
+         //{
+         //    alert("請輸入數字");
+         //    $("#BLOODSUGAR").val('');
+         //}
+         //else
+         //{
+         //    var rb = document.getElementsByName("low");//0為低1為高         
+         //    if (num<=70)
+         //    {//小於70為低血壓(暫定)
+         //        //rb[0].checked = true;
+         //        showPopup('dv_ls');
+         //        $("#body").css("display", "inline");
+         //        $("#dv_low").css("display", "inline");
+         //        $("#dv_high").css("display", "none");              
+         //    }
+         //    if (num>110)
+         //    {//大於110為高血壓(暫定)
+         //        //rb[1].checked = true;
+         //        showPopup('dv_hs');
+         //        $("#body").css("display", "inline");
+         //        $("#dv_high").css("display", "inline");
+         //        $("#dv_low").css("display", "none");              
+         //    }
+         //}
+     }
+
+     function PrintPDF() {
+         var qs = $('#start_day').val();
+         var ts = $('#start_time').val();
+         var qe = $('#end_day').val();
+         var te = $('#end_time').val();
+         window.open("@(RootDocument)/Print/GetPDF?url=@(RootDocument)/HISView/BloodSugar_List?feeno=@(feeno)&qs=" + qs + "&ts=" + ts + "&qe=" + qe + "&te=" + te + "&print_df=true&filename=test");
+     }
+</script>
+<style type="text/css">
+    /*th
+    {
+        background: #99CCFF;
+        text-align: center;
+    }
+    
+    td
+    {
+        color: #333311;
+    }
+    tr.even
+    {
+        background: #F5F5F5;
+    }
+    
+    tr.odd
+    {
+        background: #EEF5FC;
+    }
+    
+    tr.over td
+    {
+        background: #CDE6FF;
+        color: #000000;
+    }*/
+    .table-01
+    {
+        border-collapse: collapse;
+        border: 1px solid #55A8FF;
+           font-weight: bold;
+           display:block;
+    }
+     .popup {
+    width:auto;
+    height:auto;
+    position:absolute;
+    background-color:#EFEFFF;
+    padding: 10px 15px 10px 15px;
+    border: 1px solid #999999;
+    box-shadow: 5px 5px 5px #666;
+    border-radius:15px 15px 15px 15px;
+    top:50%;
+    left:50%;
+    margin:-200px 0 0 -400px; /* [-(height/2)px 0 0 -(width/2)px]-250px 0 0 -300px; */
+    display:none;
+    z-index:99;
+  }
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+</style>
+
+<style type="text/css">
+    /*block & loading的css，暫放*/
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+@using System.Data;
+@{
+    Random rd = new Random();
+    DataTable table = ViewBag.table;
+    int bs = 0;
+    double heightPX = 0;
+    string color = "";
+    var i = 0;
+    var row = 0;
+    if(ViewBag.ck != null)
+    {
+        bool ck = ViewBag.ck;
+    }
+    string udodrgcode = ViewBag.udodrgcode;
+
+    // int number = 1;
+    //if (ViewBag.key != null)
+    //{ number = int.Parse(ViewBag.key) + 1; }
+    string start_day = DateTime.Now.AddDays(-7).ToString("yyyy/MM/dd");
+    string start_time = DateTime.Now.ToString("HH:mm");
+    string end_day = DateTime.Now.ToString("yyyy/MM/dd");
+    string end_time = DateTime.Now.ToString("HH:mm");
+    if(ViewBag.start_day != null)
+    { start_day = ViewBag.start_day; }
+    if(ViewBag.start_time != null)
+    { start_time = ViewBag.start_time; }
+    if(ViewBag.end_day != null)
+    { end_day = ViewBag.end_day; }
+    if(ViewBag.end_time != null)
+    { end_time = ViewBag.end_time; }
+
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewBag.pi;
+    string displaysearch = "", displaypfdata = "", dtl_srcoll = "", dtl_tabel_hight="",dtl_header_padding_r="" ;
+    }
+@*  <input  type="button" value="更新test" onclick="@Java_funcion.pup_window("BloodSugar_Insert?bsid=3", 450, 450, "")" />
+     <input type="button" value="更新"  style="width:40px;" onclick="$('#form1').attr('action','Edit');decide_bytube_group('3');edit(this);" />*@
+<form method="post" id="BloodSugar_List" action="BloodSugar_List">
+    <div class="funcArea">
+        <input type="hidden" name="QueryStatus" id="QueryStatus" />
+        <input type="hidden" name="getfeeno" id="getfeeno" />
+        @if(print_df == false)
+        {
+            //原始HISVIEW
+            displaysearch = "";
+            displaypfdata = "none";
+            dtl_srcoll = "scroll";
+            dtl_tabel_hight = "330px";
+            dtl_header_padding_r = "";
+        }
+        else 
+        {   //列印
+            displaysearch = "none";
+            displaypfdata = "";
+            dtl_srcoll = "hidden";
+            dtl_tabel_hight = "100%";
+            dtl_header_padding_r = "0;width:100%";
+            <text>
+                <script type="text/javascript">
+                    $(function () {//讓label還原成黑色
+                        $('label').each(function () {
+                            $(this).css('color', 'black');
+                        });
+                    });
+                </script>      
+            </text>
+        }
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="display:@(displaysearch);">
+            <tr>
+                <td style="padding: 0px 0px 0px 10px; width: 70%">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tr>
+                            <td style="padding: 5px 0px 0px 0px;">
+                                @Html.TextBox("start_day", @start_day, new { style = "width:80px" })
+                                @Html.TextBox("start_time", @start_time, new { style = "width:50px" })
+                                @*@WebTool.setDateTime("start_day", "start_time")*@
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_day", "start_time", false)
+                                @Html.Label("lab", " ~ ")
+                                @Html.TextBox("end_day", @end_day, new { style = "width:80px;" })
+                                @Html.TextBox("end_time", @end_time, new { style = "width:50px;" })
+                                @*@WebTool.setDateTime("end_day", "end_time")*@
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_day", "end_time", false)
+                                <span style="display:none">
+                                    <input id="ck_del" name="ck_del[]" type="checkbox" />
+                                    <label for="ck_del">包含已刪除紀錄</label>
+                                </span>
+                                <input id="ck_delck" type="hidden" name="ck" value="false" />
+                                <input id="search" class="btn_m" type="submit" value="查詢" onclick="quiry();" />
+                               @if(ptinof!=null) { 
+                                <input  class="btn_m" type="button" value="列印" onclick="PrintPDF();" />
+                               }
+                                
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px 0px 0px 0px;">
+                                <font color="red">過高</font>，<font color="blue">過低</font>，<font color="#666666">@@：刪除註記</font>
+                                <div class="gv_area">
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+       
+            @if(print_df != false)
+            {
+          <table border="0" style="width:100%;display:@(displaypfdata);">
+            
+                    <tr>
+                        <td>病人姓名：@ptinof.PatientName</td>
+                        @if(ptinof.Birthday != null)
+                        {
+                            <td>生日：@Convert.ToDateTime(ptinof.Birthday).ToString("yyyy/MM/dd")</td>
+                        }
+                        else
+                        {
+                            <td>生日：</td>
+                        }
+                        <td>年齡：@(ptinof.Age)  &nbsp; 性別：@(ptinof.PatientGender)</td>
+                        @*<td>病床號：@ptinof.BedNo</td>*@
+
+                        <td colspan="2">病歷號：@ptinof.ChartNo</td>
+                    </tr>
+                    <tr>
+                        <td>科別：@ptinof.DeptName</td>
+                        <td>主治醫師：@ptinof.DocName</td>
+                        @if(ptinof.InDate != null)
+                        {
+                            <td>住院日期：@Convert.ToDateTime(ptinof.InDate).ToString("yyyy/MM/dd HH:mm") (@ptinof.InDay)</td>
+                        }
+                        else
+                        {
+                            <td>住院日期：</td>
+                        }
+                        <td colspan="2">診斷：@ptinof.ICD9_code1</td>
+                    </tr>
+                </table>
+                }
+        <div class="dataHeader" style="padding-right:@(dtl_header_padding_r)">
+            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                <tr>
+                    <td style="width:12%;display:none;"></td>
+                    <td style="width:15%">@Html.Label("lab", "日期")</td>
+                    <td style="width:14%">@Html.Label("lab", "血糖值")</td>
+                    <td style="width:16%">@Html.Label("lab", "註記")</td>
+                    <td style="width:16%">@Html.Label("lab", "症狀")</td>
+                    <td style="width:16%">@Html.Label("lab", "處置")</td>
+                    <td style="width:11%">@Html.Label("lab", "監測者")</td>
+                </tr>
+            </table>
+        </div>
+        <div class="dataArea" style="height:@(dtl_tabel_hight);width:100%;overflow-y:@(dtl_srcoll);">
+            <table border="0" cellpadding="0" cellspacing="1" style="width: 100%; ">
+                @foreach(DataRow r in table.Rows)
+                {
+                    row++;
+                    <tr>
+                        <td style="text-align: center; width: 12%;display:none;">
+                            @if(@r["STATUS"].ToString().Trim() != "del")
+                            {
+                                @*<input  type="submit" value="刪除" onclick="getrow('del','@r["BSID"]');" />*@
+                                // if (@r["BLOODSUGAR"].ToString().IndexOf("#") == -1)
+                                //{
+                              @*if (Session["UserInfo"] != null && r["INSOP"].ToString().Trim() == loginempno.Trim())
+                                {
+                                    <input type="button" value="更新" title="@(r["STATUS"].ToString())" onclick="getrow('upd','@r["BSID"]');getrowtoupdate(@row);showPopup('dv_new');" />
+                                    <input type="button" value="刪除" onclick="MarkDel('del','@r["BSID"]');" />
+                                }*@
+                                //}
+                            }
+                            <input id="chk_row" type="hidden" name="data[0].BSID" value="test" />
+                            <input id="STATUS" type="hidden" value=" " name="data[0].STATUS" />
+                            <input id="@row" type="hidden" value="@(row)BLOODSUGAR" />
+                            <input id="@(row)_BLOODSUGAR" type="hidden" value="@r["BLOODSUGAR"]" />
+                            <input id="@(row)_INDATE" type="hidden" value="@r["INDATE"]" />
+                            <input id="@(row)_NOTE" type="hidden" value="@r["NOTE"]" />
+                            <input id="@(row)_SYMPTOM" type="hidden" value="@r["SYMPTOM"]" />
+                            <input id="@(row)_DEALWITH" type="hidden" value="@r["DEALWITH"]" />
+                            <input id="@(row)_SYval" type="hidden" value="@r["SYval"]" />
+                            <input id="@(row)_DWval" type="hidden" value="@r["DWval"]" />
+                            <input id="@(row)_MONITOR" type="hidden" value="@r["MONITOR"]" />
+                            <input id="@(row)_DRUGNAME" type="hidden" value="@r["DRUGNAME"]" />
+                            <input id="@(row)_DOSE" type="hidden" value="@r["DOSE"]" />
+                            <input id="@(row)_ROUTE" type="hidden" value="@r["ROUTE"]" />
+                            <input id="@(row)_DOSEUNIT" type="hidden" value="@r["DOSEUNIT"]" />
+                            <input id="@(row)_STATUS" type="hidden" value="@r["STATUS"]" />
+                            <input id="@(row)_BSID" type="hidden" value="@r["BSID"]" />
+                            <input id="@(row)_MEAL_STATUS" type="hidden" value="@r["MEAL_STATUS"]" />
+                        </td>
+
+                        <td style="width:15%"> @r["INDATE"]</td>
+
+                        <td style="width:14%">
+                        @if(@r["BLOODSUGAR"] != null && @r["BLOODSUGAR"] != " ")
+                        {
+                            bs = int.Parse(r["BLOODSUGAR"].ToString().Replace("#", ""));
+                        }
+                        @if(@r["BLOODSUGAR"] == " ")
+                        {
+                            <label></label>
+                            bs = 0;
+                        }
+                        @if(bs != 0 && bs < 70)
+                        {
+                            //20140204 小於20顯示Low
+                            if(bs < 20)
+                            {
+                                <label style="color:blue">Low</label>}
+                            if(bs >= 20) //============
+                            {
+                                <label style="color:blue">@r["BLOODSUGAR"].ToString() mg/dl</label>}
+                        }
+                        else if(bs >= 70 && bs < 110)
+                        {
+                            <label>@r["BLOODSUGAR"].ToString() mg/dl</label>
+                        }
+                        else if(bs >= 110)
+                        {
+                            //20140204 大於600顯示high
+                            if(bs > 600)
+                            {
+                                <label style="color:red">High</label>}
+                            if(bs <= 600) //======
+                            {
+                                <label style="color:red">@r["BLOODSUGAR"].ToString() mg/dl</label>}
+                        }
+                        </td>
+                        <td style="width:16%">
+                            @if(@r["STATUS"].ToString().Trim() == "del")
+                            {
+                                @:@@
+                                }
+                            @r["NOTE"]
+                        </td>
+                        <td style="width:16%">@r["SYMPTOM"]</td>
+                        <td style="width:16%">@r["DEALWITH"]</td>
+                        <td style="width:11%">
+                            @if(@r["MODNAME"] != null && @r["MODNAME"].ToString().Trim() != "")
+                            {
+                                @r["MODNAME"]
+                            }
+                            else
+                            {
+                                @r["INSOPNAME"].ToString().Trim()
+                            }
+
+                        </td>
+                    </tr>
+                }
+            </table>
+        </div>
+            <div class="dataArea" style="height: 120px;display:none;">
+                <table style="width:100%" align="center" cellpadding="0" class="table-01" cellspacing="0" width="100%">
+                    <tr class="table-01">
+                        @foreach(DataRow r in table.Rows)
+                        {
+                            if(@r["BLOODSUGAR"] != null && @r["BLOODSUGAR"] != " ")
+                            {
+                                bs = int.Parse(r["BLOODSUGAR"].ToString().Replace("#", ""));
+                            }
+                            if(@r["BLOODSUGAR"] == " ")
+                            {
+                                bs = 0;
+                                heightPX = 0;
+                                color = "FFFFFF";
+                            }
+                            if(bs != 0 && bs < 70)
+                            {
+                                color = "55A8FF";
+                                //20140204 改小於20 1%
+                                if(bs < 55)
+                                { heightPX = 1; }
+                                if(bs >= 55)//===========
+                                { heightPX = bs / 1.8; }
+                            }
+                            else if(bs >= 70 && bs < 110)
+                            {
+                                color = "AC55FF";
+                                heightPX = bs / 1.8;
+                            }
+                            else if(bs >= 110)
+                            {
+                                color = "FF1C19";
+                                //20140204 改大於600 100%
+                                if(bs > 600)
+                                { heightPX = 100; }
+                                if(bs <= 600)       //==========
+                                { heightPX = bs / 1.8; }
+                            }
+                    <td style="height: 100px" valign="bottom">
+                        <table bgcolor="#@color" style="height: @heightPX%" width="90%" align="center">
+                            <tr>
+                                <td align="center">
+                                    @if(@r["STATUS"].ToString().Trim() == "del")
+                                    {
+                        @:@@
+                                }
+                                    @r["NOTE"]
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                        }
+                    </tr>
+
+                    <tr align="center" class="table-01">
+
+                        @foreach(DataRow r in table.Rows)
+                        {
+                    <td class="table-01">
+                        @if(@r["BLOODSUGAR"] != null && @r["BLOODSUGAR"] != " ")
+                        {
+                            bs = int.Parse(r["BLOODSUGAR"].ToString().Replace("#", ""));
+                        }
+                        @if(@r["BLOODSUGAR"] == " ")
+                        {
+                            bs = 0;
+            <b>無</b>
+                        }
+                        @if(bs != 0 && bs < 70)
+                        {
+                            //20140204=====
+                            if(bs < 20)
+                            {<b style="color:blue">Low</b>}
+                            if(bs >= 20)//========
+                            {<b style="color:blue">@bs mg/dl</b>}
+                        }
+                        else if(bs >= 70 && bs < 110)
+                        {
+                            {<b>@bs mg/dl</b>}
+                        }
+                        else if(bs >= 110)
+                        {
+                            //20140204=============
+                            if(bs > 600)
+                            {<b style="color:red">High</b>}
+                            if(bs <= 600)//=======
+                            {<b style="color:red">@bs mg/dl</b>}
+                        }
+
+                    </td>
+                        }
+                    </tr>
+                    <tr align="center" class="table-01">
+                        @foreach(DataRow r in table.Rows)
+                        {
+                    <td class="table-01">
+                        @* 2013/05/18<br />
+                        1026*@
+                        @r["INDATE"]
+                    </td>
+                        }
+                    </tr>
+
+                </table>
+            </div>
+            @*新增區塊*@
+            <div id="dv_new" class="popup" style=" height:350px; display:none;">
+
+
+                <input type="hidden" name="BSID" id="SubmitBSID" />
+                <input id="SubmitStatus" type="hidden" name="SubmitStatus" />
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                        <td align="center">
+                            <table border="0" cellpadding="0" cellspacing="0" width="700px">
+                                <tr>
+                                    <td colspan="6" align="center">
+                                        <table border="0" cellpadding="0" cellspacing="0">
+                                            @*<tr><td>
+                                            @Html.CheckBox("ck", new {style="display:display"})
+                                            @Html.Label("ck", "補輸資料", new {style="display:display"})
+                                            </td></tr>*@
+                                            <tr>
+                                                <td>
+                                                    <table border="0" cellpadding="0" cellspacing="0" style="border-style: solid; border-width: 0px; width:700px;">
+                                                        <tr>
+                                                            @*  <td rowspan="5" align="center" style="border-right-style: solid; border-right-width: 0px; width:20px; background-color: #b1e1fc;">血糖</td>*@
+                                                            <td style="padding : 3px 0px 0px 3px;">
+
+                                                                @Html.TextBox("now_day", @DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px" })
+                                                                @Html.TextBox("now_time", @DateTime.Now.ToString("HH:mm"), new { style = "width:50px" })
+                                                                @WebTool.setDateTime("now_day", "now_time")
+                                                                @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "now_day", "now_time", false)*@
+                                                                @*@Html.DropDownList("List", ViewData["List"] as SelectList, "抬頭")*@
+                                                            </td>
+                                                            <td style="padding : 10px 0px 0px 10px;" rowspan="4">
+                                                                <table border="0" cellpadding="0" cellspacing="0">
+                                                                    <tr><td rowspan="4"></td></tr>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <div id="dv_low" style=" display:none">
+                                                                                <table style="width:400px">
+                                                                                    <tr>
+                                                                                        <td>
+                                                                                            @*@Html.TextArea("txtsymptom", "", 4, 20, "")*@
+                                                                                            <select id="ls_content" name="ls_content1" multiple="multiple" style="width: 95%;height: 95%;"></select>
+                                                                                            @* <input id="btnsymptom" type="button" value="選擇症狀" onclick="@Java_funcion.pup_window("BloodSugar_low_symptoms", 400, 400, "")" />*@
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <input type="button" value="選擇症狀" onclick="showPopup('dv_ls');" />
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                        <td>
+                                                                                            @*@Html.TextArea("txtdisposal", "", 4, 20, "")*@
+                                                                                            <select id="ld_content" name="ls_content" multiple="multiple" style="width:95%;height:95%;"></select>
+
+
+                                                                                            @*<input type="hidden" value="456" name="test3" />*@
+                                                                                            @*<input id="btndisposal" type="button" value="護理處置" onclick="@Java_funcion.pup_window("BloodSugar_high_symptoms", 400, 570, "")" />*@
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <input type="button" value="選擇處置" onclick="showPopup('dv_ld');" />
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                </table>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <div id="dv_high" style="display:none">
+                                                                                <table>
+                                                                                    <tr>
+                                                                                        <td>
+                                                                                            <select id="hs_content" name="hs_content1" multiple="multiple" style="width: 95%;height: 95%;"></select>
+
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <input type="button" value="選擇症狀" onclick="showPopup('dv_hs');" />
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                        <td>
+                                                                                            <select id="hd_content" name="hs_content" multiple="multiple" style="width: 95%;height: 95%;"></select>
+
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <input type="button" value="選擇處置" onclick="showPopup('dv_hd');" />
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                </table>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                </table>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td style="padding : 3px 0px 0px 3px;">
+                                                                測量種類：
+                                                                <label><input type="radio" id="rbn_meal_statusB" name="rbn_meal_status" value="B" />飯前</label>&nbsp;
+                                                                <label><input type="radio" id="rbn_meal_statusA" name="rbn_meal_status" value="A" />飯後</label>
+                                                                &nbsp;
+                                                                <label><input type="radio" id="rbn_meal_statusC" name="rbn_meal_status" value="C" />不清楚</label>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td style="padding : 3px 0px 0px 3px;">
+                                                                @Html.TextBox("value", "", new { id = "BLOODSUGAR", style = "width:40px", onchange = "selectRB(this);" })
+                                                                <select id="type" name="type">
+                                                                    <option value="mg/dl">mg/dl</option>
+                                                                </select>
+                                                                @*@Html.RadioButton("low", "0", new { id = "rd_low", onclick = @Java_funcion.show_hide("body", "") + "" + @Java_funcion.pup_window("BloodSugar_low_symptoms", 400, 400, "") })
+                                                                @Html.Label("rd_low", "Low", new { style = "color:blue" })
+                                                                @Html.RadioButton("low", "1", new { id = "rd_high", onclick = @Java_funcion.show_hide("body", "") + "" + @Java_funcion.pup_window("BloodSugar_high_symptoms", 400, 570, "") })
+                                                                @Html.Label("rd_high", "High", new { style = "color:red" })*@
+                                                                <span id="range">
+                                                                    @*@Html.RadioButton("low", "0", new { id = "rd_low", onclick = "showPopup('dv_ls');" + @Java_funcion.show_hide("body", "") + "" + @Java_funcion.show_hide("dv_low", "dv_high") })*@
+                                                                    @Html.RadioButton("low", "0", new { id = "rd_low", onclick = "$('#BLOODSUGAR').val('');OverLowDesc();" })
+                                                                    @Html.Label("rd_low", "Low", new { style = "color:blue" })
+                                                                    @*@Html.RadioButton("low", "1", new { id = "rd_high", onclick = "showPopup('dv_hs');" + @Java_funcion.show_hide("body", "") + "" + @Java_funcion.show_hide("dv_high", "dv_low") })*@
+                                                                    @Html.RadioButton("low", "1", new { id = "rd_high", onclick = "$('#BLOODSUGAR').val('');OverHighDesc();" })
+                                                                    @Html.Label("rd_high", "High", new { style = "color:red" })
+                                                                </span>
+
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td style="padding: 3px 0px 0px 3px;">
+                                                                @Html.Label("note", "註記")
+                                                                @Html.TextBox("note", "", new { style = "width:160px" })
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td style="padding: 3px 0px 10px 3px;">
+                                                                @* @Html.DropDownList("List2", ViewData["List2"] as SelectList, "無法測量原因", new { id = "List2", @onchange = "cptonote();" })*@
+                                                                <select id="List2" name="List2" onchange="cptonote();">
+                                                                    <option value="">無法測量原因</option>
+                                                                    <option value="測不到">測不到</option>
+                                                                    <option value="手術中">手術中</option>
+                                                                    <option value="檢查中">檢查中</option>
+                                                                    <option value="治療中">治療中</option>
+                                                                    <option value="入睡中">入睡中</option>
+                                                                    <option value="會診中">會診中</option>
+                                                                    <option value="拒絕">拒絕</option>
+                                                                    <option value="外出">外出</option>
+                                                                    <option value="哭鬧">哭鬧</option>
+                                                                    <option value="請假">請假</option>
+                                                                    <option value="其他">其他</option>
+                                                                </select>
+
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="border-style: solid; border-width: 0px 0px 0px 0px;"></td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="padding-top: 10px">
+                                        @* <input type="hidden" value="@i"  name="data1.Index"/>       *@
+                                        <input id="_BLOODSUGAR" type="hidden" value=" " name="data[0].BLOODSUGAR" />
+                                        <input id="_NOTE" type="hidden" value=" " name="data[0].NOTE" />
+                                        <input id="_SYMPTOM" type="hidden" value=" " name="data[0].SYMPTOM" />
+                                        <input id="_DEALWITH" type="hidden" value=" " name="data[0].DEALWITH" />
+                                        <input id="_MONITOR" type="hidden" value=" " name="data[0].MONITOR" />
+                                        <input id="_DRUGNAME" type="hidden" value=" " name="data[0].DRUGNAME" />
+                                        <input id="_DOSE" type="hidden" value=" " name="data[0].DOSE" />
+                                        <input id="_ROUTE" type="hidden" value=" " name="data[0].ROUTE" />
+                                        <input id="_DOSEUNIT" type="hidden" value=" " name="data[0].DOSEUNIT" />
+                                        <input id="_STATUS" type="hidden" value="new" name="data[0].STATUS" />
+                                        <input id="_INDATE" type="hidden" value=" " name="data[0].INDATE" />
+                                        <input id="_BSID" type="hidden" value=" " name="data[0].BSID" />
+                                        @*<input id="add" type="button" value="血糖監測新增存檔" onclick="exist(''); $('#dv_new').fadeOut(500);submit();" />*@
+                                        <input id="add" type="button" value="血糖監測新增存檔" onclick="if(ck_num())submit();" />
+                                        <input id="back" type="button" value="放棄目前編輯資料" onclick="$('#block').fadeOut(300); $('#dv_new').fadeOut(300); clearItem();" />
+                                    </td>
+                                </tr>
+                            </table>
+
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+
+            @*血糖過低症狀*@
+            <div id="dv_ls" class="popup" style="width:400px; height:360px; display:none;">
+                @*<span class="p_close"><img src="~/Images/Close.png" alt="關閉" onclick="$('#dv_ls').fadeOut(500);"/></span>*@
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                        <td align="center">
+                            <table id="tbls_content" class="gridview" border="0" width="100%" style=" text-align:center">
+                                <tr>
+                                    <td colspan="2" align="center" style="background-color: #00CCFF;">
+                                        @Html.Label("lab", "血糖過低症狀")
+                                    </td>
+                                </tr>
+                                @{ List<SelectListItem> Lsymptomsitem = (List<SelectListItem>)ViewData["Lsymptoms"];
+                                   for(i = 0; i <= Lsymptomsitem.Count - 1; i++)
+                                   {
+                            <tr>
+                                <td width="20%" align="right">
+                                    <input type="checkbox" id="@(Lsymptomsitem[i].Value)" value="@(Lsymptomsitem[i].Text)" />
+                                </td>
+                                <td width="70%" align="left">
+                                    <label for="@(Lsymptomsitem[i].Value)">@(Lsymptomsitem[i].Text)</label>
+                                </td>
+                            </tr>
+                                   }
+                                }
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center">
+                            <input id="add_ls" type="button" value="確定" onclick="$('#dv_ls').fadeOut(500);showPopup('dv_ld');AddItem('ls_content');ItemCopyToSymptom('ls_content');" />
+                            <input id="back_ls" type="button" value="取消" onclick="$('#dv_ls').fadeOut(500);" />
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            @*血糖過低護理處置*@
+            <div id="dv_ld" class="popup" style="width:400px; height:360px; display:none;">
+                @*<span class="p_close"><img src="~/Images/Close.png" alt="關閉" onclick="$('#dv_ld').fadeOut(500);"/></span>*@
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                        <td align="center">
+                            <table id="tbld_content" class="gridview" border="0" width="100%" style=" text-align:center">
+                                <tr>
+                                    <td colspan="2" align="center" style="background-color: #00CCFF">
+                                        @Html.Label("lab", "血糖過低護理處置")
+                                    </td>
+                                </tr>
+                                @{ List<SelectListItem> Ldealwithitem = (List<SelectListItem>)ViewData["Ldealwith"];
+                                   for(i = 0; i <= Ldealwithitem.Count - 1; i++)
+                                   {
+                            <tr>
+                                <td width="20%" align="right">
+                                    <input type="checkbox" id="@(Ldealwithitem[i].Value)" value="@(Ldealwithitem[i].Text)" />
+                                </td>
+                                <td width="70%" align="left">
+                                    <label for="@(Ldealwithitem[i].Value)">@(Ldealwithitem[i].Text)</label>
+                                </td>
+                            </tr>
+                                   }
+                                }
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center">
+                            <input id="add_ld" type="button" value="確定" onclick="$('#dv_ld').fadeOut(500);AddItem('ld_content');ItemCopyToHandle('ld_content');" />
+                            <input id="back_ld" type="button" value="取消" onclick="$('#dv_ld').fadeOut(500);" />
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            @*血糖過高症狀*@
+            <div id="dv_hs" class="popup" style=" width:400px; height:360px;overflow:auto;display:none;">
+                @*<span class="p_close"><img src="~/Images/Close.png" alt="關閉" onclick="$('#dv_hs').fadeOut(500);"/></span>*@
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                        <td align="center">
+                            <table id="tbhs_content" class="gridview" border="0" width="100%" style=" text-align:center">
+                                <tr>
+                                    <td colspan="2" align="center" style="background-color: #00CCFF">
+                                        @Html.Label("lab", "血糖過高症狀")
+                                    </td>
+                                </tr>
+                                @{ List<SelectListItem> Hsymptomsitem = (List<SelectListItem>)ViewData["Hsymptoms"];
+                                   for(i = 0; i <= Hsymptomsitem.Count - 1; i++)
+                                   {
+                            <tr>
+                                <td width="20%" align="right">
+                                    <input type="checkbox" id="@(Hsymptomsitem[i].Value)" value="@(Hsymptomsitem[i].Text)" />
+                                </td>
+                                <td width="70%" align="left">
+                                    <label for="@(Hsymptomsitem[i].Value)">@(Hsymptomsitem[i].Text)</label>
+                                </td>
+                            </tr>
+                                   }
+                                }
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center">
+                            <input id="add_hs" type="button" value="確定" onclick="$('#dv_hs').fadeOut(500);showPopup('dv_hd');AddItem('hs_content');ItemCopyToSymptom('hs_content');" />
+                            <input id="back_hs" type="button" value="取消" onclick="$('#dv_hs').fadeOut(500);" />
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            @*血糖過高護理處置*@
+            <div id="dv_hd" class="popup" style="width:400px; height:360px; display:none;">
+                @*<span class="p_close"><img src="~/Images/Close.png" alt="關閉" onclick="$('#dv_hd').fadeOut(500);"/></span>*@
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                        <td align="center">
+                            <table id="tbhd_content" class="gridview" border="0" width="100%" style=" text-align:center">
+                                <tr>
+                                    <td colspan="2" align="center" style="background-color: #00CCFF">
+                                        @Html.Label("lab", "血糖過高護理處置")
+                                    </td>
+                                </tr>@{ List<SelectListItem> Hdealwithitem = (List<SelectListItem>)ViewData["Hdealwith"];
+                                        for(i = 0; i <= Hdealwithitem.Count - 1; i++)
+                                        {
+                            <tr>
+                                <td width="20%" align="right">
+                                    <input type="checkbox" id="@(Hdealwithitem[i].Value)" value="@(Hdealwithitem[i].Text)" />
+                                </td>
+                                <td width="70%" align="left">
+                                    <label for="@(Hdealwithitem[i].Value)">@(Hdealwithitem[i].Text)</label>
+                                </td>
+                            </tr>
+                                        }
+                                }
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center">
+                            <input type="hidden" name="SymptomContent" id="SymptomContent" />
+                            <input type="hidden" name="HandleContent" id="HandleContent" />
+
+                            <input id="add_hd" type="button" value="確定" onclick="$('#dv_hd').fadeOut(500);AddItem('hd_content');ItemCopyToHandle('hd_content');" />
+                            <input id="back_hd" type="button" value="取消" onclick="$('#dv_hd').fadeOut(500);" />
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+</form>
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size: 16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

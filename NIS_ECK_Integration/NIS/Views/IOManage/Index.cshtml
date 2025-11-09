@@ -1,0 +1,546 @@
+﻿@{
+    ViewBag.Title = "Index";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .popup {
+        width: 450px;
+        height: 250px;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        /*box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;*/
+        top: 50%;
+        left: 50%;
+        margin: -190px 0 0 -130px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        white-space: nowrap;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function add_content(obj, txtid) {
+        if (obj.checked)
+            $('#' + txtid).val($('#' + txtid).val() + obj.value + '，');
+        else
+            $('#' + txtid).val($('#' + txtid).val().replace(new RegExp("(" + obj.value + '，' + ")*", "g"), ''));
+    }
+
+    function send_content(txtid) {
+        $.ajax({
+            type: 'post',
+            url: 'Insert_Record',
+            data: { Com: $('#' + txtid).attr('record'), I: $('#' + txtid).val() },
+            success: function (result) {
+                if (result != '')
+                    alert(result);
+            }
+        });
+    }
+
+    function pup_window(url, width, height) {
+        url += '&day=' + $('#date').val();
+        new_window.push(window.open(url, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=' + width + ',height=' + height));
+    }
+</script>
+@using System.Data;
+@{
+    string date = ViewBag.date;
+    DataTable dt_i = ViewBag.dt_i;
+    DataTable dt_o = ViewBag.dt_o;
+    double e_intake = 0, d_intake = 0, n_intake = 0, total_intake = 0;
+    double e_output =  0, d_output =  0, n_output = 0, total_output = 0;
+    }
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%;padding-bottom:10px;"">
+    <tr>
+        <td style="padding-top:5px;">
+            <form action="Index" method="post">
+                <div class="funcArea">
+                    @Html.TextBox("date", date, new { style = "width:80px", @readonly = "readonly" })
+                    @*@WebTool.setDateTime("date")*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "date", "", false)
+                    <select name="unit">
+                        @if (ViewBag.seleunit != null)
+                        {
+                            if (ViewBag.seleunit == "1")
+                            {
+                                <option value="1" selected="selected">mL</option>
+                                <option value="2">次</option>
+                            }
+                            else
+                            {
+                                <option value="1">mL</option>
+                                <option value="2" selected="selected">次</option>
+                            }
+                        }
+                        else
+                        {
+                        <option value="1">mL</option>
+                        <option value="2">次</option>
+                        }
+                    </select>
+                    <input type="submit" value="查詢" style="width:80px;" />
+                    <input type="button" value="範圍查詢" style="width:80px;" onclick="window.location.href = 'Old_Index';" />
+                    <input type="button" value="新增輸入/輸出" style="width:120px;" onclick="window.location.href = 'Insert';" />
+                </div>
+            </form>
+        </td>
+    </tr>
+</table>
+<div class="dataHeader" id="dataHeader">
+    <table border="0" cellpadding="4" cellspacing="1" style="table-layout:fixed; white-space:nowrap;" class="dtl_VS">
+        <tr>
+            <td style="width:45px;"><div style="width:45px; overflow:hidden;">&nbsp;</div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">部位</div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">大夜班&nbsp;<input type="button" style="width:60px;" value="明細" onclick="pup_window('Detail?date=N', '1000', '500');" /></div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">白班&nbsp;<input type="button" style="width:60px;" value="明細" onclick="pup_window('Detail?date=D', '1000', '500');" /></div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">小夜班&nbsp;<input type="button" style="width:60px;" value="明細" onclick="pup_window('Detail?date=E', '1000', '500');" /></div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">合計&nbsp;<input type="button" style="width:60px;" value="明細" onclick="pup_window('Detail?date=all', '1000', '500');" /></div></td>
+        </tr>
+    </table>
+</div>
+<div class="dataArea" onscroll="document.getElementById('dataHeader').scrollLeft = this.scrollLeft;" style="height:380px; width:100%;">
+    <table border="0" cellpadding="4" cellspacing="1">
+        @for (int i = 0; i < dt_i.Rows.Count; i++)
+        {
+            e_intake += double.Parse(dt_i.Rows[i]["E"].ToString());
+            d_intake += double.Parse(dt_i.Rows[i]["D"].ToString());
+            n_intake += double.Parse(dt_i.Rows[i]["N"].ToString());
+            total_intake += double.Parse(dt_i.Rows[i]["TOTAL"].ToString());
+        @:<tr>
+            if (i == 0)
+            {
+            <td class="head" rowspan="@(dt_i.Rows.Count + 1)" style="width:45px;">輸入</td>
+            }
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_i.Rows[i]["P_NAME"]</div></td>
+            if (double.Parse(dt_i.Rows[i]["E_REASON"].ToString()) > 0)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_i.Rows[i]["E"] +Loss</div></td>
+            }
+            else
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_i.Rows[i]["E"]</div></td>
+            }
+            if (double.Parse(dt_i.Rows[i]["D_REASON"].ToString()) > 0)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_i.Rows[i]["D"] +Loss</div></td>
+            }
+            else
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_i.Rows[i]["D"]</div></td>
+            }
+            if (double.Parse(dt_i.Rows[i]["N_REASON"].ToString()) > 0)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_i.Rows[i]["N"] +Loss</div></td>
+            }
+            else
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_i.Rows[i]["N"]</div></td>
+            }
+            if (double.Parse(dt_i.Rows[i]["TOTAL_REASON"].ToString()) > 0)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_i.Rows[i]["TOTAL"] +Loss</div></td>
+            }
+            else
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_i.Rows[i]["TOTAL"]</div></td>
+            }
+            @:</tr>
+        }
+        <tr>
+            <td>合計</td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@e_intake</div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@d_intake</div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@n_intake</div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@total_intake</div></td>
+        </tr>
+        @for (int i = 0; i < dt_o.Rows.Count; i++)
+        {
+            e_output += double.Parse(dt_o.Rows[i]["E"].ToString());
+            d_output += double.Parse(dt_o.Rows[i]["D"].ToString());
+            n_output += double.Parse(dt_o.Rows[i]["N"].ToString());
+            total_output += double.Parse(dt_o.Rows[i]["TOTAL"].ToString());
+        @:<tr>
+            if (i == 0)
+            {
+            <td class="head" rowspan="@(dt_o.Rows.Count + 1)" style="width:20px;">輸出</td>
+            }
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_o.Rows[i]["P_NAME"]</div></td>
+            if (double.Parse(dt_o.Rows[i]["E_REASON"].ToString()) > 0)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_o.Rows[i]["E"] +Loss</div></td>
+            }
+            else
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_o.Rows[i]["E"]</div></td>
+            }
+            if (double.Parse(dt_o.Rows[i]["D_REASON"].ToString()) > 0)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_o.Rows[i]["D"] +Loss</div></td>
+            }
+            else
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_o.Rows[i]["D"]</div></td>
+            }
+            if (double.Parse(dt_o.Rows[i]["N_REASON"].ToString()) > 0)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_o.Rows[i]["N"] +Loss</div></td>
+            }
+            else
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_o.Rows[i]["N"]</div></td>
+            }
+            if (double.Parse(dt_o.Rows[i]["TOTAL_REASON"].ToString()) > 0)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_o.Rows[i]["TOTAL"] +Loss</div></td>
+            }
+            else
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_o.Rows[i]["TOTAL"]</div></td>
+            }
+        @:</tr>
+        }
+        <tr>
+            <td>合計</td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@e_output</div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@d_output</div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@n_output</div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@total_output</div></td>
+        </tr>
+        <tr>
+            <td colspan="2" style="width:175px;"><div style="width:175px; overflow:hidden;">
+            輸入/輸出總計
+            </div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">
+                @e_intake / @e_output (@(Math.Round((e_intake - e_output), 2)))
+                @{
+                    double E_Total = e_intake - e_output;
+                    if (E_Total > 500 || E_Total < -500)
+                    {
+                <div><input type="button" value="護理處置" onclick="$('#e_div').fadeIn(500)" /></div>
+                <div class="popup" id="e_div">
+                    <table id="e_table" border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td>
+                                <input id="e_div_1" type="checkbox" value="每八小時記錄及監測輸入/輸出" onclick="add_content(this, 'e_total');" />
+                                <label for="e_div_1">每八小時記錄及監測輸入/輸出</label>
+                            </td>
+                            <td>
+                                <input id="e_div_2" type="checkbox" value="監測意識變化" onclick="add_content(this, 'e_total');" />
+                                <label for="e_div_2">監測意識變化</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input id="e_div_3" type="checkbox" value="監測及記錄水腫的程度" onclick="add_content(this, 'e_total');" />
+                                <label for="e_div_3">監測及記錄水腫的程度</label>
+                            </td>
+                            <td>
+                                <input id="e_div_4" type="checkbox" value="監測CVP值的變化" onclick="add_content(this, 'e_total');" />
+                                <label for="e_div_4">監測CVP值的變化</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input id="e_div_5" type="checkbox" value="監測體重的變化" onclick="add_content(this, 'e_total');" />
+                                <label for="e_div_5">監測體重的變化</label>
+                            </td>
+                            <td>
+                                <input id="e_div_6" type="checkbox" value="Q4h&p.r.n.監測生命徵象" onclick="add_content(this, 'e_total');" />
+                                <label for="e_div_6">Q4h&p.r.n.監測生命徵象</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="text-align:center;">
+                                @{
+                                    string record_com = "大夜班輸出入量統計，輸入量：";
+                                    foreach(DataRow r in dt_i.Rows)
+                                    {
+                                        if (r["E"].ToString() != "0")
+                                        {
+                                            record_com += r["P_NAME"] + "：" + r["E"] + "mL，";
+                                        }
+                                    }
+                                    record_com = record_com.Substring(0, record_com.Length - 1) + "；輸出量：";
+                                    foreach(DataRow r in dt_o.Rows)
+                                    {
+                                        if (r["E"].ToString() != "0")
+                                        {
+                                            record_com += r["P_NAME"] + "：" + r["E"] + "mL，";
+                                        }
+                                    }
+                                    record_com = record_com.Substring(0, record_com.Length - 1) + "；輸入/輸出：";
+                                    record_com += e_intake + "/" + e_output + "(" + (e_intake - e_output) + ")";
+                                }
+                                @Html.TextArea("e_total", new { style = "width:380px;height:120px;", record = record_com })
+                            </td>
+                        </tr>
+                    </table>
+                    <div style="text-align:center;">
+                        <input type="button" value="新增護理處置" onclick="send_content('e_total'); $('#e_div').fadeOut(500)" />
+                        <input type="button" value="取消" onclick="$('#e_div').fadeOut(500)" />
+                    </div>
+                </div>
+                    }
+                }
+            </div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">
+                @d_intake / @d_output (@(Math.Round((d_intake - d_output), 2)))
+                @{
+                    double D_Total = d_intake - d_output;
+                    if (D_Total > 500 || D_Total < -500)
+                    {
+                <div><input type="button" value="護理處置" onclick="$('#d_div').fadeIn(500)" /></div>
+                <div class="popup" id="d_div">
+                <form action="Insert_Record" method="post">
+                    <table id="d_table" border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td>
+                                <input id="d_div_1" type="checkbox" value="每八小時記錄及監測輸入/輸出" onclick="add_content(this, 'd_total');" />
+                                <label for="d_div_1">每八小時記錄及監測輸入/輸出</label>
+                            </td>
+                            <td>
+                                <input id="d_div_2" type="checkbox" value="監測意識變化" onclick="add_content(this, 'd_total');" />
+                                <label for="d_div_2">監測意識變化</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input id="d_div_3" type="checkbox" value="監測及記錄水腫的程度" onclick="add_content(this, 'd_total');" />
+                                <label for="d_div_3">監測及記錄水腫的程度</label>
+                            </td>
+                            <td>
+                                <input id="d_div_4" type="checkbox" value="監測CVP值的變化" onclick="add_content(this, 'd_total');" />
+                                <label for="d_div_4">監測CVP值的變化</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input id="d_div_5" type="checkbox" value="監測體重的變化" onclick="add_content(this, 'd_total');" />
+                                <label for="d_div_5">監測體重的變化</label>
+                            </td>
+                            <td>
+                                <input id="d_div_6" type="checkbox" value="Q4h&p.r.n.監測生命徵象" onclick="add_content(this, 'd_total');" />
+                                <label for="d_div_6">Q4h&p.r.n.監測生命徵象</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="text-align:center;">
+                                @{
+                                    string record_com = "白班輸出入量統計，輸入量：";
+                                    foreach(DataRow r in dt_i.Rows)
+                                    {
+                                        if (r["D"].ToString() != "0")
+                                        {
+                                            record_com += r["P_NAME"] + "：" + r["D"] + "mL，";
+                                        }
+                                    }
+                                    record_com = record_com.Substring(0, record_com.Length - 1) + "；輸出量：";
+                                    foreach(DataRow r in dt_o.Rows)
+                                    {
+                                        if (r["D"].ToString() != "0")
+                                        {
+                                            record_com += r["P_NAME"] + "：" + r["D"] + "mL，";
+                                        }
+                                    }
+                                    record_com = record_com.Substring(0, record_com.Length - 1) + "；輸入/輸出：";
+                                    record_com += d_intake + "/" + d_output + "(" + (d_intake - d_output) + ")";
+                                }
+                                @Html.TextArea("d_total", new { style = "width:380px;height:120px;", record = record_com })
+                            </td>
+                        </tr>
+                    </table>
+                    <div style="text-align:center;">
+                        <input type="button" value="新增護理處置" onclick="send_content('d_total'); $('#d_div').fadeOut(500)" />
+                        <input type="button" value="取消" onclick="$('#d_div').fadeOut(500)" />
+                    </div>
+                </form>
+                </div>
+                    }
+                }
+            </div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">
+                @n_intake / @n_output (@(Math.Round((n_intake - n_output), 2)))
+                @{
+                    double N_Total = n_intake - n_output;
+                    if (N_Total > 500 || N_Total < -500)
+                    {
+                <div><input type="button" value="護理處置" onclick="$('#n_div').fadeIn(500)" /></div>
+                <div class="popup" id="n_div">
+                <form action="Insert_Record" method="post">
+                    <table id="n_table" border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td>
+                                <input id="n_div_1" type="checkbox" value="每八小時記錄及監測輸入/輸出" onclick="add_content(this, 'n_total');" />
+                                <label for="n_div_1">每八小時記錄及監測輸入/輸出</label>
+                            </td>
+                            <td>
+                                <input id="n_div_2" type="checkbox" value="監測意識變化" onclick="add_content(this, 'n_total');" />
+                                <label for="n_div_2">監測意識變化</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input id="n_div_3" type="checkbox" value="監測及記錄水腫的程度" onclick="add_content(this, 'n_total');" />
+                                <label for="n_div_3">監測及記錄水腫的程度</label>
+                            </td>
+                            <td>
+                                <input id="n_div_4" type="checkbox" value="監測CVP值的變化" onclick="add_content(this, 'n_total');" />
+                                <label for="n_div_4">監測CVP值的變化</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input id="n_div_5" type="checkbox" value="監測體重的變化" onclick="add_content(this, 'n_total');" />
+                                <label for="n_div_5">監測體重的變化</label>
+                            </td>
+                            <td>
+                                <input id="n_div_6" type="checkbox" value="Q4h&p.r.n.監測生命徵象" onclick="add_content(this, 'n_total');" />
+                                <label for="n_div_6">Q4h&p.r.n.監測生命徵象</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="text-align:center;">
+                                @{
+                                    string record_com = "小夜班輸出入量統計，輸入量：";
+                                    foreach(DataRow r in dt_i.Rows)
+                                    {
+                                        if (r["N"].ToString() != "0")
+                                        {
+                                            record_com += r["P_NAME"] + "：" + r["N"] + "mL，";
+                                        }
+                                    }
+                                    record_com = record_com.Substring(0, record_com.Length - 1) + "；輸出量：";
+                                    foreach(DataRow r in dt_o.Rows)
+                                    {
+                                        if (r["N"].ToString() != "0")
+                                        {
+                                            record_com += r["P_NAME"] + "：" + r["N"] + "mL，";
+                                        }
+                                    }
+                                    record_com = record_com.Substring(0, record_com.Length - 1) + "；輸入/輸出：";
+                                    record_com += n_intake + "/" + n_output + "(" + (n_intake - n_output) + ")";
+                                }
+                                @Html.TextArea("n_total", new { style = "width:380px;height:120px;", record = record_com })
+                            </td>
+                        </tr>
+                    </table>
+                    <div style="text-align:center;">
+                        <input type="button" value="新增護理處置" onclick="send_content('n_total'); $('#n_div').fadeOut(500)" />
+                        <input type="button" value="取消" onclick="$('#n_div').fadeOut(500)" />
+                    </div>
+                </form>
+                </div>
+                    }
+                }
+            </div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">
+                @total_intake / @total_output (@(Math.Round((total_intake - total_output), 2)))
+                @{
+                    double T_Total = total_intake - total_output;
+                    if (T_Total > 500 || T_Total < -500)
+                    {
+                <div><input type="button" value="護理處置" onclick="$('#t_div').fadeIn(500)" /></div>
+                <div class="popup" id="t_div">
+                <form action="Insert_Record" method="post">
+                    <table id="t_table" border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td>
+                                <input id="t_div_1" type="checkbox" value="每八小時記錄及監測輸入/輸出" onclick="add_content(this, 't_total');" />
+                                <label for="t_div_1">每八小時記錄及監測輸入/輸出</label>
+                            </td>
+                            <td>
+                                <input id="t_div_2" type="checkbox" value="監測意識變化" onclick="add_content(this, 't_total');" />
+                                <label for="t_div_2">監測意識變化</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input id="t_div_3" type="checkbox" value="監測及記錄水腫的程度" onclick="add_content(this, 't_total');" />
+                                <label for="t_div_3">監測及記錄水腫的程度</label>
+                            </td>
+                            <td>
+                                <input id="t_div_4" type="checkbox" value="監測CVP值的變化" onclick="add_content(this, 't_total');" />
+                                <label for="t_div_4">監測CVP值的變化</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input id="t_div_5" type="checkbox" value="監測體重的變化" onclick="add_content(this, 't_total');" />
+                                <label for="t_div_5">監測體重的變化</label>
+                            </td>
+                            <td>
+                                <input id="t_div_6" type="checkbox" value="Q4h&p.r.n.監測生命徵象" onclick="add_content(this, 't_total');" />
+                                <label for="t_div_6">Q4h&p.r.n.監測生命徵象</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="text-align:center;">
+                                @{
+                                    string record_com = "全日輸出入量統計，輸入量：";
+                                    foreach(DataRow r in dt_i.Rows)
+                                    {
+                                        if (r["TOTAL"].ToString() != "0")
+                                        {
+                                            record_com += r["P_NAME"] + "：" + r["TOTAL"] + "mL，";
+                                        }
+                                    }
+                                    record_com = record_com.Substring(0, record_com.Length - 1) + "；輸出量：";
+                                    foreach(DataRow r in dt_o.Rows)
+                                    {
+                                        if (r["TOTAL"].ToString() != "0")
+                                        {
+                                            record_com += r["P_NAME"] + "：" + r["TOTAL"] + "mL，";
+                                        }
+                                    }
+                                    record_com = record_com.Substring(0, record_com.Length - 1) + "；輸入/輸出：";
+                                    record_com += total_intake + "/" + total_output + "(" + (total_intake - total_output) + ")";
+                                }
+                                @Html.TextArea("t_total", new { style = "width:380px;height:120px;", record = record_com })
+                            </td>
+                        </tr>
+                    </table>
+                    <div style="text-align:center;">
+                        <input type="button" value="新增護理處置" onclick="send_content('t_total'); $('#t_div').fadeOut(500)" />
+                        <input type="button" value="取消" onclick="$('#t_div').fadeOut(500)" />
+                    </div>
+                </form>
+                </div>
+                    }
+                }
+            </div></td>
+        </tr>
+    </table>
+</div>

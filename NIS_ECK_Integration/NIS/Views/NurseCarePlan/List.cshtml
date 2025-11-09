@@ -1,0 +1,290 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string feeno = ViewBag.feeno;
+    string Category = ViewBag.Category;
+    string RootDocument = ViewBag.RootDocument;
+    string title = "護理計畫總表(護理紀錄)";
+
+    //日期選單使用//
+    DateTime start_date = Convert.ToDateTime(ViewBag.start_date);
+    DateTime end_date = Convert.ToDateTime(ViewBag.end_date);
+    //url使用//
+    string s_day = start_date.ToString("yyyy/MM/dd");
+    string s_time = start_date.ToString("HH:mm");
+
+    string e_day = end_date.ToString("yyyy/MM/dd");
+    string e_time = end_date.ToString("HH:mm");
+
+    string rb_mode = ViewBag.rb_mode;
+    DataTable dt = ViewBag.dt;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+      #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+          #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 99;
+        display: none;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 150);
+        }).trigger("resize");
+            $('#@(rb_mode)').prop('checked', true);        
+        setGridColor();
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');}
+
+    function pup_window(url, width, height) {
+        new_window.push(window.open(url, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,resizable=yes,left=200,toolbar=no,width=' + width + ',height=' + height));
+    }
+
+
+    function toDelete(obj) {
+        if(confirm('確定刪除?')) {
+            $.ajax({
+                type: "POST",
+                url: '@Url.Content("~/CareRecord/Delete")',
+                data: { "id": $(obj).attr('data-id'), "self": $(obj).attr('data-self') },
+                success: function (reslut) {
+                    alert(reslut);
+                    $('#btnSearch').click();
+                }
+            });
+        }
+    }
+    function ShowImg(obj) {
+        var src = $(obj).attr('src');
+        var newwindow = window.open('', 'top_dialog', 'menubar=yes,status=yes,scrollbars=yes,top=0,resizable=yes,left=0');
+        var t = newwindow.document.createElement('img');
+        $(t).prop('src', src);
+        $(newwindow.document.body).html(t);
+
+    }
+    function search_type(type) {
+        switch (type)
+        {
+            case "diagnosis":
+                $('#time_range').fadeOut(0);
+                $('#text_diagnosis').fadeIn(0);
+                break;
+            case "unfinished":
+                $('#time_range').fadeOut(0);
+                $('#text_diagnosis').fadeOut(0);
+                break;
+            case "timerange":
+                $('#time_range').fadeIn(0);
+                $('#text_diagnosis').fadeOut(0);
+                break;
+            default :
+                break;
+        }
+ 
+    }
+    function search_btn2() {
+        $.ajax({
+            type: "POST",
+            url: 'List',
+            data: {
+                "rb_mode": $('input[name=rb_list]').val(),
+                //"s_datetime": $('#start_date').val() + " " + $('#start_time').val(),
+                //"e_datetime": $('#end_date').val() + " " + $('#end_time').val(),
+                //"t_diagnosis": $('#text_diagnosis').val()
+            },
+            beforeSend: function () {
+                $("#block,#loading").show();
+            },
+            success: function (data) {
+                $("#funcArea").html(data);
+            },
+            complete: function () {
+                $("#block,#loading").hide();
+            }
+        });
+    }
+    function search_btn(obj) {
+        var s_day = $('#start_date').val() ;
+        var s_time = $('#start_time').val();
+        var e_day = $('#end_date').val();
+        var e_time = $('#end_time').val();
+        window.location.href = 'List?rb_mode=timerange&s_day=' + s_day + '&s_time=' + s_time +'&e_day=' + e_day + '&e_time=' + e_time;
+        loop_windows("open_cover");
+    }
+</script>
+<div class="funcArea">
+
+    <input type="button" value="新增護理計畫" style="width:160px;" onclick="window.location.href = 'Index'" />
+    <input type="button" value="查詢所有護理計畫" style="width:160px;" onclick="window.location.href = 'AllCarePlan'" />
+    <input type="button" value="護理計畫總表" style="width:160px;" onclick="window.location.href = 'AllList'" />
+    <input type="button" value="護理計畫(護理紀錄)" style="width:160px;" onclick="window.location.href = 'List'" />
+    
+    <div id="module_define" style="margin:5px 0 5px 0;">@(title)</div>
+
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+            <td>
+                依發生時間(區間搜尋)
+                <div id="time_range" style="display:inline-block">
+                        @Html.TextBox("start_date", start_date.ToString("yyyy/MM/dd"))
+                        @Html.TextBox("start_time", start_date.ToString("HH:mm"))
+                        @Html.Label("lab", " ~ ")
+                        @Html.TextBox("end_date", end_date.ToString("yyyy/MM/dd"))
+                        @Html.TextBox("end_time", end_date.ToString("HH:mm"))
+                        @*@WebTool.setDateTime("start_date", "start_time")
+                        @WebTool.setDateTime("end_date", "end_time")*@
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "start_date", "start_time", false)
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "end_date", "end_time", false)
+                    </div>
+                <input type="button" value="查詢" onclick="search_btn('rb_timerange')" />
+
+                <input type="button" value="列印" style="width:80px;" onclick="window.open('@(RootDocument)/Print/GetPDF?HeaderVal=@(Server.UrlEncode("護理計畫單"))&FooterVal=@(Server.UrlEncode("(102_Q4)恩主公醫院BAIA000-040-01"))&url=@(RootDocument)/NurseCarePlan/List_PDF?1=1&filename=test&feeno=@(feeno)&rb_mode=@(rb_mode)&s_day=@(s_day)&s_time=@(s_time)&e_day=@(e_day)&e_time=@(e_time)');" />
+                @*<input type="button" value="瀏覽" style="width:80px;" onclick="window.open('@(RootDocument)/NurseCarePlan/List_PDF?1=1&filename=test&feeno=@(feeno)&rb_mode=@(rb_mode)&s_day=@(s_day)&s_time=@(s_time)&e_day=@(e_day)&e_time=@(s_time)');" />*@
+                <input type="hidden" name="type" id="subtype" value="" />
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:5px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;table-layout:fixed;">
+                        <tr>
+                            <td style="width:15%;">日期時間</td>
+                            <td style="width:59%;">紀錄</td>
+                            <td style="width:10%;">輸入者</td>
+                            <td style="width:16%;"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea">
+                    @if (dt != null)
+                    {
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                            @foreach (DataRow r in dt.Rows)
+                            {
+                                <tr>
+                                    <td style="width:15%;vertical-align:text-top;">
+                                        <div>@Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd HH:mm")</div>
+                                    </td>
+                                    @*<td style="max-width:19%;vertical-align:text-top;">*@
+                                    <td style="width:13%;vertical-align:text-top;">
+                                        @if (r["TITLE"].ToString() != "")
+                                        {
+                                            <div>@r["TITLE"]</div>
+                                        }
+                                    </td>
+                                    <td style="vertical-align:text-top;line-height: 24px;">
+                                        @if (r["C"].ToString() != "" || r["C_OTHER"].ToString() != "")
+                                        {
+                                            <div><span style="width:10px;color:blue;"></span><span style="color:red;">@r["C_OTHER"]</span>&nbsp;@r["C"]</div>
+                                        }
+                                        @if (r["S"].ToString() != "" || r["S_OTHER"].ToString() != "")
+                                        {
+                                            <div><span style="width:10px;color:blue;">S：</span><span style="color:red;">@r["S_OTHER"]</span>&nbsp;@r["S"]</div>
+                                        }
+                                        @if (r["O"].ToString() != "" || r["O_OTHER"].ToString() != "")
+                                        {
+                                            <div><span style="width:10px;color:blue;">O：</span><span style="color:red;">@r["O_OTHER"]</span>&nbsp;@r["O"]</div>
+                                        }
+                                        @if (r["I"].ToString() != "" || r["I_OTHER"].ToString() != "")
+                                        {
+                                            <div><span style="width:10px;color:blue;">I：</span><span style="color:red;">@r["I_OTHER"]</span>&nbsp;@r["I"]</div>
+                                        }
+                                        @if (r["E"].ToString() != "" || r["E_OTHER"].ToString() != "")
+                                        {
+                                            <div><span style="width:10px;color:blue;">E：</span><span style="color:red;">@r["E_OTHER"]</span>&nbsp;@r["E"]</div>
+                                        }
+                                        @if (r["EKG"].ToString() != "")
+                                        {
+
+                                            byte[] imageBytes = (byte[])r["EKG"];
+                                            string base64String = Convert.ToBase64String(imageBytes);
+                                            <img data-name="sourceImage" src="@String.Format("data:image/png;base64,{0}", base64String)" style="display:inline;" height="150px" onclick="ShowImg(this);" />
+                                        }
+                                    </td>
+                                    <td style="width:10%;text-align:center;vertical-align:text-top;">
+                                        <div>@r["username"]</div>
+                                    </td>
+                                    <td style="width:8%;vertical-align:text-top;">
+                                        @if ((r["UPDNO"].ToString() == ViewBag.userno) || (r["CREATNO"].ToString() == ViewBag.userno && r["UPDNO"].ToString() == ""))
+                                        {
+                                            string upd_func = "window.location.href = '../CareRecord/Insert?id=" + r["CARERECORD_ID"].ToString() + r["SELF"].ToString() + "&type=NPlan';";
+                                            <input type="button" value="更改" style="width:60px;" onclick="@upd_func" />
+                                        }
+                                    </td>
+                                    <td style="width:8%;vertical-align:text-top;">
+                                        @if (((r["C_OTHER"] != null && r["C_OTHER"].ToString().Trim() == "") &&
+(r["S_OTHER"] != null && r["S_OTHER"].ToString().Trim() == "") &&
+(r["O_OTHER"] != null && r["O_OTHER"].ToString().Trim() == "") &&
+(r["I_OTHER"] != null && r["I_OTHER"].ToString().Trim() == "") &&
+(r["E_OTHER"] != null && r["E_OTHER"].ToString().Trim() == "") &&
+(r["CREATNO"].ToString() == ViewBag.userno)) || Category == "ND")
+                                        {
+                                            <input type="button" value="刪除" style="width:60px;" data-id="@r["CARERECORD_ID"]" data-self="@r["self"]" onclick="toDelete(this);" />
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </table>
+                    }
+                </div>
+            </td>
+        </tr>
+    </table>
+
+</div>
+
+<div id="block"></div>
+<div id="loading">
+    <label for="lab" style="font-size: 16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>

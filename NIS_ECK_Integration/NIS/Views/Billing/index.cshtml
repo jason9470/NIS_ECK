@@ -1,0 +1,709 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "處置及衛材計價";
+    string StartDate = ViewBag.StartDate;
+    string EndDate = ViewBag.EndDate;
+    string feeno = ViewBag.FeeNo;
+    string RootDocument = ViewBag.RootDocument;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    string set = ViewData["set"].ToString();
+}
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: left;
+        background-color: #d5d5f7 !important;
+        width: 100%;
+        border-radius: 10px !important;
+        font-size: 24px;
+        font-weight: 800;
+        border: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        font-family: Arial, EUDC !important;
+    }
+
+    .funcArea {
+        margin: 0.5rem !important;
+        font-size: 14px !important;
+    }
+    .loading {
+        z-index: 999 !important
+    }
+
+    .fun_btn {
+        font-size: 14px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 4px 4px 3px 3px !important;
+        background-color: gray
+    }
+
+    .dataHeader td {
+        font-weight: bold;
+        background-color: #cfe1eb;
+        text-align: center;
+        vertical-align: middle;
+        height: 20px;
+    }
+
+    .dataHeaderFun td {
+        font-weight: bold;
+        background-color: #dbcfeb;
+        text-align: center;
+        vertical-align: middle;
+        height: 20px;
+    }
+
+    .dataHeaderFun {
+        border-radius: 10px !important;
+    }
+
+    .dataHeader {
+        border-radius: 10px !important;
+    }
+
+    .funcArea table {
+        font-family: Arial, EUDC;
+    }
+
+    .dataArea {
+        border: 0 !important;
+    }
+
+        .dataArea td {
+            border-bottom: 0 !important;
+        }
+    .no-arrow::-webkit-outer-spin-button,
+    .no-arrow::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+</style>
+
+<script type="text/javascript">
+    var tableCount = 0;
+    var basicData;
+    var costcode = '@ui.CostCenterCode';
+
+    var typeSelect = "組套";
+    $(document).ready(function () {
+        loop_windows("open_cover");
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 270);
+
+        }).trigger("resize");
+        getBasicData('組套','','');
+        $("#ptChartNo").click(function () {
+            var text = $("#ptChartNo")
+            text.value = $("#ptChartNo").text();
+            text.select();
+            document.execCommand("copy");
+        })
+        var setID = '@set';
+        var setArrary = [];
+        if (setID != "") {
+            setArrary = setID.split("|");
+        }
+        if (setArrary.length > 0) {
+            for (i = 0; i < setArrary.length; i++) {
+                AddSetByID(setArrary[i]);
+            }
+        }
+        $("#UDI").focus();
+    });
+
+
+    //表格換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', 'rgb(211 237 249)');
+        $('.dataArea tr:even').css('background', 'rgb(231, 238, 245)');
+    }
+
+    //數量計算
+    function count(type, index) {
+        //增加
+        if (type == "plus") {
+            var quantity = parseInt($("#count_" + index).val());
+            quantity += 1;
+            $("#count_" + index).val(quantity);
+        }
+        //減少
+        else {
+            var quantity = parseInt($("#count_" + index).val());
+            if (quantity  >　0) {
+                quantity -= 1;
+                $("#count_" + index).val(quantity);
+            }
+        }
+    }
+   //增加數量
+    function plus(index) {
+        var quantity = parseInt($("#count_" + index).val());
+        quantity += 1;
+        $("#count_" + index).val(quantity);
+        priceCount(index);
+    }
+    //減少數量
+    function less(index) {
+        var quantity = parseInt($("#count_" + index).val());
+        if (quantity > 0) {
+            quantity -= 1;
+            $("#count_" + index).val(quantity);
+            priceCount(index);
+        }
+    }
+    //計算價格
+    function priceCount(index) {
+        var type = $("#type_" + index).val();
+        var price = 0;
+        if (type == "健保") {
+            price = parseInt($("#priceNH_" + index).text());
+
+        }
+        else {
+            price = parseInt($("#price_" + index).text());
+
+        }
+        var count = parseInt($("#count_" + index).val());
+        var sum = price * count;
+        $("#pricesum_" + index).text(sum)
+    }
+    //清空計價清單
+    function DelBill(index) {
+        $("#bill_" + index).remove();
+    }
+    //將組套帶入計價清單
+    function AddSet(index) {
+
+        var id = basicData[index].HO_ID;
+          $.ajax({
+            type: 'POST',
+            cache: false,
+            dataType: 'json',
+            contentType: "application/json",
+            url: '@Url.Content("~/Billing/GetBasicDataSet")',
+            data: JSON.stringify({
+                id: id,
+            }),
+            success: function (data) {
+                AddBill_UDI(data.attachment.list)
+                loop_windows("close_cover");
+            }
+        });
+    }
+    //搜尋組套 透過組套代碼
+        function AddSetByID(ho_id) {
+
+          var id = ho_id;
+          $.ajax({
+            type: 'POST',
+            cache: false,
+            dataType: 'json',
+            contentType: "application/json",
+            url: '@Url.Content("~/Billing/GetBasicDataSet")',
+            data: JSON.stringify({
+                id: id,
+            }),
+            success: function (data) {
+                AddBill_UDI(data.attachment.list)
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    //加入清單(衛材)
+    function AddBill(index) {
+        tableCount += 1;
+        var rowCount = tableCount;
+        var data = basicData[index];
+        var plus = "plus";
+        var less = "less";
+        var costcodelist = $("#costcodelist").html();
+        var dataStr = "<tr id='bill_" + rowCount + "' class='index'  style='background-color: #e8ebeb'>";
+        dataStr += "<td style='display:none;'  colspan='2' style='width:13%;'></td>"
+        dataStr += "<td style='width:62px;min-width:62px;max-width:62px;'><input type='button' class='fun_btn' onclick='DelBill(" + rowCount +");' value='-' style='width: 30px; background-color: #ed6f6f; margin: 0.5rem!important;' /></td>"
+        dataStr += "<td colspan='2' style='width: 62px; min-width: 62px; max-width: 62px;'></td>"
+        dataStr += "<td colspan='2' style='width:14%;' > " + data.HO_ID + "</td>"
+        dataStr += "<td colspan='2' style='width:18%;'>" + data.ITEM_NAME + "</td>"
+        dataStr += "<td colspan='2' style='width:10%;'>" + data.ITEM_TYPE + "</td>"
+        dataStr += "<td colspan='2' style='width:14%;'>"
+        dataStr += "<input type='button' class='fun_btn' onclick='less(" + rowCount +");' value='-' style='width: 25px; background-color: #ed6f6f; margin: 0.3rem!important; ' />";
+        dataStr += "<input id='count_" + rowCount + "' name='count_" + rowCount + "' onchange='priceCount(" + rowCount +")' style='width:23px;text-align:center;border-radius :10px !important;height: 20px;' type='text' value='1'>"
+        dataStr += "<input type='button' class='fun_btn' onclick='plus(" + rowCount +");' value='+' style='width: 25px; background-color:#5ad352; margin: 0.3rem!important; ' />";
+        dataStr += "</td >";
+        dataStr += "<td colspan='2' style='width:10%;'>";
+
+        dataStr += "<select id='type_" + rowCount + "'  style = 'width: 55px; text-align: center; border-radius :10px!important; height: 20px;' onchange='priceCount(" + rowCount +")'>"
+        dataStr += "  <option value='健保' > 健保</option>";
+        dataStr += "  <option value='自費' > 自費</option>";
+        dataStr += "  <option value='吸收' > 吸收</option>";
+
+        dataStr += "</select>"
+        dataStr += "</td>"
+
+
+        dataStr += "<td  id='pricesum_" + rowCount + "' colspan='2' style='width:9%;'>" + data.ITEM_PRICE_NH;
+        dataStr += "</td>";
+        dataStr += "<td style='display:none;'  id='price_" + rowCount + "' colspan='2' style='width:13%;'>" + data.ITEM_PRICE + "</td>"
+        dataStr += "<td style='display:none;'  id='priceNH_" + rowCount + "' colspan='2' style='width:13%;'>" + data.ITEM_PRICE_NH + "</td>"
+        dataStr += "<td id='cost_" + rowCount + "' colspan='2' style='width:10%;'>" + costcodelist + "</td>"
+        dataStr += "<td style='display:none;'  id='NH_CODE_" + rowCount + "' colspan='2' style='width:13%;'>" + data.NH_CODE + "</td>"
+        dataStr += "</tr>"
+
+        $("#billTable").append(dataStr);
+        $('#count_' + rowCount ).focus();
+    }
+
+    //加入清單 (組套)
+    function AddBill_UDI(data) {
+        if (data.length > 0) {
+            for (i = 0; i < data.length; i++) {
+                tableCount += 1;
+                var rowCount = tableCount;
+                var data = data;
+                var plus = "plus";
+                var less = "less";
+                var costcodelist = $("#costcodelist").html();
+                var dataStr = "<tr id='bill_" + rowCount + "' class='index'  style='background-color: #e8ebeb'>";
+                dataStr += "<td style='display:none;'  id='index_" + rowCount + "' colspan='2' style='width:13%;'>" + rowCount + "</td>"
+                dataStr += "<td style='width:62px;min-width:62px;max-width:62px;'><input type='button' class='fun_btn' onclick='DelBill(" + rowCount + ");' value='-' style='width: 30px; background-color: #ed6f6f; margin: 0.5rem!important;' /></td>"
+                dataStr += "<td colspan='2' style='width:10%;'>" + data[i].SET + "</td>"
+                dataStr += "<td colspan='2' style='width:14%;' > " + data[i].HO_ID + "</td>"
+                dataStr += "<td colspan='2' style='width:18%;'>" + data[i].ITEM_NAME + "</td>"
+                dataStr += "<td colspan='2' style='width:10%;'>" + data[i].ITEM_TYPE + "</td>"
+                dataStr += "<td colspan='2' style='width:14%;'>"
+                dataStr += "<input type='button' class='fun_btn' onclick='less(" + rowCount + ");' value='-' style='width: 25px; background-color: #ed6f6f; margin: 0.3rem!important; ' />";
+                dataStr += "<input id='count_" + rowCount + "' name='count_" + rowCount + "' onchange='priceCount(" + rowCount + ")' style='width:23px;text-align:center;border-radius :10px !important;height: 20px;' type='text' value='1'>"
+                dataStr += "<input type='button' class='fun_btn' onclick='plus(" + rowCount + ");' value='+' style='width: 25px; background-color:#5ad352; margin: 0.3rem!important; ' />";
+                dataStr += "</td >";
+                dataStr += "<td colspan='2' style='width:10%;'>";
+
+                dataStr += "<select id='type_" + rowCount + "'  style = 'width: 55px; text-align: center; border-radius :10px!important; height: 20px;' onchange='priceCount(" + rowCount + ")'>"
+                dataStr += "  <option value='健保' " + (data[i].ITEM_IDENTITY === '健保' ? 'selected' : '') + " > 健保</option>";
+                dataStr += "  <option value='自費' " + (data[i].ITEM_IDENTITY === '自費' ? 'selected' : '') + " > 自費</option>";
+                dataStr += "  <option value='吸收' " + (data[i].ITEM_IDENTITY === '吸收' ? 'selected' : '') + " > 吸收</option>";
+                dataStr += "</select>"
+                dataStr += "</td>"
+
+
+                dataStr += "<td  id='pricesum_" + rowCount + "' colspan='2' style='width:9%;'>" + data[i].ITEM_PRICE_NH;
+                dataStr += "</td>";
+                dataStr += "<td style='display:none;'  id='price_" + rowCount + "' colspan='2' style='width:13%;'>" + data[i].ITEM_PRICE + "</td>"
+                dataStr += "<td style='display:none;'  id='priceNH_" + rowCount + "' colspan='2' style='width:13%;'>" + data[i].ITEM_PRICE_NH + "</td>"
+                dataStr += "<td id='cost_" + rowCount + "' colspan='2' style='width:10%;'>" + costcodelist + "</td>"
+                dataStr += "<td style='display:none;'  id='NH_CODE_" + rowCount + "' colspan='2' style='width:13%;'>" + data[i].NH_CODE + "</td>"
+                dataStr += "</tr>"
+                $("#billTable").append(dataStr);
+                $("#count_" + rowCount).val(data[i].COUNT)
+            }
+            $("#UDI").val("");
+            $("#UDI2").val("");
+            $('#count_' + rowCount).focus();
+
+        }
+        else {
+            alert("查無此UDI ! ")
+            $("#UDI").val("");
+            $("#UDI2").val("");
+            $("#UDI").focus();
+        }
+    }
+
+    //加入清單 (UDI Barcode)
+    function AddBill_Barcode(data) {
+        if (data.length > 0) {
+            for (i = 0; i < data.length; i++) {
+                tableCount += 1;
+                var rowCount = tableCount;
+                var data = data;
+                var plus = "plus";
+                var less = "less";
+                var costcodelist = $("#costcodelist").html();
+                var dataStr = "<tr id='bill_" + rowCount + "' class='index'  style='background-color: #e8ebeb'>";
+                dataStr += "<td style='display:none;'  id='index_" + rowCount + "' colspan='2' style='width:13%;'>" + rowCount + "</td>"
+                dataStr += "<td style='width:62px;min-width:62px;max-width:62px;'><input type='button' class='fun_btn' onclick='DelBill(" + rowCount + ");' value='-' style='width: 30px; background-color: #ed6f6f; margin: 0.5rem!important;' /></td>"
+                dataStr += "<td colspan='2' style='width:10%;'></td>"
+                dataStr += "<td colspan='2' style='width:14%;' > " + data[i].HO_ID + "</td>"
+                dataStr += "<td colspan='2' style='width:18%;'>" + data[i].ITEM_NAME + "</td>"
+                dataStr += "<td colspan='2' style='width:10%;'>" + data[i].ITEM_TYPE + "</td>"
+                dataStr += "<td colspan='2' style='width:14%;'>"
+                dataStr += "<input type='button' class='fun_btn' onclick='less(" + rowCount + ");' value='-' style='width: 25px; background-color: #ed6f6f; margin: 0.3rem!important; ' />";
+                dataStr += "<input id='count_" + rowCount + "' name='count_" + rowCount + "' onchange='priceCount(" + rowCount + ")' style='width:23px;text-align:center;border-radius :10px !important;height: 20px;' type='text' value='1'>"
+                dataStr += "<input type='button' class='fun_btn' onclick='plus(" + rowCount + ");' value='+' style='width: 25px; background-color:#5ad352; margin: 0.3rem!important; ' />";
+                dataStr += "</td >";
+                dataStr += "<td colspan='2' style='width:10%;'>";
+
+                dataStr += "<select id='type_" + rowCount + "'  style = 'width: 55px; text-align: center; border-radius :10px!important; height: 20px;' onchange='priceCount(" + rowCount + ")'>"
+                dataStr += "  <option value='健保' " + (data[i].ITEM_IDENTITY === '健保' ? 'selected' : '') + " > 健保</option>";
+                dataStr += "  <option value='自費' " + (data[i].ITEM_IDENTITY === '自費' ? 'selected' : '') + " > 自費</option>";
+                dataStr += "  <option value='吸收' " + (data[i].ITEM_IDENTITY === '吸收' ? 'selected' : '') + " > 吸收</option>";
+                dataStr += "</select>"
+                dataStr += "</td>"
+
+                dataStr += "<td  id='pricesum_" + rowCount + "' colspan='2' style='width:9%;'>" + data[i].ITEM_PRICE_NH + "</td>";
+                dataStr += "<td style='display:none;'  id='price_" + rowCount + "' colspan='2' style='width:13%;'>" + data[i].ITEM_PRICE + "</td>"
+                dataStr += "<td style='display:none;'  id='priceNH_" + rowCount + "' colspan='2' style='width:13%;'>" + data[i].ITEM_PRICE_NH + "</td>"
+                dataStr += "<td id='cost_" + rowCount + "' colspan='2' style='width:10%;'>" + costcodelist + "</td>"
+                dataStr += "<td style='display:none;'  id='NH_CODE_" + rowCount + "' colspan='2' style='width:13%;'>" + data[i].NH_CODE + "</td>"
+                dataStr += "</tr>"
+                $("#billTable").append(dataStr);
+            }
+            $("#UDI").val("");
+            $("#UDI2").val("");
+            $('#count_' + rowCount).focus();
+            $("#UDI").focus();
+
+        }
+        else {
+            alert("查無此UDI ! ")
+            $("#UDI").val("");
+            $("#UDI2").val("");
+            $("#UDI").focus();
+
+        }
+    }
+
+   //取得基本檔清單
+    function getBasicData(type, search, setType) {
+        loop_windows("open_cover");
+        if (type == "") {
+            type = typeSelect;
+        }
+        else {
+            typeSelect = type;
+        }
+        loop_windows("open_cover");
+        if (type == "組套") {
+            $(".setSelect").show();
+            $(".eisaiSelect").hide();
+            $("#set_btn").css("background-color", "#941bd1")
+            $("#eisai_btn").css("background-color", "#c29ccf")
+            $("#basicType").text("組套");
+            if (setType == "1") {
+                $("#order_btn").css("background-color", "#3071b3")
+                $("#nurse_btn").css("background-color", "rgb(118 163 207)")
+            }
+            else if (setType == "2") {
+                $("#order_btn").css("background-color", "rgb(118 163 207)")
+                $("#nurse_btn").css("background-color", "#3071b3")
+            }
+
+        }
+        else {
+            $(".setSelect").hide();
+            $(".eisaiSelect").show();
+            $("#eisai_btn").css("background-color", "#941bd1")
+            $("#set_btn").css("background-color", "#c29ccf")
+            $("#basicType").text("衛材");
+
+            if (setType != "") {
+                $("#cost_btn").css("background-color", "#3071b3")
+                $("#all_btn").css("background-color", "rgb(118 163 207)")
+            }
+            else {
+                $("#all_btn").css("background-color", "#3071b3")
+                $("#cost_btn").css("background-color", "rgb(118 163 207)")
+            }
+        }
+
+         $.ajax({
+            type: 'POST',
+            cache: false,
+            dataType: 'json',
+            contentType: "application/json",
+            url: '@Url.Content("~/Billing/GetBasicData")',
+            data: JSON.stringify({
+                type: type,
+                search: search,
+                setType: setType
+            }),
+            success: function (data) {
+                buildBasic(data.attachment.list, type)
+                loop_windows("close_cover");
+            }
+         });
+
+        $("#search").val("");
+    }
+    //建立衛材及組套清單
+    function buildBasic(data_list, type) {
+        loop_windows("open_cover");
+        $('.basicdata').remove();
+        basicData = data_list;
+        for (i = 0; i < data_list.length; i++) {
+            var data = "<tr style='background-color: #e8ebeb' class='basicdata'>";
+            if (type == "組套") {
+                data += "<td colspan='2' style='width:16%;'><input type='button' class='fun_btn' value='+' style='width: 30px; background-color:#5ad352; margin: 0.5rem!important;' onclick='AddSet(" + i + ")' /></td>";
+            }
+            else {
+                data += "<td colspan='2' style='width:16%;'><input type='button' class='fun_btn' value='+' style='width: 30px; background-color:#5ad352; margin: 0.5rem!important;' onclick='AddBill(" + i + ")' /></td>";
+            }
+            data += "<td colspan='2' style='width:54%;'>" + data_list[i].ITEM_NAME +"</td>";
+            data += "<td colspan='2' style='width:39%;'>" + data_list[i].HO_ID;
+            data += "</td>";
+            data += "</tr>";
+            $("#basicdatatable").append(data);
+        }
+        loop_windows("close_cover");
+    }
+    //存檔
+    function save() {
+        loop_windows("open_cover");
+        var save_obj = [];
+        var rowCount = $('#billTable tr').length;
+        var countSum = 0;
+        var saveCheck = true;
+
+        if (rowCount > 0) {
+            for (i = 0; i < rowCount; i++) {
+
+                var tr = $('#billTable').find('tr').eq(i).attr("id");
+                var trArr = tr.split('_');
+                var index = trArr[1];
+
+                var obj = {
+                    HO_ID: $('#billTable').find('tr').eq(i).children("td:eq(3)").text(),
+                    ITEM_NAME: $('#billTable').find('tr').eq(i).children("td:eq(4)").text(),
+                    ITEM_TYPE: $('#billTable').find('tr').eq(i).children("td:eq(5)").text(),
+                    COUNT: $("#count_" + index).val(),
+                    ITEM_IDENTITY: $("#type_" + index).val(),
+                    ITEM_PRICE: $('#billTable').find('tr').eq(i).children("td:eq(8)").text(),
+                    COSTCODE: $('#billTable').find('tr').eq(i).children("td:eq(11)").find("select").val(),
+                    SELF_PRICE: $("#price_" + index).text(),
+                    NH_PRICE: $("#priceNH_" + index).text(),
+                    SET: $('#billTable').find('tr').eq(i).children("td:eq(2)").text(),
+                    NH_CODE: $("#NH_CODE_" + index).text(),
+                };
+                if (obj.COUNT != "0" && obj.COUNT != "" && obj.COUNT != undefined) {
+                    save_obj.push(obj);
+                    countSum++;
+
+                }
+            }
+              $.ajax({
+                type: 'POST',
+                cache: false,
+                dataType: 'json',
+                contentType: "application/json",
+                async: false,
+                url: '@Url.Content("~/Billing/SaveBilling")',
+                data: JSON.stringify({
+                    data: save_obj,
+                    date: $("#StartDate").val() + " " + $("#StartTime").val(),
+                    CostCenterNo: $("#PTselStation").val()
+                }),
+                success: function (data) {
+                    if (data.status == 0) {
+                        save_obj = [];
+                        countSum = 0;
+                    }
+                    else {
+                        saveCheck = false;
+                    }
+                //    loop_windows("close_cover");
+                }
+            });
+            if (saveCheck) {
+                alert("儲存成功");
+                $("#billTable tr").remove();
+            }
+            else {
+                alert("儲存失敗");
+
+            }
+            loop_windows("close_cover");
+        }
+        else {
+            loop_windows("close_cover");
+            alert("無資料 !")
+
+        }
+    }
+    //透過UDI進行搜尋
+    function addSearch(index) {
+        var search = $("#UDI").val();
+        var type = "衛材"
+        let searchCheck = false;
+
+        if (index == '1') {
+            if (search.length > 16 || search.startsWith("047")) {
+                searchCheck = true;
+            } else {
+                $("#UDI2").focus();
+            }
+        }
+        else if (index == '2') {
+            searchCheck = true;
+            search += $("#UDI2").val();
+        }
+
+        if (searchCheck) {
+             $.ajax({
+                type: 'POST',
+                cache: false,
+                dataType: 'json',
+                contentType: "application/json",
+                url: '@Url.Content("~/Billing/GetBasicDataBarCode")',
+                data: JSON.stringify({
+                    type: type,
+                    search: search
+                }),
+                success: function (data) {
+                    AddBill_Barcode(data.attachment.list)
+                    loop_windows("close_cover");
+
+                }
+            });
+        }
+    }
+</script>
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+            <td colspan="3">
+                <div id="module_define" style="display: flex;">
+                    <label style="margin-left:0.8rem">@title</label>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3">
+                <div style=" margin-top: 0.4rem; background-color: #e2e5e7; width: 30%; min-width: 560px; border-radius: 10px; height: 26px">
+                    <div style="display: flex; margin: 1rem; margin-top: 0.5rem; font-size: 18px; ">
+                        <div>床號 : @pf.BedNo </div>
+                        <div style="margin-left:1rem">病歷號 : <label id="ptChartNo"> @pf.ChartNo</label></div>
+                        <div style="margin-left:1rem">姓名 : @pf.PatientName </div>
+                        <div style="margin-left:1rem">性別 : @pf.PatientGender </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:18px;">
+                        <tr>
+                            <td rowspan="14" style="width: 14%;">計價處置及衛材內容</td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+            <td colspan="2" style="padding:3px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:18px;">
+                        <tr>
+                            <td rowspan="14" style="width: 14%; background-color: #dbcfeb !important">
+                                <label id="basicType"> 組套</label>
+                                <label> 搜尋清單</label>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style=" width:70%">
+                <div style="margin-left:1rem; display:flex">
+                    <label style="font-weight: 800; font-size: 14px; margin-top: 0.2rem;">UDI</label>
+                    @*<input type='text' class="no-arrow" id="UDI" onchange="addSearch('1')" style="width: 130px; text-align: center; border-radius: 10px !important; margin-left: 1rem; height: 20px;" />*@
+                    <input type='text' class="no-arrow" id="UDI2" onchange="addSearch('2')" style="width: 130px; text-align: center; border-radius: 10px !important; margin-left: 1rem; height: 20px;" />
+
+                    <div style="margin-left: 1rem; display: flex; text-align: center; ">
+                        <label style="font-weight: 800; font-size: 14px; margin-top: 0.2rem;">計價日期</label>
+                        @Html.TextBox("StartDate", DateTime.Now.ToString("yyyy/MM/dd"), new { @OnBlur = "", @class = "form-control input-sm", style = "width:80px;display:inline;margin-left:1rem;border-radius: 10px;height: 20px;text-align: center;" })
+                        @Html.TextBox("StartTime", DateTime.Now.ToString("HH:mm"), new { style = "width:30px;display:inline;margin-left:0.1rem;border-radius: 10px;height: 20px;text-align: center;", @readonly = "readonly" })
+
+                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "StartDate", "StartTime", false)
+                        <div>
+                            <div style="margin-left: 1rem; font-weight: 800; font-size: 14px; margin-top: 0.2rem;">
+                                使用單位 : @Html.DropDownList("PTselStation", (List<SelectListItem>)ViewData["PTcostlist"], new { style = "width:150px;text-align:center;border-radius :10px !important;height: 20px;" })
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="dataHeader" style="margin-top:0.5rem">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td colspan="2" style="width: 62px; min-width: 62px; max-width: 62px;"></td>
+                            <td colspan="2" style="width: 10%; ">組套</td>
+                            <td colspan="2" style="width: 14%; ">院內碼</td>
+                            <td colspan="2" style="width: 18%;">名稱</td>
+                            <td colspan="2" style="width: 10%;">類別</td>
+                            <td colspan="2" style="width: 14%;">數量</td>
+                            <td colspan="2" style="width: 10%;">身分</td>
+                            <td colspan="2" style="width: 9%;">費用</td>
+                            <td colspan="2" style="width:150px;min-width:150px;max-width:150px;">扣庫單位</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="margin-top: 0.1rem; font-size: 14px; text-align: center; ">
+                    <table id="billTable" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px;">
+                    </table>
+                </div>
+            </td>
+            <td colspan="1" style="">
+                <div style="display: flex; flex-wrap: wrap">
+                    <div style="margin-left: 0.8rem;margin-top:0.3rem">
+                        <input type="button" id="set_btn" class="fun_btn" value="組套" style="width: 60px; background-color: #c29ccf" onclick="getBasicData('組套','','')" />
+                        <input type="button" id="eisai_btn" class="fun_btn" value="衛材" style="width: 60px; margin-left: 0.5rem; background-color: #c29ccf" onclick="getBasicData('衛材','','')" />
+                        <label style="font-weight: 800;margin-left: 0.5rem;">搜尋</label>
+                        <input type='text' id="search" onchange="getBasicData('', (this.value),'' )" style="width: 100px; text-align: center; border-radius: 10px !important; margin-left: 0.5rem; height: 20px;" />
+                    </div>
+                    <div id="setSelect" class="setSelect" style="width: 95%; margin-top: 0.5rem">
+                        <input type="button" id="order_btn" class="fun_btn" value="醫囑" style="width: 60px; margin-left: 0.8rem; background-color: rgb(118 163 207)" onclick="getBasicData('組套','','1')"/>
+                        <input type="button" id="nurse_btn" class="fun_btn" value="護理" style="width: 60px; margin-left: 0.8rem; background-color: rgb(118 163 207)" onclick="getBasicData('組套','','2')"/>
+                        @*<input type="button" id="save" class="fun_btn" value="共通" style="width: 60px; margin-left: 0.8rem; background-color: #adafb1" onclick="getBasicData('衛材','','')" />
+                        <input type="button" id="save" class="fun_btn" value="單位" style="width: 60px; margin-left: 0.8rem; background-color: #adafb1" onclick="getBasicData('衛材','','@ui.CostCenterCode')" />*@
+                    </div>
+                    <div id="eisaiSelect" class="eisaiSelect" style="width: 95%; margin-top: 0.5rem; display: none">
+                        <input type="button" id="all_btn" class="fun_btn" value="全院" style="width: 60px; margin-left: 0.8rem; background-color: rgb(118 163 207)"onclick="getBasicData('衛材','','')"  />
+                        <input type="button" id="cost_btn" class="fun_btn" value="單位" style="width: 60px; margin-left: 0.8rem; background-color: rgb(118 163 207)" onclick="getBasicData('衛材','','@pf.CostCenterCode')" />
+                        <input type="button" id="save" class="fun_btn" value="單位常用" style="width: 80px; margin-left: 0.8rem; background-color: #adafb1" />
+                    </div>
+                </div>
+
+                <div  class="dataHeaderFun setSelect" style="margin-top: 0.5rem; border-radius: 10px !important; ">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:97%;font-size:14px;">
+                        <tr style="background-color: #dbcfeb; border-radius: 10px !important;">
+                            <td colspan="2" style="width: 16%; "></td>
+                            <td colspan="2" style="width: 54%; ">組套名稱</td>
+                            <td colspan="2" style="width: 39%; ">院內碼</td>
+                        </tr>
+                    </table>
+                </div>
+                <div  class="dataHeaderFun eisaiSelect" style="margin-top: 0.5rem; display: none;  ">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:97%;font-size:14px;">
+                        <tr style="background-color: #dbcfeb; border-radius: 10px !important;">
+                            <td colspan="2" style="width: 16%; "></td>
+                            <td colspan="2" style="width: 54%; ">衛材名稱</td>
+                            <td colspan="2" style="width: 39%; ">院內碼</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="margin-top: 0.1rem; font-size: 14px; text-align: center; ">
+                    <table id="basicdatatable" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 14px;">
+                        <tr id="basicdata" style="background-color: #e8ebeb">
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<div style="display:flex;">
+    <input type="button" id="save" class="fun_btn" value="清空" style="width: 50px; margin-left: 1rem; background-color: #eb6060 " onclick="$('#billTable tr').remove();" />
+    <input type="button" id="save" class="fun_btn" value="儲存" style="width: 50px; margin-left: 1rem; background-color: rgb(123, 192, 67) " onclick="save()" />
+    @*<input type="button" id="save" class="fun_btn" value="取消" style="width: 50px;margin-left:1rem" />*@
+    <input type="button" id="save" class="fun_btn btn-primary" value="計價摘要" style="width: 160px; margin-left: 1rem; background-color: #4b94b7 " onclick="window.location.href = '../BillingSummary/index'" />
+</div>
+<div id="costcodelist" style="display:none">@Html.DropDownList("selStation", (List<SelectListItem>)ViewData["costlist"], new { style = "width:150px;text-align:center;border-radius :10px !important;height: 20px;" })</div>

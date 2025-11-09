@@ -1,0 +1,483 @@
+﻿@using System.Data;
+@using NIS.Models;
+@{
+    string Title = "出院護理摘要";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable DtTube = ViewBag.DtTube;
+    DataTable DtGuide = ViewBag.DtGuide;
+    DataTable Dt_Master = ViewBag.Dt_Master;
+    List<User_Care_Plan_Item> Dt_Goal = (List<User_Care_Plan_Item>)ViewData["Dt_Goal"];
+    List<User_Care_Plan_Item> temp = null;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .popup {
+        width:800px;
+        height:420px;
+        position:absolute;
+        background-color:#EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius:15px 15px 15px 15px;
+        top:50%;
+        left:50%;
+        margin:-200px 0 0 -350px;
+        display:none;
+        z-index:99;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        height: 26px;
+    }
+    #sys_Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1000;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+            #sys_Loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 1001;
+        display: none;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {  
+        setGridColor();
+    });
+
+    function ToggleOther(pCtrl, pSet) {
+        $(pCtrl).prop('disabled', pSet);
+        if (pSet) $(pCtrl).val('');
+    }
+
+    function ToggleView(pCtrl, pView) {
+        if (pView) {
+            $(pCtrl).fadeIn(500);
+            $(pCtrl).css('display', 'inline-block');
+        }
+        else {
+            $(pCtrl).fadeOut(500);
+            $(pCtrl).find("input[type=text]").each(function () {
+                $(this).val('');
+                $(this).prop('disabled', true);
+            })
+            $(pCtrl).find("input[type=radio]").each(function () {
+                $(this).prop('checked', false);
+            })
+        }
+    }
+
+    function BindCareRecordDesc() {
+        var Summary1 = "";
+        var Summary2 = "";
+        
+        switch ($("input[name=RblWay]:checked").val()) {
+            case "AAD":
+                switch ($("input[name=RblAAD]:checked").val()) {
+                    case "病危":
+                        Summary1 = "病人現GCS：E_V_M_生命徵象T:__℃P:__次/分R:__次/分BP:___/___mmHg，因病況危急，依習俗因素自動出院返家，_______要求出院，已協助辦理自動出院等相關事宜。";
+                        break;
+                    case "非病危":
+                        Summary1 = "病人現GCS：E_V_M_生命徵象T:__℃P:__次/分R:__次/分BP:___/___mmHg，因病情尚未痊癒，醫師已就出院後可能發生之病情轉變說明清楚，但家屬仍要求立即出院，已協助辦理自動出院等相關事宜。";
+                        break;
+                    case "轉院":
+                        Summary1 = "病人現GCS：E_V_M_生命徵象T:__℃P:__次/分R:__次/分BP:___/___mmHg，因病情尚未痊癒，醫師已就出院後可能發生之病情轉變說明清楚，但家屬仍要求立即轉院至" + $.trim($('#TxtAADHospital').val()) + "醫院，已協助辦理自動轉院等相關事宜。";
+                        break;
+                }
+                break;
+            case "MBD":
+                Summary1 = "病人現GCS：E_V_M_ 生命徵象穩定，經主治醫師同意出院。"
+                break;
+            case "死亡":
+                Summary1 = "病人於" + $('#txt_day').val() + "__點__分由主治醫師____宣告死亡，已協助家屬辦理臨終護理。";
+                break;
+            case "潛離":
+                Summary1 = "病人於" + $('#HfIpdDate').val() + "因___________住院治療，於__點__分請假，逾假未歸超過4小時，告知主治醫師__________已知，囑依流程辦理潛離。";
+                break;
+            case "轉院至":
+                Summary1 = "病人現GCS：E_V_M_生命徵象T:__℃P:__次/分R:__次/分BP:___/___mmHg，因病情需要(或家屬要求)辦理轉院至" + $.trim($('#TxtHospital').val()) + "醫院，已協助辦理轉院相關事宜。";
+                break;
+        }
+        if ($("input[name=RblWay]:checked").val() != "死亡" && $("input[name=RblWay]:checked").val() != "潛離") {
+            if ($("input[name=CblEduItem]:checked").length > 0) {
+                Summary2 = $('input[name=CblEduItem]:checked').map(function () {
+                    return $(this).val();
+                }).get().join('、');
+            }
+            if ($("input[name=CblEduTube]:checked").length > 0) {
+                Summary2 += (Summary2 != "" ? "、" : "") + $('input[name=CblEduTube]:checked').map(function () {
+                    return $(this).val();
+                }).get().join('管路、') + "管路";
+            }
+            if ($("input[name=item]:checked").length > 0) {
+                Summary2 += (Summary2 != "" ? "、" : "") + $('input[name=item]:checked').map(function () {
+                    return $(this).val();
+                }).get().join('、');
+            }
+            if (Summary2 != "") Summary2 = "給予" + Summary2 + "等指導。";
+            if ($("input[name=CblEduItemOPD]:checked").length > 0) {
+                Summary2 += $('input[name=CblEduItemOPD]:checked').val();
+            }            
+        }
+        $('#TxtSummary').val(Summary1 + Summary2);
+    }
+
+    function add() {
+        if ($("input[name=RblWay]:checked").val() == null || $("input[name=RblWay]:checked").val() == "") {
+            alert('出院方式必須輸入!');
+            return false;
+        } else {
+            @*-----2016/07/05 Vanda AAD不要判斷必填*@
+            if ($("input[name=RblWay]:checked").val() == "AAD") {
+                if ($("input[name=RblAAD]:checked").length == 0) {
+                    alert('AAD項目必須輸入!');
+                    return false;
+                    if ($("input[name=RblAAD]:checked").val() == "轉院") {
+                        if ($("#TxtAADHospital").val() == "") {
+                            alert('AAD轉院醫院必須輸入!');
+                            return false;
+                        }
+                    }
+                }
+                else {
+                    if ($("input[name=RblAAD]:checked").val() == "轉院") {
+                        if ($("#TxtAADHospital").val() == "") {
+                            alert('AAD轉院醫院必須輸入!');
+                            return false;
+                        }
+                    }
+                }
+            }
+            @*-----*@
+        }
+        if ($("input[name=RblWay]:checked").val() != "死亡" && $("input[name=RblWay]:checked").val() != "潛離") {
+            if ($("input[name=RblWay]:checked").val() != "AAD")
+            {
+                if ($("input[name=CblEduItem]:checked").length == 0 && $("input[name=CblEduItemOPD]:checked").length == 0 && $("input[name=CblEduTube]:checked").length == 0 && $("input[name=item]:checked").length == 0) {
+                    alert('指導項目、管路類或其他指導至少勾選一項!');
+                    return false;
+                }
+            }
+            
+            var Cnt = $('#HfPlanCnt').val();
+            if (Cnt != null && Cnt > 0) {
+                if ($("#PnEdu3 input[type=radio]:checked").length != Cnt) {
+                    alert('未評值目標項目皆必須評完!');
+                    return false;
+                }
+            }
+            Cnt = $('#HfGuideCnt').val();
+            if (Cnt != null && Cnt > 0) {
+                if ($("#PnEdu4 input[type=radio]:checked").length != Cnt) {
+                    alert('未評值護理指導皆必須評完!');
+                    return false;
+                }
+            }
+        }
+        if ($("#TxtSummary").val() == "") {
+            alert('摘要內容必須輸入!');
+            return false;
+        }
+        return true;
+    }
+
+    function submit_save() {
+        if (add()) {
+            $("#sys_Block, #sys_Loading").show();
+            $('.funcArea input[type=button]').prop('disabled', true);
+            $('[name=FormDisSummary]').submit();
+        }
+    }
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0 ; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    function ToggleExpired(pVisible) {
+        for (var i = 1; i <= 5; i++) {
+            if (pVisible != null && pVisible)
+                $('#PnEdu' + i.toString()).hide();
+            else
+                $('#PnEdu' + i.toString()).show();
+        }
+    }
+    //組護理紀錄
+    function RecordAdd(title,goal,evaluation,re_id) {
+        
+        $("#"+re_id).val(title+"|"+goal+"|"+evaluation)
+    }
+
+    //彈出div
+    function showPopup(id) {
+        var popup = document.getElementById(id);
+        popup.style.display = 'block';
+    }
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).attr('class') == 'Except') continue;
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+</script>
+@if (ViewBag.DischargedCnt > 0)
+{
+    <script type="text/javascript">
+        location.href = '@Url.Content("~/CareRecord/List")';
+    </script>
+}
+else
+{
+    <form name="FormDisSummary" action="DischargeBulletin" method="post">
+        <div class="funcArea">
+            <input type="hidden" id="HfIpdDate" value="@(ViewBag.IpdDate)" />
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+                <tr>
+                    <td style="padding-bottom:5px;text-align:center;">
+                        <span style="color:blue;font-size:26px;">@(Title)</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:5px 0 5px 0;">
+                        <div class="dataHeader">
+                            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                <tr>
+                                    <td style="width:28%;">項目</td>
+                                    <td style="width:72%;">內容</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="dataArea" style="height:260px;">
+                            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                <tr>
+                                    <td style="width:28%;">出院時間日期</td>
+                                    <td style="width:72%;">
+                                        @Html.TextBox("txt_day", DateTime.Now.ToString("yyyy/MM/dd"), new { @id = "txt_day", style = "width:80px", @readonly = "readonly" })
+                                        @Html.TextBox("txt_time", DateTime.Now.ToString("HH:mm"), new { @id = "txt_time", style = "width:50px", @readonly = "readonly" })
+                                        @*@WebTool.setDateTime("txt_day", "txt_time")*@
+                                        @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="width:28%;">出院方式</td>
+                                    <td style="width:72%;">
+                                        <div style="height:130px;">
+                                            <div><label><input type="radio" name="RblWay" value="MBD" onclick="ToggleView($('#PnAAD'), false); ToggleOther($('#TxtHospital'), true); BindCareRecordDesc();ToggleExpired();" />MBD</label></div>
+                                            <div style="padding-top:5px;">
+                                                <label><input type="radio" name="RblWay" value="AAD" onclick="ToggleView($('#PnAAD'), true); ToggleOther($('#TxtHospital'), true); BindCareRecordDesc();ToggleExpired();" />AAD</label>
+                                                <div id="PnAAD" style="display:none;">
+                                                    <label><input type="radio" name="RblAAD" value="病危" onclick="ToggleOther($('#TxtAADHospital'), true); BindCareRecordDesc();" />病危</label>
+                                                    <label><input type="radio" name="RblAAD" value="非病危" onclick="ToggleOther($('#TxtAADHospital'), true); BindCareRecordDesc();" />非病危</label>
+                                                    <label><input type="radio" name="RblAAD" value="轉院" onclick="ToggleOther($('#TxtAADHospital'), false); BindCareRecordDesc();" />轉院</label>&nbsp;<input type="text" id="TxtAADHospital" name="TxtAADHospital" style="width: 140px;" onchange="BindCareRecordDesc();" disabled="disabled" />&nbsp;醫院
+                                                </div>
+                                            </div>
+                                            <div style="padding-top:5px;"><label><input type="radio" name="RblWay" onclick="ToggleView($('#PnAAD'), false); ToggleOther($('#TxtHospital'), true); BindCareRecordDesc();ToggleExpired(true);" value="死亡" />死亡</label></div>
+                                            <div style="padding-top:5px;"><label><input type="radio" name="RblWay" onclick="ToggleView($('#PnAAD'), false); ToggleOther($('#TxtHospital'), true); BindCareRecordDesc();ToggleExpired(true);" value="潛離" />潛離</label></div>
+                                            <div style="padding-top:5px;"><label><input type="radio" name="RblWay" onclick="ToggleView($('#PnAAD'), false); ToggleOther($('#TxtHospital'), false); BindCareRecordDesc();ToggleExpired();" value="轉院至" />轉院至&nbsp;</label><input type="text" id="TxtHospital" name="TxtHospital" style="width: 140px;" onchange="    BindCareRecordDesc();" disabled="disabled" />&nbsp;醫院</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr id="PnEdu1">
+                                    <td style="width:28%;">指導項目</td>
+                                    <td style="width:72%;">
+                                        <label><input type="checkbox" name="CblEduItemOPD" value="協助預約下次門診時間。" onclick="BindCareRecordDesc();" />預約下次門診</label>
+                                        <label><input type="checkbox" name="CblEduItem" value="飲食指導" onclick="BindCareRecordDesc();" />飲食指導</label>
+                                        <label><input type="checkbox" name="CblEduItem" value="傷口照顧" onclick="BindCareRecordDesc();" />傷口照顧</label>
+                                        <label><input type="checkbox" name="CblEduItem" value="轉介社區護理室" onclick="BindCareRecordDesc();" />轉介社區護理室</label>
+                                        <label><input type="checkbox" name="CblEduItem" value="預防跌倒" onclick="BindCareRecordDesc();" />預防跌倒</label>
+                                        <label><input type="checkbox" name="CblEduItem" value="出院心情評估" onclick="BindCareRecordDesc();" />出院心情評估</label>
+                                    </td>
+                                </tr>
+                                <tr id="PnEdu2">
+                                    <td style="width:28%;">管路類</td>
+                                    <td style="width:72%;">
+                                        @if (DtTube != null && DtTube.Rows.Count > 0)
+                                        {
+                                            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;margin:5px 0 5px 0; border-top: 1px solid rgba(20%,20%,40%,0.5);border-left: 1px solid rgba(20%,20%,40%,0.5);vertical-align:top;">
+                                                @for (int k = 0; k < DtTube.Rows.Count; k += 3)
+                                                {
+                                                    <tr class="Except">
+                                                        <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">
+                                                            @if (k != DtTube.Rows.Count)
+                                                            {
+                                                                <label><input type="checkbox" name="CblEduTube" value="@(DtTube.Rows[k]["TYPE_NAME"].ToString().Trim())" onclick="BindCareRecordDesc();" />@(DtTube.Rows[k]["TYPE_NAME"].ToString().Trim())</label>
+                                                            }
+                                                        </td>
+                                                        <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">
+                                                            @if ((k + 1) < DtTube.Rows.Count)
+                                                            {
+                                                                <label><input type="checkbox" name="CblEduTube" value="@(DtTube.Rows[k + 1]["TYPE_NAME"].ToString().Trim())" onclick="BindCareRecordDesc();" />@(DtTube.Rows[k + 1]["TYPE_NAME"].ToString().Trim())</label>
+                                                            }
+                                                        </td>
+                                                        <td style="border-right: 1px solid rgba(20%,20%,40%,0.5);">
+                                                            @if ((k + 2) < DtTube.Rows.Count)
+                                                            {
+                                                                <label><input type="checkbox" name="CblEduTube" value="@(DtTube.Rows[k + 2]["TYPE_NAME"].ToString().Trim())" onclick="BindCareRecordDesc();" />@(DtTube.Rows[k + 2]["TYPE_NAME"].ToString().Trim())</label>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </table>
+                                        }
+                                    </td>
+                                </tr>
+                                <tr id="PnEdu3">
+                                    <td style="width:28%;">未評值目標項目</td>
+                                    <td style="width:72%;">
+                                    @if (Dt_Master != null && Dt_Master.Rows.Count > 0)
+                                    {
+                                        int j = 0;
+                                        foreach (DataRow r in Dt_Master.Rows)
+                                        {
+                                            if (r["PLANENDDATE"].ToString() == "")
+                                            {
+                                            if (Dt_Goal != null && Dt_Goal.Count > 0)
+                                            {
+                                                temp = Dt_Goal.FindAll(x => (x.M_ID == r["recordid"].ToString()));
+                                                int i = 0;
+                                                <div style="padding-top:5px;color:blue;">
+                                                    @if (temp != null && temp.Count > 0)
+                                                    {
+                                                        @r["topicdesc"]
+                                                        foreach (var item in temp)
+                                                        {
+                                                            if (string.IsNullOrEmpty(item.StopDate))
+                                                            {
+                                                            <input type="hidden" name="HfTargetPK" value="@(r["recordid"].ToString())CPRESULT@(item.G_PK_ID)" />
+                                                            i++;
+                                                            j++;
+                                                            <div style="padding:5px 0 0 2px;color:blue;">
+                                                                @Html.Raw(i.ToString() + ". " + item.Item + "<br />")
+                                                            </div>
+                                                            <div style="padding:5px 0 5px 0;border-bottom: 1px solid rgba(20%,20%,40%,0.5);">
+                                                                <label><input type="radio" name="@(r["recordid"].ToString())CPRESULT@(item.G_PK_ID)" value="Y" onclick="$('#@(r["recordid"].ToString())c_options@(item.G_PK_ID)').hide();RecordAdd('#@r["PNO"]@r["topicdesc"]','@item.Item','已達成','@(r["recordid"].ToString())Record@(item.G_PK_ID)');">已達成</label>
+                                                                <label><input type="radio" name="@(r["recordid"].ToString())CPRESULT@(item.G_PK_ID)" value="N" onclick="$('#@(r["recordid"].ToString())c_options@(item.G_PK_ID)').show();RecordAdd('#@r["PNO"]@r["topicdesc"]','@item.Item','未達成','@(r["recordid"].ToString())Record@(item.G_PK_ID)');">未達成</label>
+                                                                <label><input type="radio" name="@(r["recordid"].ToString())CPRESULT@(item.G_PK_ID)" value="C" onclick="$('#@(r["recordid"].ToString())c_options@(item.G_PK_ID)').hide();RecordAdd('#@r["PNO"]@r["topicdesc"]','@item.Item','不適用','@(r["recordid"].ToString())Record@(item.G_PK_ID)');">不適用</label>
+                                                                <input type="hidden" id="@(r["recordid"].ToString())Record@(item.G_PK_ID)" name="@(r["recordid"].ToString())Record@(item.G_PK_ID)" value="#@(r["PNO"])@(r["topicdesc"])|@(item.Item)|未達成" />
+                                                                  <select id="@(r["recordid"].ToString())c_options@(item.G_PK_ID)" name="@(r["recordid"].ToString())c_options@(item.G_PK_ID)" style="display:none;">
+                                                                    <option value="出院">出院</option>
+                                                                    <option value="轉院">轉院</option>
+                                                                </select>
+                                                            </div>
+                                                            }
+                                                        }
+                                                    }                                                    
+                                                </div>
+                                                }
+                                            }
+                                        }
+                                        <input type="hidden" id="HfPlanCnt" name="HfPlanCnt" value="@j" />
+                                    }
+                                    </td>
+                                </tr>
+                                <tr id="PnEdu4">
+                                    <td style="width:28%;">未評值護理指導</td>
+                                    <td style="width:72%;">
+                                        @if (DtGuide != null && DtGuide.Rows.Count > 0)
+                                        {
+                                            int i = 0;
+                                            foreach (DataRow r in DtGuide.Rows)
+                                            {
+                                                <div style="padding-top:5px;color:blue;">
+                                                    <input type="hidden" name="HfGuidePK_@(i.ToString())" value="@r["EDU_ID"]" />
+                                                    @r["NAME"]
+                                                    <div style="padding:5px 0 5px 0;border-bottom: 1px solid rgba(20%,20%,40%,0.5);">
+                                                        <label><input type="radio" name="RblGuide_@(i.ToString())" value="完全瞭解" />完全瞭解</label>
+                                                        <label><input type="radio" name="RblGuide_@(i.ToString())" value="部份瞭解" />部份瞭解</label>
+                                                        <label><input type="radio" name="RblGuide_@(i.ToString())" value="需再加強" />需再加強</label>
+                                                        @*，原因 @Html.TextBox("TxtGuide_" + i.ToString(), "", new { style = "width:100px;" })*@                                                      
+                                                        <input type="hidden" id="edutxt" name="edutxt_@(i.ToString())" value="追蹤@(Convert.ToDateTime(r["recordtime"]).ToString("yyyy/MM/dd HH:mm"))向病人@(r["object"])所教導@(r["NAME"])，病人@(r["object"])對於衛教內容" />
+                                                    </div>
+                                                </div>
+                                                i += 1;
+                                            }
+                                            <input type="hidden" id="HfGuideCnt" name="HfGuideCnt" value="@DtGuide.Rows.Count" />
+                                        }
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" style="width:100%;">
+                                        <b>摘要內容</b>
+                                        <input type="button" id="PnEdu5" value="帶入其他指導" style="width:100px;" onclick="showPopup('PnGuide');" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" style="width:100%;text-align:center;">
+                                        <textarea id="TxtSummary" name="TxtSummary" style="width:85%;height:100px;"></textarea>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:5px 0 5px 0;text-align:center;">
+                        <div class="funcArea">
+                            <input type="button" value="存檔" style="width:60px;" onclick="submit_save()" />
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </form>
+    <div id="PnGuide" class="popup" style="display:none;overflow-y:auto;overflow-x:hidden;">
+        @{Html.RenderPartial("EduDischargedSummary");}
+    </div>
+}
+    <!--遮罩-->
+<div id="inp" class="dialog"></div>
+<div id="cover" class="dialog"></div>
+<div id="sys_Block"></div>
+<div id="sys_Loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/System/loading.gif" alt="" />
+</div>

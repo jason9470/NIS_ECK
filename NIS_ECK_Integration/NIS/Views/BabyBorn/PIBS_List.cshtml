@@ -1,0 +1,178 @@
+﻿@using System.Data;
+@{
+    ViewBag.Title = "PIBS_List";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable dt = ViewBag.dt;
+    bool IsHisView = ViewBag.IsHisView;
+}
+
+<link href="~/Content/StyleSheet/BabySystem.css" rel="stylesheet" />
+<script>
+    $(function () {
+        setGridColor();
+        //設定高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 360);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function set_row(url) {
+        var ck = $('input[type=checkbox]:checked');
+        if (ck.length == 0)
+            alert('請選擇紀錄!');
+        else if (ck.length > 1)
+            alert("只能選擇一筆!");
+        else {
+            var row = '';
+            for (var i = 0; i < ck.length; i++) {
+                if (ck[i].checked)
+                    row = row + ck[i].value + ',';
+            }
+            if (row != '') {
+                row = row.substring(0, row.length - 1);
+                new_window.push(window.open(url + '?IID=' + row, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=700,height=700'));
+            }
+        }
+    }
+
+    function Delete() {
+        $.ajax({
+            url: '../BabyBorn/Del_PIBS',
+            type: 'post',
+            dataType: 'json',
+            data: $('form').serialize(),
+            success: function (data) {
+                if (Number(data) > 0) {
+                    alert('刪除成功');
+                } else {
+                    alert('刪除失敗');
+                }
+                window.location.href = '../Obstetrics/Index?active=PIBS_List';
+            },
+            failure: function (errMsg) {
+                alert('刪除失敗');
+                window.location.href = '../Obstetrics/Index?active=PIBS_List';
+            }
+        });
+    }
+</script>
+
+@if (IsHisView != true)
+{
+    <div class="funcArea">
+        <input type="button" value="新增" style="width:50px;" onclick="@Java_funcion.pup_window("../BabyBorn/Insert_PIBS", 700,700, "0")" />
+        <input type="button" value="修改" style="width:50px;" onclick="set_row('../BabyBorn/Insert_PIBS');" />
+        <input type="button" value="刪除" style="width:50px;" onclick="if ($('input[type=checkbox]:checked').length > 0) { if (confirm('確認刪除?')) { Delete(); } } else { alert('請選擇紀錄!'); }" />
+    </div>
+}
+<div class="funcArea">
+    <form action="Del_PIBS" method="post">
+        <table border="0" cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed">
+            <tr>
+                <td>
+                    <div class="dataHeader">
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                            <tr>
+                                <td style="width:4%">挑選</td>
+                                <td style="width:10%">評估時間</td>
+                                <td style="width:10%">呼吸暫停時間</td>
+                                <td style="width:10%">心跳次數</td>
+                                <td style="width:10%">SpO<sub>2</sub></td>
+                                <td style="width:28%">原因</td>
+                                <td style="width:28%">恢復呼吸之方法</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="dataArea" style="height:190px;">
+                        @if (dt != null)
+                        {
+                            <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;text-align:center;">
+                                @foreach (DataRow r in dt.Rows)
+                                {
+                                    <tr>
+                                        <td style="width:4%;text-align:center;vertical-align:central">
+                                            <input type="checkbox" name="IID" value="@r["IID"]" />
+                                        </td>
+                                        <td style="width:10%">@Convert.ToDateTime(r["ASMT_TIME"]).ToString("yyyy/MM/dd HH:mm")</td>
+                                        <td style="width:10%">@r["APNEA"] 秒</td>
+                                        <td style="width:10%">@r["HBS"] 次/分</td>
+                                        <td style="width:10%">@r["SPO2"]</td>
+                                        @{
+                                            var reason = new List<string>();
+                                            if (r["REASON"].ToString() != "")
+                                            {
+                                                var data = r["REASON"].ToString();
+                                                if (data[0] == '1')
+                                                {
+                                                    reason.Add("哭泣後憋氣");
+                                                }
+                                                if (data[1] == '1')
+                                                {
+                                                    reason.Add("熟睡");
+                                                }
+                                                if (data[2] == '1')
+                                                {
+                                                    var d = "其他-";
+                                                    if (r["REASON_OTH"].ToString() != "")
+                                                    {
+                                                        d += r["REASON_OTH"].ToString();
+                                                    }
+                                                    reason.Add(d);
+                                                }
+                                            }
+                                            <td style="width:28%;text-align:left">@Html.Raw(String.Join("<br />", reason))</td>
+                                        }
+                                        @{
+                                            var reco = new List<string>();
+                                            if (r["RECO"].ToString() != "")
+                                            {
+                                                var data = r["RECO"].ToString();
+                                                if (data[0] == '1')
+                                                {
+                                                    reco.Add("刺激");
+                                                }
+                                                if (data[1] == '1')
+                                                {
+                                                    reco.Add("氧氣(O2)");
+                                                }
+                                                if (data[2] == '1')
+                                                {
+                                                    reco.Add("正壓換氣(Bag)");
+                                                }
+                                                if (data[3] == '1')
+                                                {
+                                                    reco.Add("自動");
+                                                }
+                                                if (data[4] == '1')
+                                                {
+                                                    var d = "其他-";
+                                                    if (r["RECO_OTH"].ToString() != "")
+                                                    {
+                                                        d += r["RECO_OTH"].ToString();
+                                                    }
+                                                    reco.Add(d);
+                                                }
+                                            }
+                                            <td style="width:28%;text-align:left">@Html.Raw(String.Join("<br />", reco))</td>
+                                        }
+                                    </tr>
+                                }
+                            </table>
+                        }
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>

@@ -1,0 +1,516 @@
+﻿@using System.Data
+@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    List<CostCenterList> costlist = (List<CostCenterList>)ViewData["costlist"];
+    DataTable dt_wound_data = ViewBag.dt_wound_data;
+    string RootDocument = ViewBag.RootDocument;
+    string LoginEmpNo = ViewBag.userno;
+    string feeno = ViewBag.feeno;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    .popup {
+        width: auto;
+        height: auto;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -150px 0 0 -300px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    .link:hover td {
+        cursor: pointer;
+        background-color: #9966FF;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+        $("#dv_del").draggable();
+        LoadWoundRecordPrompt('');
+        setGridColor();
+        @if (!string.IsNullOrWhiteSpace(ViewBag.new_id))
+        {
+        @:new_window.push(window.open('AddWoundRecordPrompt?row=@(ViewBag.new_id)&ModeVal=Insert_Record', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=900,height=600'));
+        }
+        //SetDatePicker($('#txt_reason_ck4_date'));
+        //SetDatePicker($('#txt_reason_ck3'));
+    });
+
+    function SetDatePicker(DateObj) {
+        DateObj.prop('readonly', true).css({ 'width': '80px', 'font-size': '12px' });
+        DateObj.datepicker({
+            beforeShowDay: function (date) {
+                switch (date.getDay()) {
+                    case 6:
+                        return [true, 'satday'];
+                        break;
+                    case 0:
+                        return [true, 'sunday'];
+                        break;
+                    default:
+                        return [true, ''];
+                        break;
+                }
+            },
+            inline: true,
+            showAnim: "slideDown",
+            controlType: myControl,
+            maxDate: 0
+        });
+    }
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    //結案
+    function EndWond() {
+        if ($('input[type=checkbox][name=row]:checked').length > 0) {
+            var IDList = $('input[type=checkbox][name=row]:checked').map(function () { return $(this).attr('woundid'); }).get().join(',');
+            new_window.push(window.open('@Url.Content("~/Wound/SetTraumaStatusPrompt")' + '?IDList=' + IDList, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=900,height=600'));
+        }
+        else
+            alert('請選擇傷口編號!');
+    }
+
+    function LoadWoundRecordPrompt(woundID) {
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/Wound/Partial_Record")',
+            data: { 'wound_id': woundID },
+            success: function (data) {
+                $('#wound_record').empty().html(data);
+            }
+        });
+    }
+    
+    //傷口記錄
+    function SetRowIDToFunc(ModeVal, RowName, UrlVal) {
+        var ck = document.getElementsByName(RowName);
+        var row = '';
+        if (ModeVal == "Insert_Record") {
+            if ($('input[type=checkbox][name=row]:checked').length > 0)
+                row = $('input[type=checkbox][name=' + RowName + ']:checked').map(function () { return $(this).attr('woundid'); }).get().join(',');
+        }
+        else
+            row = RowName;
+
+        if (row != '') {
+            new_window.push(window.open('@Url.Content("~/Wound/")' + UrlVal + '?row=' + row + '&ModeVal=' + ModeVal, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=900,height=600'));
+        }
+        else
+            alert('請選擇傷口編號!');
+    }
+
+    function del(obj) {
+        $('.num').each(function () { $(this).html($(obj).attr('num')); });
+        $('.position').each(function () { $(this).html($(obj).attr('position')); });
+        $('.type').each(function () { $(this).html($(obj).attr('wound_type')); });
+        $('.wound_id').each(function () { $(this).val($(obj).attr('wound_id')); });
+    }
+
+    //紀錄地點
+    function addlocation() {
+        if ($('input[name=place]:checked').val() == '1') {
+            var num = $('#inHosp').val();
+            if (num == '')
+                $('#location').val('');
+            else
+                $('#location').val($.trim($('#inHosp').find('option:selected').text()));
+        }
+        else {
+            var num = $('#outHosp').val();
+            if (num == '0')
+                $('#location').val('');
+            else
+                $('#location').val($.trim(num) + $.trim($('#outHosp_other').val()));
+        }
+        if ($.trim($('#location').val()) != '')
+            if ($('input[name=ck_reason]:checked').length == 0) {
+                alert('請選擇發生原因');                        
+                return false;
+            } else
+            {
+                return true;
+            }
+          
+        else {
+            alert('請選擇/輸入發生地點');
+            return false;
+        }
+    }
+    //原因全不選
+    function ClearCause() {
+        $("#txt_reason_ck_other").val('');
+        $("#txt_sel_reason_ck4_other").val('');
+        $("input[name='ck_reason']").each(function () {
+            $(this).prop("checked", false);//把所有的核方框的property都取消勾選
+        })
+        
+    }
+    //彈出div
+    function showPopup(id) {
+        document.getElementById(id).style.display = 'block';
+    }
+
+    function toPrint() {
+        window.open('@(RootDocument)/Print/GetPDF?url=@(RootDocument)/Wound/Record_List_PDF?LoginEmpNo=@(LoginEmpNo)&feeno=@(feeno)&filename=test');
+    }
+
+    function able(id) {
+        document.getElementById(id).disabled = false;
+        document.getElementById(id).focus();
+    }
+    function enable(id) {
+        document.getElementById(id).disabled = true;
+        document.getElementById(id).value = '';
+    }
+
+    function ckable(obj, txtid) {
+        if (obj.checked)
+        { able(txtid); }
+        else
+        { enable(txtid); }
+    }
+
+    function CheckedReason() {
+        var cbxVehicle = new Array();
+        var reason_content = "";
+        $('input:checkbox:checked[name="ck_reason"]').each(function (i) { cbxVehicle[i] = this.value; });
+        for (var i = 0; i < cbxVehicle.length; i++) 
+        {
+            if (cbxVehicle[i] == "醫療裝置壓迫") 
+            { 
+                if ($('#sel_reason_ck4').val() == '0') {
+                    alert('請選擇發生原因：醫療裝置壓迫');
+                    return false;
+                }
+                else if ($('#sel_reason_ck4').val() == '99') {
+                    if ($.trim($('#txt_sel_reason_ck4_other').val()) == '') {
+                        alert('請輸入發生原因：醫療裝置壓迫：其他');
+                        return false;
+                    }
+                }
+                reason_content = reason_content + cbxVehicle[i] + ':' + $('#txt_reason_ck4_date').val() + ':' + $('#sel_reason_ck4').val()+',';
+                if ($('#txt_sel_reason_ck4_other').val()!=""){
+                    reason_content = reason_content.substring(0, reason_content.length - 1);
+                    reason_content += ':' + $('#txt_sel_reason_ck4_other').val() + ',';
+                    }
+              
+            } else if (cbxVehicle[i] == "其他")
+            {
+                if ($.trim($('#txt_reason_ck_other').val()) == '') {
+                    alert('請輸入發生原因：其他');
+                    return false;
+                }
+                reason_content = reason_content + cbxVehicle[i] + ':' + $('#txt_reason_ck_other').val() + ',';
+            } else if (cbxVehicle[i] == "使用輔具(背架、頸圈、石膏等)")
+            {
+                reason_content = reason_content + cbxVehicle[i] + ':' + $('#txt_reason_ck3').val() + ',';
+            } else  {
+                reason_content = reason_content + cbxVehicle[i] + ',';
+            }
+        }
+
+        if (reason_content != "")
+            $('#reason').val(reason_content.substring(0, reason_content.length - 1));
+        else
+            $('#reason').val(reason_content);
+        return true;
+    }
+</script>
+<div class="funcArea">
+    <div style="padding:2px;text-align:center;">
+        <input type="button" value="新增傷口" style="width:80px;" onclick="@Java_funcion.pup_window("AddTraumaPrompt?num=" + (dt_wound_data.Rows.Count + 1), 900, 450, "0")" />
+        <input type="button" value="傷口紀錄" style="width:80px;" onclick="SetRowIDToFunc('Insert_Record', 'row', 'AddWoundRecordPrompt');" />
+        <input type="button" value="結案" style="width:80px;" onclick="EndWond();" />
+        <input type="button" value="列印" style="width:80px;" onclick="toPrint();" />
+    </div>
+    <table border="0" cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed">
+        <tr>
+            <td style="width:75%;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width:7%;">編號</td>
+                            <td style="width:8%;">發生日期</td>
+                            <td style="width:8%;">傷口種類</td>
+                            <td style="width:10%;">部位</td>
+                            <td style="width:13%;">發生地點</td>
+                            <td style="width:16%;">發生原因</td>
+                            <td style="width:14%;">結束時間</td>
+                            <td style="width:10%;">結束原因</td>
+                            <td style="width:14%;"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:190px;">
+                    @if (dt_wound_data != null)
+                    {
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        @foreach (DataRow r in dt_wound_data.Rows)
+                        {
+                            if (r["DELETED"].ToString() == "")
+                            {
+                        <tr class="link" title="點擊觀看紀錄" onclick="LoadWoundRecordPrompt('@(r["WOUND_ID"])');">
+                            <td style="width:7%;text-align:center;">
+                                <label>
+                                @if (string.IsNullOrWhiteSpace(r["ENDTIME"].ToString()))
+                                {
+                                <input type="checkbox" name="row" value="@r["WOUND_ROW"]" woundid="@r["WOUND_ID"]" style="vertical-align:middle;" />
+                                }
+                                @r["NUM"]</label>
+                            </td>
+                            <td style="width:8%;white-space:nowrap;text-align:center;">
+                                @if (!string.IsNullOrWhiteSpace(r["CREATTIME"].ToString()))
+                                {
+                                <label>@Convert.ToDateTime(r["CREATTIME"]).ToString("yyyy/MM/dd")</label>
+                                }
+                                else
+                                {
+                                <label>不詳</label>
+                                }
+                            </td>
+                            <td style="width:8%;text-align:center;">@r["TYPE"]</td>
+                            <td style="width:10%;text-align:center;">@r["POSITION"]</td>
+                            <td style="width:13%;text-align:center;">@r["LOCATION"]</td>
+                            <td style="width:16%;text-align:center;">@r["REASON"]</td>
+                            <td style="width:14%;text-align:center;">
+                                @if (!string.IsNullOrWhiteSpace(r["ENDTIME"].ToString()))
+                                {
+                                <label>@Convert.ToDateTime(r["ENDTIME"]).ToString("yyyy/MM/dd HH:mm")</label>
+                                }
+                            </td>
+                            <td style="width:10%;">@r["ENDT_REASON"]</td>
+                            <td style="width:7%;text-align:center;">
+                                @if (r["DELETED_BOOL"].ToString() == "T")
+                                {
+                                    <input type="button" num="@r["NUM"]" position="@r["POSITION"]" wound_type="@r["TYPE"]" wound_id="@r["WOUND_ID"]" value="刪除" style="width:40px;" onclick="del(this);showPopup('dv_del');" />
+                                }                             
+                            </td>
+                             <td style="width:7%;text-align:center;">
+                                @if (!string.IsNullOrWhiteSpace(r["TYPE"].ToString()) && (r["TYPE"].ToString() == "壓瘡" || r["TYPE"].ToString() == "壓傷"))
+                                {
+                                <input type="button" num="@r["NUM"]" position="@r["POSITION"]" wound_type="@r["TYPE"]" wound_id="@r["WOUND_ID"]" title="修改發生地點" value="修改" style="width:40px;" onclick="del(this); showPopup('dv_upd');" />
+                                }
+                            </td>
+                        </tr>
+                            }
+                        }
+                    </table>
+                    }
+                </div>
+            </td>
+        </tr>
+    </table>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:12px;">
+            <tr>
+                <td rowspan="2" style="width: 6%; padding: 0px; "></td>
+                <td rowspan="2" style="width: 3%; padding: 0px; ">編號</td>
+                <td rowspan="2" style="width: 7%; padding: 0px; ">紀錄日期</td>
+                <td rowspan="2" style="width: 7%; padding: 0px; ">壓傷<br />分級</td>
+                <td colspan="3" style="width: 12%;padding: 0px; ">範圍</td>
+                <td rowspan="2" style="width: 7%; padding: 0px; ">燙傷範圍</td>
+                <td rowspan="2" style="width: 7%; padding: 0px; ">傷口等級</td>
+                <td rowspan="2" style="width: 8%; padding: 0px; ">外觀</td>
+                <td colspan="4" style="width: 19%; padding: 0px; ">滲出液</td>
+                <td rowspan="2" style="width: 6%; padding: 0px; ">是否有縫線</td>
+                <td rowspan="2" style="width: 9%; padding: 0px; ">處置</td>
+                <td rowspan="2" style="width: 5%; padding: 0px; ">紀錄者</td>
+            </tr>
+            <tr>
+                <td style="width: 4%; padding: 0px;">長</td>
+                <td style="width: 4%; padding: 0px;">寬</td>
+                <td style="width: 4%; padding: 0px;">深</td>
+                <td style="width: 4%; padding: 0px;">量</td>
+                <td style="width: 6%; padding: 0px;">性質</td>
+                <td style="width: 6%; padding: 0px;">性狀</td>
+                <td style="width: 7%; padding: 0px;">顏色</td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea" id="wound_record" style="height:135px;">
+    </div>
+</div>
+<form action="Delete_Wound_Data" method="post">
+    <div id="dv_del" class="popup" style="display:none;">
+        <table border="1" cellpadding="1" cellspacing="0" style="width:100%;background-color: #EEEFFF;border: 1px solid #CC88FF;">
+            <tr>
+                <td style="height:35px;">
+                    編號：<label class="num"></label>
+                </td>
+                <td>
+                    傷口：<label class="position"></label>
+                </td>
+                <td>
+                    種類：<label class="type"></label>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    刪除原因
+                </td>
+                <td colspan="2">
+                    <input type="hidden" name="wound_id" class="wound_id" />
+                    @Html.TextArea("txt_del_reason", "", 10, 50, new { })
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" style="text-align:center">
+                    <div class="funcArea">
+                        <input type="button" value="儲存" onclick="if ($.trim($('#txt_del_reason').val()) != '') { submit(); } else { alert('請輸入原因'); }" />
+                        <input type="button" value="取消" onclick="$('#dv_del').fadeOut(500);" />
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+<form action="Update_Wound_Data" method="post">
+    <div id="dv_upd" class="popup" style="display:none;">
+        <table border="1" cellpadding="1" cellspacing="0" style="width:100%;background-color: #EEEFFF;border: 1px solid #CC88FF;">
+            <tr>
+                <td style="height:35px;">
+                    編號：<label class="num"></label>
+                </td>
+                <td>
+                    傷口：<label class="position"></label>
+                </td>
+                <td>
+                    種類：<label class="type"></label>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    發生地點
+                </td>
+                <td colspan="2">
+                    @Html.RadioButton("place", "1", true, new { id = "place1", onclick = @Java_funcion.show_hide("inHosp", "outHosp") + "" })@*$('#outHosp_other').fadeOut(0);*@
+                    @Html.Label("place1", "院內")
+                    @Html.RadioButton("place", "2", false, new { id = "place2", onclick = @Java_funcion.show_hide("outHosp", "inHosp") + "" })@*$('#outHosp_other').fadeIn(0);*@
+                    @Html.Label("place2", "院外")
+                    <select id="inHosp" name="inHsop">
+                        <option value="">請選擇</option>
+                        @if (costlist != null && costlist.Count > 0)
+                        {
+                            foreach (CostCenterList item in costlist)
+                            {
+                        <option value="@(item.CostCenterCode)">@(item.CCCDescription)</option>
+                            }
+                        }
+                    </select>
+                    <select id="outHosp" size="1" style="display: none;">
+                        <option value="0">請選擇</option>
+                        <option value="家中">家中</option>
+                        <option value="長期養護機構">長期養護機構</option>
+                        <option value="其他醫院">其他醫院</option>
+                        <option value="其他">其他</option>
+                    </select>
+                    @Html.TextBox("outHosp_other", "", new { style = "width:80px;display:none;" })
+                    <input type="hidden" id="location" name="location" value="" />
+                    <input type="hidden" name="wound_id" class="wound_id" />
+                </td>
+            </tr>
+            <tr class="tr_other">
+                            <td rowspan="7">
+                                發生原因
+                            </td>
+                            <td colspan="2">
+                                <label><input type="checkbox" name="ck_reason" id="reason_ck1" value="未確實執行翻身" />未確實執行翻身</label>
+                            </td>
+                        </tr>
+                        <tr class="tr_other">
+                            <td colspan="2">
+                                <label><input type="checkbox" name="ck_reason" id="reason_ck2" value="骨突處反覆摩擦" />骨突處反覆摩擦</label>
+                            </td>
+                        </tr>
+                        <tr class="tr_other">
+                            <td colspan="2">
+                                <label>
+                                    <input type="checkbox" name="ck_reason" id="reason_ck3" value="使用輔具(背架、頸圈、石膏等)" onclick="if (this.checked) { $('#txt_reason_ck3').fadeIn(500); } else { $('#txt_reason_ck3').fadeOut(500); }" />
+                                    使用輔具(背架、頸圈、石膏等)
+                                </label>
+                                @Html.TextBox("txt_reason_ck3", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "display:none;" })
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_reason_ck3", "", false)
+                            </td>
+                        </tr>
+                        <tr class="tr_other">
+                            <td style="width:500px;" colspan="2">
+                                <label>
+                                    <input type="checkbox" name="ck_reason" id="reason_ck4" value="醫療裝置壓迫" onclick="if (this.checked) { $('.reason_ck4').fadeIn(500); } else { $('.reason_ck4').fadeOut(500); }" />
+                                    醫療裝置壓迫
+                                </label>
+                                @Html.TextBox("txt_reason_ck4_date", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "display:none;", @class = "reason_ck4" })
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_reason_ck4_date", "", false)
+                                <select class="reason_ck4" id="sel_reason_ck4" style="display:none;" onchange="if($(this).val()=='99'){able('txt_sel_reason_ck4_other');}else{enable('txt_sel_reason_ck4_other');}">
+                                    <option value="0">請選擇</option>
+                                    <option value="NG-Tube">NG-Tube</option>
+                                    <option value="BiPAP Mask">BiPAP Mask</option>
+                                    <option value="氧氣導管">氧氣導管</option>
+                                    <option value="Endo-Tube">Endo-Tube</option>
+                                    <option value="99">其他</option>
+                                </select>
+                                @Html.TextBox("txt_sel_reason_ck4_other", null, new { style = "width:80px;display:none;", disabled = "disabled", @class = "reason_ck4" })
+                            </td>
+                        </tr>
+                        <tr class="tr_other">
+                            <td colspan="2">
+                                <label><input type="checkbox" name="ck_reason" id="reason_ck5" value="長時間固定姿位" />長時間固定姿位</label>
+                            </td>
+                        </tr>
+                        <tr class="tr_other">
+                            <td colspan="2">
+                                <label><input type="checkbox" name="ck_reason" id="reason_ck6" value="約束" />約束</label>
+                            </td>
+                        </tr>
+                        <tr class="tr_other">
+                            <td colspan="2">
+                                <label></label>
+                                <input type="checkbox" name="ck_reason" id="reason_ck_other" value="其他" onclick="ckable(this, 'txt_reason_ck_other');" />
+                                @Html.Label("reason_ck_other", "其他")
+                                @Html.TextBox("txt_reason_ck_other", null, new { style = "width:80px", disabled = "disabled" })
+                            </td>
+                        </tr>
+            <tr>
+                <td colspan="3" style="text-align:center">
+                    <div class="funcArea">
+                        <input type="hidden" name="reason" id="reason" value="" />
+                        <input type="button" value="儲存" onclick="if (addlocation() && CheckedReason()) { submit(); }" />
+                        <input type="button" value="取消" onclick="$('#dv_upd').fadeOut(500); ClearCause();" />
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+<script type="text/javascript">
+    $(function () {
+        $("#outHosp").change(function () {
+            var t = $('#outHosp').val();
+            if (t == '家中' || t == '0') {
+                $("#outHosp_other").hide();
+            } else {
+                $("#outHosp_other").show();
+            }
+        });
+    });
+</script>

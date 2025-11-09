@@ -1,0 +1,665 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        height: 20px;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+        $(document).ready(function () {
+            mark();
+            mc_score();
+            $(window).resize(function () {
+                var height = $(this).outerHeight();
+                if (height <= 300)
+                    height = 450;
+                $(".dataArea").outerHeight(height - 140);
+            }).trigger("resize");
+
+        });
+        $('#clock_file').change(function () {
+            var file = $('#clock_file')[0].files[0];
+            var reader = new FileReader;
+            reader.onload = function (e) {
+                $('#demo').prop('src', e.target.result);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        $('input[name=cog_ck_result]').click(function () {
+            mc_score();
+        });
+    });
+    function ShowImg(obj, record_id) {
+        window.open("../CFS/ShowIMG?record_id=" + record_id + "", "top_dialog", "menubar=no,status=no,scrollbars=yes,top=0,resizable=yes,left=200,toolbar=no,width=1024,height=768");
+    }
+    function ShowImgDemo() {
+        var src = document.getElementById("demo").src;
+        if (src != "")
+        {
+            var bedno = '@pf.BedNo.ToString()';
+            var feeno = '@pf.FeeNo.ToString()';
+            var ptName = '@pf.PatientName.ToString()'
+            var newwindow = window.open('', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=500,left=200,toolbar=no,width=700,height=auto');
+            $(newwindow.document.body).html("Loading...")
+            var t = document.createElement('img');
+            var newDiv = document.createElement("div");
+            var ptInfo = "床號：" + bedno + "  病歷號：" + feeno + "  姓名：" + ptName + "";
+            var newContent = document.createTextNode(ptInfo);
+            newDiv.appendChild(newContent); //add the text node to the newly created div.
+            $(t).prop('src', src);
+            newDiv.appendChild(t);
+            $(newwindow.document.body).html(newDiv);
+
+            var temp = $("<img>") // Create a new <img>
+                .attr("src", src) // Copy the src attr from the target <img>
+                .load(function () {
+                    var w = 0;
+                    var h = 0;
+                    w = this.width;
+                    h = this.height;
+                    if (w != 0 && h != 0) {
+                        $(t).attr('width', '100%');
+                    }
+                });
+        }
+
+    }
+
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+        $('.due').css('background', '#FF6666');
+    }
+
+    //選擇是否打開其他欄位的textbox
+    function ckable(obj, txtid) {
+        var ck = obj;
+        if (ck.checked)
+        { able(txtid); }
+        else
+        { enable(txtid); }
+    }
+
+    //打開
+    function able(id) {
+        document.getElementById(id).disabled = false;
+    }
+    //關閉
+    function enable(id) {
+        document.getElementById(id).disabled = true;
+    }
+
+    //檢查
+    function check() {
+
+        var cfs_score = parseInt($("#param_total_cfs").val());
+
+        if ($("#param_total_cfs").val() == "") {
+            alert('請選擇 CFS評估 ');
+            return false;
+        }
+        if ($('input[name=cog]:checked').val() != '無法評估' && (cfs_score >= 4 && cfs_score <= 6)) {
+
+            $('input[name=cog_ck_result]:checked').val("");
+            if ($('input[name=rb_clock]:checked').val() == undefined || $('input[name=rb_draw_clock]:checked').val() == undefined) {
+                alert('請填寫 失智評估 ');
+                return false;
+            }
+            if ($('input[name=ck_bicycle]:checked').length == 0 && ($('input[name=ck_bicycle_3]:checked').length == 0)) {
+                alert('請填寫 失智評估 ');
+                return false;
+            }
+
+        }
+        else if ($('input[name=cog]:checked').val() == '無法評估') {
+            if ($('input[name=cog_ck_result]:checked').val() == undefined)
+            {
+                alert('請填寫 無法評估原因 ');
+                return false;
+            }
+
+            else
+            {
+                $('#param_total_score_mc').prop("checked", false);
+                $('input[name=rb_draw_clock]').prop("checked", false);
+                $('input[name=rb_clock]').prop("checked", false);
+                $('#param_total_score_mc').val(" ");
+                $('input[name=rb_draw_clock]').val(" ");
+                $('input[name=rb_clock]').val(" ");
+            }
+
+
+        }
+
+        //var fileInput = document.getElementById("clock_file");
+        //var files = fileInput.files;
+        //if (files != undefined || files != null)
+        //{
+        //    if(files[0].size > 5242880)
+        //    {
+        //        alert('圖片檔案大小需小於5MB ');
+        //        return false;
+        //    }
+        //}
+        return true;
+    }
+
+    //加總
+    function mark() {
+
+        var score = count_score('rb_cfs_score', score);
+        var cfs_score = parseInt(score);
+        if (cfs_score > 6) {
+            $("#cfs_war").text("衰弱期，通知醫療科照會出院準備")
+            $("#cfs_war").css("color", "red");
+            $("#mini_cog").hide();
+            clear_cog();
+            if ($('input[name=cog]:checked').val() == "無法評估") {
+                $('input[name=cog]').click();
+            }
+
+        }
+        else if (cfs_score >= 4 && cfs_score <= 6)
+        {
+            $("#cfs_war").text("衰弱前期，通知醫療科照會各職類")
+            $("#cfs_war").css("color", "red");
+            $("#mini_cog").show();
+        }
+        else {
+            $("#cfs_war").text("無衰弱，鼓勵參與社區健康促進活動")
+            $("#cfs_war").css("color", "black");
+            $("#mini_cog").hide();
+            clear_cog();
+            if ($('input[name=cog]:checked').val() == "無法評估") {
+                $('input[name=cog]').click();
+            }
+
+        }
+        $("#param_total_cfs").val(score);
+    }
+
+    function clear_cog()
+    {
+        $('input[name=ck_bicycle]').prop("checked", false);
+        $('input[name=ck_bicycle_3]').prop("checked", false);
+        $('input[name=rb_draw_clock]').prop("checked", false);
+        $('input[name=rb_clock]').prop("checked", false);
+        $('#param_total_score_mc').val(" ");
+        clearPicture();
+    }
+
+    function clearPicture() {
+        if ($('#clock_file') != '') {
+            var file = document.getElementById("clock_file");
+            file.outerHTML = file.outerHTML
+        }
+        $('#demo').hide();
+        $('#clock_file').on("change", function () {
+            var file = $('#clock_file')[0].files[0];
+            var reader = new FileReader;
+            reader.onload = function (e) {
+                $('#demo').attr('src', e.target.result);
+                $('#demo').show();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    function clearHistory()
+    {
+        var yes = confirm('是否刪除先前照片記錄？');
+        if (yes) {
+            $("#clockBefore").remove();
+            $("#uploadJPG").val('N');
+        }
+    }
+    function mc_score()
+    {
+        if ($('input[name=ck_bicycle]:checked').val() != undefined ) {
+
+            $('input[name=ck_bicycle_3]').prop("checked", false);
+        }
+        var ck = $('input[name=cog_ck_result]:checkbox:checked');
+        var total_score = 0;
+        var red_bicycle = $('input[name=ck_bicycle]:checked').length;
+        var result = $('input[name=ck_bicycle]:checkbox:checked').map(function () {
+            return $(this).val();
+        }).get().join(',');
+        if (result == "" || result == null)
+        {
+            result = "皆無回答";
+        }
+        total_score = total_score + red_bicycle;
+        cog_count(total_score, result);
+    }
+
+    function mc_score_no()
+    {
+        $('input[name=ck_bicycle]').prop("checked", false);
+        var total_score = 0;
+        var red_bicycle = $('input[name=ck_bicycle]:checked').length;
+        total_score = total_score + red_bicycle;
+        cog_count(total_score, "皆無回答");
+    }
+
+    function cog_count(total_score, result)
+    {
+        if ($('input[name=rb_draw_clock]:checked').val() == 0) {
+            total_score = total_score + 1;
+        }
+        if ($('input[name=rb_clock]:checked').val() == 0) {
+            total_score = total_score + 1;
+        }
+        cog_war(total_score);
+        $("#param_total_score_mc").val(total_score);
+        $("#param_total_result_mc").val(result);
+    }
+
+    function cog_war(total_score)
+    {
+        $("#mc_war").text("分數2分以下，提醒醫療科進一步評估")
+        $("#mc_war").css("color", "red");
+    }
+
+    function count_score(id, score) {
+
+        var score = $('input[name=' + id + ']:checked').val();
+        var status = $('input[name=' + id + ']:checked').text();
+        return score
+    }
+    function cog_no() {
+
+        if ($('input[name=cog]:checked').val() == "無法評估")
+        {
+            $("#cog_no").show();
+            $('tr[name="mini_cog_q"]').hide();
+            clear_cog();
+        }
+        else
+        {
+            $("#cog_no").hide();
+            $('tr[name="mini_cog_q"]').show();
+            $('input[name=cog_ck_result]:checkbox:checked').prop("checked", false);
+            $('#span_cog_Y_other').val("");
+            $('.span_cog_Y_other').hide();
+
+        }
+    }
+    function loading_change() {
+        $("#save").prop('disabled', true);
+        loop_windows("open_cover");
+
+        if (check()) {
+            $("#form1").submit();
+        }
+        else
+        {
+            loop_windows("close_cover");
+            $("#save").prop('disabled', false);
+        }
+    }
+    function set_for_ck(ck_name, val)
+    {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = $('input[name='+ck_name+']:checkbox');
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value || (ck_name = "param_allergy_other_other" && ck[j].value.indexOf("麈") > -1))
+                        $(ck[j]).trigger('click');
+                }
+            }
+        }
+    }
+</script>
+@{
+    string action = "CFS_Save", title = "新增 衰弱評估";
+    string id = "", cfs_score = "", mc_score = "", draw_clock = "", clock = "", total_result_mc = "", cog_result = "", cog_result_other  = "";
+    DateTime now = DateTime.Now;
+    DataTable dt = ViewBag.dt;
+    if (dt != null && dt.Rows.Count > 0)
+    {
+        action = "CFS_Save"; title = "更新 衰弱評估";
+        now = Convert.ToDateTime(dt.Rows[0]["ASSESS_DT"]);
+        id = dt.Rows[0]["ASSESS_ID"].ToString();
+        cfs_score = dt.Rows[0]["CFS_SCORE"].ToString();
+        mc_score = dt.Rows[0]["COG_RESULT"].ToString();
+        total_result_mc = dt.Rows[0]["MC_SCORE1"].ToString();
+        draw_clock = dt.Rows[0]["MC_SCORE2"].ToString();
+        clock = dt.Rows[0]["MC_SCORE3"].ToString();
+        cog_result = dt.Rows[0]["COG_RESULT"].ToString();
+        cog_result_other = dt.Rows[0]["COG_RESULT_OTHER"].ToString();
+
+        <script type="text/javascript">
+            $(function () {
+                set_for_rb('rb_cfs_score', '@cfs_score');
+                set_for_rb_mc('draw_clock', '@draw_clock');
+                set_for_rb_mc('clock', '@clock');          
+                set_for_ck_mc('bicycle', '@total_result_mc');   
+                set_for_ck_cog('cog', '@mc_score');
+                set_for_ck('cog_ck_result', '@cog_result');
+                mark();
+                $("#span_cog_Y_other").val(@cog_result_other);
+                
+            });
+
+            function set_for_rb(id, default_val) {
+                var rb = document.getElementsByName('rb_' + id);
+                $("#" + id + "_" + default_val + "").prop('checked', true);
+            }
+
+            function set_for_rb_mc(id, default_val) {
+                var rb = document.getElementsByName('rb_' + id);
+                if (default_val == "0") {
+                    $("#rb_" + id + "_0").prop('checked', true);
+                }
+                else {
+                    $("#rb_" + id + "_1").prop('checked', true);
+                }
+            }
+            function set_for_ck_cog(id, default_val)
+            {
+                if(default_val != '')
+                {
+                    $("#cog").prop('checked', true);
+                    cog_no();
+                }
+       
+            }
+
+            function set_for_ck_mc(id, default_val) {
+                var ck = document.getElementsByName('ck_' + id);
+                var arr = default_val.split(',');
+                if (arr != null || arr != "") {
+                    for (i = 0 ; i < arr.length; i++) {
+                        if (arr[i] == "紅色") {
+                            $("#ck_" + id + "_0").prop('checked', true);
+                            mc_score();
+                        }
+                        else if (arr[i] == "快樂") {
+                            $("#ck_" + id + "_1").prop('checked', true);
+                            mc_score();
+                        }
+                        else if (arr[i] == "腳踏車") {
+                            $("#ck_" + id + "_2").prop('checked', true);
+                            mc_score();
+                        }
+                        else if (arr[i] == "無法評估") {
+                            $("#ck_" + id + "_3").prop('checked', true);
+                            mc_score_no();
+                        }
+                        else {
+                            $("#ck_" + id + "_3").prop('checked', true);
+                        }
+                    }
+                }
+                else
+                {
+                    $("#ck_" + id + "_3").prop('checked', true);
+                }       
+            }
+        </script>
+    }
+}
+<form id="form1" action="@action" enctype="multipart/form-data" method="post">
+    <input type="hidden" id="id" name="id" value="@id" />
+    <input type="hidden" id="carerecord" name="carerecord" />
+    <input type="hidden" id="uploadJPG" name="uploadJPG" value="" />
+
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+            <td style="width:100%;text-align:center;">
+                <div id="module_define">@title</div>
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align:center;">
+                <div class="funcArea">
+                    <input type="button" id="save" value="存檔" style="width:50px;" onclick="loading_change()" />
+                    <input type="button" value="取消" style="width:50px;" onclick="if (confirm('確定取消?')) window.location.href = 'index'" />
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="dataHeader" style="margin-right:0px;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width:25%;text-align:left;" colspan="6">
+                                日期時間：
+                                @Html.TextBox("txt_day", now.ToString("yyyy/MM/dd"), new { style = "width:80px;", @readonly = "readonly" })
+                                @Html.TextBox("txt_time", now.ToString("HH:mm"), new { style = "width:50px;", @readonly = "readonly" })
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height: 350px; overflow: overlay;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;" height="45">
+                        <tr>
+                            <th style="text-align:left; width:8%;">
+                                <input type="hidden" id="hid_assessment_reason" name="hid_assessment_reason" />
+                                <a style="text-decoration: none; color: black;font-size:16px;" href="javascript:void(0);" class="tooltip"
+                                   title="">
+                                    CFS衰弱評估
+                                </a>
+                            </th>
+                        </tr>
+                    </table>
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:15px;">
+                        <thead style="background-color:#D9D9D9">
+                            <tr>
+                                <th style="width:10%;font-size:15px;"></th>
+                                <th style="width:20%;font-size:15px;">健康狀態</th>
+                                <th style="width:60%;font-size:15px;">定義</th>
+                                <th style="width:10%;font-size:15px;">分數</th>
+                            </tr>
+                        </thead>
+                        <tr height="40">
+                            <td style="text-align:center;">
+                                @Html.RadioButton("rb_cfs_score", "1", false, new { id = "rb_cfs_score_1", text = "健康非常", onclick = "mark();" })
+
+                            </td>
+                            <td><label for="rb_cfs_score_1">非常健康</label></td>
+                
+                            <td>健壯，覺得比同年齡層健康</td>
+                            <td style="text-align:center;">1分</td>
+                        </tr>
+                        <tr height="40">
+                            <td style="text-align:center;">
+                                @Html.RadioButton("rb_cfs_score", "2", false, new { id = "rb_cfs_score_2", text = "健康", onclick = "mark();" })
+                            <td><label for="rb_cfs_score_2">健康</label></td>
+                            <td>無明顯疾病症狀，但不比同等級的人健康</td>
+                            <td style="text-align:center;">2分</td>
+                        </tr>
+                        <tr height="40">
+                            <td style="text-align:center;">
+                                @Html.RadioButton("rb_cfs_score", "3", false, new { id = "rb_cfs_score_3", text = "維持良好", onclick = "mark();" })
+                            <td><label for="rb_cfs_score_3">維持良好</label></td>
+                            <td>可規律行走，患有慢性病但控制良好</td>
+                            <td style="text-align:center;">3分</td>
+                        </tr>
+                        <tr height="40">
+                            <td style="text-align:center;">@Html.RadioButton("rb_cfs_score", "4", false, new { id = "rb_cfs_score_4", text = "脆弱較易受傷害", onclick = "mark();" })</td>
+                            <td><label for="rb_cfs_score_4">脆弱較易受傷害</label></td>
+                            <td>日常生活不需依賴他人，主訴行動緩慢或白天時覺得疲倦</td>
+                            <td style="text-align:center;">4分</td>
+                        </tr>
+                        <tr height="40">
+                            <td style="text-align:center;">@Html.RadioButton("rb_cfs_score", "5", false, new { id = "rb_cfs_score_5", text = "輕度衰弱", onclick = "mark();" })</td>               
+                            <td><label for="rb_cfs_score_5">輕度衰弱</label></td>
+                            <td>工具性日常生活(理財、搭交通工具、服藥、重型家務)需要幫助，行動明顯緩慢</td>
+                            <td style="text-align:center;">5分</td>
+                        </tr>
+                        <tr height="40">
+                            <td style="text-align:center;">@Html.RadioButton("rb_cfs_score", "6", false, new { id = "rb_cfs_score_6", text = "中度衰弱", onclick = "mark();" })</td>
+                            <td><label for="rb_cfs_score_6">中度衰弱</label></td>
+                            <td>所有室外活動和家務需要他人協助，上下樓梯及洗澡需要幫助</td>
+                            <td style="text-align:center;">6分</td>
+                        </tr>
+                        <tr height="40">
+                            <td style="text-align:center;">@Html.RadioButton("rb_cfs_score", "7", false, new { id = "rb_cfs_score_7", text = "嚴重衰弱", onclick = "mark();" })</td>
+                            <td><label for="rb_cfs_score_7">嚴重衰弱</label></td>
+                            <td>無論導因而生活完全無法自理，但身體狀況6個月內相對穩定無死亡風險</td>
+                            <td style="text-align:center;">7分</td>
+                        </tr>
+                        <tr height="40">
+                            <td style="text-align:center;">@Html.RadioButton("rb_cfs_score", "8", false, new { id = "rb_cfs_score_8", text = "非常嚴重衰弱", onclick = "mark();" })</td>
+                            <td><label for="rb_cfs_score_8">非常嚴重衰弱</label></td>
+                            <td>生活完全無法自理，接近生命終點</td>
+                            <td style="text-align:center;">8分</td>
+                        </tr>
+                        <tr height="40">
+                            <td style="text-align:center;">@Html.RadioButton("rb_cfs_score", "9", false, new { id = "rb_cfs_score_9", text = "末期", onclick = "mark();" })</td>
+                            <td><label for="rb_cfs_score_9">末期</label></td>
+                            <td>接近生命終點，預期壽命少於6個月</td>
+                            <td style="text-align:center;">9分</td>
+                        </tr>
+                        <tr height="40">
+                            <td style="padding-left: 35px;">分數</td>
+                            <td colspan="3">
+                                @Html.TextBox("param_total_score", "", new { style = "width:100px", id = "param_total_cfs", @readonly = "readonly" })
+                            <label id="cfs_war"></label>
+                        </td>
+                    </tr>
+                    <tr height="40"></tr>
+                </table>
+                <div id ="mini_cog" style ="display:none">
+                 <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:15px;">
+
+                        <tr height="40px">
+                            <td colspan="4" style="font-size:16px;font-weight:bold;">
+                                Mini-Cog失智評估
+                                <input type="checkbox" name="cog" id="cog" value="無法評估" onclick="cog_no();" />
+                                <label for="cog">無法評估</label>
+
+                            </td>
+                        </tr>
+                        <tr id="cog_no" style="padding-left: 35px; display:none">
+                            <td colspan="4" class="padding-left: 35px">
+                                @VitalSign_Helper.assess_checkbox("cog_ck_result", "畫不出|惡病質|病況不宜|多處骨折|躁動無法配合|不識字|其他", "其他", "span_cog_Y_other")
+                                <span class="span_cog_Y_other" style="display:none;">
+                                    <br> <br>@Html.TextArea("span_cog_Y_other", "", new { style = "width:600px;height:300px;" })
+                                </span>
+                            </td>
+                        </tr>
+
+                        <tr height="40" name="mini_cog_q">
+                            <td colspan="4" style="padding-left: 35px;">
+                                病人可依引導於畫鐘後，正確覆誦"紅色、快樂、腳踏車"
+                                <input type="checkbox" name="ck_bicycle" id="ck_bicycle_0" value="紅色" onclick="mc_score();" />
+                                <label for="ck_bicycle_0">紅色</label>
+
+                                <input type="checkbox" name="ck_bicycle" id="ck_bicycle_1" value="快樂" onclick="mc_score();" />
+                                <label for="ck_bicycle_1">快樂</label>
+
+                                <input type="checkbox" name="ck_bicycle" id="ck_bicycle_2" value="腳踏車" onclick="mc_score();" />
+                                <label for="ck_bicycle_2">腳踏車</label>
+
+                                <input type="checkbox" name="ck_bicycle_3" id="ck_bicycle_3" value="" onclick="mc_score_no();" />
+                                <label for="ck_bicycle_3">皆無回答</label>
+
+                            </td>
+
+                        </tr>
+                        <tr height="40" name="mini_cog_q">
+                            <td colspan="4" style="padding-left: 35px;">
+                                病人可自行完成畫鐘數字及順序正確
+
+                                @Html.RadioButton("rb_draw_clock", "0", false, new { id = "rb_draw_clock_0", text = "是", onclick = "mc_score();" })
+                                @Html.Label("rb_draw_clock_0", "是", new { @class = "tooltip2", title = "是" })
+                                @Html.RadioButton("rb_draw_clock", "1", false, new { id = "rb_draw_clock_1", text = "否", onclick = "mc_score();" })
+                                @Html.Label("rb_draw_clock_1", "否", new { @class = "tooltip2", title = "否" })
+                            </td>
+                        </tr>
+                        <tr height="40" name="mini_cog_q">
+                            <td colspan="4" style="padding-left: 35px;">
+                                病人可於畫鐘上畫上指針正確指向 11:10
+
+                                @Html.RadioButton("rb_clock", "0", false, new { id = "rb_clock_0", text = "是", onclick = "mc_score();" })
+                                @Html.Label("rb_clock_0", "是", new { @class = "tooltip2", title = "是" })
+                                @Html.RadioButton("rb_clock", "1", false, new { id = "rb_clock_1", text = "否", onclick = "mc_score();" })
+                                @Html.Label("rb_clock_1", "否", new { @class = "tooltip2", title = "否" })
+                            </td>
+                        </tr>
+                        <tr height="40" name="mini_cog_q">
+                            <td colspan="4" style="padding-left: 35px;">總分
+                                @Html.TextBox("param_total_score_mc", "", new { style = " width:100px", id = "param_total_score_mc", @readonly = "readonly" })
+                                @Html.TextBox("param_total_result_mc", "", new { style = "display:none", id = "param_total_result_mc", @readonly = "readonly" })
+                            <label id="mc_war"></label>
+                            </td>
+                    </tr>
+                    <tr height="60" name="mini_cog_q">
+                        <td colspan="4" style="padding-left: 35px;">
+                            <label style="display:inline"><img src="@Url.Content("~/Images/Function/func_data.png")" style="width:15px;height:15px;cursor:pointer;"/> 照片上傳:</label>
+                            <div id="uploadFile" style="display:inline">
+                                <input type="file" name="clock_file" accept=".jpg,.png" id="clock_file" />
+                            </div>
+                            <br>  
+                            <br>
+                            <div style="display:inline;vertical-align: top;padding-left: 35px; ">
+                                <label>照片上傳預覽 : </label>
+                            </div>
+                            <div style="display:inline"  onclick="ShowImgDemo();">
+                                <img id="demo" style="width:100px;height:100px;cursor:pointer;" />
+                            </div>     
+                            @if (dt != null && dt.Rows.Count > 0)
+                            {
+                                if (!string.IsNullOrWhiteSpace(dt.Rows[0]["CLOCK_FILE"].ToString()))
+                                {
+                                    byte[] imageBytes = (byte[])dt.Rows[0]["CLOCK_FILE"];
+                                    string base64String = Convert.ToBase64String(imageBytes);
+                                    <div id="clockBefore" style="display:inline;">
+                                        <div style="display:inline;padding-left: 35px;vertical-align: top;">
+                                            <label>先前照片紀錄 : </label>
+                                        </div>
+                                        <div style="display:inline">
+                                            <img id="clock_pic" src="@String.Format("data:image/png;base64,{0}", base64String)" style="width:100px;height:100px;cursor:pointer;" onclick="ShowImg(this,'@(dt.Rows[0]["ASSESS_ID"])');" />
+                                            <img src="@Url.Content("~/Images/Close.png")" title="移除照片" style="width:20px;height:20px;cursor:pointer;" onclick="clearHistory()"/>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </td>
+                    </tr>
+                </table>
+                 </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</form>

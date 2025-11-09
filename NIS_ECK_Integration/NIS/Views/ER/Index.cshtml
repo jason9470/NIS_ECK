@@ -1,0 +1,256 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+<style type="text/css">
+    #Detection_Content, #CareRecord_Content {
+        width: 99%;
+        height: 100%;
+        overflow-x:hidden;
+        overflow-y:hidden;
+    }
+    #Detection_Info, #CareRecord_Info {
+        display:none;
+        width: 900px;
+        height: 650px;
+        max-height:95%;
+        background-color:#EBE9DE;
+        border: 1px solid #666;
+        z-index: 98;
+    }
+    #sys_Block {
+    position: fixed;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    z-index: 1;
+    background-color: #666;
+    /* other browsers */
+    opacity: 0.65;
+    /* this works in IE6, IE7, and IE8 */
+    filter: alpha(opacity=65);
+    /* this works in IE8 only */
+    display: none;
+    }
+    #sys_Loading {
+    position: fixed;
+    text-align: center;
+    left: 50%;
+    top: 50%;
+    height: 50px;
+    width: 200px;
+    margin-top: -25px;
+    margin-left: -100px;
+    _position: absolute;
+    color: #040FD9;
+    font-weight: bold;
+    z-index: 98;
+    display: none;
+    }
+    .conn {
+        cursor: pointer;
+    }
+    </style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        load_page('PatientList');
+    });
+    function setGridColor() {
+        //格行換色
+        $('#mainContent tr:odd').css('background', '#ABC8E2');
+        $('#mainContent tr:even').css('background', '#E1E6FA');
+    }
+
+    function clickme()
+    {
+        window.parent.readMqList();
+    }
+
+    function set_patient(feeno) {
+        $('#sys_Block, #sys_Loading').show();
+        $('#feeno').val(feeno);
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/Main/SetPatient")',
+            cache: false,
+            data: {
+                fee_no: feeno
+            },
+            success: function (result) {
+                $.ajax({
+                    url: "../Main/GetPatInfo",
+                    success: function (data) {
+                        $("#patinfo", window.parent.document).html(data);
+                        window.parent.PatinfoTooltip();
+                        clickme();
+                        window.parent.hasPat = "Y";
+                        if (!$('#Detection_Info:visible').length)
+                            $('#sys_Block, #sys_Loading').hide();
+                    }
+                });
+            }
+        });
+    }
+
+    function show_content(feeno) {
+        $("#sys_Block, #sys_Loading").show();
+        $("#sys_Loading").hide();
+        $("#Detection_Info").center().show();
+        $.ajax({
+            type: "POST",
+            url: 'Get_Detection_Result',
+            cache: false,
+            data: {
+                feeno: feeno
+            },
+            success: function (reslut) {
+                $("#Detection_Content").html(reslut);
+            }
+        });
+    }
+    function get_content(feeno,fun) {
+        $("#sys_Block, #sys_Loading").show();
+        $("#sys_Loading").hide();
+        $("#Detection_Info").center().show();
+        var url;
+        if (fun == "C") {
+            url = "Get_ERConsultation"
+        }
+        if (fun == "T") {
+            url = "Get_TextOrderRecord"
+        }
+        $.ajax({
+            type: "POST",
+            url: url,
+            cache: false,
+            data: {
+                feeno: feeno
+            },
+            success: function (reslut) {
+                $("#Detection_Content").html(reslut);
+            }
+        });
+    }
+    function chang_function(feeno, url) {
+        if (feeno == "") {
+            showHint('請先選擇病人');
+            return false;
+        }
+        $('#sys_Block, #sys_Loading').show();
+        $.ajax({
+            type: "Post",
+            url: '@Url.Content("~/Main/SetPatient")',
+            cache: false,
+            data: {
+                fee_no: feeno
+            },
+            success: function (result) {
+                $('#feeno').val(feeno);
+                $.ajax({
+                    url: "../Main/GetPatInfo",
+                    success: function (data) {
+                        $("#patinfo", window.parent.document).html(data);
+                        window.parent.PatinfoTooltip();
+                        clickme();
+                        window.parent.hasPat = "Y";
+                        if (url == "Lab")
+                        {
+                            window.open('@Url.Content("~/CareRecord/LabButton?HasBtn=N")', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,resizable=yes,toolbar=no,width=600,height=400');
+                        }
+                        else if (url == "Exam")
+                        {
+                            window.open('@Url.Content("~/CareRecord/ExamButton")', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=600,height=400');
+                        }
+                        else
+                        {
+                            window.location.href = url;
+                        }
+                        $('#sys_Block, #sys_Loading').hide();
+                    }
+                });
+            }
+        });
+
+    }
+    function load_page(page) {
+        if ($('#feeno').val() == "" && page == "TransferOut")
+        {
+            showHint('請先選擇病人');
+            return false;
+        }
+
+        $('#sys_Block, #sys_Loading').show();
+        $.ajax({
+            type: "Get",
+            url: page,
+            cache: false,
+            data: {
+
+            },
+            success: function (reslut) {
+                $("#mainContent").html(reslut);
+                clickme();
+                $('#sys_Block, #sys_Loading').hide();
+            },
+            Complete: function () {
+
+            }
+        });
+
+
+    }
+
+    function setDateTime(id) {
+        $(id).attr('readonly', 'readonly');
+        $(id).datetimepicker({
+            showTimepicker: false,
+            beforeShowDay: function (date) {
+                switch (date.getDay()) {
+                    case 6:
+                        return [true, 'satday'];
+                        break;
+                    case 0:
+                        return [true, 'sunday'];
+                        break;
+                    default:
+                        return [true, ''];
+                        break;
+                }
+            },
+            maxDateTime: 0
+        });
+    }
+</script>
+<input type="hidden" id="feeno" value="@(ViewBag.feeno)" />
+<span class="funcArea">
+    <input type="button" value="急診清單" onclick="load_page('PatientList');" />
+    <input type="button" value="急診入院護理評估" onclick="chang_function($('#feeno').val(), '@Url.Content("~/AdmissionAssessment/AssessmentList?natype=ER")')" />
+    <input type="button" value="急診轉出摘要" onclick="load_page('TransferOut');" />
+</span>
+<div id="mainContent" style="height:450px;overflow-y:auto;">
+    
+</div>
+
+
+<div id="Detection_Info">
+    <span style="position: inherit;right: -16px;top: -16px;cursor: pointer;">
+        <img src="~/Images/Close.png" alt="close" onclick="$('#Detection_Info, #sys_Block').hide()" />
+    </span>
+    <div id="Detection_Content" style="MARGIN-TOP: 15px;TEXT-ALIGN: center;height:450px;overflow-y:auto;">
+        
+    </div>
+</div>
+<div id="CareRecord_Info">
+    <span style="position: inherit;right: -16px;top: -16px;cursor: pointer;">
+        <img src="~/Images/Close.png" alt="close" onclick="$('#CareRecord_Info, #sys_Block').hide()" />
+    </span>
+    <div id="CareRecord_Content" style="MARGIN-TOP: 15px;TEXT-ALIGN: center;height:450px;overflow-y:auto;">
+
+    </div>
+</div>
+<div id="sys_Block"></div>
+<div id="sys_Loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/System/loading.gif" alt="" />
+</div>

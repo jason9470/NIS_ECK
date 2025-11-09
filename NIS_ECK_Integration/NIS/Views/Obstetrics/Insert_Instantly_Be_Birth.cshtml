@@ -1,0 +1,849 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string identity = ViewBag.identity;
+
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    bool IsDischarged = false;
+    if (Convert.ToDateTime(pf.OutDate).ToString("yyyy").ToString() != "0001" && pf.OutDate < DateTime.Now)
+    {
+        IsDischarged = true;
+    }
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        height: 26px;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        var identity = '@identity';
+        if (identity != "") {
+            $("input[name='RB_IDENTITY'][value='" + identity +"']").prop('checked', true);
+        }
+    });
+
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        if (obj.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(obj.value) && obj.value != "") {
+            $(obj).val('');
+            alert("只能輸入數字");
+        }
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue != 'undefined') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+            }
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = document.getElementsByName(ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+    function get_employee_name(obj, name) {
+        var userno = $(obj).attr('id')
+        $.ajax({
+            url: "Get_Employee_Name",
+            type: "GET",
+            data: { userno: document.getElementById(userno).value },
+            success: function (data, textStatus, jqXHR) {
+                var userNameId = userno.replace("TXT_" + name, "LB_" + name);
+                if (data == "") {
+                    alert("查無此執行者員工編號!");
+                    $("#" + userNameId).html('請輸入員工編號');
+                }
+                else {
+                    $("#" + userNameId).html(data);
+                }
+            },
+            error: function (err) {
+            },
+            dataType: 'text'
+        });
+    }
+
+    function set_row(url, iid) {
+        var ck = $('input[name=del_ID]:checked');
+        if (ck.length == 0)
+            alert('請選擇藥物調配紀錄!');
+        else if (ck.length > 1)
+            alert("只能選擇一筆!");
+        else {
+            var row = '';
+            for (var i = 0; i < ck.length; i++) {
+                if (ck[i].checked)
+                    row = row + ck[i].value + ',';
+            }
+            if (row != '') {
+                row = row.substring(0, row.length - 1);
+                new_window.push(window.open(url + '?IID=' + iid + '&SNOM=' + row, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=900,height=700'));
+            }
+        }
+    }
+
+    function check() {
+        var ok = false;
+        var input_list = $('input');
+        for (var j = 0; j < input_list.length; j++) {
+            if (input_list[j].type != "button" && input_list[j].name.indexOf("TXT_CREATNO") < 0 && input_list[j].name.indexOf("TXT_RECORDTIME_DAY") < 0 && input_list[j].name.indexOf("TXT_RECORDTIME_TIME") < 0) {
+                if (input_list[j].type == 'text' || input_list[j].type == 'textarea') {
+                    var input_val = $.trim(input_list[j].value);
+                    if (input_val != '' && input_val != undefined) {
+                        ok = true;
+                        break;
+                    }
+                }
+                else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                    var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+                    if (input_val != '' && input_val != undefined) {
+                        ok = true;
+                        break;
+                    }
+                }
+            }
+        }
+        return ok;
+    }
+    function save(formId)
+    {
+        var setStr = "SET0410112711";
+        var checkBill = $('input[name=RB_UC_E]:checked').val();
+
+        var checkID = $('input[name="RB_IDENTITY"]:checked').val();
+        if (!checkID) {
+            alert("請選擇身份");
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/Obstetrics/")' + $(formId).attr("action"),
+            data: $(formId).serialize(),
+            cache: false,
+            success: function (response) {
+                if (response == "Y") {
+                    alert("新增成功");
+                    if (checkBill != undefined && '@IsDischarged' == 'False') {
+                        window.open('../Billing/index?set=' + setStr, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=300,toolbar=no,width=1290,height=800');
+                    }
+                    window.opener.location.href = 'Index?active=Instantly_Be_Birth_List&show=Y'
+                    window.close()
+
+                } else {
+                    alert("新增失敗");
+                    window.opener.location.href = 'Index?active=Instantly_Be_Birth_List&show=Y'
+                    window.close()
+                }
+            }, complete: function () {
+            }
+        });
+    }
+</script>
+@using System.Data;
+@using System.Web.Mvc.Html;
+@{
+    DataTable dt = ViewBag.dt;
+    DataTable dtBp_Disp = ViewBag.dtBp_Disp;
+    //新增欲帶
+    DataTable dt_new = ViewBag.dt_new;
+    DataTable dtBp_Disp_new = ViewBag.dtBp_Disp_new;
+    string userno = ViewBag.userno;
+    string username = ViewBag.username;
+    if (dt == null || dt.Rows.Count == 0)
+    {
+        <form id="form1" action="Insert_Instantly_Be_Birth" method="post">
+            <div class="funcArea">
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+                    <tr>
+                        <td style="padding-bottom:5px;text-align:center;">
+                            <span style="color:blue;font-size:26px;">產程監測</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 0 5px 0;">
+                            <div class="dataHeader">
+                                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                    <tr>
+                                        <td style="width:20%;">項目</td>
+                                        <td style="width:80%;">內容</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="dataArea" style="height:550px;">
+                                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                    <tr>
+                                        <td class="head" style="width:20%;">紀錄時間</td>
+                                        <td colspan="9" style="width:80%;">
+                                            @Html.TextBox("TXT_RECORDTIME_DAY", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_RECORDTIME_TIME", DateTime.Now.ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                            @WebTool.setDateTime("TXT_RECORDTIME_DAY", "TXT_RECORDTIME_TIME", "", "30")
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head" style="width:20%;">身份</td>
+                                        <td colspan="9" style="width:80%;">
+                                            <input type="radio" name="RB_IDENTITY" value="0" />急診安胎
+                                            <input type="radio" name="RB_IDENTITY" value="1" />住院安胎
+                                            <input type="radio" name="RB_IDENTITY" value="2" />生產
+                                            <input type="radio" name="RB_IDENTITY" value="3" />引產
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">胎心音(次/分)</td>
+                                        <td colspan="9" style="width:80%;">
+                                            @*<input type="button" name="btn" value="選擇" onclick="window.open('Pick_FHB', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />*@
+                                            @Html.TextBox("TXT_FH1", "", new { style = "width:100px" })~
+                                            @Html.TextBox("TXT_FH2", "", new { style = "width:100px" })
+                                            <input type="radio" name="RB_FH_T" value="0" />早期減速
+                                            <input type="radio" name="RB_FH_T" value="1" />晚期減速
+                                            <input type="radio" name="RB_FH_T" value="2" />變異性減速
+
+                                            備註：
+                                            @Html.TextBox("TXT_FH_MEMO", "", new { style = "width:100px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">胎心音(次/分)</td>
+                                        <td colspan="9" style="width:80%;">
+                                            @*<input type="button" name="btn" value="選擇" onclick="window.open('Pick_FHB', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />*@
+                                            @Html.TextBox("TXT_FH1_2", "", new { style = "width:100px" })~
+                                            @Html.TextBox("TXT_FH2_2", "", new { style = "width:100px" })
+                                            <input type="radio" name="RB_FH_T_2" value="0" />早期減速
+                                            <input type="radio" name="RB_FH_T_2" value="1" />晚期減速
+                                            <input type="radio" name="RB_FH_T_2" value="2" />變異性減速
+
+                                            備註：
+                                            @Html.TextBox("TXT_FH_MEMO_2", "", new { style = "width:100px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td rowspan="3" class="head">宮縮</td>
+                                        <td class="head" style="width:10%;">持續時間</td>
+                                        <td colspan="8" style="width:70%;">
+                                            @Html.TextBox("TXT_UC_DU1", "", new { style = "width:100px", maxLength = "3" }) ~
+                                            @Html.TextBox("TXT_UC_DU2", "", new { style = "width:100px" }) 秒
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">間隔時間</td>
+                                        <td colspan="8">
+                                            @Html.TextBox("TXT_UC_INT1", "", new { style = "width:100px" }) ~
+                                            @Html.TextBox("TXT_UC_INT2", "", new { style = "width:100px" }) 分
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">強度</td>
+                                        <td colspan="8">
+                                            <input type="radio" name="RB_UC_STR" value="0" />無
+                                            <input type="radio" name="RB_UC_STR" value="1" />弱
+                                            <input type="radio" name="RB_UC_STR" value="4" />弱中
+                                            <input type="radio" name="RB_UC_STR" value="2" />中
+                                            <input type="radio" name="RB_UC_STR" value="5" />中強
+                                            <input type="radio" name="RB_UC_STR" value="3" />強
+                                            <input type="radio" name="RB_UC_STR" value="6" />偶
+                                            <input type="radio" name="RB_UC_STR" value="7" />不規則
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head" rowspan="4" style="width:20%;">子宮頸變化</td>
+                                        <td class="head">擴張</td>
+                                        <td colspan="8">
+                                            <input type="radio" name="RB_UC_E" value="0" />0
+                                            <input type="radio" name="RB_UC_E" value="1" />1
+                                            <input type="radio" name="RB_UC_E" value="2" />2
+                                            <input type="radio" name="RB_UC_E" value="3" />3
+                                            <input type="radio" name="RB_UC_E" value="4" />4
+                                            <input type="radio" name="RB_UC_E" value="5" />5
+                                            <input type="radio" name="RB_UC_E" value="6" />6
+                                            <input type="radio" name="RB_UC_E" value="7" />7
+                                            <input type="radio" name="RB_UC_E" value="8" />8
+                                            <input type="radio" name="RB_UC_E" value="9" />9
+                                            <input type="radio" name="RB_UC_E" value="10" />10
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">厚度</td>
+                                        <td colspan="8">
+                                            <input type="radio" name="RB_UC_T" value="1" />10
+                                            <input type="radio" name="RB_UC_T" value="2" />20
+                                            <input type="radio" name="RB_UC_T" value="3" />30
+                                            <input type="radio" name="RB_UC_T" value="4" />40
+                                            <input type="radio" name="RB_UC_T" value="5" />50
+                                            <input type="radio" name="RB_UC_T" value="6" />60
+                                            <input type="radio" name="RB_UC_T" value="7" />70
+                                            <input type="radio" name="RB_UC_T" value="8" />80
+                                            <input type="radio" name="RB_UC_T" value="9" />90
+                                            <input type="radio" name="RB_UC_T" value="10" />100
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">高度</td>
+                                        <td colspan="8">
+                                            <input type="radio" name="RB_UC_H" value="1" />-3
+                                            <input type="radio" name="RB_UC_H" value="2" />-2
+                                            <input type="radio" name="RB_UC_H" value="3" />-1
+                                            <input type="radio" name="RB_UC_H" value="4" />0
+                                            <input type="radio" name="RB_UC_H" value="5" />+1
+                                            <input type="radio" name="RB_UC_H" value="6" />+2
+                                            <input type="radio" name="RB_UC_H" value="7" />+3
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">執行者</td>
+                                        <td colspan="8">
+                                            @Html.TextBox("TXT_PE", "", new { id = "TXT_PE", style = "width:100px", onchange = "get_employee_name(this, 'PE');" })
+                                            @Html.Label("LB_PE", "請輸入員工編號", new { id = "LB_PE", style = "width:100px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">解尿</td>
+                                        <td colspan="9">
+                                            <input type="radio" name="RB_URINE" id="RB_URINE_N" value="0" onclick="$('#div_rb_urine_y').fadeOut();" />無
+                                            <input type="radio" name="RB_URINE" id="RB_URINE_Y" value="1" onclick="$('#div_rb_urine_y').fadeIn(100);" />有
+                                            <span id="div_rb_urine_y" style="display:none;">
+                                                ，
+                                                <label><input type="radio" name="RB_URINE_M" value="0" />自解</label>
+                                                <label><input type="radio" name="RB_URINE_M" value="1" />單次導尿</label>
+                                                <label><input type="radio" name="RB_URINE_M" value="2" />留置導尿</label>
+                                                ，@Html.TextBox("TXT_URINE_AMT", "", new { style = "width:80px" })ml
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    @if (dtBp_Disp_new == null || dtBp_Disp_new.Rows.Count == 0)
+                                    {
+                                        <tr>
+                                            @{
+                                                @:<td class="head" id="disp_title" rowspan="3">醫療處置</td>
+                                                @:<td class="head" id="disp_subtitle" rowspan="2"><input type="button" name="btn" value="給藥" onclick="window.open('../CommonMedication/Medication_NurseExecute', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" /><input type="button" name="btn" value="調配" onclick="window.open('BP_Disp', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" /></td>
+                                            }
+                                            <td class="head">A藥品種類</td>
+                                            <td class="head">劑量</td>
+                                            <td class="head">B藥品(點滴)種類</td>
+                                            <td class="head">劑量</td>
+                                            <td class="head">總用量</td>
+                                            <td class="head">流速</td>
+                                            <td class="head">狀態</td>
+                                            <td class="head">抗生素</td>
+                                        </tr>
+                                    }
+                                    else if (dtBp_Disp_new != null || dtBp_Disp_new.Rows.Count > 0)
+                                    {
+                                        var title_cols = 3 + dtBp_Disp_new.Rows.Count;
+                                        var subtitle_cols = 2 + dtBp_Disp_new.Rows.Count;
+                                        <tr>
+                                            @{
+                                                @:<td class="head" id="disp_title" rowspan="@title_cols">醫療處置</td>
+                                                @:<td class="head" id="disp_subtitle" rowspan="@subtitle_cols"><input type="button" name="btn" value="給藥" onclick="window.open('../CommonMedication/Medication_NurseExecute', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" /><input type="button" name="btn" value="調配" onclick="window.open('BP_Disp', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" /></td>
+                                            }
+                                            <td class="head">A藥品種類</td>
+                                            <td class="head">劑量</td>
+                                            <td class="head">B藥品(點滴)種類</td>
+                                            <td class="head">劑量</td>
+                                            <td class="head">總用量</td>
+                                            <td class="head">流速</td>
+                                            <td class="head">狀態</td>
+                                            <td class="head">抗生素</td>
+                                        </tr>
+                                        foreach (DataRow row in dtBp_Disp_new.Rows)
+                                        {
+                                            <tr>
+                                                <td class="head"><input name="TXT_TM_MED_A" value="@row["TM_MED_A"]" readonly style="width:120px" /></td>
+                                                <td class="head"><input name="TXT_TM_MED_A_AMT" value="@row["TM_MED_A_AMT"]" readonly style="width:80px" /></td>
+                                                <td class="head"><input name="TXT_TM_MED_B" value="@row["TM_MED_B"]" readonly style="width:120px" /></td>
+                                                <td class="head"><input name="TXT_TM_MED_B_AMT" value="@row["TM_MED_B_AMT"]" readonly style="width:80px" /></td>
+                                                <td class="head"><input name="TXT_TM_MED_USE" value="@row["TM_MED_USE"]" readonly style="width:50px" /></td>
+                                                <td class="head"><input name="TXT_TM_MED_SPEED" value="@row["TM_MED_SPEED"]" style="width:40px" /></td>
+                                                @if (row["TM_MED_USE_STAT"].ToString() == "0")
+                                                {
+                                                    <td class="head">
+                                                        <input id="TXT_TM_MED_USE_STAT_@row["IID"]_@row["SNOM"]" name="TXT_TM_MED_USE_STAT" value="啟用" readonly style="width:40px" />
+                                                        <input type="button" value="停止" style="width:50px;font-size:11px;" onclick="if (confirm('確認停止?')) { $('#TXT_TM_MED_USE_STAT_' + '@row["IID"]' + '_' + '@row["SNOM"]').val('停止'); }" />
+                                                    </td>
+                                                }
+                                                else if (row["TM_MED_USE_STAT"].ToString() == "1")
+                                                {
+                                                    <td class="head"><input name="TXT_TM_MED_USE_STAT" value="停止" readonly style="width:40px" /></td>
+                                                }
+                                                else if (row["TM_MED_USE_STAT"].ToString() == "2")
+                                                {
+                                                    <td class="head"><input name="TXT_TM_MED_USE_STAT" value="一次性給藥" readonly style="width:40px" /></td>
+                                                }
+                                                @{
+                                                    var ANTIBIOTICV = new List<string>();
+                                                    var ANTIBIOTIC = row["TM_MED_ANTIBIOTIC"].ToString();
+                                                    for (var a = 0; a < ANTIBIOTIC.ToString().Length; a++)
+                                                    {
+                                                        if (ANTIBIOTIC[a] == '1')
+                                                        {
+                                                            if (a == 0)
+                                                            {
+                                                                ANTIBIOTICV.Add("GBS");
+                                                            }
+                                                            if (a == 1)
+                                                            {
+                                                                ANTIBIOTICV.Add("發燒");
+                                                            }
+                                                            if (a == 2)
+                                                            {
+                                                                ANTIBIOTICV.Add("破水");
+                                                            }
+                                                            if (a == 3)
+                                                            {
+                                                                ANTIBIOTICV.Add("感染");
+                                                            }
+                                                            if (a == 4)
+                                                            {
+                                                                ANTIBIOTICV.Add("其他");
+                                                            }
+                                                        }
+                                                    }
+                                                    <td class="head"><input name="TXT_TM_MED_ANTIBIOTIC" value="@String.Join(",", ANTIBIOTICV)" readonly style="width:80px" /></td>
+                                                }
+                                            </tr>
+                                        }
+                                    }
+                                    <tr id="updateDisp"></tr>
+                                    <tr>
+                                        <td class="head">
+                                            <input type="button" name="btn" id="" value="處置" onclick="window.open('SharedVitalSign?title=產程監測之醫療處置&checkValue=TXT_MED_P', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                        </td>
+                                        <td colspan="8">
+                                            @Html.TextArea("TXT_MED_P", "", new { id = "TXT_MED_P", @rows = "5", style = "width:500px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">
+                                            護理處置
+                                            <input type="button" name="btn" id="" value="處置" onclick="window.open('SharedVitalSign?title=產程監測之護理處置&checkValue=TXT_NUR_P', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                        </td>
+                                        <td colspan="9">
+                                            @Html.TextArea("TXT_NUR_P", "", new { id = "TXT_NUR_P", @rows = "5", style = "width:500px" })
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">帶護理紀錄</td>
+                                        <td colspan="9">
+                                            <input type="checkbox" name="CK_PAT_CARE_RECORD" value="1" />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="head">紀錄者</td>
+                                        <td colspan="9">
+                                            @Html.TextBox("TXT_CREATNO", userno, new { style = "width:100px", onchange = "get_employee_name(this,'CREATNO');" })
+                                            @Html.Label("LB_CREATNO", username, new { id = "LB_CREATNO", style = "width:100px" })
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 0 5px 0;text-align:center;">
+                            <div class="funcArea">
+                                <input type="button" value="儲存" style="width:60px;" onclick="if (check()) { save(form1); } else {alert('至少選填一項!') }" />
+                                <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) window.close();" />
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </form>
+    }
+    else
+    {
+        <form id="form2" action="Upd_Instantly_Be_Birth" method="post">
+            <div class="funcArea">
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;">
+                    <tr>
+                        <td style="padding-bottom:5px;text-align:center;">
+                            <span style="color:blue;font-size:26px;">產程監測</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 0 5px 0;">
+                            <div style="height:480px;overflow:auto;">
+                                @foreach (DataRow r in dt.Rows)
+                                {
+                                    var Bp_Disp_out_count = dtBp_Disp == null ? 2 : dtBp_Disp.Rows.Count + 2;
+                                    var Bp_Disp_in_count = dtBp_Disp == null ? 1 : dtBp_Disp.Rows.Count + 1;
+                                    <input type="hidden" name="id" value="@r["IID"]" />
+                                    <div class="dataHeader">
+                                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                            <tr>
+                                                <td style="width:20%;">項目</td>
+                                                <td style="width:80%;">內容</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div class="dataArea" style="height:420px;margin-bottom:10px;">
+                                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                                            <tr>
+                                                <td class="head" style="width:20%;">紀錄時間</td>
+                                                <td colspan="9" style="width:80%;">
+                                                    @Html.TextBox("TXT_RECORDTIME_DAY" + r["IID"], Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                                    @Html.TextBox("TXT_RECORDTIME_TIME" + r["IID"], Convert.ToDateTime(r["RECORDTIME"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                                    @WebTool.setDateTime("TXT_RECORDTIME_DAY" + r["IID"], "TXT_RECORDTIME_TIME" + r["IID"], "", "30")
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head" style="width:20%;">身份</td>
+                                                <td colspan="9" style="width:80%;">
+                                                    <input type="radio" name="RB_IDENTITY@(r["IID"])" value="0" />急診安胎
+                                                    <input type="radio" name="RB_IDENTITY@(r["IID"])" value="1" />住院安胎
+                                                    <input type="radio" name="RB_IDENTITY@(r["IID"])" value="2" />生產
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">胎心音(次/分)</td>
+                                                <td colspan="9">
+                                                    @*<input type="button" name="btn" value="選擇" onclick="pup_window('Pick_FHB')" />*@
+                                                    @Html.TextBox("TXT_FH1" + r["IID"], r["FH1"], new { style = "width:100px" })~
+                                                    @Html.TextBox("TXT_FH2" + r["IID"], r["FH2"], new { style = "width:100px" })
+                                                    <input type="radio" name="RB_FH_T@(r["IID"])" value="0" />早期減速
+                                                    <input type="radio" name="RB_FH_T@(r["IID"])" value="1" />晚期減速
+                                                    <input type="radio" name="RB_FH_T@(r["IID"])" value="2" />變異性減速
+
+                                                    備註：
+                                                    @Html.TextBox("TXT_FH_MEMO" + r["IID"], r["FH_MEMO"], new { style = "width:100px" })
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">胎心音(次/分)</td>
+                                                <td colspan="9" style="width:80%;">
+                                                    @*<input type="button" name="btn" value="選擇" onclick="window.open('Pick_FHB', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />*@
+                                                    @Html.TextBox("TXT_FH1_2" + r["IID"], r["FH1_2"], new { style = "width:100px" })~
+                                                    @Html.TextBox("TXT_FH2_2" + r["IID"], r["FH2_2"], new { style = "width:100px" })
+                                                    <input type="radio" name="RB_FH_T_2@(r["IID"])" value="0" />早期減速
+                                                    <input type="radio" name="RB_FH_T_2@(r["IID"])" value="1" />晚期減速
+                                                    <input type="radio" name="RB_FH_T_2@(r["IID"])" value="2" />變異性減速
+                                                    備註：
+                                                    @Html.TextBox("TXT_FH_MEMO_2" + r["IID"], r["FH_MEMO_2"], new { style = "width:100px" })
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td rowspan="3" class="head">宮縮</td>
+                                                <td class="head" style="width:10%;">持續時間</td>
+                                                <td colspan="8" style="width:70%;">
+                                                    @Html.TextBox("TXT_UC_DU1" + r["IID"], r["UC_DU1"], new { style = "width:100px", maxLength = "3" }) ~
+                                                    @Html.TextBox("TXT_UC_DU2" + r["IID"], r["UC_DU2"], new { style = "width:100px" }) 秒
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">間隔時間</td>
+                                                <td colspan="8">
+                                                    @Html.TextBox("TXT_UC_INT1" + r["IID"], r["UC_INT1"], new { style = "width:100px" }) ~
+                                                    @Html.TextBox("TXT_UC_INT2" + r["IID"], r["UC_INT2"], new { style = "width:100px" }) 分
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">強度</td>
+                                                <td colspan="8">
+                                                    <input type="radio" name="RB_UC_STR@(r["IID"])" value="0" />無
+                                                    <input type="radio" name="RB_UC_STR@(r["IID"])" value="1" />弱
+                                                    <input type="radio" name="RB_UC_STR@(r["IID"])" value="4" />弱中
+                                                    <input type="radio" name="RB_UC_STR@(r["IID"])" value="2" />中
+                                                    <input type="radio" name="RB_UC_STR@(r["IID"])" value="5" />中強
+                                                    <input type="radio" name="RB_UC_STR@(r["IID"])" value="3" />強
+                                                    <input type="radio" name="RB_UC_STR@(r["IID"])" value="6" />偶
+                                                    <input type="radio" name="RB_UC_STR@(r["IID"])" value="7" />不規則
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head" rowspan="4">子宮頸變化</td>
+                                                <td class="head">擴張</td>
+                                                <td colspan="8">
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="0" />0
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="1" />1
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="2" />2
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="3" />3
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="4" />4
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="5" />5
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="6" />6
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="7" />7
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="8" />8
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="9" />9
+                                                    <input type="radio" name="RB_UC_E@(r["IID"])" value="10" />10
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">厚度</td>
+                                                <td colspan="8">
+                                                    <input type="radio" name="RB_UC_T@(r["IID"])" value="1" />10
+                                                    <input type="radio" name="RB_UC_T@(r["IID"])" value="2" />20
+                                                    <input type="radio" name="RB_UC_T@(r["IID"])" value="3" />30
+                                                    <input type="radio" name="RB_UC_T@(r["IID"])" value="4" />40
+                                                    <input type="radio" name="RB_UC_T@(r["IID"])" value="5" />50
+                                                    <input type="radio" name="RB_UC_T@(r["IID"])" value="6" />60
+                                                    <input type="radio" name="RB_UC_T@(r["IID"])" value="7" />70
+                                                    <input type="radio" name="RB_UC_T@(r["IID"])" value="8" />80
+                                                    <input type="radio" name="RB_UC_T@(r["IID"])" value="9" />90
+                                                    <input type="radio" name="RB_UC_T@(r["IID"])" value="10" />100
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">高度</td>
+                                                <td colspan="8">
+                                                    <input type="radio" name="RB_UC_H@(r["IID"])" value="1" />-3
+                                                    <input type="radio" name="RB_UC_H@(r["IID"])" value="2" />-2
+                                                    <input type="radio" name="RB_UC_H@(r["IID"])" value="3" />-1
+                                                    <input type="radio" name="RB_UC_H@(r["IID"])" value="4" />0
+                                                    <input type="radio" name="RB_UC_H@(r["IID"])" value="5" />+1
+                                                    <input type="radio" name="RB_UC_H@(r["IID"])" value="6" />+2
+                                                    <input type="radio" name="RB_UC_H@(r["IID"])" value="7" />+3
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">執行者</td>
+                                                <td colspan="9">
+                                                    @Html.TextBox("TXT_PE" + r["IID"], r["PE"], new { id = "TXT_PE" + r["IID"], style = "width:100px", onchange = "get_employee_name(this, 'PE');" })
+                                                    @if (r["PE_NAME"].ToString() != "")
+                                                    {
+                                                        @Html.Label("LB_PE" + r["IID"], r["PE_NAME"].ToString(), new { id = "LB_PE" + r["IID"], style = "width:100px" })
+                                                    }
+                                                    else
+                                                    {
+                                                        @Html.Label("LB_PE" + r["IID"], "請輸入員工編號", new { id = "LB_PE" + r["IID"], style = "width:100px" })
+                                                    }
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">解尿</td>
+                                                <td colspan="9">
+                                                    <input type="radio" name="RB_URINE@(r["IID"])" id="RB_URINE_N@(r["IID"])" value="0" onclick="$('#div_rb_urine_y').fadeOut();" />無
+                                                    <input type="radio" name="RB_URINE@(r["IID"])" id="RB_URINE_Y@(r["IID"])" value="1" onclick="$('#div_rb_urine_y').fadeIn(100);" />有
+                                                    <span id="div_rb_urine_y" style="display:none;">
+                                                        <label><input type="radio" name="RB_URINE_M@(r["IID"])" value="0" />自解</label>
+                                                        <label><input type="radio" name="RB_URINE_M@(r["IID"])" value="1" />單次導尿</label>
+                                                        <label><input type="radio" name="RB_URINE_M@(r["IID"])" value="2" />留置導尿</label>
+                                                        ，@Html.TextBox("TXT_URINE_AMT" + r["IID"], r["URINE_AMT"], new { style = "width:80px" })ml
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                @{
+                                                    @:<td class="head" rowspan="@Bp_Disp_out_count">醫療處置</td>
+                                                    @:<td class="head" rowspan="@Bp_Disp_in_count"><input type="button" name="btn" value="給藥" onclick="window.open('../CommonMedication/Medication_NurseExecute', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" /><input type="button" name="btn" value="調配" onclick="window.open('BP_Disp?IID=@r["IID"]', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" /><br /><input type="button" name="btn" value="修改流速" onclick="set_row('Bp_Disp', '@r["IID"]')" /></td>
+                                                }
+                                                <td class="head">A藥品種類</td>
+                                                <td class="head">劑量</td>
+                                                <td class="head">B藥品(點滴)種類</td>
+                                                <td class="head">劑量</td>
+                                                <td class="head">總用量</td>
+                                                <td class="head">流速</td>
+                                                <td class="head">狀態</td>
+                                                <td class="head">抗生素</td>
+                                            </tr>
+                                            @foreach (DataRow bp in dtBp_Disp.Rows)
+                                            {
+                                                <tr>
+                                                    <td><label><input type="checkbox" name="del_ID" value="@bp["SNOM"]" /></label>@bp["TM_MED_A"]</td>
+                                                    <td>@bp["TM_MED_A_AMT"]</td>
+                                                    <td>@bp["TM_MED_B"]</td>
+                                                    <td>@bp["TM_MED_B_AMT"]</td>
+                                                    <td>@bp["TM_MED_USE"]</td>
+                                                    <td>@bp["TM_MED_SPEED"]</td>
+                                                    @switch (bp["TM_MED_USE_STAT"].ToString())
+                                                    {
+                                                        case "0":
+                                                            <td>啟用</td>
+                                                            break;
+                                                        case "1":
+                                                            <td>停止</td>
+                                                            break;
+                                                        case "2":
+                                                            <td>一次性給藥</td>
+                                                            break;
+                                                        default:
+                                                            <td></td>
+                                                            break;
+                                                    }
+                                                    @{
+                                                        var ANTIBIOTICV = new List<string>();
+                                                        var ANTIBIOTIC = bp["TM_MED_ANTIBIOTIC"].ToString();
+                                                        for (var a = 0; a < ANTIBIOTIC.ToString().Length; a++)
+                                                        {
+                                                            if (ANTIBIOTIC[a] == '1')
+                                                            {
+                                                                if (a == 0)
+                                                                {
+                                                                    ANTIBIOTICV.Add("GBS");
+                                                                }
+                                                                if (a == 1)
+                                                                {
+                                                                    ANTIBIOTICV.Add("發燒");
+                                                                }
+                                                                if (a == 2)
+                                                                {
+                                                                    ANTIBIOTICV.Add("破水");
+                                                                }
+                                                                if (a == 3)
+                                                                {
+                                                                    ANTIBIOTICV.Add("感染");
+                                                                }
+                                                                if (a == 4)
+                                                                {
+                                                                    ANTIBIOTICV.Add("其他");
+                                                                }
+                                                            }
+                                                        }
+                                                        <td>@String.Join(",", ANTIBIOTICV)</td>
+                                                    }
+                                                </tr>
+                                            }
+                                            <tr>
+                                                <td class="head">
+                                                    <input type="button" name="btn" id="" value="處置" onclick="window.open('SharedVitalSign?title=產程監測之醫療處置&checkValue=TXT_MED_P', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                                </td>
+                                                <td colspan="8">
+                                                    @Html.TextArea("TXT_MED_P" + r["IID"], r["MED_P"].ToString(), new { id = "TXT_MED_P", @rows = "5", style = "width:500px" })
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">
+                                                    護理處置
+                                                    <input type="button" name="btn" id="" value="處置" onclick="window.open('SharedVitalSign?title=產程監測之護理處置&checkValue=TXT_NUR_P', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=990,height=480')" />
+                                                </td>
+                                                <td colspan="9">
+                                                    @Html.TextArea("TXT_NUR_P" + r["IID"], r["NUR_P"].ToString(), new { id = "TXT_NUR_P", @rows = "5", style = "width:500px" })
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">帶護理紀錄</td>
+                                                <td colspan="9">
+                                                    <input type="checkbox" name="CK_PAT_CARE_RECORD@(r["IID"])" value="1" />
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="head">紀錄者</td>
+                                                <td colspan="9">
+                                                    @Html.TextBox("TXT_CREATNO" + r["IID"], r["CREATNO"], new { style = "width:100px", onchange = "get_employee_name(this,'CREATNO');" })
+                                                    @if (r["CREATNO_NAME"].ToString() != "")
+                                                    {
+                                                        @Html.Label("LB_CREATNO" + r["IID"], r["CREATNO_NAME"].ToString(), new { id = "LB_CREATNO" + r["IID"], style = "width:100px" })
+                                                    }
+                                                    else
+                                                    {
+                                                        @Html.Label("LB_CREATNO" + r["IID"], "請輸入員工編號", new { id = "LB_CREATNO" + r["IID"], style = "width:100px" })
+                                                    }
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <script>
+                                        @if (r["IDENTITY"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_IDENTITY@(r["IID"])', '@r["IDENTITY"]');
+                                        }
+                                        @if(r["UC_STR"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_UC_STR@(r["IID"])', '@r["UC_STR"]');
+                                        }
+                                        @if(r["FH_T"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_FH_T@(r["IID"])', '@r["FH_T"]');
+                                        }
+                                        @if(r["FH_T_2"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_FH_T_2@(r["IID"])', '@r["FH_T_2"]');
+                                        }
+                                        @if(r["UC_E"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_UC_E@(r["IID"])', '@r["UC_E"]');
+                                        }
+                                        @if(r["UC_T"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_UC_T@(r["IID"])', '@r["UC_T"]');
+                                        }
+                                        @if(r["UC_H"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_UC_H@(r["IID"])', '@r["UC_H"]');
+                                        }
+                                        @if (r["URINE"].ToString() != "")
+                                        {
+                                             if (r["URINE"].ToString() == "0" || r["URINE"].ToString() == "1")
+                                             {
+                                                 @:set_for_rb('RB_URINE@(r["IID"])', '@r["URINE"]');
+                                             }
+                                             if (r["URINE_M"].ToString() != "")
+                                             {
+                                                 @:set_for_rb('RB_URINE_M@(r["IID"])', '@r["URINE_M"]');
+                                             }
+                                        }
+                                        @if(r["PAT_CARE_RECORD"].ToString() == "1")
+                                        {
+                                            @:$("input[name^=CK_PAT_CARE_RECORD]")[0].click();
+                                        }
+                                    </script>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 0 5px 0;text-align:center;">
+                            <div class="funcArea">
+                                <input type="button" value="儲存" style="width:60px;" onclick="if (check()) { save(form2); } else {alert('至少選填一項!') }" />
+                                <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) { window.opener.location.href = window.opener.location.href; window.close(); }" />
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </form>
+    }
+}
+
+<script>
+    $('form').on('keyup keypress', function (e) {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode === 13) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>

@@ -1,0 +1,142 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable dt = ViewBag.dt;
+    string RootDocument = ViewBag.RootDocument;
+    string filname = "Insert_BabyEntr";
+    bool IsHisView = ViewBag.IsHisView;
+}
+
+<link href="~/Content/StyleSheet/BabySystem.css" rel="stylesheet" />
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        for (var i = 0; i < tr.length; i++) {
+            if (i % 2 == 0) $(tr[i]).css({ 'background': '#ABC8E2' })
+            else $(tr[i]).css({ 'background': '#E1E6FA' })
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function set_row(url, IID) {
+        window.location.href = url + '?IID=' + IID;
+    }
+
+    function Delete(value) {
+        if (confirm('確認刪除紀錄?')) {
+            $.ajax({
+                url: '../BabyBorn/Del_BabyEntr',
+                type: 'post',
+                dataType: 'json',
+                data: { IID: value },
+                success: function (data) {
+                    if (Number(data) > 0) {
+                        alert('刪除成功');
+                    } else {
+                        alert('刪除失敗');
+                    }
+                    window.location.href = '../BabyBorn/BabyEntr_List';
+                },
+                failure: function (errMsg) {
+                    alert('刪除失敗');
+                    window.location.href = '../BabyBorn/BabyEntr_List';
+                }
+            });
+        }
+    }
+</script>
+
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%; font-size:14px;">
+        <tr>
+            <td>
+                <p style="text-align:center">
+                    <span style="color:blue;font-size:18px;">嬰幼兒入院護理評估</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:100%;text-align:center;">
+                @if (IsHisView != true)
+                {
+                    <input type="button" value="新增評估" onclick="window.location.href = './Insert_BabyEntr';">
+                    <input type="button" value="返回入院護理評估總表" onclick="window.location.href='../AdmissionAssessment/AssessmentIndex?page=X'" />
+                }
+            </td>
+        </tr>
+        <tr>
+            <td style=" padding:5px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td style="width:10%;"></td>
+                            <td style="width:10%;"></td>
+                            <td style="width:10%;"></td>
+                            <td style="width:25%;">文件說明</td>
+                            <td style="width:13%;">最後修改日期</td>
+                            <td style="width:8%;">版本</td>
+                            <td style="width:10%;">狀態</td>
+                            <td style="width:14%;">最後編輯者</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:360px;background:white">
+                    @if (dt != null)
+                    {
+                        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;text-align:center;">
+                            @for (int i = 0; i < dt.Rows.Count; i++)
+                            {
+                                string print_func = "window.open('" + RootDocument + "/Print/GetPDF_Print?features=" + filname + "&pk_id=" + dt.Rows[i]["IID"].ToString().Trim() + "&url=" + RootDocument + "/BabyBorn/" + filname + "_PDF?1=1&filename=嬰幼兒入院護理評估單&feeno=" + ViewBag.feeno + "&tableid=" + dt.Rows[i]["IID"].ToString().Trim() + "')";
+                                string back_func = "if(confirm('確認退回?')){ window.location.href = 'BackAssessment?natype=" + "BabyBorn" + "&tableid=" + dt.Rows[i]["IID"].ToString().Trim() + "'; }";
+                                string print_func_view = "window.open('" + RootDocument + "/BabyBorn/" + filname + "_PDF?1=1&filename=嬰幼兒入院護理評估單&feeno=" + ViewBag.feeno + "&tableid=" + dt.Rows[i]["IID"].ToString().Trim() + "')";
+                                <tr>
+                                    <td style="width:10%;">
+                                        @if (IsHisView != true)
+                                        {
+                                            <input type="button" value="列印" style="width:50px;" onclick="@print_func" />
+                                            @*<input type="button" value="預覽列印" style="width:50px;" onclick="@print_func_view" />*@
+                                        }
+                                    </td>
+                                    <td style="width:10%;">
+                                        @if (IsHisView != true)
+                                        {
+                                            <input type="button" value="更改" style="width:50px;" onclick="set_row('./Insert_BabyEntr', '@(dt.Rows[i]["IID"])');" />
+                                        }
+                                        else
+                                        {
+                                            <input type="button" value="明細" style="width:50px;" onclick="set_row('./Insert_BabyEntr', '@(dt.Rows[i]["IID"])&IsHisView=true');" />
+                                        }
+                                        <input type="hidden" name="IID@(dt.Rows[i]["IID"])" value="@dt.Rows[i]["IID"]" />
+                                    </td>
+                                    <td style="width:10%;">
+                                        @if (IsHisView != true)
+                                        {
+                                            if (dt.Rows[i]["IS_CREATNO"].ToString().ToLower() == "true")
+                                            {
+                                                <input type="button" value="刪除" style="width:50px;" onclick="Delete('@(dt.Rows[i]["IID"])');" />
+                                                if (@dt.Rows[i]["STATUS"].ToString() == "已完成")
+                                                {
+                                                    <input type="button" value="退回暫存" style="width:80px;" onclick="@back_func" />
+                                                }
+                                            }
+                                        }
+                                    </td>
+                                    <td style="width:25%;">@dt.Rows[i]["DESCRIPTION"]</td>
+                                    <td style="width:13%;">@Convert.ToDateTime(dt.Rows[i]["RECORDTIME"].ToString()).ToString("yyyy/MM/dd HH:mm")</td>
+                                    <td style="width:8%;">@dt.Rows[i]["VERSION"]</td>
+                                    <td style="width:10%;">@dt.Rows[i]["STATUS"]</td>
+                                    <td style="width:14%;">@dt.Rows[i]["UPDNAME"]</td>
+                                </tr>
+                            }
+                        </table>
+                    }
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>

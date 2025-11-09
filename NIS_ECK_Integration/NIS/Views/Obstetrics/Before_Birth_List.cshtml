@@ -1,0 +1,181 @@
+﻿@using System.Web.Mvc.Html;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string mode = ViewBag.mode;
+    bool IsHisView = ViewBag.IsHisView;
+}
+<style type="text/css">
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        white-space: pre-line;
+        word-break: break-all;
+    }
+
+    .dataHeader td {
+        height: 10px;
+    }
+
+    .ui-tabs .ui-tabs-nav li a {
+        font-size: 16px;
+        padding: 3px 5px 3px 5px;
+    }
+
+    .ui-tabs {
+        font-size: 16px;
+    }
+
+    .popup {
+        width: 80%;
+        height: 95%;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -20% 0 0 -40%;
+        display: none;
+        z-index: 99;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        close_pup_window();
+        setGridColor();
+        //設定高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 260);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function check(obj) {
+        var num = $('#check_tab').val();
+        $('#check_tab').val($(obj).attr('num'));
+        var success = dtl_check();
+        if (success)
+            $('a[num=' + num + ']').attr('must', 'N');
+        else
+            $('a[num=' + num + ']').attr('must', 'Y');
+    }
+
+    function dtl_check() {
+        var success = true;
+        var tr_list = $('p[must=Y]:visible');
+        for (var i = 0; i < tr_list.length; i++) {
+            var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                var input_name = '';
+                for (var j = 0; j < input_list.length; j++) {
+                    if (input_name != $(input_list[j]).attr('name')) {
+                        input_name = $(input_list[j]).attr('name');
+                        if (input_list[j].type == 'text' || input_list[j].type == 'textarea')
+                            var input_val = $.trim(input_list[j].value);
+                        else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox')
+                            var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+
+                        if (input_val == undefined || input_val == '') {
+                            success = false;
+                            j = input_list.length;
+                            i = tr_list.length;
+                        }
+                    }
+                }
+            }
+        }
+        return success;
+    }
+</script>
+
+<input type="hidden" id="check_tab" value="0" />
+<div id="filled" class="tabArea" style="margin-bottom:5px;">
+    <ul>
+        <li><a href="#tabs-1" must="Y" num="0" onclick="check(this);">生產史及相關資料</a></li>
+        <li><a href="#tabs-2" must="Y" num="1" onclick="check(this);">第二、三產程</a></li>
+    </ul>
+    <!-- 生產史及相關資料 -->
+    <div id="tabs-1" class="tab">
+        @{Html.RenderPartial("Before_Birth_History");}
+    </div>
+    <!-- 第二、三產程 -->
+    <div id="tabs-2" class="tab">
+        @{Html.RenderPartial("Insert_Child_Brith");}
+    </div>
+</div>
+
+<div id="unfilled" class="tabArea" style="display:none;overflow-y:auto;padding-left:5px;">
+</div>
+
+<script type="text/javascript">
+    $(window).load(function () {
+         if ('@mode' == '1') {
+             $('#ui-id-2').trigger('click');
+             $('#ui-id-2').click();
+         }
+    });
+
+    $.fn.getType = function () { return this[0].tagName == "INPUT" ? this[0].type.toLowerCase() : this[0].tagName.toLowerCase(); };
+    $(document).ready(function () {
+
+        //自動調整頁面高度   //分頁選項高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $("#unfilled").outerHeight(height - 195);
+            $(".tabArea").outerHeight(height - 205);
+            $(".tab").outerHeight($(".tabArea").outerHeight() - 100);
+        }).trigger("resize");
+
+        $(".tabArea").tabs({ active: 0 });
+
+        // inital tooltip
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+
+        var activePage = 0;
+        var tabCount = 0;
+        if ($(".tabArea").length > 0) {
+            $(".tab_control").click(function () {
+                activePage = $(".tabArea").tabs("option", "active");
+                tabCount = $(".tabArea").find("li").length - 1;
+                switch ($(this).attr("control_code")) {
+                    case "page_up":
+                        window.scrollTo(0, 0);
+                        if (activePage > 0)
+                            $(".tabArea").tabs("option", "active", activePage - 1);
+                        break;
+                    case "page_down":
+                        window.scrollTo(0, 0);
+                        if (activePage < tabCount)
+                            $(".tabArea").tabs("option", "active", activePage + 1);
+                        break;
+                }
+            }).prop("disabled", false);
+        }
+    });
+</script>

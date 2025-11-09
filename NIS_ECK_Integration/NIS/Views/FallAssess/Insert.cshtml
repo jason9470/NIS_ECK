@@ -1,0 +1,303 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DateTime mindate = Convert.ToDateTime(ViewData["MinDate"]);
+    DataTable dt = ViewBag.dt;
+    DataTable dt_new = ViewBag.dt_new;
+    List<NIS.Data.FallAssessMeasure> FallAssessMeasure = (List<NIS.Data.FallAssessMeasure>)ViewData["FallAssessMeasure"];
+    string title = "新增 成人跌倒評估表", action = "Insert_FallAssess";
+    string day = DateTime.Now.ToString("yyyy/MM/dd");
+    string time = DateTime.Now.ToString("HH:mm");
+    string id = "";
+    string isFRIDs = ViewBag.FRIDs;
+
+    DataRow r = null;
+    if ((dt != null && dt.Rows.Count > 0) || (dt_new != null && dt_new.Rows.Count > 0))
+    {
+        if (dt != null && dt.Rows.Count > 0)
+        {
+            r = dt.Rows[0];
+            title = "修改 成人跌倒評估表";
+            action = "Upd_FallAssess";
+            day = Convert.ToDateTime(dt.Rows[0]["RECORDTIME"]).ToString("yyyy/MM/dd");
+            time = Convert.ToDateTime(dt.Rows[0]["RECORDTIME"]).ToString("HH:mm");
+            id = dt.Rows[0]["FALL_ID"].ToString();
+        }
+        else if (dt_new != null && dt_new.Rows.Count > 0)
+        {
+            r = dt_new.Rows[0];
+        }
+    }
+
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        height: 25px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        setGridColor();
+        var isFRIDs = '@isFRIDs'
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 180);
+        }).trigger("resize");
+
+        $('.toScore').click(function () {
+            addScore();
+        });
+
+        @if (r != null)
+        {
+            <TEXT>
+        SetRadio('rb_reason', '@r["REASON"]');
+        SetRadio('rb_age', '@r["AGE"]');
+        SetRadio('rb_consciousness', '@r["CONSCIOUSNESS"]');
+        SetRadio('rb_dizziness', '@r["DIZZINESS"]');
+        SetRadio('rb_drug', '@r["DRUG"]');
+        SetRadio('rb_excretion', '@r["EXCRETION"]');
+        SetRadio('rb_fall', '@r["FALL"]');
+        SetRadio('rb_activity', '@r["ACTIVITY"]');
+        SetRadio('rb_communication', '@r["COMMUNICATION"]');
+        SetCheckBox('cb_precaution', '@r["PRECAUTION"]');
+            </TEXT>
+        }
+        else
+        {
+            int age = ViewBag.age; 
+            if (age > 14 && age < 65)
+            {
+            @:$('input[type=radio][name=rb_age][data-score=0]').prop('checked', true);
+            }
+            else if (age >= 65)
+            {
+            @:$('input[type=radio][name=rb_age][data-score=1]').prop('checked', true);
+            }
+            if (isFRIDs == "藥")
+            {
+             @:$('input[type=radio][name=rb_drug][data-score=1]').prop('checked', true);
+            }
+        }
+        addScore();
+
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+
+    function addScore() {
+        var score = 0;
+        $.each($('.toScore:checked'), function (i, item) {
+            score = score + parseInt($(item).attr('data-score'));
+        });
+        $('#total').val(score);
+
+        if (score > 2)
+            $('#score').html(score + ' 高危跌倒').css("color", "red");
+        else
+            $('#score').html(score).css("color", "black");
+    }
+
+    function check() {
+        var success = true;
+        $.each($('.req'), function (i, item) {
+            if ($('input[name=' + $(item).attr('name') + ']:checked').length == 0) {
+                alert('請選擇 ' + $(item).closest('tr').find('td:first').html());
+                success = false;
+                return false;
+            }
+        });
+        return success;
+    }
+
+    function SetRadio(rbName, rbValue) {
+        $("input[type=radio][name='" + rbName + "'][value='" + rbValue + "']").prop('checked', true);
+    }
+
+    function SetCheckBox(ckName, ckValue) {
+        $.each(ckValue.split(','), function (i, item) {
+            $("input[type=checkbox][name='" + ckName + "'][value='" + item + "']").prop('checked', true);
+        });
+    }
+   
+</script>
+
+<form action="@action" method="post">
+    <div id="module_define">@title</div>
+    <div class="funcArea" style="padding:5px 0 5px 0;text-align:center;" >
+        <input type="button" value="存檔" style="width:80px;" onclick="loop_windows('open_cover'); if (check()) { submit(); } else { loop_windows('close_cover'); }" />
+        <input type="button" value="放棄編輯資料" onclick="if (confirm('確定放棄?')) { window.location.href = 'List'; }" />
+        <input type="button" value="返回" style="width:80px;" onclick="if (confirm('確定放棄?')) { window.location.href = 'ListIndex?modeval=Y'; }" />
+    </div>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <tr>
+                <td style="width:16%;">項目</td>
+                <td style="width:84%;">內容</td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataArea">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <tr>
+                <td style="width:16%;">評估日期</td>
+                <td colspan="3" style="width:84%;">
+                    <input type="hidden" value="@ViewBag.num" name="num" />
+                    <input type="hidden" value="@id" name="id" />
+                    <input type="text" id="txt_day" name="txt_day" value="@day" />
+                    <input type="text" id="txt_time" name="txt_time" value="@time" />
+                    @*@WebTool.setDateTime("txt_day", "txt_time", "", "0", "", mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                </td>
+            </tr>
+            <tr>
+                <td style="width:16%;">評估原因</td>
+                <td colspan="2">
+                    <label><input type="radio" name="rb_reason" value="常規評估" class="req" checked="checked" />常規評估</label>
+                    <label><input type="radio" name="rb_reason" value="入院/轉入" />入院/轉入</label>
+                    <label><input type="radio" name="rb_reason" value="新增特殊藥物" />新增特殊藥物</label>
+                    <label><input type="radio" name="rb_reason" value="病情改變" />病情改變</label>
+                    <label><input type="radio" name="rb_reason" value="手術後" />手術後</label>
+                    <label><input type="radio" name="rb_reason" value="出院" />出院</label>
+                </td>
+            </tr>
+            <tr>
+                <td>年齡</td>
+                <td>
+                    <label><input type="radio" name="rb_age" value="0分:15-64歲" data-score="0" class="req toScore" />0分:15-64歲</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_age" value="1分:年齡大於65歲" data-score="1" class="toScore" />1分:年齡大於65歲</label>
+                </td>
+            </tr>
+            <tr>
+                <td>意識狀態</td>
+                <td>
+                    <label><input type="radio" name="rb_consciousness" value="0分:清醒/昏迷" data-score="0" class="req toScore" />0分:清醒/昏迷</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_consciousness" value="1分:意識障礙" data-score="1" class="toScore" />1分:意識障礙</label>
+                </td>
+            </tr>
+            <tr>
+                <td>頭暈/眩暈/虛弱感/視力異常</td>
+                <td>
+                    <label><input type="radio" name="rb_dizziness" value="0分:無" data-score="0" class="req toScore" />0分:無</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_dizziness" value="1分:主訴頭暈、眩暈、虛弱感或視力異常" data-score="1" class="toScore" />1分:主訴頭暈、眩暈、虛弱感或視力異常</label>
+                </td>
+            </tr>
+            <tr>
+                <td>使用特殊藥物易致跌倒</td>
+                <td>
+                    <label><input type="radio" name="rb_drug" value="0分:無使用易致跌倒藥物" data-score="0" class="req toScore" />0分:無使用易致跌倒藥物</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_drug" value="1分:使用易致跌倒藥物" data-score="1" class="toScore" />1分:使用易致跌倒藥物</label>
+                </td>
+            </tr>
+            <tr>
+                <td>排泄情形</td>
+                <td>
+                    <label><input type="radio" name="rb_excretion" value="0分:無" data-score="0" class="req toScore" />0分:無</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_excretion" value="1分:住院中有失禁/頻尿/腹瀉/情形" data-score="1" class="toScore" />1分:住院中有失禁/頻尿/腹瀉/情形</label>
+                </td>
+            </tr>
+            <tr>
+                <td>跌倒史</td>
+                <td>
+                    <label><input type="radio" name="rb_fall" value="0分:不曾跌倒/臥床不動" data-score="0" class="req toScore" />0分:不曾跌倒/臥床不動</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_fall" value="1分:住院中有跌倒病史/過去一年有跌倒經驗" data-score="1" class="toScore" />1分:住院中有跌倒病史/過去一年有跌倒經驗</label>
+                </td>
+            </tr>
+            <tr>
+                <td>輔助使用</td>
+                <td>
+                    <label><input type="radio" name="rb_activity" value="0分:無" data-score="0" class="req toScore" />0分:無</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_activity" value="1分:無法自行平穩站立或需使用輔助" data-score="1" class="toScore" />1分:無法自行平穩站立或需使用輔助</label>
+                </td>
+            </tr>
+            <tr>
+                <td>執意下床</td>
+                <td>
+                    <label><input type="radio" name="rb_communication" value="0分:無" data-score="0" class="req toScore" />0分:無</label>
+                </td>
+                <td>
+                    <label><input type="radio" name="rb_communication" value="1分:執意下床(無法配合床欄/約束帶、不能獨自下床卻執意下床/陪伴者為老年人或行動不變者)" data-score="1" class="toScore" />1分:執意下床(無法配合床欄/約束帶、不能獨自下床卻執意下床/陪伴者為老年人或行動不變者)</label>
+                </td>
+            </tr>
+            <tr>
+                <td>跌倒預防措施</td>
+                <td colspan="2">
+                    @for (int i = 0; i < FallAssessMeasure.Count; i++)
+                    {
+                    <div>
+                        @if (i == 0)
+                        {
+                        <label><input type="checkbox" name="cb_precaution" value="@FallAssessMeasure[i].Name" class="req" />@FallAssessMeasure[i].Name</label>
+                        }
+                        else
+                        {
+                        <label><input type="checkbox" name="cb_precaution" value="@FallAssessMeasure[i].Name" />@FallAssessMeasure[i].Name</label>
+                        }
+                    </div>
+                    }
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="dataHeader">
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+            <tr>
+                <td style="width:16%;">
+                    總分
+                    <input type="hidden" id="total" name="total" value="0" />
+                </td>
+                <td style="width:84%;">
+                    <label id="score">0</label>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>

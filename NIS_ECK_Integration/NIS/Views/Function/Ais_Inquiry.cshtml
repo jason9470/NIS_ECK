@@ -1,0 +1,210 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+
+<style type="text/css">
+    .tooltip {
+        cursor:pointer;
+        color:red;
+        font-weight:bold;
+        font-size:16px;
+    }
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+    table {
+        table-layout: fixed;
+        white-space: nowrap;
+    }
+    #item_dtl {
+        overflow-y: scroll;
+        height: 260px;
+        border-top: 2px solid #666;
+        border-bottom: 2px solid #666;
+        width: 830px;
+    }
+
+    #item_header td {
+        text-align: center;
+    }
+
+    #item_body input[type=text]:hover {
+        border: 1px solid #000000;
+        background-color: #FFFFFF;
+    }
+
+    #item_header input[type=text], #item_body input[type=text] {
+        background-color: transparent;
+        width: 240px;
+        padding: 3px 3px 3px 3px;
+        border: 1px solid #999999;
+    }
+
+    #item_body input[type=checkbox] {
+        display: block;
+        padding: 0px;
+        width: 22px;
+        height: 22px;
+    }
+
+    #item_header td {
+        background-color: #85A5CC;
+    }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        var type = document.getElementsByTagName('select');
+        for (var i = 0 ; i < type.length; i++) {
+            var d_value = $(type[i]).attr('d_value');
+            if (d_value != '')
+                $(type[i]).val(d_value);
+        }
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+        setColor();
+    });
+    
+    //設定底色
+    function setColor() {
+        $('#item_body tr:odd').css('background', '#ABC8E2');
+        $('#item_body tr:even').css('background', '#E1E6FA');
+    }
+
+    function insert_tr() {
+        var copy = $("#item_body tr:first").clone();
+        $("#item_body").append(copy);
+        $(copy).fadeIn(500);
+        setColor();
+    }
+
+    function check() {
+        $('select').each(function () { this.disabled = false; });
+        if ($('#item_body tr').length > 1) {
+            var msg = "";
+            $("#item_body").find("tr:gt(0)").each(function () {
+                var text = $.trim($(this).find("input[name=name]").val());
+                var value = $.trim($(this).find("input[name=route]").val());
+                if (text == "" || value == "")
+                    msg = '【名稱】【網址 / 路徑】不可為空白';
+            });
+            if (msg != '') {
+                alert(msg); 
+                return false;
+            }
+            else
+                return true;
+        }
+        else {
+            alert('尚未新增項目!');
+            return false;
+        }
+    }
+    //驗證欄位_數字
+    function numcheck(id, time) {
+        if (time.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(time.value) && time.value != "") {
+            alert("只能輸入數字");
+            //document.getElementById(id).value = "";
+            $(time).val('');
+        }       
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+<form action="Ais_Inquiry" method="post">
+    <div class="funcArea">
+        <div id="module_define">輔助查詢資料維護</div>
+        <!-- 功能按鈕 -->
+        <div style="padding:10px 0 5px 0;">
+            <input type="button" value="儲存" onclick="if (check()) submit();" />
+            <input type="button" value="刪除" onclick="if ($('input:checked').length > 0) { $('form').attr('action', 'del_Ais_Inquiry'); submit(); } else { alert('尚未勾選刪除項目');}" />
+            <input type="button" value="新增項目" onclick="insert_tr();" />
+        </div>
+        <hr />
+        <!-- 項目資料 -->
+        <div id="item_area">
+            <table id="item_header" cellpadding="4" cellspacing="1">
+                <tr>
+                    <td style="width:40px;">刪除</td>
+                    <td style="width:100px;">類型</td>
+                    <td style="width:100px;">排序</td>
+                    <td style="width:100px;">名稱</td>
+                    <td style="width:400px;">
+                        <label class="tooltip" title="參數設定：<br />員編：#userno#<br />密碼：#pwd#<br />批價序號：#feeno#<br />病歷號：#chartno#<br />今天日期：#date#<br />病患成本中心代碼：#cccode#<br />使用者成本中心代碼:#usercode#<br />使用者姓名:#username#">網址說明</label> /
+                        <label class="tooltip" title="ex: C:\windows\notepad.exe">路徑說明</label>
+                    </td>
+                </tr>
+            </table>
+            <div id="item_dtl">
+                @if (dt != null)
+                {
+                <table id="item_body" cellpadding="4" cellspacing="1">
+                    <tr style="display:none;">
+                        <td align="center" style="width:40px;">
+                            <img src="~/Images/minus.png" style="cursor:pointer;width:16px;" title="刪除此筆" alt="刪除此筆" onclick="$(this.parentNode.parentNode).remove();setColor();" />
+                            <input type="hidden" name="mode" value="Insert" />
+                            <input type="hidden" name="id" value="Insert" />
+                        </td>
+                        <td align="center" style="width:100px;">
+                            <select name="type" d_value="" onchange="">
+                                <option value="url">網頁</option>
+                                <option value="program">程式</option>
+                            </select>
+                        </td>
+                         <td style="width:100px;">
+                            @Html.TextBox("queue", "", new { style = "width:95%;", maxlength = "4", onchange = "numcheck(this.id,this);" })
+                        </td>
+                        <td style="width:100px;">
+                            @Html.TextBox("name", "", new { style = "width:95%;", maxlength = "50" })
+                        </td>
+                        <td style="width:400px;">
+                            @Html.TextBox("route", "", new { style = "width:95%;" })
+                        </td>
+                    </tr>
+                        @foreach (DataRow r in dt.Rows)
+                        {
+                    <tr>
+                        <td align="center" style="width:40px;">
+                            <input type="checkbox" name="del_ID" value="@r["DATA_ID"]" />
+                            <input type="hidden" name="mode" value="Update" />
+                            <input type="hidden" name="id" value="@r["DATA_ID"]" />
+                        </td>
+                        <td align="center" style="width:100px;">
+                            <select name="type" d_value="@r["DATA_TYPE"]" onchange="">
+                                <option value="url">網頁</option>
+                                <option value="program">程式</option>
+                            </select>
+                        </td>
+                         <td style="width:100px;">
+                            @Html.TextBox("queue", @r["DATA_QUEUE"], new { style = "width:95%;", maxlength = "4", onchange = "numcheck(this.id,this);" })
+                        </td>
+                        <td style="width:100px;">
+                            @Html.TextBox("name", @r["DATA_NAME"], new { style = "width:95%;", maxlength = "50" })
+                        </td>
+                        <td style="width:400px;">
+                            @Html.TextBox("route", @r["DATA_ROUTE"], new { style = "width:95%;" })
+                        </td>
+                    </tr>
+                        }
+                </table>
+                }
+            </div>
+        </div>
+    </div>
+</form>

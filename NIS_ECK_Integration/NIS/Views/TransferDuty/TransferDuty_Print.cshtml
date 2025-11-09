@@ -1,0 +1,146 @@
+﻿@using NIS.Data;
+@{
+    ViewBag.Title = "交班單列印";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('.dataPrintArea tr:odd').css('background', '#ABC8E2');
+        $('.dataPrintArea tr:even').css('background', '#E1E6FA');
+        $(window).resize(function () { setDataAreaSize(); }).trigger('resize');
+    });
+    $(window).load(function () {
+        factory.printing.header = "護理資訊系統 - 交班單&b&b 第&p页/共&P页" //設定頁首的文字
+        factory.printing.footer = "&b&b 列印時間：&d &t" //設定頁尾的文字
+        factory.printing.portrait = false //設定為橫印
+        factory.printing.leftMargin = 3.0 //設定左邊界
+        factory.printing.topMargin = 3.0  //設定上邊界
+        factory.printing.rightMargin = 3.0 //設定右邊界
+        factory.printing.bottomMargin = 3.0 //設定下邊界
+        wb.execwb(7, 1);
+        $("#printpage").show();
+        window.close();
+    })
+    function setDataAreaSize() {
+        var height = $(document).height() - 50;
+        if (height <= 390)
+            height = 390;
+        $(".dataArea").height(height);
+    }
+    function printScreen(block) {
+        var value = block.innerHTML;
+        var printPage = window.open("", "printPage", "");
+        printPage.document.open();
+        printPage.document.write("<HTML><head></head><BODY onload='window.print();window.close()'>");
+        printPage.document.write("<PRE>");
+        printPage.document.write(value);
+        printPage.document.write("</PRE>");
+        printPage.document.close("</BODY></HTML>");
+        window.close();
+    }
+    function printpage() {
+        $("#printpage").hide();
+        wb.execwb(7, 1);
+        $("#printpage").show();
+    }
+</script>
+<style type="text/css">
+    .dataPrintArea th {
+        font-weight: bold;
+        margin: 1px 1px 1px 1px;
+        background-color: #85A5CC;
+        text-align: center;
+        vertical-align: middle;
+        height: 26px;
+    }
+
+    .dataPrintArea td {
+        border-right: 2px solid #666;
+        border-bottom: 2px solid #666;
+        text-align: left;
+        vertical-align: text-top;
+    }
+
+    .shift_title {
+        padding: 5px 10px 5px 10px;
+        font-size: 14px;
+        font-family: "微軟正黑體";
+        background: #E1E6FA;
+        border: 1px solid #CCCCCC;
+        border-right: 2px solid #AAAAAA;
+        border-bottom: 2px solid #AAAAAA;
+    }
+
+    pre {
+        width: 180px;
+        white-space: pre-wrap; /* css-3 */
+        white-space: -moz-pre-wrap; /* Mozilla, since 1999 */
+        white-space: -pre-wrap; /* Opera 4-6 */
+        white-space: -o-pre-wrap; /* Opera 7 */
+        word-wrap: break-word; /* Internet Explorer 5.5+ */
+    }
+</style>
+<input type="button" value="列印" id="printpage" style="display:none" onclick="printpage()" />
+<OBJECT classid="CLSID:8856F961-340A-11D0-A96B-00C04FD705A2" height=0 id=wb name=wb width=0></OBJECT>
+<object classid="clsid:1663ed61-23eb-11d2-b92f-008048fdd814" id=factory viewastext style="display:none" codebase="ScriptX.cab#Version=6,2,433,14"> </object>
+<form>
+    <div id="block">
+        <table>
+            <tr>
+                <td>交班日期：@DateTime.Now.ToString("yyyy/MM/dd")  @(ViewData["transcate"].ToString())</td>
+                <td>交班者：@(ViewData["transuser"].ToString())</td>
+            </tr>
+        </table>
+        <div class="dataPrintArea">
+            <table border="1" cellpadding="4" cellspacing="0" width="100%">
+                <tr>
+                    <th style="width:10%;">床號</th>
+                    <th style="width:22%;">交班事項</th>
+                    <th style="width:23%;">班內預執行工作項目</th>
+                    <th style="width:23%;">特殊交班</th>
+                    <th style="width:22%;">交班註記</th>
+                </tr>
+                @{
+                    List<TransList> tdList = (List<TransList>)ViewData["tdList"];
+                    if (tdList != null)
+                    {
+                        for (int i = 0; i <= tdList.Count - 1; i++)
+                        {
+                                <tr style="height: auto">
+                                    <td style="width:10%; text-align:center;vertical-align: text-top;">
+                                        @Html.Raw(tdList[i].ptinfo.BedNo)
+                                        <br />
+                                        @Html.Raw(tdList[i].ptinfo.PatientName)
+                                        <br />
+                                        @Html.Raw(tdList[i].ptinfo.ChartNo)
+                                        <br />
+                                        <span style="text-align:left">入院日期</span>
+                                        <br />
+                                        @Html.Raw(tdList[i].ptinfo.InDate.ToString("yyyy/MM/dd"))
+                                        <br />
+                                        <span style="text-align:left">預出日期</span>
+                                        <br />
+                                        @Html.Raw((tdList[i].ptinfo.Expected_OutDate > tdList[i].ptinfo.InDate) ? tdList[i].ptinfo.Expected_OutDate.ToString("yyyy/MM/dd") : "")
+                                    </td>
+                                    <td style="width:22%;text-align: left;vertical-align: text-top;">@Html.Raw(string.Join("<br />", tdList[i].vital_info))</td>
+                                    <td style="width:23%;text-align: left;vertical-align: text-top;">@Html.Raw(string.Join("<br />", tdList[i].wait_info))</td>
+                                    <td style="width:23%;text-align: left;vertical-align: text-top;"><pre>@Html.Raw(string.Join("/n", tdList[i].special_info))</pre></td>
+                                    <td style="width:23%;text-align: left;vertical-align: text-top;">
+                                        @if (tdList[i].FRIDs == "藥")
+                                        {
+                                            <label style="color:red">易跌藥品</label><br>
+                                        }
+                                        <input type="hidden" name="@(tdList[i].ptinfo.FeeNo + "_remark")" value="@(tdList[i].remark_info)" />
+                                        <input type="hidden" name="@(tdList[i].ptinfo.FeeNo + "_remarkExtra")" value="@(tdList[i].remarkExtra)" />
+                                        @*<textarea cols="5" rows="7" class="noedit" readonly="readonly" name="@(tdList[i].ptinfo.FeeNo + "_rshow")">@("\n" +tdList[i].remark_info.Replace(',', '\n').Replace('|', '：'))</textarea>*@
+                                        <textarea cols="5" rows="4" class="noedit" readonly="readonly" name="@(tdList[i].ptinfo.FeeNo + "_rshow")">@("\n" + tdList[i].remark_info.Trim().Replace(',', '\n').Replace('|', '：'))</textarea>
+
+                                    </td>
+                                </tr>
+                        }
+                    }
+                }
+            </table>
+        </div>
+    </div>
+</form>

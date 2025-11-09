@@ -1,0 +1,1268 @@
+﻿@using NIS.Data
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    PatientInfo ptinfo = ViewBag.ptinfo;
+}
+<link href="~/Content/StyleSheet/BabySystem.css" rel="stylesheet" />
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+</style>
+
+<script>
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        setGridColor();
+
+        $.ajax({
+            type: "GET",
+            url: "Get_NB_By_FeeNo",
+            data: { feeNo: '@ViewBag.FeeNo' },
+            success: function (res) {
+                if (res == "" || res == "[]") {
+                    //alert("查無新生兒資料!");
+                }
+                else {
+                    var data = JSON.parse(res);
+                    $("#RB_NB_FEENO_SHOW").empty();
+                    for (var i = 0; i < data.length; i++) {
+                        var radioBtn = '<input type="radio" name="RB_NB_FEENO" value="' + data[i].SEQ + ',' + data[i].NB_NAME + ',' + data[i].NB_FEENO+ '" />';
+                        $(radioBtn).appendTo('#RB_NB_FEENO_SHOW');
+                        var label = '<label>' + data[i].SEQ + ',' + data[i].NB_NAME + '</label>';
+                        $(label).appendTo('#RB_NB_FEENO_SHOW');
+                    }
+                }
+            },
+            contentType: 'application/json'
+        });
+    });
+
+    function setGridColor() {
+        //格行換色
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+        $('.head').css('text-align', 'center');
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        if (obj.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(obj.value) && obj.value != "") {
+            $(obj).val('');
+            alert("只能輸入數字");
+        }
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        if (dvalue != 'undefined') {
+            var rb = document.getElementsByName(rb_name);
+            for (var i = 0; i < rb.length; i++) {
+                if (rb[i].value == dvalue)
+                    $(rb[i]).click();
+            }
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = document.getElementsByName(ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value)
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+    function set_for_ddl(ddl_name, dvalue) {
+        var ddl = document.getElementById(ddl_name);
+
+        for (var i = 0; i < ddl.options.length; i++) {
+            if (ddl.options[i].value == dvalue) {
+                ddl.options[i].selected = true;
+
+                if (($.trim(ddl.options[i].value) == "99" || $.trim(ddl.options[i].value) == "其他")) {
+                    if (ddl_name.indexOf('RB_DEF_COL') >= 0) {
+                        $('#TXT_DEF_COL_OTH').show();
+                        $('#TXT_DEF_COL_OTH').attr('disabled', false);
+                    }
+                    if (ddl_name.indexOf('RB_DEF_CHA') >= 0) {
+                        $('#TXT_DEF_CHA_OTH').show();
+                        $('#TXT_DEF_CHA_OTH').attr('disabled', false);
+                    }
+                    if (ddl_name.indexOf('RB_URI_COL') >= 0) {
+                        $('#TXT_URI_COL_OTH').show();
+                        $('#TXT_URI_COL_OTH').attr('disabled', false);
+                    }
+                    if (ddl_name.indexOf('RB_URI_CHA') >= 0) {
+                        $('#TXT_URI_CHA_OTH').show();
+                        $('#TXT_URI_CHA_OTH').attr('disabled', false);
+                    }
+                }
+            }
+        }
+    }
+
+    //判斷是否選擇其他
+    function txt_fordrop(dropid, txtid) {
+        var list = $('#' + dropid).val()
+        if (list != '99') {
+            $('#' + txtid).attr('defaultvalue', $('#' + txtid).val());
+            document.getElementById(txtid).disabled = true;
+            $('#' + txtid).val('');
+            $('#' + txtid).hide();
+        }
+        else {
+            $('#' + txtid).val($('#' + txtid).attr('defaultvalue'));
+            document.getElementById(txtid).disabled = false;
+            $('#' + txtid).show();
+        }
+    }
+
+    function checkArea() {
+        var hasValue = 0;
+        var noValue = 0;
+        var origin_list = [];
+        var rbfields = $("input[name^=RB_BRE_]");
+        for (var f = 0; f < rbfields.length; f++) {
+            if (rbfields[f].name.indexOf("RB_BRE_TYP") > -1)
+                continue;
+            origin_list.push(rbfields[f].name);
+        }
+
+        var txtfields = $("input[name^=TXT_BRE_]");
+        for (var f = 0; f < txtfields.length; f++) {
+            if (txtfields[f].name.indexOf("TXT_BRE_MLK") > -1)
+                continue;
+
+            origin_list.push(txtfields[f].name);
+        }
+
+        var list = origin_list.filter(function (el, i, arr) {
+            return arr.indexOf(el) === i;
+        });
+
+
+        for (var l = 0; l < list.length; l++) {
+            var v = '';
+
+            if (list[l].indexOf('RB') > -1) {
+                v = $("input[name="+ list[l] + "]:checked").val();
+            } else {
+              v =  $("input[name=" + list[l] + "]").val();
+            }
+
+            if (v && v != undefined) {
+                hasValue += 1;
+            }
+            else {
+                noValue += 1;
+            }
+        }
+
+        if (hasValue + noValue == 21) {
+            if (hasValue != 0 && noValue != 0) {
+                return false;
+            } else {
+                return true;
+            }
+        } else {
+            return true;
+        }
+    }
+
+    function checkNB() {
+        if (@ptinfo.Age > 1 && !$('input[name^=RB_NB_FEENO]:checked').val()) {
+            if ($('input[name^=RB_AWAKE]:checked').val() || $('input[name^=RB_BRE_TYP]:checked').val() ||
+                $('input[name^=RB_SKIN]:checked').val() || $('input[name^=RB_MUSCLE]:checked').val() ||
+                $('input[name^=RB_ACTI]:checked').val() || $('input[name^=RB_BRE_BP]:checked').val() ||
+                $('input[name^=RB_BRE_RES]:checked').val() || $('input[name^=RB_BRE_EB]:checked').val() ||
+                $('input[name^=RB_BRE_ANA]:checked').val() || $('input[name^=RB_BRE_SUC]:checked').val() ||
+                $('input[name^=RB_BRE_TSS]:checked').val() || $('input[name^=TXT_BRE_TSS]').val() ||
+                $('input[name^=TXT_WATER]').val() || $('input[name^=TXT_BRE_MLK]').val() ||
+                $('input[name^=TXT_MILK_BD]').val() || $('input[name^=TXT_MILK]').val() ||
+                $('input[name^=TXT_D5W]').val() || $('input[name^=TXT_DEF_FRQ]').val() ||
+                ($('#RB_DEF_COL').val() && $('#RB_DEF_COL').val() != "-1") || $('input[name^=TXT_DEF_COL_OTH]').val() ||
+                ($('#RB_DEF_CHA').val() && $('#RB_DEF_CHA').val() != "-1") || $('input[name^=TXT_DEF_CHA_OTH]').val() ||
+                $('input[name^=TXT_URI_FRQ]').val() ||
+                ($('#RB_URI_COL').val() && $('#RB_URI_COL').val() != "-1") || $('input[name^=TXT_URI_COL_OTH]').val() ||
+                ($('#RB_URI_CHA').val() && $('#RB_URI_CHA').val() != "-1") || $('input[name^=TXT_URI_CHA_OTH]').val()) {
+                    alert("新生兒為必填");
+                return;
+            }
+        }
+        return true;
+    }
+
+    function clearValue() {
+        $('input[name^=RB_NB_FEENO]').prop("checked", false);
+        $('input[name^=RB_AWAKE]').prop("checked", false);
+        $('input[name^=RB_BRE_TYP]').prop("checked", false);
+        $('input[name^=RB_SKIN]').prop("checked", false);
+        $('input[name^=RB_MUSCLE]').prop("checked", false);
+        $('input[name^=RB_ACTI]').prop("checked", false);
+        $('input[name^=RB_BRE_BP]').prop("checked", false);
+        $('input[name^=RB_BRE_RES]').prop("checked", false);
+        $('input[name^=RB_BRE_EB]').prop("checked", false);
+        $('input[name^=RB_BRE_ANA]').prop("checked", false);
+        $('input[name^=RB_BRE_SUC]').prop("checked", false);
+        $('input[name^=RB_BRE_TSS]').prop("checked", false);
+    }
+
+</script>
+
+@using System.Data;
+@using System.Web.Mvc.Html;
+@{
+    DataTable dt = ViewBag.dt;
+    if (dt == null || dt.Rows.Count == 0)
+    {
+        <form action="Insert_Breast_Fedding" method="post">
+            <div class="funcArea addForm">
+                <table border="1" style="width:100%;border-collapse:collapse;">
+                    <caption style="color:blue;font-size:26px;">母嬰護理紀錄單</caption>
+                    <tr>
+                        <th colspan="4">日期時間</th>
+                        <td>
+                            @Html.TextBox("RECORDTIME_DAY", DateTime.Now.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                            @Html.TextBox("RECORDTIME_TIME", DateTime.Now.ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                            @WebTool.setDateTime("RECORDTIME_DAY", "RECORDTIME_TIME", "", "30")
+                        </td>
+                    </tr>
+                    <tbody>
+                        <tr>
+                            <th colspan="2" rowspan="3">乳房評估</th>
+                            <th colspan="2">乳頭</th>
+                            <td>
+                                左:
+                                <input name="CK_NIPPLE" type="checkbox" value="0" />正常
+                                <input name="CK_NIPPLE" type="checkbox" value="1" />凹
+                                <input name="CK_NIPPLE" type="checkbox" value="2" />平
+                                <input name="CK_NIPPLE" type="checkbox" value="3" />短
+                                <input name="CK_NIPPLE" type="checkbox" value="4" />大
+                                <input name="CK_NIPPLE" type="checkbox" value="5" />小
+                                <input name="CK_NIPPLE" type="checkbox" value="6" />破皮
+                                <input name="CK_NIPPLE" type="checkbox" value="7" />結痂
+                                <br />
+                                右:
+                                <input name="CK_NIPPLE" type="checkbox" value="8" />正常
+                                <input name="CK_NIPPLE" type="checkbox" value="9" />凹
+                                <input name="CK_NIPPLE" type="checkbox" value="10" />平
+                                <input name="CK_NIPPLE" type="checkbox" value="11" />短
+                                <input name="CK_NIPPLE" type="checkbox" value="12" />大
+                                <input name="CK_NIPPLE" type="checkbox" value="13" />小
+                                <input name="CK_NIPPLE" type="checkbox" value="14" />破皮
+                                <input name="CK_NIPPLE" type="checkbox" value="15" />結痂
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">乳房</th>
+                            <td>
+                                左:
+                                <input name="CK_BREAST" type="checkbox" value="0" />鬆軟
+                                <input name="CK_BREAST" type="checkbox" value="1" />充盈
+                                <input name="CK_BREAST" type="checkbox" value="2" />緊繃
+                                <input name="CK_BREAST" type="checkbox" value="3" />腫脹
+                                <input name="CK_BREAST" type="checkbox" value="4" />硬
+                                <br />
+                                右:
+                                <input name="CK_BREAST" type="checkbox" value="5" />鬆軟
+                                <input name="CK_BREAST" type="checkbox" value="6" />充盈
+                                <input name="CK_BREAST" type="checkbox" value="7" />緊繃
+                                <input name="CK_BREAST" type="checkbox" value="8" />腫脹
+                                <input name="CK_BREAST" type="checkbox" value="9" />硬
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">泌乳</th>
+                            <td>
+                                左:
+                                <input name="RB_LACT_L" type="radio" value="2" />是，
+                                @Html.TextBox("TXT_LACT_LAMT", "", new { style = "width:100px", onchange = "numcheck(this);" })
+                                ml
+                                <input name="RB_LACT_L" type="radio" value="1" />微泌乳
+                                <input name="RB_LACT_L" type="radio" value="0" />否
+                                <br />
+                                右:
+                                <input name="RB_LACT_R" type="radio" value="2" />是，
+                                @Html.TextBox("TXT_LACT_RAMT", "", new { style = "width:100px", onchange = "numcheck(this);" })
+                                ml
+                                <input name="RB_LACT_R" type="radio" value="1" />微泌乳
+                                <input name="RB_LACT_R" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        @if (ViewBag.Age >= 1)
+                        {
+                            <tr>
+                                <th colspan="4">
+                                    新生兒
+                                    <button type="button" onclick="clearValue();">清空</button>
+                                </th>
+                                <td class="SEL_NB_FEENO" id="RB_NB_FEENO_SHOW"></td>
+                            </tr>
+                        }
+                        else
+                        {
+                            <tr>
+                                <th colspan="5">
+                                    <button type="button" onclick="clearValue();">清空</button>
+                                </th>
+                            </tr>
+                        }
+                    </tbody>
+                    @*嬰兒生理評估*@
+                    <tbody>
+                        <tr>
+                            <th colspan="2" rowspan="5">嬰兒生理<br />評估</th>
+                            <th colspan="2">警醒狀態</th>
+                            <td>
+                                <input name="RB_AWAKE" type="radio" value="0" />清醒
+                                <input name="RB_AWAKE" type="radio" value="1" />睡覺
+                                <input name="RB_AWAKE" type="radio" value="2" />哭鬧
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">呼吸型態</th>
+                            <td>
+                                <input name="RB_BRE_TYP" type="radio" value="0" />順暢
+                                <input name="RB_BRE_TYP" type="radio" value="1" />胸骨凹陷
+                                <input name="RB_BRE_TYP" type="radio" value="2" />困難
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">膚色</th>
+                            <td>
+                                <input name="RB_SKIN" type="radio" value="0" />粉紅
+                                <input name="RB_SKIN" type="radio" value="1" />蒼白
+                                <input name="RB_SKIN" type="radio" value="2" />發紺
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">肌肉張力</th>
+                            <td>
+                                <input name="RB_MUSCLE" type="radio" value="0" />佳
+                                <input name="RB_MUSCLE" type="radio" value="1" />中
+                                <input name="RB_MUSCLE" type="radio" value="2" />弱
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">活動力</th>
+                            <td>
+                                <input name="RB_ACTI" type="radio" value="0" />強
+                                <input name="RB_ACTI" type="radio" value="1" />中
+                                <input name="RB_ACTI" type="radio" value="2" />弱
+                            </td>
+                        </tr>
+                    </tbody>
+                    @*嬰兒餵食評估*@
+                    <tbody>
+                        <tr>
+                            <th rowspan="31">嬰兒餵食<br />評估</th>
+                            <th rowspan="27">哺乳母親<br />觀察表</th>
+                            <th rowspan="6">身體姿勢</th>
+                        </tr>
+                        @*哺乳母親觀察表*@
+                        <tr>
+                            <th>母親放鬆而舒服</th>
+                            <td>
+                                <input name="RB_BRE_BP1" type="radio" value="1" />是
+                                <input name="RB_BRE_BP1" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>嬰兒身體緊貼母親，臉朝向乳房</th>
+                            <td>
+                                <input name="RB_BRE_BP2" type="radio" value="1" />是
+                                <input name="RB_BRE_BP2" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>嬰兒頭部及身體呈一直線</th>
+                            <td>
+                                <input name="RB_BRE_BP3" type="radio" value="1" />是
+                                <input name="RB_BRE_BP3" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>嬰兒下巴貼著乳房</th>
+                            <td>
+                                <input name="RB_BRE_BP4" type="radio" value="1" />是
+                                <input name="RB_BRE_BP4" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>嬰兒臀部受支撐</th>
+                            <td>
+                                <input name="RB_BRE_BP5" type="radio" value="1" />是
+                                <input name="RB_BRE_BP5" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th rowspan="5">反應</th>
+                        </tr>
+                        <tr>
+                            <th>飢餓時嬰兒會朝向乳房</th>
+                            <td>
+                                <input name="RB_BRE_RES1" type="radio" value="1" />是
+                                <input name="RB_BRE_RES1" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>嬰兒會尋找乳房</th>
+                            <td>
+                                <input name="RB_BRE_RES2" type="radio" value="1" />是
+                                <input name="RB_BRE_RES2" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>嬰兒接觸乳房時平靜而清醒</th>
+                            <td>
+                                <input name="RB_BRE_RES3" type="radio" value="1" />是
+                                <input name="RB_BRE_RES3" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>噴乳的表現（子宮收縮痛、漏奶）</th>
+                            <td>
+                                <input name="RB_BRE_RES4" type="radio" value="1" />是
+                                <input name="RB_BRE_RES4" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th rowspan="3">情感交流</th>
+                        </tr>
+                        <tr>
+                            <th>母親情緒穩定，有自信的撫抱</th>
+                            <td>
+                                <input name="RB_BRE_EB1" type="radio" value="1" />是
+                                <input name="RB_BRE_EB1" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>母親會給予臉對臉的注視</th>
+                            <td>
+                                <input name="RB_BRE_EB2" type="radio" value="1" />是
+                                <input name="RB_BRE_EB2" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th rowspan="4">解剖</th>
+                        </tr>
+                        <tr>
+                            <th>乳頭無破皮、龜裂</th>
+                            <td>
+                                <input name="RB_BRE_ANA1" type="radio" value="1" />是
+                                <input name="RB_BRE_ANA1" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>乳頭突起有彈性或延展性</th>
+                            <td>
+                                <input name="RB_BRE_ANA2" type="radio" value="1" />是
+                                <input name="RB_BRE_ANA2" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>乳房無發紅或過度充盈</th>
+                            <td>
+                                <input name="RB_BRE_ANA3" type="radio" value="1" />是
+                                <input name="RB_BRE_ANA3" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th rowspan="6">含乳</th>
+                        </tr>
+                        <tr>
+                            <th>嬰兒嘴巴張大</th>
+                            <td>
+                                <input name="RB_BRE_SUC1" type="radio" value="1" />是
+                                <input name="RB_BRE_SUC1" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>下唇外翻</th>
+                            <td>
+                                <input name="RB_BRE_SUC2" type="radio" value="1" />是
+                                <input name="RB_BRE_SUC2" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>嬰兒嘴巴上方乳暈較多</th>
+                            <td>
+                                <input name="RB_BRE_SUC3" type="radio" value="1" />是
+                                <input name="RB_BRE_SUC3" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>慢慢的深吸奶，一陣子後間隔有休息</th>
+                            <td>
+                                <input name="RB_BRE_SUC4" type="radio" value="1" />是
+                                <input name="RB_BRE_SUC4" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>可看到或聽到吞嚥</th>
+                            <td>
+                                <input name="RB_BRE_SUC5" type="radio" value="1" />是
+                                <input name="RB_BRE_SUC5" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th rowspan="3">含乳時間</th>
+                        </tr>
+                        <tr>
+                            <th>嬰兒自己鬆開乳房</th>
+                            <td>
+                                <input name="RB_BRE_TSS1" type="radio" value="1" />是
+                                <input name="RB_BRE_TSS1" type="radio" value="0" />否
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>嬰兒吸吮母乳時間</th>
+                            <td>
+                                @Html.TextBox("TXT_BRE_TSS2", "", new { style = "width:100px", onchange = "numcheck(this);" })
+                                分鐘
+                            </td>
+                        </tr>
+                        @*哺乳母親觀察表*@
+                        <tr>
+                            <th rowspan="4">餵食量</th>
+                            <th colspan="2">開水</th>
+                            <td>
+                                @Html.TextBox("TXT_WATER", "", new { style = "width:100px", onchange = "numcheck(this);" })ml
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">母乳</th>
+                            <td>
+                                @Html.TextBox("TXT_BRE_MLK", "", new { style = "width:100px", onchange = "numcheck(this);" })ml
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">
+                                配方奶
+                                <input type="button" value="選取廠牌" onclick="window.open('./Select_NB_Formula_List', 'popUpWindow', 'height=600,width=724,top=50,left=150');">
+                            </th>
+                            <td>
+                                @Html.TextBox("TXT_MILK_BD", "", new { style = "width:100px" }) ，
+                                @Html.TextBox("TXT_MILK", "", new { style = "width:100px", onchange = "numcheck(this);" })ml
+                                @Html.TextBox("TXT_MILK_ID", "", new { style = "display:none" }) ，
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">D5W</th>
+                            <td>
+                                @Html.TextBox("TXT_D5W", "", new { style = "width:100px", onchange = "numcheck(this);" })ml
+                            </td>
+                        </tr>
+                    </tbody>
+                    @*排便*@
+                    <tbody>
+                        <tr>
+                            <th rowspan="3" colspan="2" id="Dung">排便</th>
+                            <th colspan="2">次數</th>
+                            <td>
+                                @Html.TextBox("TXT_DEF_FRQ", "", new { style = "width:100px", onchange = "numcheck(this);" })次
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">顏色</th>
+                            <td>
+                                @Html.DropDownList("RB_DEF_COL", (List<SelectListItem>)ViewData["color_drainage"], new { onchange = "txt_fordrop(this.id,'TXT_DEF_COL_OTH');" })
+                                @Html.TextBox("TXT_DEF_COL_OTH", "", new { id = "TXT_DEF_COL_OTH", style = "width:100px;display:none;", defaultvalue = "", disabled = "disabled" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">性狀</th>
+                            <td>
+                                @Html.DropDownList("RB_DEF_CHA", (List<SelectListItem>)ViewData["outputnature_Drainage"], new { onchange = "txt_fordrop(this.id,'TXT_DEF_CHA_OTH');" })
+                                @Html.TextBox("TXT_DEF_CHA_OTH", "", new { id = "TXT_DEF_CHA_OTH", style = "width:100px;display:none;", defaultvalue = "", disabled = "disabled" })
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tr>
+                        <th rowspan="3" colspan="2">排尿</th>
+                        <th colspan="2">次數</th>
+                        <td>
+                            @Html.TextBox("TXT_URI_FRQ", "", new { style = "width:100px", onchange = "numcheck(this);" })次
+                        </td>
+                    </tr>
+                    <tr>
+                        <th colspan="2">顏色</th>
+                        <td>
+                            @Html.DropDownList("RB_URI_COL", (List<SelectListItem>)ViewData["color_drainage"], new { onchange = "txt_fordrop(this.id,'TXT_URI_COL_OTH');" })
+                            @Html.TextBox("TXT_URI_COL_OTH", "", new { id = "TXT_URI_COL_OTH", style = "width:100px;display:none;", defaultvalue = "", disabled = "disabled" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <th colspan="2">性狀</th>
+                        <td>
+                            @Html.DropDownList("RB_URI_CHA", (List<SelectListItem>)ViewData["outputnature_Drainage"], new { onchange = "txt_fordrop(this.id,'TXT_URI_CHA_OTH');" })
+                            @Html.TextBox("TXT_URI_CHA_OTH", "", new { id = "TXT_URI_CHA_OTH", style = "width:100px;display:none;", defaultvalue = "", disabled = "disabled" })
+                        </td>
+                    </tr>
+                    <tr>
+                        <th colspan="4">護理處置</th>
+                        <td>
+                            <textarea name="TXT_TREAT" style="width:97%;height:50px"></textarea>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th colspan="4">帶入產婦護理紀錄</th>
+                        <td>
+                            <input type="checkbox" name="CK_CARE_RECORD" value="1" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th colspan="4">帶入新生兒護理紀錄</th>
+                        <td>
+                            <input type="checkbox" name="CK_NB_CARE_RECORD" value="1" />
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="funcArea addForm" style="text-align:center">
+                <input type="button" value="儲存" style="width:60px;" onclick="if (checkArea()) { if (checkNB()) { submit(); } } else alert('無法存檔!哺乳母親觀察表需全部評估或不評估');" />
+                <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) window.close();" />
+            </div>
+        </form>
+    }
+    else
+    {
+        <form action="Upd_Breast_Fedding" method="post">
+            @foreach (DataRow r in dt.Rows)
+            {
+                <div class="funcArea addForm">
+                    <input type="hidden" name="IID" value="@r["IID"]" />
+                    <table border="1" style="width:100%;border-collapse:collapse;">
+                        <caption style="color:blue;font-size:26px;">母嬰護理紀錄單</caption>
+                        <tr>
+                            <th colspan="4">日期時間</th>
+                            <td>
+                                @Html.TextBox("RECORDTIME_DAY" + r["IID"], Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                @Html.TextBox("RECORDTIME_TIME" + r["IID"], Convert.ToDateTime(r["RECORDTIME"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                @WebTool.setDateTime("RECORDTIME_DAY" + r["IID"], "RECORDTIME_TIME" + r["IID"], "", "30")
+                            </td>
+                        </tr>
+                        <tbody>
+                            <tr>
+                                <th colspan="2" rowspan="3">乳房評估</th>
+                                <th colspan="2">乳頭</th>
+                                <td>
+                                    左:
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="0" />正常
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="1" />凹
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="2" />平
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="3" />短
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="4" />大
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="5" />小
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="6" />破皮
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="7" />結痂
+                                    <br />
+                                    右:
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="8" />正常
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="9" />凹
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="10" />平
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="11" />短
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="12" />大
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="13" />小
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="14" />破皮
+                                    <input name="CK_NIPPLE@(r["IID"])" type="checkbox" value="15" />結痂
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">乳房</th>
+                                <td>
+                                    左:
+                                    <input name="CK_BREAST@(r["IID"])" type="checkbox" value="0" />鬆軟
+                                    <input name="CK_BREAST@(r["IID"])" type="checkbox" value="1" />充盈
+                                    <input name="CK_BREAST@(r["IID"])" type="checkbox" value="2" />緊繃
+                                    <input name="CK_BREAST@(r["IID"])" type="checkbox" value="3" />腫脹
+                                    <input name="CK_BREAST@(r["IID"])" type="checkbox" value="4" />硬
+                                    <br />
+                                    右:
+                                    <input name="CK_BREAST@(r["IID"])" type="checkbox" value="5" />鬆軟
+                                    <input name="CK_BREAST@(r["IID"])" type="checkbox" value="6" />充盈
+                                    <input name="CK_BREAST@(r["IID"])" type="checkbox" value="7" />緊繃
+                                    <input name="CK_BREAST@(r["IID"])" type="checkbox" value="8" />腫脹
+                                    <input name="CK_BREAST@(r["IID"])" type="checkbox" value="9" />硬
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">泌乳</th>
+                                <td>
+                                    左:
+                                    <input name="RB_LACT_L@(r["IID"])" type="radio" value="2" />是，
+                                    @Html.TextBox("TXT_LACT_LAMT" + r["IID"], r["LACT_LAMT"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                    ml
+                                    <input name="RB_LACT_L@(r["IID"])" type="radio" value="1" />微泌乳
+                                    <input name="RB_LACT_L@(r["IID"])" type="radio" value="0" />否
+                                    <br />
+                                    右:
+                                    <input name="RB_LACT_R@(r["IID"])" type="radio" value="2" />是，
+                                    @Html.TextBox("TXT_LACT_RAMT" + r["IID"], r["LACT_RAMT"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                    ml
+                                    <input name="RB_LACT_R@(r["IID"])" type="radio" value="1" />微泌乳
+                                    <input name="RB_LACT_R@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            @if (ViewBag.Age >= 1)
+                            {
+                                <tr>
+                                    <th colspan="4">
+                                        新生兒
+                                        <button type="button" onclick="clearValue();">清空</button>
+                                    </th>
+                                    <td class="SEL_NB_FEENO">
+                                        @{
+                                            @Html.TextBox("RB_NB_FEENO" + r["IID"], r["NB_SEQ_FEENO"].ToString(), new { style = "width:150px", @readonly = "readonly" })
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                <tr>
+                                    <th colspan="5">
+                                        <button type="button" onclick="clearValue();">清空</button>
+                                    </th>
+                                </tr>
+                            }
+                        </tbody>
+                        @*嬰兒生理評估*@
+                        <tbody>
+                            <tr>
+                                <th colspan="2" rowspan="5">嬰兒生理<br />評估</th>
+                                <th colspan="2">警醒狀態</th>
+                                <td>
+                                    <input name="RB_AWAKE@(r["IID"])" type="radio" value="0" />清醒
+                                    <input name="RB_AWAKE@(r["IID"])" type="radio" value="1" />睡覺
+                                    <input name="RB_AWAKE@(r["IID"])" type="radio" value="2" />哭鬧
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">呼吸型態</th>
+                                <td>
+                                    <input name="RB_BRE_TYP@(r["IID"])" type="radio" value="0" />順暢
+                                    <input name="RB_BRE_TYP@(r["IID"])" type="radio" value="1" />胸骨凹陷
+                                    <input name="RB_BRE_TYP@(r["IID"])" type="radio" value="2" />困難
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">膚色</th>
+                                <td>
+                                    <input name="RB_SKIN@(r["IID"])" type="radio" value="0" />粉紅
+                                    <input name="RB_SKIN@(r["IID"])" type="radio" value="1" />蒼白
+                                    <input name="RB_SKIN@(r["IID"])" type="radio" value="2" />發紺
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">肌肉張力</th>
+                                <td>
+                                    <input name="RB_MUSCLE@(r["IID"])" type="radio" value="0" />佳
+                                    <input name="RB_MUSCLE@(r["IID"])" type="radio" value="1" />中
+                                    <input name="RB_MUSCLE@(r["IID"])" type="radio" value="2" />弱
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">活動力</th>
+                                <td>
+                                    <input name="RB_ACTI@(r["IID"])" type="radio" value="0" />強
+                                    <input name="RB_ACTI@(r["IID"])" type="radio" value="1" />中
+                                    <input name="RB_ACTI@(r["IID"])" type="radio" value="2" />弱
+                                </td>
+                            </tr>
+                        </tbody>
+                        @*嬰兒餵食評估*@
+                        <tbody>
+                            <tr>
+                                <th rowspan="31">嬰兒餵食<br />評估</th>
+                                <th rowspan="27">哺乳母親<br />觀察表</th>
+                                <th rowspan="6">身體姿勢</th>
+                            </tr>
+                            <tr>
+                                <th>母親放鬆而舒服</th>
+                                <td>
+                                    <input name="RB_BRE_BP1@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_BP1@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>嬰兒身體緊貼母親，臉朝向乳房</th>
+                                <td>
+                                    <input name="RB_BRE_BP2@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_BP2@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>嬰兒頭部及身體呈一直線</th>
+                                <td>
+                                    <input name="RB_BRE_BP3@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_BP3@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>嬰兒下巴貼著乳房</th>
+                                <td>
+                                    <input name="RB_BRE_BP4@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_BP4@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>嬰兒臀部受支撐</th>
+                                <td>
+                                    <input name="RB_BRE_BP5@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_BP5@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th rowspan="5">反應</th>
+                            </tr>
+                            <tr>
+                                <th>飢餓時嬰兒會朝向乳房</th>
+                                <td>
+                                    <input name="RB_BRE_RES1@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_RES1@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>嬰兒會尋找乳房</th>
+                                <td>
+                                    <input name="RB_BRE_RES2@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_RES2@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>嬰兒接觸乳房時平靜而清醒</th>
+                                <td>
+                                    <input name="RB_BRE_RES3@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_RES3@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>噴乳的表現（子宮收縮痛、漏奶）</th>
+                                <td>
+                                    <input name="RB_BRE_RES4@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_RES4@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th rowspan="3">情感交流</th>
+                            </tr>
+                            <tr>
+                                <th>母親情緒穩定，有自信的撫抱</th>
+                                <td>
+                                    <input name="RB_BRE_EB1@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_EB1@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>母親會給予臉對臉的注視</th>
+                                <td>
+                                    <input name="RB_BRE_EB2@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_EB2@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th rowspan="4">解剖</th>
+                            </tr>
+                            <tr>
+                                <th>乳頭無破皮、龜裂</th>
+                                <td>
+                                    <input name="RB_BRE_ANA1@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_ANA1@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>乳頭突起有彈性或延展性</th>
+                                <td>
+                                    <input name="RB_BRE_ANA2@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_ANA2@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>乳房無發紅或過度充盈</th>
+                                <td>
+                                    <input name="RB_BRE_ANA3@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_ANA3@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th rowspan="6">含乳</th>
+                            </tr>
+                            <tr>
+                                <th>嬰兒嘴巴張大</th>
+                                <td>
+                                    <input name="RB_BRE_SUC1@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_SUC1@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>下唇外翻</th>
+                                <td>
+                                    <input name="RB_BRE_SUC2@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_SUC2@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>嬰兒嘴巴上方乳暈較多</th>
+                                <td>
+                                    <input name="RB_BRE_SUC3@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_SUC3@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>慢慢的深吸奶，一陣子後間隔有休息</th>
+                                <td>
+                                    <input name="RB_BRE_SUC4@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_SUC4@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>可看到或聽到吞嚥</th>
+                                <td>
+                                    <input name="RB_BRE_SUC5@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_SUC5@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th rowspan="3">含乳時間</th>
+                            </tr>
+                            <tr>
+                                <th>嬰兒自己鬆開乳房</th>
+                                <td>
+                                    <input name="RB_BRE_TSS1@(r["IID"])" type="radio" value="1" />是
+                                    <input name="RB_BRE_TSS1@(r["IID"])" type="radio" value="0" />否
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>嬰兒吸吮母乳時間</th>
+                                <td>
+                                    @Html.TextBox("TXT_BRE_TSS2" + r["IID"], r["BRE_TSS2"], new { style = "width:100px", onchange = "numcheck(this);" })
+                                    分鐘
+                                </td>
+                            </tr>
+                            <tr>
+                                <th rowspan="4">餵食量</th>
+                                <th colspan="2">開水</th>
+                                <td>
+                                    @Html.TextBox("TXT_WATER" + r["IID"], r["WATER"], new { style = "width:100px", onchange = "numcheck(this);" })ml
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">母乳</th>
+                                <td>
+                                    @Html.TextBox("TXT_BRE_MLK" + r["IID"], r["BRE_MLK"], new { style = "width:100px", onchange = "numcheck(this);" })ml
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">
+                                    配方奶
+                                    <input type="button" value="選取廠牌" onclick="window.open('./Select_NB_Formula_List?value=' + $('#TXT_MILK_BD').val(), 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=724,top=50,left=150');">
+                                </th>
+                                <td>
+                                    @Html.TextBox("TXT_MILK_BD" + r["IID"], r["MILK_BD"], new { id = "TXT_MILK_BD", style = "width:100px" }) ，
+                                    @Html.TextBox("TXT_MILK" + r["IID"], r["MILK"], new { style = "width:100px", onchange = "numcheck(this);" })ml
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">D5W</th>
+                                <td>
+                                    @Html.TextBox("TXT_D5W" + r["IID"], r["D5W"], new { style = "width:100px", onchange = "numcheck(this);" })ml
+                                </td>
+                            </tr>
+                        </tbody>
+                        @*排便*@
+                        <tbody>
+                            <tr>
+                                <th rowspan="3" colspan="2" id="Dung">排便</th>
+                                <th colspan="2">次數</th>
+                                <td>
+                                    @Html.TextBox("TXT_DEF_FRQ" + r["IID"], r["DEF_FRQ"], new { style = "width:100px", onchange = "numcheck(this);" })次
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">顏色</th>
+                                <td>
+                                    @Html.DropDownList("RB_DEF_COL" + r["IID"], (List<SelectListItem>)ViewData["color_drainage"], new { onchange = "txt_fordrop(this.id,'TXT_DEF_COL_OTH');" })
+                                    @Html.TextBox("TXT_DEF_COL_OTH" + r["IID"], r["DEF_COL_OTH"], new { id = "TXT_DEF_COL_OTH", style = "width:100px;display:none;", defaultvalue = "", disabled = "disabled" })
+                                </td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">性狀</th>
+                                <td>
+                                    @Html.DropDownList("RB_DEF_CHA" + r["IID"], (List<SelectListItem>)ViewData["outputnature_Drainage"], new { onchange = "txt_fordrop(this.id,'TXT_DEF_CHA_OTH');" })
+                                    @Html.TextBox("TXT_DEF_CHA_OTH" + r["IID"], r["DEF_CHA_OTH"], new { id = "TXT_DEF_CHA_OTH", style = "width:100px;display:none;", defaultvalue = "", disabled = "disabled" })
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tr>
+                            <th rowspan="3" colspan="2">排尿</th>
+                            <th colspan="2">次數</th>
+                            <td>
+                                @Html.TextBox("TXT_URI_FRQ" + r["IID"], r["URI_FRQ"], new { id = "TXT_URI_FRQ", style = "width:100px", onchange = "numcheck(this);" })次
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">顏色</th>
+                            <td>
+                                @Html.DropDownList("RB_URI_COL" + r["IID"], (List<SelectListItem>)ViewData["color_drainage"], new { onchange = "txt_fordrop(this.id,'TXT_URI_COL_OTH');" })
+                                @Html.TextBox("TXT_URI_COL_OTH" + r["IID"], r["URI_COL_OTH"], new { id = "TXT_URI_COL_OTH", style = "width:100px;display:none;", defaultvalue = "", disabled = "disabled" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="2">性狀</th>
+                            <td>
+                                @Html.DropDownList("RB_URI_CHA" + r["IID"], (List<SelectListItem>)ViewData["outputnature_Drainage"], new { onchange = "txt_fordrop(this.id,'TXT_URI_CHA_OTH');" })
+                                @Html.TextBox("TXT_URI_CHA_OTH" + r["IID"], r["URI_CHA_OTH"], new { id = "TXT_URI_CHA_OTH", style = "width:100px;display:none;", defaultvalue = "", disabled = "disabled" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="4">護理處置</th>
+                            <td>
+                                @Html.TextArea("TXT_TREAT" + r["IID"], r["TREAT"].ToString(), new { style = "width:97%;height:50px" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="4">帶入產婦護理紀錄</th>
+                            <td>
+                                <input type="checkbox" name="CK_CARE_RECORD@(r["IID"])" value="1" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="4">帶入新生兒護理紀錄</th>
+                            <td>
+                                <input type="checkbox" name="CK_NB_CARE_RECORD@(r["IID"])" value="1" />
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <script>
+                    @if(r["NIPPLE"].ToString() != "")
+                    {
+                        var NIPPLE = r["NIPPLE"].ToString();
+                        var NIPPLEV = new List<string>();
+
+                        for (var i = 0; i < NIPPLE.ToString().Length; i++)
+                        {
+                            if (NIPPLE[i] == '1')
+                            {
+                                NIPPLEV.Add(i.ToString());
+                            }
+                        }
+                        @:set_for_ck('CK_NIPPLE@(r["IID"])', '@String.Join(",", NIPPLEV)');
+                    }
+
+                    @if(r["BREAST"].ToString() != "")
+                    {
+                        var BREAST = r["BREAST"].ToString();
+                        var BREASTV = new List<string>();
+
+                        for (var i = 0; i < BREAST.ToString().Length; i++)
+                        {
+                            if (BREAST[i] == '1')
+                            {
+                                BREASTV.Add(i.ToString());
+                            }
+                        }
+                                                 @:set_for_ck('CK_BREAST@(r["IID"])', '@String.Join(",", BREASTV)');
+                                             }
+                    @if(r["NB_SEQ_FEENO"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_NB_FEENO', '@r["NB_SEQ_FEENO"]');
+                                        }
+                    @if(r["LACT_L"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LACT_L@(r["IID"])', '@r["LACT_L"]');
+                                        }
+                    @if(r["LACT_R"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_LACT_R@(r["IID"])', '@r["LACT_R"]');
+                                        }
+
+                    @if(r["AWAKE"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_AWAKE@(r["IID"])', '@r["AWAKE"]');
+                                        }
+                    @if(r["BRE_TYP"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_TYP@(r["IID"])', '@r["BRE_TYP"]');
+                                        }
+                    @if(r["SKIN"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_SKIN@(r["IID"])', '@r["SKIN"]');
+                                        }
+
+                    @if(r["MUSCLE"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_MUSCLE@(r["IID"])', '@r["MUSCLE"]');
+                                        }
+                    @if(r["ACTI"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_ACTI@(r["IID"])', '@r["ACTI"]');
+                                        }
+                    @if(r["BRE_BP1"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_BP1@(r["IID"])', '@r["BRE_BP1"]');
+                                        }
+                    @if(r["BRE_BP2"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_BP2@(r["IID"])', '@r["BRE_BP2"]');
+                                        }
+                    @if(r["BRE_BP3"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_BP3@(r["IID"])', '@r["BRE_BP3"]');
+                                        }
+                    @if(r["BRE_BP4"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_BP4@(r["IID"])', '@r["BRE_BP4"]');
+                                        }
+                    @if(r["BRE_BP5"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_BP5@(r["IID"])', '@r["BRE_BP5"]');
+                                        }
+                    @if(r["BRE_RES1"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_RES1@(r["IID"])', '@r["BRE_RES1"]');
+                                        }
+                    @if(r["BRE_RES2"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_RES2@(r["IID"])', '@r["BRE_RES2"]');
+                                        }
+                    @if(r["BRE_RES3"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_RES3@(r["IID"])', '@r["BRE_RES3"]');
+                                        }
+                    @if(r["BRE_RES4"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_RES4@(r["IID"])', '@r["BRE_RES4"]');
+                                        }
+                    @if(r["BRE_EB1"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_EB1@(r["IID"])', '@r["BRE_EB1"]');
+                                        }
+                    @if(r["BRE_EB2"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_EB2@(r["IID"])', '@r["BRE_EB2"]');
+                                        }
+                    @if(r["BRE_ANA1"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_ANA1@(r["IID"])', '@r["BRE_ANA1"]');
+                                        }
+                    @if(r["BRE_ANA2"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_ANA2@(r["IID"])', '@r["BRE_ANA2"]');
+                                        }
+                    @if(r["BRE_ANA3"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_ANA3@(r["IID"])', '@r["BRE_ANA3"]');
+                                        }
+                    @if(r["BRE_SUC1"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_SUC1@(r["IID"])', '@r["BRE_SUC1"]');
+                                        }
+                    @if(r["BRE_SUC2"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_SUC2@(r["IID"])', '@r["BRE_SUC2"]');
+                                        }
+                    @if(r["BRE_SUC3"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_SUC3@(r["IID"])', '@r["BRE_SUC3"]');
+                                        }
+                                        @if(r["BRE_SUC4"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_SUC4@(r["IID"])', '@r["BRE_SUC4"]');
+                                        }
+                                        @if(r["BRE_SUC5"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_SUC5@(r["IID"])', '@r["BRE_SUC5"]');
+                                        }
+                                        @if(r["BRE_TSS1"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BRE_TSS1@(r["IID"])', '@r["BRE_TSS1"]');
+                                        }
+                                        @if(r["DEF_COL"].ToString() != "")
+                                        {
+                                            @:set_for_ddl('RB_DEF_COL@(r["IID"])', '@r["DEF_COL"]');
+                                        }
+
+                     @if(r["DEF_CHA"].ToString() != "")
+                                        {
+                                            @:set_for_ddl('RB_DEF_CHA@(r["IID"])', '@r["DEF_CHA"]');
+                                        }
+                      @if(r["URI_COL"].ToString() != "")
+                                        {
+                                            @:set_for_ddl('RB_URI_COL@(r["IID"])', '@r["URI_COL"]');
+                                        }
+                      @if(r["URI_CHA"].ToString() != "")
+                                        {
+                                            @:set_for_ddl('RB_URI_CHA@(r["IID"])', '@r["URI_CHA"]');
+                                        }
+                      @if(r["CARE_RECORD"].ToString() == "1")
+                                        {
+                                            @:set_for_ck('CK_CARE_RECORD@(r["IID"])', '@r["CARE_RECORD"]');
+                                        }
+                      @if(r["NB_CARE_RECORD"].ToString() == "1")
+                                        {
+                                            @:set_for_ck('CK_NB_CARE_RECORD@(r["IID"])', '@r["NB_CARE_RECORD"]');
+                                        }
+                </script>
+            }
+            <div class="funcArea addForm" style="text-align:center">
+                <input type="button" value="儲存" style="width:60px;" onclick="if (checkArea()) submit(); else alert('無法存檔!哺乳母親觀察表需全部評估或不評估');" />
+                <input type="button" value="取消" style="width:60px;" onclick="if (confirm('確認取消?')) window.close();" />
+            </div>
+        </form>
+    }
+
+}
+
+<script>
+    $('form').on('keyup keypress', function (e) {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode === 13) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>

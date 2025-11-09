@@ -1,0 +1,205 @@
+﻿@using NIS.Data;
+@using System.Data;
+@{
+    ViewBag.Title = "護理資訊系統-血糖&胰島素";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable dt_bsi = ViewBag.dt_bsi;
+    string gs_feeno = ViewBag.feeno;
+    string check_time = "", check_time2 = "", check_bs = "", check_day = "", exec_style = "";
+}
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(window).resize(function () {
+            if ($(this).outerHeight() <= 50) {
+                $(".dataArea").outerHeight(400);
+            }
+            else {
+                $(".dataArea").outerHeight($(this).outerHeight() - 60);
+            }
+        }).trigger("resize");
+    });
+</script>
+<style type="text/css">
+    table {
+        border: 1px solid #000000;
+        border-collapse: collapse;
+    }
+    th {
+        border: 1px solid #000000;
+        background: #99CCFF;
+        text-align: center;
+        vertical-align: middle;
+    }
+    tr, td {
+        border: 1px solid #000000;
+        text-align:center;
+        vertical-align:middle;
+    }
+    .bs_style {
+        background:#f3b98d;
+    }
+    .in_style {
+        background:#dac5ed;
+    }
+    .odd_style {
+        background:#F5F5F5;
+    }
+    .even_style {
+        background:#EEF5FC;
+    }
+    .popup {
+        position: absolute;
+        border: 1px;
+        background-color:#DDDDFF;
+        padding: 15px;
+        width: auto;
+        height: 50px;
+        display: none;
+        z-index: 99;
+    }
+    #block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        /*background-color: #666;*/
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+</style>
+<form method="post" action="BloodSugarInsulin_list2" style="font-size:10pt">
+    <input type="hidden" value="@gs_feeno" id="fee_no" />
+    @if (ViewData["BSugarInsulin_List"] == null)
+    { 
+        <p style="font-size:larger">查無資料。</p>
+    }
+    else
+    {
+        <div class="dataArea">
+        <table border="1" width:100% >
+             <tr style="height:30px">
+                <th colspan="4" class="bs_style" style="font-size:16px">血糖</th>
+                <th colspan="5" class="in_style" style="font-size:16px">胰島素</th>
+            </tr>
+            <tr>
+                <th width="13%" class="bs_style">血糖監測時間</th>
+                <th width="8%" class="bs_style">狀態</th>
+                <th width="8%" class="bs_style">血糖值</th>
+                <th width="7%"  class="bs_style">監測者</th>
+                <th width="13%" class="in_style">注射時間</th>
+                <th width="15%" class="in_style">藥物</th>
+                <th width="6%"  class="in_style">劑量</th>
+                <th width="5%"  class="in_style">施打部位</th>
+                @*<th width="13%" class="in_style">Sliding Scale</th>
+                <th width="5%"  class="in_style">劑量</th>*@
+                <th width="7%"  class="in_style">注射者</th>
+            </tr>
+            @{
+                List<BloodSugarInsulin_List> BSugarInsulin_List = (List<BloodSugarInsulin_List>)ViewData["BSugarInsulin_List"];
+                for (int i = 0; i <= BSugarInsulin_List.Count - 1; i++)
+                {
+                    if (BSugarInsulin_List[i].B_INDATE.ToString() != "")
+                    {
+                        if (check_day != BSugarInsulin_List[i].B_INDATE.ToString().Substring(0, 10))
+                        {
+                            if (exec_style == "odd_style")
+                            { exec_style = "even_style"; }
+                            else
+                            { exec_style = "odd_style"; }
+                            check_day = BSugarInsulin_List[i].B_INDATE.ToString().Substring(0, 10);
+                        }
+                    }
+                    <tr class="@exec_style">
+                        @if (check_time == BSugarInsulin_List[i].B_INDATE.ToString() && check_bs == BSugarInsulin_List[i].BLOODSUGAR.ToString())
+                        {
+                            <td></td>
+                            <td></td>
+                            <td></td> 
+                             <td></td> 
+                        }
+                        else
+                        {
+                            <td>@BSugarInsulin_List[i].B_INDATE</td>
+                              <td > 
+                            @if (!string.IsNullOrEmpty(BSugarInsulin_List[i].MEAL_STATUS))
+                            {
+                                if (BSugarInsulin_List[i].MEAL_STATUS.ToString() == "B")
+                                {
+                                     <label>飯前</label> 
+                                }
+                                else if (BSugarInsulin_List[i].MEAL_STATUS.ToString() == "A")
+                                { 
+                                 <label>飯後</label> 
+                                }     
+                                 else
+                                { 
+                                 <label>不清楚</label> 
+                                }                                    
+                            }                           
+                            </td>
+                            if (BSugarInsulin_List[i].BLOODSUGAR.ToString().Trim() == "")
+                            {<td></td>}
+                            else if (decimal.Parse(BSugarInsulin_List[i].BLOODSUGAR.ToString().Replace("#", "")) < 2)
+                            {<td style="color:blue;text-align:right">Low</td> }
+                            else if (decimal.Parse(BSugarInsulin_List[i].BLOODSUGAR.ToString().Replace("#", "")) < 70)
+                            {  <td style="color:blue;text-align:right">@BSugarInsulin_List[i].BLOODSUGAR mg/dl</td> }
+                              else if (decimal.Parse(BSugarInsulin_List[i].BLOODSUGAR.ToString().Replace("#", "")) >998)
+                            { <td style="color:red;text-align:right">High</td> }
+                            else if (decimal.Parse(BSugarInsulin_List[i].BLOODSUGAR.ToString().Replace("#", "")) >= 110)
+                            { <td style="color:red;text-align:right">@BSugarInsulin_List[i].BLOODSUGAR mg/dl</td> }                           
+                            else
+                            { <td style="text-align:right">@BSugarInsulin_List[i].BLOODSUGAR mg/dl</td> }
+                            <td>@BSugarInsulin_List[i].INSOPNAME</td>
+                            check_time = BSugarInsulin_List[i].B_INDATE.ToString();
+                            check_bs = BSugarInsulin_List[i].BLOODSUGAR.ToString();
+                        }
+                        
+                        <td>@BSugarInsulin_List[i].I_INDATE</td>
+                        @if (BSugarInsulin_List[i].IN_DOSE == "0")
+                        {
+                            <td> </td>
+                            <td> </td>
+                        }
+                        else
+                        { 
+                            <td><font style="font-size:smaller">@BSugarInsulin_List[i].IN_DRUGNAME</font></td>
+                            <td>@(BSugarInsulin_List[i].IN_DOSE) @(BSugarInsulin_List[i].IN_DOSEUNIT)</td>
+                        }    
+                        <td>@BSugarInsulin_List[i].POSITION</td>
+                        
+                        @*@if (BSugarInsulin_List[i].SS_DOSE == "")
+                        { 
+                            <td> </td>
+                            <td> </td>
+                        }
+                        else
+                        { 
+                            <td><font style="font-size:smaller">@BSugarInsulin_List[i].SS_DRUGNAME</font></td>
+                            <td>@(BSugarInsulin_List[i].SS_DOSE.ToString()) @(BSugarInsulin_List[i].IN_DOSEUNIT)</td>
+                        }*@  
+                        
+                        <td>@BSugarInsulin_List[i].INJECTION</td>
+                    </tr>
+                }
+             }
+        </table>
+         <div>
+            @ViewBag.b_count
+            @ViewBag.i_count
+        </div>
+    </div>
+    }
+</form>
+<div id="but_menu" class="popup">
+    <input type="button" value="修改" onclick="pup_window('Modify', '900', '600');"/>
+    <input type="button" value="刪除"/>
+    <input type="hidden" value="" id="bsi_id" />
+</div>
+<div id="block"></div>
+

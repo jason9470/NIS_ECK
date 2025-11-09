@@ -1,0 +1,2472 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+    string sex = pf.PatientGender;
+
+    TimeSpan diff = DateTime.Now - pf.Birthday;
+    int childAge = Convert.ToInt32(diff.TotalDays);
+}
+@using System.Data;
+@using System.Web.Mvc.Html;
+@{
+    DataTable dt = ViewBag.dt;
+    DataTable dt_ASS_1F = ViewBag.dt_ASS_1F;
+    List<NIS.Data.DrugOrder> Drug_list = (List<NIS.Data.DrugOrder>)ViewData["Drug_list"];
+}
+
+<style type="text/css">
+    .level-24px {
+        width: 24px;
+        display: inline-block;
+    }
+
+    .level-2-48px {
+        width: 168px;
+        display: inline-block;
+    }
+
+    .level-2 {
+        width: 140px;
+        display: inline-block;
+    }
+
+    .tabArea .subtitle, table {
+        font-family: TimesNewRoman, EUDC, "標楷體" !important;
+    }
+
+    .tabArea .subtitle {
+        text-align: left;
+    }
+
+    .ui-tabs .ui-tabs-nav li a {
+        font-size: 16px;
+        padding: 3px 5px 3px 5px;
+    }
+
+    .ui-tabs {
+        font-size: 16px;
+    }
+
+    .popup {
+        width: 800px;
+        height: 420px;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -200px 0 0 -350px;
+        display: none;
+        z-index: 99;
+    }
+</style>
+
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        //自動調整頁面高度   //分頁選項高度
+
+        $('input[type=text], textarea').each(function () {
+            $(this).replaceWith("<span>" + $(this).val().replace(/\|/g, ',') + "</span>");
+        });
+        $('input[type=radio], input[type=checkbox]').each(function () {
+            if (this.checked)
+                $(this).remove();
+            else
+                $(this.parentElement).remove();
+        });
+        $('img').remove();
+    });
+
+    //驗證欄位_數字
+    function numcheck(obj) {
+        if (obj.value.indexOf('.') > -1) {
+            var re = /^[0-9]+\.[0-9]*$/;
+        }
+        else {
+            var re = /^[0-9]+$/;
+        }
+        if (!re.test(obj.value) && obj.value != "") {
+            alert("只能輸入數字");
+            $(obj).val('');
+            return false;
+        }
+        else
+            return true;
+    }
+
+    function set_for_rb(rb_name, dvalue) {
+        dvalue = dvalue.replace('&lt;', '<').replace('&gt;', '>');
+        if (dvalue != '') {
+            $('input[name=' + rb_name + ']').each(function () {
+                if ($(this).val() == dvalue)
+                    $(this).click();
+            });
+        }
+    }
+
+    function set_for_ck(ck_name, val) {
+        if (val != '') {
+            var default_val = val.split(",");
+            var ck = document.getElementsByName(ck_name);
+            for (var i = 0; i < default_val.length; i++) {
+                for (var j = 0; j < ck.length; j++) {
+                    if (default_val[i] == ck[j].value || (ck_name = "param_allergy_other_other" && ck[j].value.indexOf("麈") > -1))
+                        $(ck[j]).click();
+                }
+            }
+        }
+    }
+
+    function set_for_ddl2(ddl_name, dvalue) {
+        var ddl = document.getElementById(ddl_name);
+        for (var i = 0; i < ddl.options.length; i++) {
+            if (ddl.options[i].value == dvalue)
+                ddl.options[i].selected = true;
+        }
+    }
+
+    function set_for_txt(txt_name, dvalue) {
+        if (dvalue != '') {
+            var default_val = dvalue.split(",");
+            var txt = document.getElementsByName(txt_name);
+            if (txt.length > 1) {
+                for (var i = 0; i < txt.length; i++) {
+                    $(txt[i]).val(default_val[i]);
+                }
+            }
+            else
+                $(txt[0]).val(dvalue);
+        }
+    }
+
+    function div_hidden(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0; i < list.length; i++) {
+            $('.' + list[i]).fadeOut(0);
+            var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+            for (var j = 0; j < input_list.length; j++) {
+                if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                    $(input_list[j]).val('');
+                else if (input_list[j].type == 'radio')
+                    input_list[j].checked = false;
+                else {
+                    if (input_list[j].checked)
+                        $(input_list[j]).click();
+                }
+            }
+        }
+    }
+
+    function GetINSPTList(obj, name) {
+        var INSPTNo = $(obj).val();
+
+        $.ajax({
+            url: "../Obstetrics/Get_INSPTList",
+            type: "GET",
+            data: { INSPTNo: INSPTNo },
+            success: function (data, textStatus, jqXHR) {
+                if (data == "") {
+                    alert("查無此代碼之檢驗院所!");
+                }
+                else {
+                    $("#" + name).val(data);
+                }
+            },
+            error: function (err) {
+            },
+            dataType: 'text'
+        });
+    }
+</script>
+
+<input type="hidden" id="check_tab" value="0" />
+<input type="hidden" value="0" id="contant_count" />
+@* 20140112 增加身評隱藏欄位 *@
+<input type="hidden" id="R1TXT" name="R1TXT" />
+<input type="hidden" id="rb1" name="rb1" />
+<input type="hidden" id="rb2" name="rb2" />
+<input type="hidden" id="rb3" name="rb3" />
+<input type="hidden" id="rb4" name="rb4" />
+<input type="hidden" id="rb5" name="rb5" />
+<input type="hidden" id="rb6" name="rb6" />
+@* 20140112 增加身評隱藏欄位 *@
+<input type="hidden" name="na_type" value="C" />
+<input type="hidden" id="tableid" name="tableid" value="" />
+<input type="hidden" id="na_all_id" name="na_all_id" value="" />
+<input type="hidden" id="na_all_type" name="na_all_type" value="" />
+<input type="hidden" id="maode" name="maode" value="insert" />
+<input type="hidden" id="check_tab_val" name="check_tab_val" value="" />
+
+@if (dt != null && dt.Rows.Count > 0)
+{
+    foreach (DataRow r in dt.Rows)
+    {
+        <div class="tabArea">
+            <div class="tab">
+                <!-- 基本資料 -->
+                <p>
+                    <label class="subtitle">來源</label>
+                    <label><input type="radio" name="RB_FROM_WHERE" value="0" />本院生產</label>
+                    <label><input type="radio" name="RB_FROM_WHERE" value="1" />院外生產</label>
+                    <label><input type="radio" name="RB_FROM_WHERE" value="2" />外院轉入</label>
+                    <script>
+							@if (r["FROM_WHERE"].ToString() != "")
+                            {
+								@:set_for_rb('RB_FROM_WHERE','@r["FROM_WHERE"]');
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="subtitle">入院經過</label>
+                    @Html.TextArea("TXT_PROCESS", r["PROCESS"].ToString(), 5, 80, new { })
+                </p>
+                <p>
+                    <label class="subtitle">出生時間</label>
+                    @if (r["BIRTH"].ToString() != "")
+                    {
+                        @Html.TextBox("TXT_BIRTH_DAY", Convert.ToDateTime(r["BIRTH"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                        @Html.TextBox("TXT_BIRTH_TIME", Convert.ToDateTime(r["BIRTH"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                        @WebTool.setDateTime("TXT_BIRTH_DAY", "TXT_BIRTH_TIME")
+                    }
+                </p>
+                <p style="display:none">
+                    <label class="subtitle">性別</label>
+                    <label><input type="radio" name="RB_GENDER" value="0" onclick="$('.P_ASS_11_M').fadeIn(), $('.P_ASS_11_F').fadeOut()" />男</label>
+                    <label><input type="radio" name="RB_GENDER" value="1" onclick="$('.P_ASS_11_F').fadeIn(), $('.P_ASS_11_M').fadeOut()" />女</label>
+                </p>
+                <p>
+                    <label class="subtitle">生產方式</label>
+                    <label><input type="radio" name="RB_BIRTH_TYPE" value="0" onclick="$('.SPAN_VACUUM_NSD').fadeIn(), $('.SPAN_VACUUM_CS').fadeOut()" />NSD</label>
+                    <label><input type="radio" name="RB_BIRTH_TYPE" value="1" onclick="$('.SPAN_VACUUM_CS').fadeIn(), $('.SPAN_VACUUM_NSD').fadeOut()" />C/S</label>
+                    ，
+                    <span style="display:none" class="SPAN_VACUUM_NSD">
+                        Vacuum：
+                        <label><input type="radio" name="RB_VACUUM_NSD" value="1" />是</label>
+                        <label><input type="radio" name="RB_VACUUM_NSD" value="0" />否</label>
+                    </span>
+                    <span style="display:none" class="SPAN_VACUUM_CS">
+                        Vacuum：
+                        <label><input type="radio" name="RB_VACUUM_CS" value="1" />是</label>
+                        <label><input type="radio" name="RB_VACUUM_CS" value="0" />否</label>
+                    </span>
+                    <script>
+							@if (r["BIRTH_TYPE"].ToString() != "")
+                            {
+								@:set_for_rb('RB_BIRTH_TYPE', '@r["BIRTH_TYPE"]');
+								if (r["BIRTH_TYPE"].ToString() == "0")
+                                {
+                                    if (r["VACUUM_NSD"].ToString() != "")
+                                    {
+										@:set_for_rb('RB_VACUUM_NSD','@r["VACUUM_NSD"]');
+									}
+                                }
+                                else if (r["BIRTH_TYPE"].ToString() == "1")
+                                {
+                                    if (r["VACUUM_CS"].ToString() != "")
+                                    {
+										@:set_for_rb('RB_VACUUM_CS','@r["VACUUM_CS"]');
+									}
+                                }
+                            }
+                    </script>
+                </p>
+                <p>
+                    <label class="subtitle">妊娠週數</label>
+                    @Html.TextBox("TXT_GEST_M", r["GEST_M"], new { style = "width:100px" })週
+                    @Html.TextBox("TXT_GEST_D", r["GEST_D"], new { style = "width:100px" })天
+                    @if (r["GEST_REMARK"].ToString() != "")
+                    {
+                        @Html.Raw("，備註")
+                        @Html.TextBox("TXT_GEST_REMARK", r["GEST_REMARK"], new { style = "width:100px" })
+                    }
+                </p>
+                <p>
+                    <label class="subtitle">身高</label>
+                    @Html.TextBox("TXT_HEIGHT", r["HEIGHT"], new { style = "width:100px" })公分
+                    <label class="subtitle">體重</label>
+                    @Html.TextBox("TXT_WEIGHT", r["WEIGHT"], new { style = "width:100px" })公克
+                </p>
+                <p>
+                    <label class="subtitle">頭圍</label>
+                    @Html.TextBox("TXT_HEAD", r["HEAD"], new { style = "width:100px" })公分
+                    <label class="subtitle">胸圍</label>
+                    @Html.TextBox("TXT_CHEST", r["CHEST"], new { style = "width:100px" })公分
+                </p>
+                <p>
+                    <label class="subtitle">Apgar Score</label>
+                    第一分鐘：@Html.TextBox("TXT_RB_AS_1_NUM", r["RB_AS_1_NUM"], new { style = "width:100px" })。
+                    第五分鐘：@Html.TextBox("TXT_RB_AS_5_NUM", r["RB_AS_5_NUM"], new { style = "width:100px" })。
+                    第十分鐘：@Html.TextBox("TXT_RB_AS_10_NUM", r["RB_AS_10_NUM"], new { style = "width:100px" })。
+                    @if (r["RB_AS_REMARK"].ToString() != "")
+                    {
+                        @Html.Raw("備註");
+                        @Html.TextBox("TXT_RB_AS_REMARK", r["RB_AS_REMARK"], new { style = "width:100px" })
+                    }
+                </p>
+                <p>
+                    <label class="subtitle">父親資料</label>
+                    姓名：
+                    @Html.TextBox("TXT_MAT_NAME", r["MAT_NAME"], new { style = "width:150px" })。
+                    年齡：
+                    @Html.TextBox("TXT_MAT_AGE", r["MAT_AGE"], new { style = "width:150px" })。
+                    職業：
+                    @Html.TextBox("TXT_MAT_OCU", r["MAT_OCU"], new { style = "width:150px" })。
+                    <br />
+                    <label class="level-2"></label>
+                    教育程度：
+                    <label><input name="RB_MAT_EDU" type="radio" value="0" />不識字</label>
+                    <label><input name="RB_MAT_EDU" type="radio" value="1" />小學</label>
+                    <label><input name="RB_MAT_EDU" type="radio" value="2" />國中</label>
+                    <label><input name="RB_MAT_EDU" type="radio" value="3" />高中</label>
+                    <label><input name="RB_MAT_EDU" type="radio" value="4" />大專以上</label>
+                    。
+                    <script>
+							@if (r["MAT_EDU"].ToString() != "") {
+								@:set_for_rb('RB_MAT_EDU','@r["MAT_EDU"]');
+							}
+                    </script>
+                    聯絡電話：
+                    @Html.TextBox("TXT_MAT_TEL", r["MAT_TEL"], new { style = "width:150px" })。
+                </p>
+                <p>
+                    <label class="subtitle">母親資料</label>
+                    姓名：
+                    @Html.TextBox("TXT_PAT_NAME", r["PAT_NAME"], new { style = "width:150px" })。
+                    年齡：
+                    @Html.TextBox("TXT_PAT_AGE", r["PAT_AGE"], new { style = "width:150px" })。
+                    職業：
+                    @Html.TextBox("TXT_PAT_OCU", r["PAT_OCU"], new { style = "width:150px" })。
+                    <br />
+                    <label class="level-2"></label>
+                    教育程度：
+                    <label><input name="RB_PAT_EDU" type="radio" value="0" />不識字</label>
+                    <label><input name="RB_PAT_EDU" type="radio" value="1" />小學</label>
+                    <label><input name="RB_PAT_EDU" type="radio" value="2" />國中</label>
+                    <label><input name="RB_PAT_EDU" type="radio" value="3" />高中</label>
+                    <label><input name="RB_PAT_EDU" type="radio" value="4" />大專以上</label>
+                    。
+                    <script>
+							@if (r["PAT_EDU"].ToString() != "")
+                            {
+								@:set_for_rb('RB_PAT_EDU','@r["PAT_EDU"]');
+							}
+                    </script>
+                    聯絡電話：
+                    @Html.TextBox("TXT_PAT_TEL", r["PAT_TEL"], new { style = "width:150px" })。
+                </p>
+                <div id="add_contact">
+                </div>
+
+                <!-- 母親病史 -->
+                <p>
+                    <label class="subtitle">服藥</label>
+                    @VitalSign_Helper.assess_radio("RB_MED", "無|有", "有", "span_param_med")
+                    <script>
+							@if (r["MED"].ToString() != "")
+                            {
+								@:set_for_rb('RB_MED','@r["MED"]');
+							}
+                    </script>
+                </p>
+                @for (int i = 0; i < Drug_list.Count; i++)
+                {
+                    <p class="span_param_med" style="display: none;">
+                        門診用藥-藥物名稱：<label style="color: blue;">@Drug_list[i].DrugName</label>
+                        頻次：<label style="color: blue;">@Drug_list[i].Feq</label>
+                        劑量：<label style="color: blue;">@Drug_list[i].Dose</label>
+                        途徑：<label style="color: blue;">@Drug_list[i].Route</label>
+                    </p>
+                }
+                <p class="span_param_med" style="display: none;" id="med" countid="0">
+                    <img id="btn_add_med" src="~/Images/plus.png" style="cursor: pointer; width: 15px;" title="新增一筆" alt="新增一筆" onclick="clonediv('med', this.id, 'add_med');" />
+                    藥物名稱：@Html.TextBox("param_med_name", "", new { style = "width:100px" })
+                </p>
+                <div id="add_med">
+                </div>
+
+                <p>
+                    <label class="subtitle">疾病史</label>
+                    <label>
+                        <input name="RB_DISE" type="radio" value="0" onclick="$('.SPAN_DISE_ITM').fadeOut()" />無
+                    </label>
+                    <label>
+                        <input name="RB_DISE" type="radio" value="1" onclick="$('.SPAN_DISE_ITM').fadeIn()" />有
+                    </label>
+                    <span class="SPAN_DISE_ITM" style="display:none;">
+                        ，
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="0" />肝炎</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="1" />梅毒</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="2" />驚厥</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="3" />腫瘤</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="4" />氣喘</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="5" />肺結核</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="6" />高血壓</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="7" />心臟病</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="8" />肝臟疾病</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="9" />腎臟疾病</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="10" />痛風</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="11" />糖尿病</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="12" />甲狀腺疾病</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="13" />中風</label>
+                        <label><input type="checkbox" name="CK_DISE_ITM" value="14" onclick="$('.SPAN_DISE_ITM_OTH').fadeToggle(500);" />其他</label>
+                        <span class="SPAN_DISE_ITM_OTH" style="display:none;">
+                            ，@Html.TextBox("TXT_DISE_ITM_OTH", r["DISE_ITM_OTH"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["DISE"].ToString() != "")
+                            {
+								@:set_for_rb('RB_DISE', '@r["DISE"]');
+								if (r["DISE"].ToString() == "1")
+                                {
+                                    if (r["DISE_ITM"].ToString() != "")
+                                    {
+                                        var DISE_ITM = r["DISE_ITM"].ToString();
+                                        var DISE_ITMV = new List<string>();
+
+                                        for (var i = 0; i < DISE_ITM.ToString().Length; i++)
+                                        {
+                                            if (DISE_ITM[i] == '1')
+                                            {
+                                                DISE_ITMV.Add(i.ToString());
+                                            }
+                                        }
+                                        @:set_for_ck('CK_DISE_ITM', '@String.Join(",", DISE_ITMV)');
+                                     }
+                                }
+                            }
+
+                    </script>
+                </p>
+                <p>
+                    <label class="subtitle" style="width:200px">HBsAg(B型肝炎表面抗原)</label>
+                    @if (r["HBSAG"].ToString() != "")
+                    {
+                        @Html.Raw(r["HBSAG"] + "。")
+                    }
+                    <select id="DDL_HBSAG" name="DDL_HBSAG" style="display:none">
+                        <option value="">請選擇</option>
+                        <option value="0">+陽性</option>
+                        <option value="1">-陰性</option>
+                        <option value="2">F偽陽</option>
+                        <option value="3">X未驗</option>
+                    </select>
+                    @if (r["HBSAG_INST"].ToString() != "")
+                    {
+                        @Html.Raw("檢驗院所：")
+                        @Html.TextBox("TXT_HBSAG_INST", r["HBSAG_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_HBSAG_INST_NAME')" })
+                        @Html.TextBox("TXT_HBSAG_INST_NAME", r["HBSAG_INST_NAME"], new { style = "width:150px" })
+                    }
+                    @if (r["HBSAG_OTH"].ToString() != "")
+                    {
+                        @Html.Raw("其他：");
+                        @Html.TextBox("TXT_HBSAG_OTH", r["HBSAG_OTH"], new { style = "width:150px" })
+                    }
+                    <script>
+                                @if (r["HBSAG"].ToString() != "")
+
+                                {
+									@:set_for_ddl2('DDL_HBSAG','@r["HBSAG"]')
+								}
+                    </script>
+                </p>
+                <p>
+                    <label class="subtitle">HBeAg(e抗原)</label>
+                    @if (r["HBEAG"].ToString() != "")
+                    {
+                        @Html.Raw(r["HBEAG"] + "。")
+                    }
+                    <select id="DDL_HBEAG" name="DDL_HBEAG" style="display:none">
+                        <option value="">請選擇</option>
+                        <option value="0">+陽性</option>
+                        <option value="1">-陰性</option>
+                        <option value="2">F偽陽</option>
+                        <option value="3">X未驗</option>
+                    </select>
+                    @if (r["HBEAG_INST"].ToString() != "")
+                    {
+                        @Html.Raw("檢驗院所：")
+                        @Html.TextBox("TXT_HBEAG_INST", r["HBEAG_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_HBEAG_INST_NAME')" })
+                        @Html.TextBox("TXT_HBEAG_INST_NAME", r["HBEAG_INST_NAME"], new { style = "width:150px" })
+                    }
+                    @if (r["HBEAG_OTH"].ToString() != "")
+                    {
+                        @Html.Raw("其他：");
+                        @Html.TextBox("TXT_HBEAG_OTH", r["HBEAG_OTH"], new { style = "width:150px" })
+                    }
+                    <script>
+								@if (r["HBEAG"].ToString() != "")
+								{
+									@:set_for_ddl2('DDL_HBEAG','@r["HBEAG"]')
+								}
+                    </script>
+                </p>
+                <p>
+                    <label class="subtitle" style="width:180px">Rubella(德國麻疹)</label>
+                    @if (r["RUBELLA"].ToString() != "")
+                    {
+                        @Html.Raw(r["RUBELLA"] + "。")
+                    }
+                    <select id="DDL_RUBELLA" name="DDL_RUBELLA" style="display:none">
+                        <option value="">請選擇</option>
+                        <option value="0">+陽性</option>
+                        <option value="1">-陰性</option>
+                        <option value="2">F偽陽</option>
+                        <option value="3">X未驗</option>
+                    </select>
+                    @if (r["RUBELLA_INST"].ToString() != "")
+                    {
+                        @Html.Raw("檢驗院所：")
+                        @Html.TextBox("TXT_RUBELLA_INST", r["RUBELLA_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_RUBELLA_INST_NAME')" })
+                        @Html.TextBox("TXT_RUBELLA_INST_NAME", r["RUBELLA_INST_NAME"], new { style = "width:150px" })
+                    }
+                    @if (r["RUBELLA_OTH"].ToString() != "")
+                    {
+                        @Html.Raw("其他：");
+                        @Html.TextBox("TXT_RUBELLA_OTH", r["RUBELLA_OTH"], new { style = "width:150px" })
+                    }
+                </p>
+                <p>
+                    <label class="subtitle">VDRL(梅毒)第一次</label>
+                    @if (r["VDRL1"].ToString() != "")
+                    {
+                        @Html.Raw(r["VDRL1"] + "。")
+                    }
+                    <select id="DDL_VDRL1" name="DDL_VDRL1" style="display:none">
+                        <option value="">請選擇</option>
+                        <option value="0">+陽性</option>
+                        <option value="1">-陰性</option>
+                        <option value="2">F偽陽</option>
+                        <option value="3">X未驗</option>
+                    </select>
+                    @if (r["VDRL1_INST"].ToString() != "")
+                    {
+                        @Html.Raw("檢驗院所：")
+                        @Html.TextBox("TXT_VDRL1_INST", r["VDRL1_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_VDRL1_INST_NAME')" })
+                        @Html.TextBox("TXT_VDRL1_INST_NAME", r["VDRL1_INST_NAME"], new { style = "width:150px" })
+                    }
+                    @if (r["VDRL1_OTH"].ToString() != "")
+                    {
+                        @Html.Raw("其他：");
+                        @Html.TextBox("TXT_VDRL1_OTH", r["VDRL1_OTH"], new { style = "width:150px" })
+                    }
+                    <script>
+								@if (r["VDRL1"].ToString() != "")
+								{
+									@:set_for_ddl2('DDL_VDRL1','@r["VDRL1"]')
+								}
+                    </script>
+                </p>
+                <p>
+                    <label class="subtitle">VDRL(梅毒)第二次</label>
+                    @if (r["VDRL2"].ToString() != "")
+                    {
+                        @Html.Raw(r["VDRL2"] + "。")
+                    }
+                    <select id="DDL_VDRL2" name="DDL_VDRL2" style="display:none">
+                        <option value="">請選擇</option>
+                        <option value="0">+陽性</option>
+                        <option value="1">-陰性</option>
+                        <option value="2">F偽陽</option>
+                        <option value="3">X未驗</option>
+                    </select>
+                    @if (r["VDRL2_INST"].ToString() != "")
+                    {
+                        @Html.Raw("檢驗院所：")
+                        @Html.TextBox("TXT_VDRL2_INST", r["VDRL2_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_VDRL2_INST_NAME')" })
+                        @Html.TextBox("TXT_VDRL2_INST_NAME", r["VDRL2_INST_NAME"], new { style = "width:150px" })
+                    }
+                    @if (r["VDRL2_OTH"].ToString() != "")
+                    {
+                        @Html.Raw("其他：");
+                        @Html.TextBox("TXT_VDRL2_OTH", r["VDRL2_OTH"], new { style = "width:150px" })
+                    }
+                    <script>
+								@if (r["VDRL2"].ToString() != "")
+								{
+									@:set_for_ddl2('DDL_VDRL2','@r["VDRL2"]')
+								}
+                    </script>
+                </p>
+                <p>
+                    <label class="subtitle">HIV(愛滋病抗體))</label>
+                    @if (r["HIV"].ToString() != "")
+                    {
+                        @Html.Raw(r["HIV"] + "。")
+                    }
+                    <select id="DDL_HIV" name="DDL_HIV" style="display:none">
+                        <option value="">請選擇</option>
+                        <option value="0">+陽性</option>
+                        <option value="1">-陰性</option>
+                        <option value="2">F偽陽</option>
+                        <option value="3">X未驗</option>
+                    </select>
+                    @if (r["HIV_INST"].ToString() != "")
+                    {
+                        @Html.Raw("檢驗院所：")
+                        @Html.TextBox("TXT_HIV_INST", r["HIV_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_HIV_INST_NAME')" })
+                        @Html.TextBox("TXT_HIV_INST_NAME", r["HIV_INST_NAME"], new { style = "width:150px" })
+                    }
+                    @if (r["HIV_OTH"].ToString() != "")
+                    {
+                        @Html.Raw("其他：");
+                        @Html.TextBox("TXT_HIV_OTH", r["HIV_OTH"], new { style = "width:150px" })
+                    }
+                    <script>
+								@if (r["HIV"].ToString() != "")
+								{
+									@:set_for_ddl2('DDL_HIV','@r["HIV"]')
+								}
+                    </script>
+                </p>
+                <p>
+                    快篩值：
+                    <input name="RB_HIVPT_R" type="radio" value="+" />+
+                    <input name="RB_HIVPT_R" type="radio" value="-" />-
+                    <script>
+								@if (r["HIVPT_R"].ToString() != "")
+								{
+									@:set_for_rb('RB_HIVPT_R', '@r["HIVPT_R"]')
+								}
+                    </script>
+                </p>
+                <p>
+                    <label class="subtitle">GBS(乙型鏈球菌)</label>
+                    @if (r["GBS"].ToString() != "")
+                    {
+                        @Html.Raw(r["GBS"] + "。")
+                    }
+                    @if (r["GBS_INST"].ToString() != "")
+                    {
+                        @Html.Raw("檢驗院所：")
+                        @Html.TextBox("TXT_GBS_INST", r["GBS_INST"], new { style = "width:60px", onchange = "GetINSPTList(this,'TXT_GBS_INST_NAME')" })
+                        @Html.TextBox("TXT_GBS_INST_NAME", r["GBS_INST_NAME"], new { style = "width:150px" })
+                    }
+                    <br />
+                    <label class="level-2"></label>
+                    @if (r["GBS_OTH"].ToString() != "")
+                    {
+                        @Html.Raw("其他：");
+                        @Html.TextBox("TXT_GBS_OTH", r["GBS_OTH"], new { style = "width:150px" })
+                    }
+                </p>
+                <p>
+                    <label class="subtitle">打抗生素日期時間</label>
+                    @if (r["GBS_AB"].ToString() != "")
+                    {
+                        @Html.TextBox("TXT_GBS_AB_DAY", Convert.ToDateTime(r["GBS_AB"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                        @Html.TextBox("TXT_GBS_AB_TIME", Convert.ToDateTime(r["GBS_AB"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                        @WebTool.setDateTime("TXT_GBS_AB_DAY", "TXT_GBS_AB_TIME")
+                    }
+                    else
+                    {
+                        @Html.TextBox("TXT_GBS_AB_DAY", "", new { style = "width:80px", @readonly = "readonly" })
+                        @Html.TextBox("TXT_GBS_AB_TIME", "", new { style = "width:50px", @readonly = "readonly" })
+                        @WebTool.setDateTime("TXT_GBS_AB_DAY", "TXT_GBS_AB_TIME")
+                    }
+                </p>
+                <p>
+                    <label class="subtitle">妊娠併發症</label>
+                    <input name="RB_PREG" type="radio" value="0" onclick="$('.SPAN_PREG_ITM').fadeOut()" />無
+                    <input name="RB_PREG" type="radio" value="1" onclick="$('.SPAN_PREG_ITM').fadeIn()" />有
+                    <span class="SPAN_PREG_ITM" style="display:none;">
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="0" />妊娠高血壓</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="1" />嚴重妊娠高血壓</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="2" />子癲前症</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="3" />中度子癲前症</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="4" />重度子癲前症</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="5" />絨毛膜羊膜囊炎</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="6" />前置胎盤</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="7" />胎盤早期剝離</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="8" />妊娠糖尿病</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="9" />心臟病</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="10" />腎臟疾病</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="11" />免疫性疾病(SLE)</label>
+                        <label><input type="checkbox" name="CK_PREG_ITM" value="12" onclick="$('.SPAN_PREG_ITM_OTH').fadeToggle(500);" />其他</label>
+                        <span class="SPAN_PREG_ITM_OTH" style="display:none;">
+                            ，@Html.TextBox("TXT_PREG_ITM_OTH", r["PREG_ITM_OTH"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["PREG"].ToString() != "")
+							{
+								@:set_for_rb('RB_PREG', '@r["PREG"]');
+								if(r["PREG"].ToString() == "1")
+								{
+									if(r["PREG_ITM"].ToString() != "")
+                                    {
+                                        var PREG_ITM = r["PREG_ITM"].ToString();
+                                        var PREG_ITMV = new List<string>();
+
+                                        for (var i = 0; i < PREG_ITM.ToString().Length; i++)
+                                        {
+                                            if (PREG_ITM[i] == '1')
+                                            {
+                                                PREG_ITMV.Add(i.ToString());
+                                            }
+                                        }
+                                        @:set_for_ck('CK_PREG_ITM', '@String.Join(",", PREG_ITMV)');
+                                     }
+								}
+							}
+
+                    </script>
+                </p>
+                <div id="add_med">
+                </div>
+
+                <!-- 護理評估 -->
+                <p>
+                    <label class="subtitle" style="height:36px;line-height:36px !important;">新生兒護理評估</label>
+                </p>
+                <label class="level-24px"></label>
+                <label class="subtitle">1.頭部</label>
+
+                <div>
+                    <label class="level-24px"></label>
+                    <label>外觀：</label>
+                    <label><input type="radio" name="RB_ASS_1_1" value="1" onclick="$('.DIV_ASS_1_1').fadeOut()" />正常</label>
+                    <label><input type="radio" name="RB_ASS_1_1" value="0" onclick="$('.DIV_ASS_1_1').fadeIn()" />異常</label>
+
+                    <span class="DIV_ASS_1_1" style="display: none;">
+                        @if (dt_ASS_1F != null && dt_ASS_1F.Rows.Count > 0)
+                        {
+                            var assList = new List<string>();
+                            foreach (DataRow ass in dt_ASS_1F.Rows)
+                            {
+                                if (ass["ITM_RED_NO"].ToString() != "")
+                                {
+                                    assList.Add(ass["ITM"].ToString() + "紅腫：" + ass["ITM_RED_NO"].ToString());
+                                }
+                                if (ass["ITM_BLI_NO"].ToString() != "")
+                                {
+                                    assList.Add(ass["ITM"].ToString() + "水泡：" + ass["ITM_BLI_NO"].ToString());
+                                }
+                                if (ass["ITM_HUR_NO"].ToString() != "")
+                                {
+                                    assList.Add(ass["ITM"].ToString() + "破皮：" + ass["ITM_HUR_NO"].ToString());
+                                }
+                                if (ass["ITM_CS_NO"].ToString() != "")
+                                {
+                                    assList.Add(ass["ITM"].ToString() + "產瘤：" + ass["ITM_CS_NO"].ToString());
+                                }
+                                if (ass["ITM_OTH_NO"].ToString() != "")
+                                {
+                                    assList.Add(ass["ITM"].ToString() + "其他：" + ass["ITM_OTH_NO"].ToString());
+                                }
+                            }
+                            @Html.Raw("，" + String.Join("、", assList));
+                        }
+                        <script>
+                        @if (r["ASS_1_1"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_ASS_1_1', '@(r["ASS_1_1"])')
+                        }
+                        </script>
+                    </span>
+                </div>
+                <div>
+                    <label class="level-24px"></label>
+                    <label>囪門：</label>
+                    <label><input type="radio" name="RB_ASS_1_2" value="1" onclick="$('.SPAN_ASS_1_2').fadeOut()" />正常</label>
+                    <label><input type="radio" name="RB_ASS_1_2" value="0" onclick="$('.SPAN_ASS_1_2').fadeIn()" />異常</label>
+                    <span class="SPAN_ASS_1_2" style="display:none">
+                        <label>，前：</label>
+                        <label><input name="CK_ASS_1_2F1" value="0" type="checkbox" />關閉   </label>
+                        <label><input name="CK_ASS_1_2F1" value="1" type="checkbox" />凹陷   </label>
+                        <label><input name="CK_ASS_1_2F1" value="2" type="checkbox" />膨出   </label>
+                        <label>
+                            <input name="CK_ASS_1_2F1" value="3" type="checkbox" onclick="$('.SPAN_ASS_1_2F2').fadeToggle()" />其他
+                        </label>
+                        <span class="SPAN_ASS_1_2F2" style="display:none">
+                            @Html.TextBox("TXT_ASS_1_2F2", r["ASS_1_2F2"], new { style = "width:100px" })
+                        </span>
+                        <label>，後：</label>
+                        <label><input name="CK_ASS_1_2F1" value="4" type="checkbox" />關閉  </label>
+                        <label><input name="CK_ASS_1_2F1" value="5" type="checkbox" />凹陷  </label>
+                        <label><input name="CK_ASS_1_2F1" value="6" type="checkbox" />膨出  </label>
+                        <label><input name="CK_ASS_1_2F1" value="7" type="checkbox" onclick="$('.SPAN_ASS_1_2F3').fadeToggle()" />其他</label>
+                        <span class="SPAN_ASS_1_2F3" style="display:none">
+                            @Html.TextBox("TXT_ASS_1_2F3", r["ASS_1_2F3"], new { style = "width:100px" })
+                        </span>
+                        <script>
+								@if (r["ASS_1_2"].ToString() != "")
+								{
+									@:set_for_rb('RB_ASS_1_2', '@r["ASS_1_2"]');
+									if(r["ASS_1_2"].ToString() == "0")
+									{
+										if(r["ASS_1_2F1"].ToString() != "")
+										{
+											var ASS_1_2F1 = r["ASS_1_2F1"].ToString();
+											var ASS_1_2F1V = new List<string>();
+
+											for (var i = 0; i < ASS_1_2F1.ToString().Length; i++)
+											{
+												if (ASS_1_2F1[i] == '1')
+												{
+													ASS_1_2F1V.Add(i.ToString());
+												}
+											}
+											@:set_for_ck('CK_ASS_1_2F1', '@String.Join(",", ASS_1_2F1V)');
+										 }
+									}
+								}
+
+                        </script>
+                    </span>
+                </div>
+                <br />
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">2.顏面</label>
+                    <label><input type="radio" name="RB_ASS_2" value="1" onclick="$('.SPAN_ASS_2F').fadeOut()" />正常  </label>
+                    <label><input type="radio" name="RB_ASS_2" value="0" onclick="$('.SPAN_ASS_2F').fadeIn()" />異常   </label>
+                    <span class="SPAN_ASS_2F" style="display:none">
+                        <label><input name="CK_ASS_2F" value="0" type="checkbox" />不對稱</label>
+                        <br /><label class="level-24px"></label>左：
+                        <label><input name="CK_ASS_2F" value="1" type="checkbox" />嘴角下垂</label>
+                        <label>
+                            <input name="CK_ASS_2F" value="2" type="checkbox" />瘜肉
+                        </label>
+                        <br /><label class="level-24px"></label>右：
+                        <label><input name="CK_ASS_2F" value="3" type="checkbox" />嘴角下垂  </label>
+                        <label><input name="CK_ASS_2F" value="4" type="checkbox" />瘜肉      </label>
+                        <br />
+                        <label><input name="CK_ASS_2F" value="5" type="checkbox" onclick="$('.SPAN_ASS_2FO').fadeToggle()" />其他</label>
+                        <span class="SPAN_ASS_2FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_2FO", r["ASS_2FO"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["ASS_2"].ToString() != "")
+							{
+								@:set_for_rb('RB_ASS_2', '@r["ASS_2"]');
+								if (r["ASS_2"].ToString() == "0")
+								{
+									if (r["ASS_2F"].ToString() != "")
+									{
+										var ASS_2F = r["ASS_2F"].ToString();
+										var ASS_2FV = new List<string>();
+
+										for (var i = 0; i < ASS_2F.ToString().Length; i++)
+										{
+											if (ASS_2F[i] == '1')
+											{
+												ASS_2FV.Add(i.ToString());
+											}
+										}
+										@:set_for_ck('CK_ASS_2F', '@String.Join(",", ASS_2FV)');
+									}
+								}
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">3.眼睛</label>
+                    <label><input type="radio" name="RB_ASS_3" value="1" onclick="$('.SPAN_ASS_3F').fadeOut()" />正常    </label>
+                    <label><input type="radio" name="RB_ASS_3" value="0" onclick="$('.SPAN_ASS_3F').fadeIn()" />異常     </label>
+                    <span class="SPAN_ASS_3F" style="display:none">
+                        <br /><label class="level-24px"></label>左：
+                        <label><input name="CK_ASS_3F" value="0" type="checkbox" />結膜出血</label>
+                        <label>
+                            <input name="CK_ASS_3F" value="1" type="checkbox" />眼瞼水腫
+                        </label>
+                        <br /><label class="level-24px"></label>右：
+                        <label><input name="CK_ASS_3F" value="2" type="checkbox" />結膜出血  </label>
+                        <label><input name="CK_ASS_3F" value="3" type="checkbox" />眼瞼水腫  </label>
+                        <br />
+                        <label><input name="CK_ASS_3F" value="4" type="checkbox" />雙眼距離過大</label>
+                        <label><input name="CK_ASS_3F" value="5" type="checkbox" onclick="$('.SPAN_ASS_3FO').fadeToggle()" />其他</label>
+                        <span class="SPAN_ASS_3FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_3FO", r["ASS_3FO"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["ASS_3"].ToString() != "")
+							{
+								@:set_for_rb('RB_ASS_3', '@r["ASS_3"]');
+								if (r["ASS_3"].ToString() == "0")
+								{
+									if (r["ASS_3F"].ToString() != "")
+									{
+										var ASS_3F = r["ASS_3F"].ToString();
+										var ASS_3FV = new List<string>();
+
+										for (var i = 0; i < ASS_3F.ToString().Length; i++)
+										{
+											if (ASS_3F[i] == '1')
+											{
+												ASS_3FV.Add(i.ToString());
+											}
+										}
+										@:set_for_ck('CK_ASS_3F', '@String.Join(",", ASS_3FV)');
+									}
+								}
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">4.耳朵</label>
+                    <label><input type="radio" name="RB_ASS_4" value="1" onclick="$('.SPAN_ASS_4F').fadeOut()" />正常  </label>
+                    <label><input type="radio" name="RB_ASS_4" value="0" onclick="$('.SPAN_ASS_4F').fadeIn()" />異常   </label>
+                    <span class="SPAN_ASS_4F" style="display:none">
+                        <br /><label class="level-24px"></label>左：
+                        <label><input name="CK_ASS_4F" value="0" type="checkbox" />低位耳     </label>
+                        <label><input name="CK_ASS_4F" value="1" type="checkbox" />耳殼異常   </label>
+                        <label>
+                            <input name="CK_ASS_4F" value="2" type="checkbox" />瘜肉
+                        </label>
+                        <br /><label class="level-24px"></label>右：
+                        <label><input name="CK_ASS_4F" value="3" type="checkbox" />低位耳    </label>
+                        <label><input name="CK_ASS_4F" value="4" type="checkbox" />耳殼異常  </label>
+                        <label><input name="CK_ASS_4F" value="5" type="checkbox" />瘜肉      </label>
+                        <br />
+                        <label><input name="CK_ASS_4F" value="6" type="checkbox" onclick="$('.SPAN_ASS_4FO').fadeToggle()" />其他</label>
+                        <span class="SPAN_ASS_4FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_4FO", r["ASS_4FO"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["ASS_4"].ToString() != "")
+							{
+								@:set_for_rb('RB_ASS_4', '@r["ASS_4"]');
+								if (r["ASS_4"].ToString() == "0")
+								{
+									if (r["ASS_4F"].ToString() != "")
+									{
+										var ASS_4F = r["ASS_4F"].ToString();
+										var ASS_4FV = new List<string>();
+
+										for (var i = 0; i < ASS_4F.ToString().Length; i++)
+										{
+											if (ASS_4F[i] == '1')
+											{
+												ASS_4FV.Add(i.ToString());
+											}
+										}
+										@:set_for_ck('CK_ASS_4F', '@String.Join(",", ASS_4FV)');
+									}
+								}
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">5.鼻子</label>
+                    <label><input name="CK_ASS_5" type="checkbox" value="0" />正常通暢     </label>
+                    <label><input name="CK_ASS_5" type="checkbox" value="1" />鼻樑扁平     </label>
+                    <label><input name="CK_ASS_5" type="checkbox" value="2" onclick="$('.SPAN_ASS_5O').fadeToggle()" />其他</label>
+                    <span class="SPAN_ASS_5O" style="display:none">
+                        @Html.TextBox("TXT_ASS_5O", r["ASS_5O"], new { style = "width:100px" })
+                    </span>
+                    <script>
+								@if (r["ASS_5"].ToString() != "")
+									{
+										var ASS_5 = r["ASS_5"].ToString();
+										var ASS_5V = new List<string>();
+										for (var i = 0; i < ASS_5.ToString().Length; i++)
+										{
+											if (ASS_5[i] == '1')
+											{
+												ASS_5V.Add(i.ToString());
+											}
+										}
+										@:set_for_ck('CK_ASS_5', '@String.Join(",", ASS_5V)');
+									}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">6.口腔</label>
+                    <label><input type="radio" name="RB_ASS_6" value="1" onclick="$('.SPAN_ASS_6F').fadeOut()" />正常  </label>
+                    <label><input type="radio" name="RB_ASS_6" value="0" onclick="$('.SPAN_ASS_6F').fadeIn()" />異常   </label>
+                    <span class="SPAN_ASS_6F" style="display:none">
+                        ，唇裂與顎裂：
+                        <label><input name="CK_ASS_6F" value="0" type="checkbox" />單側不完全唇裂      </label>
+                        <label><input name="CK_ASS_6F" value="1" type="checkbox" />單側完全唇裂與顎裂  </label>
+                        <label><input name="CK_ASS_6F" value="2" type="checkbox" />雙側完全唇裂與顎裂  </label>
+                        <label><input name="CK_ASS_6F" value="3" type="checkbox" />顎裂               </label>
+                        <label><input name="CK_ASS_6F" value="4" type="checkbox" onclick="$('.SPAN_ASS_6FO').fadeToggle()" />其他</label>
+                        <span class="SPAN_ASS_6FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_6FO", r["ASS_6FO"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["ASS_6"].ToString() != "")
+							{
+								@:set_for_rb('RB_ASS_6', '@r["ASS_6"]');
+								if (r["ASS_6"].ToString() == "0")
+								{
+									if (r["ASS_6F"].ToString() != "")
+									{
+										var ASS_6F = r["ASS_6F"].ToString();
+										var ASS_6FV = new List<string>();
+
+										for (var i = 0; i < ASS_6F.ToString().Length; i++)
+										{
+											if (ASS_6F[i] == '1')
+											{
+												ASS_6FV.Add(i.ToString());
+											}
+										}
+										@:set_for_ck('CK_ASS_6F', '@String.Join(",", ASS_6FV)');
+									}
+								}
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">7.頸部</label>
+                    <label><input type="radio" name="RB_ASS_7" value="1" onclick="$('.SPAN_ASS_7F').fadeOut()" />正常  </label>
+                    <label><input type="radio" name="RB_ASS_7" value="0" onclick="$('.SPAN_ASS_7F').fadeIn()" />異常   </label>
+                    <span class="SPAN_ASS_7F" style="display:none">
+                        <br /><label class="level-24px"></label>左：
+                        <label><input name="CK_ASS_7F" value="0" type="checkbox" />腫塊     </label>
+                        <label><input name="CK_ASS_7F" value="1" type="checkbox" />疑斜頸   </label>
+                        <label>
+                            <input name="CK_ASS_7F" value="2" type="checkbox" />僵硬
+                        </label>
+                        <br /><label class="level-24px"></label>右：
+                        <label><input name="CK_ASS_7F" value="3" type="checkbox" />腫塊   </label>
+                        <label><input name="CK_ASS_7F" value="4" type="checkbox" />疑斜頸 </label>
+                        <label><input name="CK_ASS_7F" value="5" type="checkbox" />僵硬   </label>
+                        <br />
+                        <label><input name="CK_ASS_7F" value="6" type="checkbox" onclick="$('.SPAN_ASS_7FO').fadeToggle()" />其他</label>
+                        <span class="SPAN_ASS_7FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_7FO", r["ASS_7FO"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["ASS_7"].ToString() != "")
+							{
+								@:set_for_rb('RB_ASS_7', '@r["ASS_7"]');
+								if (r["ASS_7"].ToString() == "0")
+								{
+									if (r["ASS_7F"].ToString() != "")
+									{
+										var ASS_7F = r["ASS_7F"].ToString();
+										var ASS_7FV = new List<string>();
+
+										for (var i = 0; i < ASS_7F.ToString().Length; i++)
+										{
+											if (ASS_7F[i] == '1')
+											{
+												ASS_7FV.Add(i.ToString());
+											}
+										}
+										@:set_for_ck('CK_ASS_7F', '@String.Join(",", ASS_7FV)');
+									}
+								}
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">8.胸部</label>
+                    <br />
+                    <label class="level-24px"></label>
+                    <span>外觀：</span>
+                    <label><input type="radio" name="RB_ASS_8_1" value="1" onclick="$('.SPAN_ASS_8_1F').fadeOut()" />正常</label>
+                    <label><input type="radio" name="RB_ASS_8_1" value="0" onclick="$('.SPAN_ASS_8_1F').fadeIn()" />異常</label>
+                    <span class="SPAN_ASS_8_1F" style="display:none">
+                        ，左：
+                        <label>
+                            <input name="CK_ASS_8_1F" value="0" type="checkbox" />腫大。
+                        </label>
+                        <label>
+                            <input name="CK_ASS_8_1F" value="1" type="checkbox" />魔乳。
+                        </label>
+                        右：
+                        <label>
+                            <input name="CK_ASS_8_1F" value="2" type="checkbox" />腫大。
+                        </label>
+                        <label>
+                            <input name="CK_ASS_8_1F" value="3" type="checkbox" />魔乳。
+                        </label>
+                        <br />
+                        <label>
+                            <input name="CK_ASS_8_1F" value="4" type="checkbox" onclick="$('.SPAN_ASS_8_1FO').fadeToggle()" />其他，
+                        </label>
+                        <span class="SPAN_ASS_8_1FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_8_1FO", r["ASS_8_1FO"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+                        @if (r["ASS_8_1"].ToString() != "") {
+								@:set_for_rb('RB_ASS_8_1', '@r["ASS_8_1"]');
+								}
+							@if (r["ASS_8_1F"].ToString() != "")
+							{
+
+									if (r["ASS_8_1F"].ToString() != "")
+									{
+										var ASS_8_1F = r["ASS_8_1F"].ToString();
+										var ASS_8_1FV = new List<string>();
+
+										for (var i = 0; i < ASS_8_1F.ToString().Length; i++)
+										{
+											if (ASS_8_1F[i] == '1')
+											{
+												ASS_8_1FV.Add(i.ToString());
+											}
+										}
+										@:set_for_ck('CK_ASS_8_1F', '@String.Join(",", ASS_8_1FV)');
+									}
+							}
+                    </script>
+                    <label class="level-24px"></label>
+                    <span>呼吸：</span>
+                    <label><input type="radio" name="RB_ASS_8_2" value="1" onclick="$('.SPAN_ASS_8_2F').fadeOut()" />正常</label>
+                    <label><input type="radio" name="RB_ASS_8_2" value="0" onclick="$('.SPAN_ASS_8_2F').fadeIn()" />異常</label>
+                    <span class="SPAN_ASS_8_2F" style="display:none">
+                        ，
+                        <label>
+                            <input name="CK_ASS_8_2F" value="0" type="checkbox" onclick="$('.SPAN_ASS_8_2FO').fadeToggle()" />呼吸急促
+                        </label>
+                        <span class="SPAN_ASS_8_2FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_8_2FO", r["ASS_8_2FO"], new { style = "width:100px" })次/分
+                        </span>
+                        <label><input name="CK_ASS_8_2F" value="1" type="checkbox" />鼻翼搧動            </label>
+                        <label><input name="CK_ASS_8_2F" value="2" type="checkbox" />呻吟聲(grunting)    </label>
+                        <label><input name="CK_ASS_8_2F" value="3" type="checkbox" />胸骨凹陷            </label>
+                    </span>
+                    <script>
+								@if (r["ASS_8_2"].ToString() != "") {
+									@:set_for_rb('RB_ASS_8_2', '@r["ASS_8_2"]');
+								}
+								@if (r["ASS_8_2F"].ToString()!="")
+								{
+									var ASS_8_2F = r["ASS_8_2F"].ToString();
+									var ASS_8_2FV = new List<string>();
+
+									for (var i = 0; i < ASS_8_2F.ToString().Length; i++)
+									{
+										if (ASS_8_2F[i] == '1')
+										{
+											ASS_8_2FV.Add(i.ToString());
+										}
+									}
+										@:set_for_ck('CK_ASS_8_2F', '@String.Join(",", ASS_8_2FV)');
+								}
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    <span>呼吸音：</span>
+                    <label><input type="radio" name="RB_ASS_8_3" value="1" onclick="$('.SPAN_ASS_8_3F').fadeOut()" />正常    </label>
+                    <label><input type="radio" name="RB_ASS_8_3" value="0" onclick="$('.SPAN_ASS_8_3F').fadeIn()" />異常     </label>
+                    <span class="SPAN_ASS_8_3F" style="display:none">
+                        ，
+                        <label><input name="CK_ASS_8_3F" value="0" type="checkbox" />Rhonchi 乾囉音       </label>
+                        <label><input name="CK_ASS_8_3F" value="1" type="checkbox" />wheeze 喘嗚音        </label>
+                        <label><input name="CK_ASS_8_3F" value="2" type="checkbox" />Bronchial 支氣管音   </label>
+                        <label><input name="CK_ASS_8_3F" value="3" type="checkbox" />Rub 摩擦音           </label>
+                        <label><input name="CK_ASS_8_3F" value="4" type="checkbox" />Crackles 囉音        </label>
+                    </span>
+                    <script>
+							@if (r["ASS_8_3"].ToString() != "") {
+								@:set_for_rb('RB_ASS_8_3', '@r["ASS_8_3"]');
+							}
+							@if (r["ASS_8_3F"].ToString() != "")
+							{
+								var ASS_8_3F = r["ASS_8_3F"].ToString();
+								var ASS_8_3FV = new List<string>();
+
+								for (var i = 0; i < ASS_8_3F.ToString().Length; i++)
+								{
+									if (ASS_8_3F[i] == '1')
+									{
+										ASS_8_3FV.Add(i.ToString());
+									}
+								}
+								@:set_for_ck('CK_ASS_8_3F', '@String.Join(",", ASS_8_3FV)');
+							}
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    <span>心臟：</span>
+                    <label><input type="radio" name="RB_ASS_8_4" value="1" onclick="$('.SPAN_ASS_8_4F').fadeOut()" />正常  </label>
+                    <label><input type="radio" name="RB_ASS_8_4" value="0" onclick="$('.SPAN_ASS_8_4F').fadeIn()" />異常   </label>
+                    <span class="SPAN_ASS_8_4F" style="display:none">
+                        ，
+                        <label>
+                            <input name="CK_ASS_8_4F" value="0" type="checkbox" />心跳不規則
+                        </label>
+                        <label>
+                            <input name="CK_ASS_8_4F" value="1" type="checkbox" />雜音
+                        </label>
+                        <label>
+                            <input name="CK_ASS_8_4F" value="2" type="checkbox" onclick="$('.SPAN_ASS_8_4FO').fadeToggle()" />其他
+                        </label>
+                        <span class="SPAN_ASS_8_4FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_8_4FO", r["ASS_8_4FO"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["ASS_8_4"].ToString() != "") {
+								@:set_for_rb('RB_ASS_8_4', '@r["ASS_8_4"]');
+							}
+							@if (r["ASS_8_4F"].ToString() != "")
+							{
+								var ASS_8_4F = r["ASS_8_4F"].ToString();
+								var ASS_8_4FV = new List<string>();
+
+								for (var i = 0; i < ASS_8_4F.ToString().Length; i++)
+								{
+									if (ASS_8_4F[i] == '1')
+									{
+										ASS_8_4FV.Add(i.ToString());
+									}
+								}
+								@:set_for_ck('CK_ASS_8_4F', '@String.Join(",", ASS_8_4FV)');
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">9.腹部</label>
+                    <br />
+                    <label class="level-24px"></label>
+                    疝氣：
+                    <label><input type="radio" name="RB_ASS_9_1" value="0" onclick="$('.SPAN_ASS_9_1F').fadeOut()" />無   </label>
+                    <label><input type="radio" name="RB_ASS_9_1" value="1" onclick="$('.SPAN_ASS_9_1F').fadeIn()" />有    </label>
+                    <span class="SPAN_ASS_9_1F" style="display:none">
+                        ，部位：
+                        <label><input name="CK_ASS_9_1F" value="0" type="checkbox" />臍部       </label>
+                        <label><input name="CK_ASS_9_1F" value="1" type="checkbox" />左側鼠蹊部  </label>
+                        <label><input name="CK_ASS_9_1F" value="2" type="checkbox" />右側鼠蹊部  </label>
+                        <label>
+                            <input name="CK_ASS_9_1F" value="3" type="checkbox" onclick="$('.SPAN_ASS_9_1FO').fadeToggle()" />其他
+                        </label>
+                        <span class="SPAN_ASS_9_1FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_9_1FO", r["ASS_9_1FO"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["ASS_9_1"].ToString() != "") {
+								@:set_for_rb('RB_ASS_9_1', '@r["ASS_9_1"]');
+							}
+							@if (r["ASS_9_1F"].ToString() != "")
+                            {
+                                var ASS_9_1F = r["ASS_9_1F"].ToString();
+                                var ASS_9_1FV = new List<string>();
+
+                                for (var i = 0; i < ASS_9_1F.ToString().Length; i++)
+                                {
+                                    if (ASS_9_1F[i] == '1')
+                                    {
+                                        ASS_9_1FV.Add(i.ToString());
+                                    }
+                                }
+								@:set_for_ck('CK_ASS_9_1F', '@String.Join(",", ASS_9_1FV)');
+							}
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    腹脹：
+                    <label><input type="radio" name="RB_ASS_9_2" value="0" />無。</label>
+                    <label><input type="radio" name="RB_ASS_9_2" value="1" />有。</label>
+                    臍帶滲血：
+                    <label><input type="radio" name="RB_ASS_9_3" value="0" />無。</label>
+                    <label><input type="radio" name="RB_ASS_9_3" value="1" />有。</label>
+                    <script>
+							@if (r["ASS_9_2"].ToString() != "") {
+								@:set_for_rb('RB_ASS_9_2', '@r["ASS_9_2"]');
+							}
+                            @if (r["ASS_9_3"].ToString() != "") {
+								@:set_for_rb('RB_ASS_9_3', '@r["ASS_9_3"]');
+							}
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    臍動脈：
+                    <label><input type="radio" name="RB_ASS_9_4" value="0" onclick="$('.SPAN_ASS_9_4O').fadeOut()" />壹條   </label>
+                    <label><input type="radio" name="RB_ASS_9_4" value="1" onclick="$('.SPAN_ASS_9_4O').fadeOut()" />貳條   </label>
+                    <label><input type="radio" name="RB_ASS_9_4" value="2" onclick="$('.SPAN_ASS_9_4O').fadeIn()" />其他    </label>
+                    <span class="SPAN_ASS_9_4O" style="display:none">
+                        @Html.TextBox("TXT_ASS_9_4O", r["ASS_9_4O"], new { style = "width:100px" })
+                    </span>。
+                    臍靜脈：
+                    <label><input type="radio" name="RB_ASS_9_5" value="0" onclick="$('.SPAN_ASS_9_5O').fadeOut()" />壹條  </label>
+                    <label><input type="radio" name="RB_ASS_9_5" value="1" onclick="$('.SPAN_ASS_9_5O').fadeOut()" />貳條  </label>
+                    <label><input type="radio" name="RB_ASS_9_5" value="2" onclick="$('.SPAN_ASS_9_5O').fadeIn()" />其他   </label>
+                    <span class="SPAN_ASS_9_5O" style="display:none">
+                        @Html.TextBox("TXT_ASS_9_5O", r["ASS_9_5O"], new { style = "width:100px" })
+                    </span>。
+                    <script>
+							@if (r["ASS_9_4"].ToString() != "") {
+								@:set_for_rb('RB_ASS_9_4', '@r["ASS_9_4"]');
+							}
+                            @if (r["ASS_9_5"].ToString() != "") {
+								@:set_for_rb('RB_ASS_9_5', '@r["ASS_9_5"]');
+							}
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    @if (r["ASS_9_6"].ToString() != "")
+                    {
+                        @Html.Raw("其他：");
+                        @Html.TextBox("TXT_ASS_9_6", r["ASS_9_6"], new { style = "width:100px" })
+                    }
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">10.臀背部</label>
+                    <label><input type="radio" name="RB_ASS_10" value="1" onclick="$('.SPAN_ASS_10F').fadeOut()" />正常    </label>
+                    <label><input type="radio" name="RB_ASS_10" value="0" onclick="$('.SPAN_ASS_10F').fadeIn()" />異常     </label>
+                    <span class="SPAN_ASS_10F" style="display:none">
+                        <label><input name="CK_ASS_10F" value="0" type="checkbox" />毛性小凹     </label>
+                        <label><input name="CK_ASS_10F" value="1" type="checkbox" />脊髓膜膨出   </label>
+                        <label><input name="CK_ASS_10F" value="2" type="checkbox" />脊椎彎曲     </label>
+                        <label>
+                            <input name="CK_ASS_10F" value="3" type="checkbox" onclick="$('.SPAN_ASS_10FO').fadeToggle()" />其他
+                        </label>
+                        <span class="SPAN_ASS_10FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_10FO", r["ASS_10FO"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["ASS_10"].ToString() != "") {
+								@:set_for_rb('RB_ASS_10', '@r["ASS_10"]');
+							}
+							@if (r["ASS_10F"].ToString() != "")
+                            {
+                                var ASS_10F = r["ASS_10F"].ToString();
+                                var ASS_10FV = new List<string>();
+
+                                for (var i = 0; i < ASS_10F.ToString().Length; i++)
+                                {
+                                    if (ASS_10F[i] == '1')
+                                    {
+                                        ASS_10FV.Add(i.ToString());
+                                    }
+                                }
+								@:set_for_ck('CK_ASS_10F', '@String.Join(",", ASS_10FV)');
+							}
+                    </script>
+                </p>
+                <label class="level-24px"></label>
+                <label class="subtitle" style="width:180px">11.泌尿生殖器外觀</label>
+                <p>
+                    <span style="display:none;" class="P_ASS_11_M">
+                        <label class="level-24px"></label>
+                        <span style="">男</span>
+                        <span>
+                            睪丸：
+                            <label><input type="radio" name="RB_ASS_11_1" value="1" onclick="$('.SPAN_ASS_11_1F').fadeOut()" />下降   </label>
+                            <label><input type="radio" name="RB_ASS_11_1" value="0" onclick="$('.SPAN_ASS_11_1F').fadeIn()" />未下降  </label>
+                            <span class="SPAN_ASS_11_1F" style="display:none">
+                                <label><input name="CK_ASS_11_1F" value="0" type="checkbox" />左    </label>
+                                <label><input name="CK_ASS_11_1F" value="1" type="checkbox" />右    </label>
+                            </span>
+                            。
+                        </span>
+                        <script>
+							@if (r["ASS_11_1"].ToString() != "") {
+								@:set_for_rb('RB_ASS_11_1', '@r["ASS_11_1"]');
+							}
+							@if (r["ASS_11_1F"].ToString() != "")
+                            {
+                                var ASS_11_1F = r["ASS_11_1F"].ToString();
+                                var ASS_11_1FV = new List<string>();
+
+                                for (var i = 0; i < ASS_11_1F.ToString().Length; i++)
+                                {
+                                    if (ASS_11_1F[i] == '1')
+                                    {
+                                        ASS_11_1FV.Add(i.ToString());
+                                    }
+                                }
+								@:set_for_ck('CK_ASS_11_1F', '@String.Join(",", ASS_11_1FV)');
+							}
+                        </script>
+                        <span>
+                            陰囊：
+                            <label><input type="radio" name="RB_ASS_11_2" value="1" onclick="$('.SPAN_ASS_11_2F').fadeOut()" />正常   </label>
+                            <label><input type="radio" name="RB_ASS_11_2" value="0" onclick="$('.SPAN_ASS_11_2F').fadeIn()" />異常    </label>
+                            <span class="SPAN_ASS_11_2F" style="display:none">
+                                <label><input name="CK_ASS_11_2F" value="0" type="checkbox" />水腫  </label>
+                                <label><input name="CK_ASS_11_2F" value="1" type="checkbox" />破皮  </label>
+                                <label><input name="CK_ASS_11_2F" value="2" type="checkbox" onclick="$('.SPAN_ASS_11_2FO').fadeToggle()" />其他</label>
+                                <span class="SPAN_ASS_11_2FO" style="display:none">
+                                    @Html.TextBox("TXT_ASS_11_2FO", r["ASS_11_2FO"], new { style = "width:100px" })
+                                </span>
+                            </span>
+                            。
+                            <script>
+							@if (r["ASS_11_2"].ToString() != "") {
+								@:set_for_rb('RB_ASS_11_2', '@r["ASS_11_2"]');
+							}
+							@if (r["ASS_11_2F"].ToString() != "")
+                            {
+                                var ASS_11_2F = r["ASS_11_2F"].ToString();
+                                var ASS_11_2FV = new List<string>();
+
+                                for (var i = 0; i < ASS_11_2F.ToString().Length; i++)
+                                {
+                                    if (ASS_11_2F[i] == '1')
+                                    {
+                                        ASS_11_2FV.Add(i.ToString());
+                                    }
+                                }
+								@:set_for_ck('CK_ASS_11_2F', '@String.Join(",", ASS_11_2FV)');
+							}
+                            </script>
+                        </span>
+                        <span>
+                            尿道下裂：
+                            <label><input type="radio" name="RB_ASS_11_3" value="0" />無   </label>
+                            <label><input type="radio" name="RB_ASS_11_3" value="1" />有   </label>
+                            <script>
+								@if (r["ASS_11_3"].ToString() != "") {
+									@:set_for_rb('RB_ASS_11_3', '@r["ASS_11_3"]');
+								}
+                            </script>
+                            。
+                        </span>
+                        <span>
+                            @if (r["ASS_11_4"].ToString() != "")
+                            {
+                                @Html.Raw("其他：")
+                                @Html.TextBox("TXT_ASS_11_4", r["ASS_11_4"], new { style = "width:100px" })
+                            }
+                        </span>
+                    </span>
+                    <span style="display:none;" class="P_ASS_11_F">
+                        <label class="level-24px"></label>
+                        <span>女</span>
+                        <span>
+                            陰道口：
+                            <label><input type="radio" name="RB_ASS_11_5" value="1" />有   </label>
+                            <label><input type="radio" name="RB_ASS_11_5" value="0" />無   </label>
+                            <script>
+							@if (r["ASS_11_5"].ToString() != "") {
+								@:set_for_rb('RB_ASS_11_5', '@r["ASS_11_5"]');
+							}
+                            </script>
+                            。
+                        </span>
+                        <span>
+                            陰唇腫：
+                            <label><input type="radio" name="RB_ASS_11_6" value="0" />無  </label>
+                            <label><input type="radio" name="RB_ASS_11_6" value="1" />有  </label>
+                            <script>
+							@if (r["ASS_11_6"].ToString() != "") {
+								@:set_for_rb('RB_ASS_11_6', '@r["ASS_11_6"]');
+							}
+                            </script>
+                            。
+                        </span>
+                        <span>
+                            陰道分泌物：
+                            <label><input type="radio" name="RB_ASS_11_7" value="0" onclick="$('.SPAN_ASS_11_7F').fadeOut()" />無  </label>
+                            <label><input type="radio" name="RB_ASS_11_7" value="1" onclick="$('.SPAN_ASS_11_7F').fadeIn()" />有   </label>
+                            <span class="SPAN_ASS_11_7F" style="display:none">
+                                性質：
+                                <label><input name="CK_ASS_11_7F" value="0" type="checkbox" />清澈     </label>
+                                <label><input name="CK_ASS_11_7F" value="1" type="checkbox" />白色     </label>
+                                <label><input name="CK_ASS_11_7F" value="2" type="checkbox" />假性月經 </label>
+                            </span>
+                            。
+                        </span>
+                        <script>
+							@if (r["ASS_11_7"].ToString() != "") {
+								@:set_for_rb('RB_ASS_11_7', '@r["ASS_11_7"]');
+							}
+							@if (r["ASS_11_7F"].ToString() != "")
+                            {
+                                var ASS_11_7F = r["ASS_11_7F"].ToString();
+                                var ASS_11_7FV = new List<string>();
+
+                                for (var i = 0; i < ASS_11_7F.ToString().Length; i++)
+                                {
+                                    if (ASS_11_7F[i] == '1')
+                                    {
+                                        ASS_11_7FV.Add(i.ToString());
+                                    }
+                                }
+								@:set_for_ck('CK_ASS_11_7F', '@String.Join(",", ASS_11_7FV)');
+							}
+                        </script>
+                    </span>
+                    <br />
+                    <span>
+                        <label class="level-24px"></label>
+                        肛門：
+                        <label><input type="radio" name="RB_ASS_11_8" value="1" onclick="$('.SPAN_ASS_11_8F').fadeOut()" />正常  </label>
+                        <label><input type="radio" name="RB_ASS_11_8" value="0" onclick="$('.SPAN_ASS_11_8F').fadeIn()" />異常   </label>
+                        <span class="SPAN_ASS_11_8F" style="display:none">
+                            ，
+                            <label><input name="CK_ASS_11_8F" value="0" type="checkbox" />無肛  </label>
+                            <label><input name="CK_ASS_11_8F" value="1" type="checkbox" />閉鎖  </label>
+                            <label><input name="CK_ASS_11_8F" value="2" type="checkbox" />瘜肉  </label>
+                            <label><input name="CK_ASS_11_8F" value="3" type="checkbox" />裂隙  </label>
+                            <label>
+                                <input name="CK_ASS_11_8F" value="4" type="checkbox" onclick="$('.SPAN_ASS_11_8FO').fadeToggle()" />其他
+                            </label>
+                            <span class="SPAN_ASS_11_8FO" style="display:none">
+                                @Html.TextBox("TXT_ASS_11_8FO", r["ASS_11_8FO"], new { style = "width:100px" })
+                            </span>
+                        </span>
+                    </span>
+                    <script>
+							@if (r["ASS_11_8"].ToString() != "") {
+								@:set_for_rb('RB_ASS_11_8', '@r["ASS_11_8"]');
+							}
+							@if (r["ASS_11_8F"].ToString() != "")
+                            {
+                                var ASS_11_8F = r["ASS_11_8F"].ToString();
+                                var ASS_11_8FV = new List<string>();
+
+                                for (var i = 0; i < ASS_11_8F.ToString().Length; i++)
+                                {
+                                    if (ASS_11_8F[i] == '1')
+                                    {
+                                        ASS_11_8FV.Add(i.ToString());
+                                    }
+                                }
+								@:set_for_ck('CK_ASS_11_8F', '@String.Join(",", ASS_11_8FV)');
+							}
+                    </script>
+                    <script>
+							@if (r["GENDER"].ToString() != "") {
+								@:set_for_rb('RB_GENDER','@r["GENDER"]');
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">12.骨骼</label>
+                    <br />
+                    <label class="level-24px"></label>
+                    骨折：
+                    <label><input type="radio" name="RB_ASS_12_1" value="0" onclick="$('.SPAN_ASS_12_1F').fadeOut()" />無  </label>
+                    <label><input type="radio" name="RB_ASS_12_1" value="1" onclick="$('.SPAN_ASS_12_1F').fadeIn()" />有   </label>
+                    <span class="SPAN_ASS_12_1F" style="display:none">
+                        ，部位：
+                        <label>
+                            <input name="CK_ASS_12_1F" value="0" type="checkbox" />左鎖骨
+                        </label>
+                        <label>
+                            <input name="CK_ASS_12_1F" value="1" type="checkbox" />右鎖骨
+                        </label>
+                        <label>
+                            <input name="CK_ASS_12_1F" value="2" type="checkbox" onclick="$('.SPAN_ASS_12_1FO').fadeToggle()" />其他
+                        </label>
+                        <span class="SPAN_ASS_12_1FO" style="display:none">
+                            @Html.TextBox("TXT_ASS_12_1FO", r["ASS_12_1FO"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+							@if (r["ASS_12_1"].ToString() != "") {
+								@:set_for_rb('RB_ASS_12_1', '@r["ASS_12_1"]');
+							}
+							@if (r["ASS_12_1F"].ToString() != "")
+                            {
+                                var ASS_12_1F = r["ASS_12_1F"].ToString();
+                                var ASS_12_1FV = new List<string>();
+
+                                for (var i = 0; i < ASS_12_1F.ToString().Length; i++)
+                                {
+                                    if (ASS_12_1F[i] == '1')
+                                    {
+                                        ASS_12_1FV.Add(i.ToString());
+                                    }
+                                }
+								@:set_for_ck('CK_ASS_12_1F', '@String.Join(",", ASS_12_1FV)');
+							}
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    脫臼：
+                    <label><input type="radio" name="RB_ASS_12_2" value="0" onclick="$('.SPAN_ASS_12_2F').fadeOut()" />無  </label>
+                    <label><input type="radio" name="RB_ASS_12_2" value="1" onclick="$('.SPAN_ASS_12_2F').fadeIn()" />有   </label>
+                    <span class="SPAN_ASS_12_2F" style="display:none">
+                        ，部位：  @Html.TextBox("TXT_ASS_12_2F", r["ASS_12_2F"], new { style = "width:100px" })
+                    </span>
+                    <script>
+							@if (r["ASS_12_2"].ToString() != "") {
+								@:set_for_rb('RB_ASS_12_2', '@r["ASS_12_2"]');
+							}
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    新生兒先天性髖關節脫臼檢查：
+                    巴氏測驗(Barlow test)：
+                    <label><input type="radio" name="RB_ASS_12_3" value="1" />+ </label>
+                    <label><input type="radio" name="RB_ASS_12_3" value="0" />- </label>。
+                    歐氏測驗(Ortolani test)：
+                    <label>
+                        <input type="radio" name="RB_ASS_12_4" value="1" />+
+                    </label>
+                    <label>
+                        <input type="radio" name="RB_ASS_12_4" value="0" />-
+                    </label>。
+                    <script>
+							@if (r["ASS_12_3"].ToString() != "") {
+								@:set_for_rb('RB_ASS_12_3', '@r["ASS_12_3"]');
+							}
+							@if (r["ASS_12_4"].ToString() != "") {
+								@:set_for_rb('RB_ASS_12_4', '@r["ASS_12_4"]');
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">13.肌肉緊張度</label>
+                    <label><input type="radio" name="RB_ASS_13" value="1" />強  </label>
+                    <label><input type="radio" name="RB_ASS_13" value="0" />弱  </label>
+                    <script>
+							@if (r["ASS_13"].ToString() != "") {
+								@:set_for_rb('RB_ASS_13', '@r["ASS_13"]');
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">14.哭聲</label>
+                    <label><input type="radio" name="RB_ASS_14" value="0" onclick="$('.SPAN_ASS_14_OTH').fadeOut()" />宏亮</label>
+                    <label><input type="radio" name="RB_ASS_14" value="1" onclick="$('.SPAN_ASS_14_OTH').fadeOut()" />尚可</label>
+                    <label><input type="radio" name="RB_ASS_14" value="2" onclick="$('.SPAN_ASS_14_OTH').fadeOut()" />弱小</label>
+                    <label><input type="radio" name="RB_ASS_14" value="3" onclick="$('.SPAN_ASS_14_OTH').fadeOut()" />尖銳</label>
+                    <label><input type="radio" name="RB_ASS_14" value="4" onclick="$('.SPAN_ASS_14_OTH').fadeIn(500)" />其他</label>
+                    <span class="SPAN_ASS_14_OTH" style="display:none">
+                        @Html.TextBox("TXT_ASS_14_OTH", r["ASS_14_OTH"], new { style = "width:100px" })
+                    </span>
+                    <script>
+							@if (r["ASS_14"].ToString() != "") {
+								@:set_for_rb('RB_ASS_14', '@r["ASS_14"]');
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">15.皮膚</label>
+                    <label><input type="checkbox" name="CK_ASS_15" value="0" />粉紅    </label>
+                    <label><input type="checkbox" name="CK_ASS_15" value="1" />蒼白    </label>
+                    <label><input type="checkbox" name="CK_ASS_15" value="2" />黃疸    </label>
+                    <label><input type="checkbox" name="CK_ASS_15" value="3" />出血點  </label>
+                    <label><input type="checkbox" name="CK_ASS_15" value="4" />粟粒疹  </label>
+                    <label><input type="checkbox" name="CK_ASS_15" value="5" />毒性紅斑</label>
+                    <label>
+                        <input type="checkbox" name="CK_ASS_15" value="6" onclick="$('.SPAN_ASS_15O').fadeToggle()" />其他
+                    </label>
+                    <span class="SPAN_ASS_15O" style="display:none">
+                        @Html.TextBox("TXT_ASS_15O", r["ASS_15O"], new { style = "width:100px" })
+                    </span>
+                    <script>
+							@if (r["ASS_15"].ToString() != "")
+                            {
+                                var ASS_15 = r["ASS_15"].ToString();
+                                var ASS_15V = new List<string>();
+
+                                for (var i = 0; i < ASS_15.ToString().Length; i++)
+                                {
+                                    if (ASS_15[i] == '1')
+                                    {
+                                        ASS_15V.Add(i.ToString());
+                                    }
+                                }
+								@:set_for_ck('CK_ASS_15', '@String.Join(",", ASS_15V)');
+							}
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    血管瘤：
+                    <label><input type="radio" name="RB_ASS_15_1" value="0" onclick="$('.SPAN_ASS_15_1F').fadeOut()" />無 </label>
+                    <label><input type="radio" name="RB_ASS_15_1" value="1" onclick="$('.SPAN_ASS_15_1F').fadeIn()" />有  </label>
+                    <span class="SPAN_ASS_15_1F" style="display:none">
+                        ，@Html.TextBox("TXT_ASS_15_1P", r["ASS_15_1P"], new { style = "width:100px" })
+                    </span>
+                    <script>
+									@if (r["ASS_15_1"].ToString() != "") {
+								@:set_for_rb('RB_ASS_15_1', '@r["ASS_15_1"]');
+							}
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    胎記：
+                    <label><input type="radio" name="RB_ASS_15_2" value="0" onclick="$('.SPAN_ASS_15_2F').fadeOut()" />無  </label>
+                    <label><input type="radio" name="RB_ASS_15_2" value="1" onclick="$('.SPAN_ASS_15_2F').fadeIn()" />有   </label>
+                    @{
+                        if (r["ASS_15_2"].ToString() == "1")
+                        {
+                            @Html.Raw("，")
+                            if (r["ASS_15_2F"].ToString() != "" && r["ASS_15_2F"].ToString().Length == 4)
+                            {
+                                var ASS_15_2F = r["ASS_15_2F"].ToString();
+                                if (ASS_15_2F[0] == '1')
+                                {
+                                    @Html.Raw("蒙古斑：部位：")
+                                    @Html.TextBox("TXT_ASS_15_2F1", r["ASS_15_2F1"], new { style = "width:100px" })
+                                    @Html.Raw("。")
+                                }
+                                if (ASS_15_2F[1] == '1')
+                                {
+                                    @Html.Raw("粉紅色斑：部位：")
+                                    @Html.TextBox("TXT_ASS_15_2F2", r["ASS_15_2F2"], new { style = "width:100px" })
+                                    @Html.Raw("。")
+                                }
+                                if (ASS_15_2F[2] == '1')
+                                {
+                                    @Html.Raw("血管母斑：部位：")
+                                    @Html.TextBox("TXT_ASS_15_2F3", r["ASS_15_2F3"], new { style = "width:100px" })
+                                    @Html.Raw("。")
+                                }
+                                if (ASS_15_2F[3] == '1')
+                                {
+                                    @Html.Raw("其他：部位：")
+                                    @Html.TextBox("TXT_ASS_15_2FO", r["ASS_15_2FO"], new { style = "width:100px" })
+                                    @Html.Raw("。")
+                                }
+                            }
+                        }
+                    }
+                    <script>
+									@if (r["ASS_15_2"].ToString() != "") {
+								@:set_for_rb('RB_ASS_15_2', '@r["ASS_15_2"]');
+							}
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">16.四肢</label>
+                    <label><input type="radio" name="RB_ASS_16" value="1" onclick="$('.SPAN_ASS_16F').fadeOut()" />正常 </label>
+                    <label><input type="radio" name="RB_ASS_16" value="0" onclick="$('.SPAN_ASS_16F').fadeIn()" />異常  </label>
+                    <span class="SPAN_ASS_16F" style="display:none">
+                        <br /><label class="level-24px"></label>
+                        足內翻
+                        <label><input type="radio" name="RB_ASS_16_1" value="0" onclick="$('.SPAN_ASS_16_1F').fadeOut()" />無</label>
+                        <label><input type="radio" name="RB_ASS_16_1" value="1" onclick="$('.SPAN_ASS_16_1F').fadeIn()" />有</label>
+                        <span class="SPAN_ASS_16_1F" style="display:none">
+                            <label><input type="checkbox" name="CK_ASS_16_1F" value="0" />左腳 </label>
+                            <label><input type="checkbox" name="CK_ASS_16_1F" value="1" />右腳 </label>
+                        </span>
+                        <br /><label class="level-24px"></label>
+                        足外翻
+                        <label><input type="radio" name="RB_ASS_16_2" value="0" onclick="$('.SPAN_ASS_16_2F').fadeOut()" />無</label>
+                        <label><input type="radio" name="RB_ASS_16_2" value="1" onclick="$('.SPAN_ASS_16_2F').fadeIn()" />有</label>
+                        <span class="SPAN_ASS_16_2F" style="display:none">
+                            <label><input type="checkbox" name="CK_ASS_16_2F" value="0" />左腳</label>
+                            <label><input type="checkbox" name="CK_ASS_16_2F" value="1" />右腳</label>
+                        </span>
+                        <br /><label class="level-24px"></label>
+                        單一手紋(斷掌)
+                        <label><input type="radio" name="RB_ASS_16_3" value="0" onclick="$('.SPAN_ASS_16_3F').fadeOut()" />無</label>
+                        <label><input type="radio" name="RB_ASS_16_3" value="1" onclick="$('.SPAN_ASS_16_3F').fadeIn()" />有</label>
+                        <span class="SPAN_ASS_16_3F" style="display:none">
+                            <label><input type="checkbox" name="CK_ASS_16_3F" value="0" />左手</label>
+                            <label><input type="checkbox" name="CK_ASS_16_3F" value="1" />右手</label>
+                        </span>
+                    </span>
+                    <script>
+                         @if (r["ASS_16"].ToString() != "") {
+                                @:set_for_rb('RB_ASS_16', '@(r["ASS_16"])')
+                            }
+                          @if (r["ASS_16_1"].ToString() != "") {
+                                @:set_for_rb('RB_ASS_16_1', '@(r["ASS_16_1"])')
+                            }
+                          @if (r["ASS_16_1F"].ToString() != "")
+                          {
+                              var ASS_16_1F = r["ASS_16_1F"].ToString();
+                              var ASS_16_1FV = new List<string>();
+
+                              for (var i = 0; i < ASS_16_1F.ToString().Length; i++)
+                              {
+                                  if (ASS_16_1F[i] == '1')
+                                  {
+                                      ASS_16_1FV.Add(i.ToString());
+                                  }
+                              }
+                                 @:set_for_ck('CK_ASS_16_1F', '@String.Join(",", ASS_16_1FV)');
+                              }
+                          @if (r["ASS_16_2"].ToString() != "") {
+                                @:set_for_rb('RB_ASS_16_2', '@(r["ASS_16_2"])')
+                            }
+                          @if (r["ASS_16_2F"].ToString() != "")
+                          {
+                              var ASS_16_2F = r["ASS_16_2F"].ToString();
+                              var ASS_16_2FV = new List<string>();
+
+                              for (var i = 0; i < ASS_16_2F.ToString().Length; i++)
+                              {
+                                  if (ASS_16_2F[i] == '1')
+                                  {
+                                      ASS_16_2FV.Add(i.ToString());
+                                  }
+                              }
+                                 @:set_for_ck('CK_ASS_16_2F', '@String.Join(",", ASS_16_2FV)');
+                              }
+                          @if (r["ASS_16_3"].ToString() != "") {
+                                @:set_for_rb('RB_ASS_16_3', '@(r["ASS_16_3"])')
+                            }
+                          @if (r["ASS_16_3F"].ToString() != "")
+                          {
+                              var ASS_16_3F = r["ASS_16_3F"].ToString();
+                              var ASS_16_3FV = new List<string>();
+
+                              for (var i = 0; i < ASS_16_3F.ToString().Length; i++)
+                              {
+                                  if (ASS_16_3F[i] == '1')
+                                  {
+                                      ASS_16_3FV.Add(i.ToString());
+                                  }
+                              }
+                                 @:set_for_ck('CK_ASS_16_3F', '@String.Join(",", ASS_16_3FV)');
+                              }
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    活動力：
+                    <label><input type="radio" name="RB_ASS_16_4" value="1" onclick="$('.SPAN_ASS_16_4F').fadeOut()" />佳</label>
+                    <label><input type="radio" name="RB_ASS_16_4" value="0" onclick="$('.SPAN_ASS_16_4F').fadeIn()" />差</label>
+                    <span class="SPAN_ASS_16_4F" style="display:none">
+                        部位：
+                        <label><input type="checkbox" name="CK_ASS_16_4F" value="0" />左手</label>
+                        <label><input type="checkbox" name="CK_ASS_16_4F" value="1" />右手</label>
+                        <label><input type="checkbox" name="CK_ASS_16_4F" value="2" />左腳</label>
+                        <label><input type="checkbox" name="CK_ASS_16_4F" value="3" />右腳</label>
+                    </span>
+                    <script>
+                         @if (r["ASS_16_4"].ToString() != "") {
+                                @:set_for_rb('RB_ASS_16_4', '@(r["ASS_16_4"])')
+                            }
+                          @if (r["ASS_16_4F"].ToString() != "")
+                          {
+                              var ASS_16_4F = r["ASS_16_4F"].ToString();
+                              var ASS_16_4FV = new List<string>();
+
+                              for (var i = 0; i < ASS_16_4F.ToString().Length; i++)
+                              {
+                                  if (ASS_16_4F[i] == '1')
+                                  {
+                                      ASS_16_4FV.Add(i.ToString());
+                                  }
+                              }
+                                 @:set_for_ck('CK_ASS_16_4F', '@String.Join(",", ASS_16_4FV)');
+                              }
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    水　腫：
+                    <label><input type="radio" name="RB_ASS_16_5" value="0" onclick="$('.SPAN_ASS_16_5F').fadeOut()" />無</label>
+                    <label><input type="radio" name="RB_ASS_16_5" value="1" onclick="$('.SPAN_ASS_16_5F').fadeIn()" />有</label>
+                    <span class="SPAN_ASS_16_5F" style="display:none">
+                        部位：
+                        <label><input type="checkbox" name="CK_ASS_16_5F" value="0" />左手</label>
+                        <label><input type="checkbox" name="CK_ASS_16_5F" value="1" />右手</label>
+                        <label><input type="checkbox" name="CK_ASS_16_5F" value="2" />左腳</label>
+                        <label><input type="checkbox" name="CK_ASS_16_5F" value="3" />右腳</label>
+                    </span>
+                    <script>
+                         @if (r["ASS_16_5"].ToString() != "") {
+                                @:set_for_rb('RB_ASS_16_5', '@(r["ASS_16_5"])')
+                            }
+                          @if (r["ASS_16_5F"].ToString() != "")
+                          {
+                              var ASS_16_5F = r["ASS_16_5F"].ToString();
+                              var ASS_16_5FV = new List<string>();
+
+                              for (var i = 0; i < ASS_16_5F.ToString().Length; i++)
+                              {
+                                  if (ASS_16_5F[i] == '1')
+                                  {
+                                      ASS_16_5FV.Add(i.ToString());
+                                  }
+                              }
+                                 @:set_for_ck('CK_ASS_16_5F', '@String.Join(",", ASS_16_5FV)');
+                              }
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    麻　痺：
+                    <label><input type="radio" name="RB_ASS_16_6" value="0" onclick="$('.SPAN_ASS_16_6F').fadeOut()" />無</label>
+                    <label><input type="radio" name="RB_ASS_16_6" value="1" onclick="$('.SPAN_ASS_16_6F').fadeIn()" />有</label>
+                    <span class="SPAN_ASS_16_6F" style="display:none">
+                        部位：
+                        <label><input type="checkbox" name="CK_ASS_16_6F" value="0" />左手</label>
+                        <label><input type="checkbox" name="CK_ASS_16_6F" value="1" />右手</label>
+                        <label><input type="checkbox" name="CK_ASS_16_6F" value="2" />左腳</label>
+                        <label><input type="checkbox" name="CK_ASS_16_6F" value="3" />右腳</label>
+                    </span>
+                    <script>
+                         @if (r["ASS_16_6"].ToString() != "") {
+                                @:set_for_rb('RB_ASS_16_6', '@(r["ASS_16_6"])')
+                            }
+                          @if (r["ASS_16_6F"].ToString() != "")
+                          {
+                              var ASS_16_6F = r["ASS_16_6F"].ToString();
+                              var ASS_16_6FV = new List<string>();
+
+                              for (var i = 0; i < ASS_16_6F.ToString().Length; i++)
+                              {
+                                  if (ASS_16_6F[i] == '1')
+                                  {
+                                      ASS_16_6FV.Add(i.ToString());
+                                  }
+                              }
+                                 @:set_for_ck('CK_ASS_16_6F', '@String.Join(",", ASS_16_6FV)');
+                              }
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    手指：
+                    <label><input type="radio" name="RB_ASS_16_7" value="1" onclick="$('.SPAN_ASS_16_7F').fadeOut()" />正常</label>
+                    <label><input type="radio" name="RB_ASS_16_7" value="0" onclick="$('.SPAN_ASS_16_7F').fadeIn()" />異常</label>
+                    <span class="SPAN_ASS_16_7F" style="display:none">
+                        @if (r["ASS_16_7F"].ToString() != "" && r["ASS_16_7F"].ToString().Substring(0, 4).IndexOf("1") >= 0)
+                        {
+                            <br /><label class="level-24px"></label> <label class="level-24px"></label>
+                            @Html.Raw("左：")
+                        }
+                        <label><input type="checkbox" class="CK_ASS_16_7F1" name="CK_ASS_16_7F" value="0" onclick="$('.SPAN_ASS_16_7F1').fadeIn()" />少指</label>
+                        <span class="SPAN_ASS_16_7F1" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_7F1", r["ASS_16_7F1"], new { style = "width:100px" })
+                        </span>
+                        <label><input type="checkbox" class="CK_ASS_16_7F2" name="CK_ASS_16_7F" value="1" onclick="$('.SPAN_ASS_16_7F2').fadeIn()" />多指</label>
+                        <span class="SPAN_ASS_16_7F2" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_7F2", r["ASS_16_7F2"], new { style = "width:100px" })
+                        </span>
+                        <label><input type="checkbox" class="CK_ASS_16_7F3" name="CK_ASS_16_7F" value="2" onclick="$('.SPAN_ASS_16_7F3').fadeIn()" />併指</label>
+                        <span class="SPAN_ASS_16_7F3" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_7F3", r["ASS_16_7F3"], new { style = "width:100px" })
+                        </span>
+                        <label><input type="checkbox" class="CK_ASS_16_7F4" name="CK_ASS_16_7F" value="3" onclick="$('.SPAN_ASS_16_7F4').fadeIn()" />蹼狀指</label>
+                        <span class="SPAN_ASS_16_7F4" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_7F4", r["ASS_16_7F4"], new { style = "width:100px" })
+                        </span>
+                        @if (r["ASS_16_7F"].ToString() != "" && r["ASS_16_7F"].ToString().Substring(4, 4).IndexOf("1") >= 0)
+                        {
+                            <br /> <label class="level-24px"></label> <label class="level-24px"></label>
+                            @Html.Raw("右：")
+                        }
+                        <label><input type="checkbox" class="CK_ASS_16_7F5" name="CK_ASS_16_7F" value="4" onclick="$('.SPAN_ASS_16_7F5').fadeIn()" />少指</label>
+                        <span class="SPAN_ASS_16_7F5" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_7F5", r["ASS_16_7F5"], new { style = "width:100px" })
+                        </span>
+                        <label><input type="checkbox" class="CK_ASS_16_7F6" name="CK_ASS_16_7F" value="5" onclick="$('.SPAN_ASS_16_7F6').fadeIn()" />多指</label>
+                        <span class="SPAN_ASS_16_7F6" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_7F6", r["ASS_16_7F6"], new { style = "width:100px" })
+                        </span>
+                        <label><input type="checkbox" class="CK_ASS_16_7F7" name="CK_ASS_16_7F" value="6" onclick="$('.SPAN_ASS_16_7F7').fadeIn()" />併指</label>
+                        <span class="SPAN_ASS_16_7F7" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_7F7", r["ASS_16_7F7"], new { style = "width:100px" })
+                        </span>
+                        <label><input type="checkbox" class="CK_ASS_16_7F8" name="CK_ASS_16_7F" value="7" onclick="$('.SPAN_ASS_16_7F8').fadeIn()" />蹼狀指</label>
+                        <span class="SPAN_ASS_16_7F8" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_7F8", r["ASS_16_7F8"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+                         @if (r["ASS_16_7"].ToString() != "") {
+                                @:set_for_rb('RB_ASS_16_7', '@(r["ASS_16_7"])')
+                            }
+                          @if (r["ASS_16_7F"].ToString() != "")
+                          {
+                              var ASS_16_7F = r["ASS_16_7F"].ToString();
+                              var ASS_16_7FV = new List<string>();
+
+                              for (var i = 0; i < ASS_16_7F.ToString().Length; i++)
+                              {
+                                  if (ASS_16_7F[i] == '1')
+                                  {
+                                      ASS_16_7FV.Add(i.ToString());
+                                  }
+                              }
+                                 @:set_for_ck('CK_ASS_16_7F', '@String.Join(",", ASS_16_7FV)');
+                              }
+                    </script>
+                    <br />
+                    <label class="level-24px"></label>
+                    腳趾：
+                    <label><input type="radio" name="RB_ASS_16_8" value="1" onclick="$('.SPAN_ASS_16_8F').fadeOut()" />正常</label>
+                    <label><input type="radio" name="RB_ASS_16_8" value="0" onclick="$('.SPAN_ASS_16_8F').fadeIn()" />異常</label>
+                    <span class="SPAN_ASS_16_8F" style="display:none">
+                        @if (r["ASS_16_8F"].ToString() != "" && r["ASS_16_8F"].ToString().Substring(0, 3).IndexOf("1") >= 0)
+                        {
+                            <br /><label class="level-24px"></label> <label class="level-24px"></label>
+                            @Html.Raw("左：")
+                        }
+                        <label><input type="checkbox" class="CK_ASS_16_8F1" name="CK_ASS_16_8F" value="0" onclick="$('.SPAN_ASS_16_8F1').fadeIn()" />少趾</label>
+                        <span class="SPAN_ASS_16_8F1" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_8F1", r["ASS_16_8F1"], new { style = "width:100px" })
+                        </span>
+                        <label><input type="checkbox" class="CK_ASS_16_8F2" name="CK_ASS_16_8F" value="1" onclick="$('.SPAN_ASS_16_8F2').fadeIn()" />多趾</label>
+                        <span class="SPAN_ASS_16_8F2" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_8F2", r["ASS_16_8F2"], new { style = "width:100px" })
+                        </span>
+                        <label><input type="checkbox" class="CK_ASS_16_8F3" name="CK_ASS_16_8F" value="2" onclick="$('.SPAN_ASS_16_8F3').fadeIn()" />併趾</label>
+                        <span class="SPAN_ASS_16_8F3" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_8F3", r["ASS_16_8F3"], new { style = "width:100px" })
+                        </span>
+                        @if (r["ASS_16_8F"].ToString() != "" && r["ASS_16_8F"].ToString().Substring(3, 3).IndexOf("1") >= 0)
+                        {
+                            <br /><label class="level-24px"></label> <label class="level-24px"></label>
+                            @Html.Raw("右：")
+                        }
+                        <label><input type="checkbox" class="CK_ASS_16_8F4" name="CK_ASS_16_8F" value="3" onclick="$('.SPAN_ASS_16_8F4').fadeIn()" />少趾</label>
+                        <span class="SPAN_ASS_16_8F4" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_8F4", r["ASS_16_8F4"], new { style = "width:100px" })
+                        </span>
+                        <label><input type="checkbox" class="CK_ASS_16_8F5" name="CK_ASS_16_8F" value="4" onclick="$('.SPAN_ASS_16_8F5').fadeIn()" />多趾</label>
+                        <span class="SPAN_ASS_16_8F5" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_8F5", r["ASS_16_8F5"], new { style = "width:100px" })
+                        </span>
+                        <label><input type="checkbox" class="CK_ASS_16_8F6" name="CK_ASS_16_8F" value="5" onclick="$('.SPAN_ASS_16_8F6').fadeIn()" />併趾</label>
+                        <span class="SPAN_ASS_16_8F6" style="display:none;">
+                            ，部位 @Html.TextBox("TXT_ASS_16_8F6", r["ASS_16_8F6"], new { style = "width:100px" })
+                        </span>
+                    </span>
+                    <script>
+                         @if (r["ASS_16_8"].ToString() != "") {
+                                @:set_for_rb('RB_ASS_16_8', '@(r["ASS_16_8"])')
+                            }
+                          @if (r["ASS_16_8F"].ToString() != "")
+                          {
+                              var ASS_16_8F = r["ASS_16_8F"].ToString();
+                              var ASS_16_8FV = new List<string>();
+
+                              for (var i = 0; i < ASS_16_8F.ToString().Length; i++)
+                              {
+                                  if (ASS_16_8F[i] == '1')
+                                  {
+                                      ASS_16_8FV.Add(i.ToString());
+                                  }
+                              }
+                                 @:set_for_ck('CK_ASS_16_8F', '@String.Join(",", ASS_16_8FV)');
+                              }
+                    </script>
+                </p>
+                <p>
+                    <label class="level-24px"></label>
+                    <label class="subtitle">17.反射</label>
+                    <br />
+                    <label class="level-24px"></label>
+                    <label title="moro-reflex">驚嚇反射(moro-reflex)：</label>
+                    <label><input type="radio" name="RB_ASS_17_1" value="1" />+</label>
+                    <label><input type="radio" name="RB_ASS_17_1" value="0" />-</label>。
+                    <label title="sucking-reflex">吸吮反射(sucking-reflex)：</label>
+                    <label><input type="radio" name="RB_ASS_17_2" value="1" />+ </label>
+                    <label><input type="radio" name="RB_ASS_17_2" value="0" />- </label>。
+                    <br />
+                    <label class="level-24px"></label>
+                    <label title="grasping-reflex">抓握反射(grasping-reflex)：</label>
+                    <label><input type="radio" name="RB_ASS_17_3" value="1" />+</label>
+                    <label><input type="radio" name="RB_ASS_17_3" value="0" />-</label>。
+                    <label title="grasping-reflex">巴賓斯基氏反射(Babinski's reflex)：</label>
+                    <label><input type="radio" name="RB_ASS_17_4" value="1" />+</label>
+                    <label><input type="radio" name="RB_ASS_17_4" value="0" />-</label>。
+                </p>
+                <script>
+                    @if (r["ASS_17_1"].ToString() != "") {
+                        @:set_for_rb('RB_ASS_17_1', '@r["ASS_17_1"]');
+                        }
+                                            @if (r["ASS_17_2"].ToString() != "") {
+                        @:set_for_rb('RB_ASS_17_2', '@r["ASS_17_2"]');
+                        }
+                                            @if (r["ASS_17_3"].ToString() != "") {
+                        @:set_for_rb('RB_ASS_17_3', '@r["ASS_17_3"]');
+                        }
+                                            @if (r["ASS_17_4"].ToString() != "") {
+                        @:set_for_rb('RB_ASS_17_4', '@r["ASS_17_4"]');
+                        }
+                </script>
+
+                <!-- 疼痛評估 -->
+                <p>
+                    <label class="subtitle">疼痛評估</label>
+                    <label class="subtitle">疼痛</label>
+                    <label><input type="radio" name="RB_PAIN_AS" value="1" onclick="$('.DIV_PAIN_AS2').fadeIn(), $('.DIV_PAIN_AS3').fadeOut()" />臉譜量表</label>
+                    <label><input type="radio" name="RB_PAIN_AS" value="4" onclick="$('.DIV_PAIN_AS3').fadeIn(),$('.DIV_PAIN_AS2').fadeOut()" />困難評估(新生兒)</label>
+                    <span class="DIV_PAIN_AS2" style="display:none">
+                        <label class="subtitle">臉譜量表</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="0">0</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="1">1</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="2">2</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="3">3</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="4">4</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="5">5</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="6">6</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="7">7</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="8">8</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="9">9</label>
+                        <label><input type="radio" name="RB_PAIN_AS2" value="10">10</label>
+                    </span>
+                    <div class="DIV_PAIN_AS3" style="display:none">
+                        <label class="subtitle">困難評估(新生兒)</label>
+                        <p>
+                            哭泣：
+                            <label><input type="radio" name="RB_PAIN_AS3_1" value="0">(0)無</label>
+                            <label><input type="radio" name="RB_PAIN_AS3_1" value="1">(1)高音頻的哭泣聲/尚可被安撫</label>
+                            <label><input type="radio" name="RB_PAIN_AS3_1" value="2">(2)傷心欲絕的高頻哭泣/無法被安撫</label>
+                        </p>
+                        <p>
+                            需氧量；血氧飽合濃度高於95%：
+                            <label><input type="radio" name="RB_PAIN_AS3_2" value="0">(0)毋須使用氧氣</label>
+                            <label><input type="radio" name="RB_PAIN_AS3_2" value="1">(1)FiO2 < 30%</label>
+                            <label><input type="radio" name="RB_PAIN_AS3_2" value="2">(2)FiO2 > 30%</label>
+                        </p>
+                        <p>
+                            生命徵象：
+                            <label><input type="radio" name="RB_PAIN_AS3_3" value="0">(0)心跳速率及血壓=或 < 手術/侵入性治療前</label>
+                            <label><input type="radio" name="RB_PAIN_AS3_3" value="1">(1)心跳速率或血壓較手術/侵入性治療前上升【增加 < 20%】</label>
+                            <label><input type="radio" name="RB_PAIN_AS3_3" value="2">(2)心跳速率或血壓較手術/侵入性治療前上升【增加 > 20%】</label>
+                        </p>
+                        <p>
+                            表情：
+                            <label><input type="radio" name="RB_PAIN_AS3_4" value="0">(0)平靜，無特殊表情變化</label>
+                            <label><input type="radio" name="RB_PAIN_AS3_4" value="1">(1)表情扭曲、作鬼臉</label>
+                            <label><input type="radio" name="RB_PAIN_AS3_4" value="2">(2)表情極度痛苦，出現呻吟聲</label>
+                        </p>
+                        <p>
+                            睡眠狀態：
+                            <label><input type="radio" name="RB_PAIN_AS3_5" value="0">(0)安睡</label>
+                            <label><input type="radio" name="RB_PAIN_AS3_5" value="1">(1)經常醒來</label>
+                            <label><input type="radio" name="RB_PAIN_AS3_5" value="2">(2)無法入眠</label>
+                        </p>
+                    </div>
+                    <script>
+                        @if (r["PAIN_AS"].ToString() != "")
+                        {
+                            @: set_for_rb('RB_PAIN_AS' ,'@r["PAIN_AS"]');
+                        }
+
+                         @if (r["PAIN_AS2"].ToString() != "")
+                        {
+                            @: set_for_rb('RB_PAIN_AS2' ,'@r["PAIN_AS2"]');
+                        }
+                         @if (r["PAIN_AS3_1"].ToString() != "")
+                        {
+                            @: set_for_rb('RB_PAIN_AS3_1' ,'@r["PAIN_AS3_1"]');
+                        }
+                         @if (r["PAIN_AS3_2"].ToString() != "")
+                        {
+                            @: set_for_rb('RB_PAIN_AS3_2' ,'@r["PAIN_AS3_2"]');
+                        }
+                         @if (r["PAIN_AS3_3"].ToString() != "")
+                        {
+                            @: set_for_rb('RB_PAIN_AS3_3' ,'@r["PAIN_AS3_3"]');
+                        }
+                         @if (r["PAIN_AS3_4"].ToString() != "")
+                        {
+                            @: set_for_rb('RB_PAIN_AS3_4' ,'@r["PAIN_AS3_4"]');
+                        }
+                         @if (r["PAIN_AS3_5"].ToString() != "")
+                        {
+                            @: set_for_rb('RB_PAIN_AS3_5' ,'@r["PAIN_AS3_5"]');
+                        }
+                    </script>
+
+                    @*20240703 ken TOCC*@
+                <p>
+                    <label class="subtitle" style="height:30px;line-height:30px !important;">TOCC</label>
+                </p>
+                <p fid="SYMPTOM" must="">
+                    <label class="level-24px"></label>
+                    <label class="subtitle">症狀</label>
+                    <span>
+                        <label><input type="checkbox" name="SYM" value="0" class="default" />無</label>
+                        <label><input type="checkbox" name="SYM" value="1" />發燒(≥38℃)</label>
+                        <label><input type="checkbox" name="SYM" value="2" />咳嗽</label>
+                        <label><input type="checkbox" name="SYM" value="3" />喘</label>
+                        <label><input type="checkbox" name="SYM" value="4" />流鼻水</label>
+                        <label><input type="checkbox" name="SYM" value="5" />鼻塞</label>
+                        <label><input type="checkbox" name="SYM" value="6" />喉嚨痛</label>
+                        <label><input type="checkbox" name="SYM" value="7" />肌肉痠痛</label>
+                        <label><input type="checkbox" name="SYM" value="8" />頭痛</label>
+                        <label><input type="checkbox" name="SYM" value="9" />極度疲倦感</label>
+                        <label><input type="checkbox" name="SYM" value="10" onchange="if(this.checked){ $('.span_ck_symptom_other').fadeIn(500); }else{ div_hidden('span_ck_symptom_other'); }" /></label>
+                        <span class="span_ck_symptom_other" style="display:none;">
+                            @Html.TextBox("TXT_SYM_OTH", r["SYM_OTH"], new { style = "width:100px", id = "TXT_SYM_OTH" })
+                        </span>
+                    </span>
+                </p>
+                <script>
+                 @if (r["SYM"].ToString() != "")
+                 {
+                     var symptom = r["SYM"].ToString();
+                     var symptomArr = new List<string>();
+
+                     for (var i = 0; i < symptom.ToString().Length; i++)
+                     {
+                         if (symptom[i] == '1')
+                         {
+                             symptomArr.Add(i.ToString());
+                         }
+                     }
+                     @:set_for_ck('SYM', '@String.Join(",", symptomArr)');
+                 }
+                </script>
+                <p fid="TRAVEL">
+                    <label class="level-24px"></label>
+                    <label class="subtitle">旅遊史(Travel)</label>
+                    <span>
+                        <label><input type="checkbox" name="CK_TRAV" value="0" onchange="if(this.checked){ div_hidden('span_travel_domestic'); div_hidden('span_travel_aboard'); }else{  }" class="default" />最近 14 日內無國內、外旅遊</label>
+                        <label><input type="checkbox" name="CK_TRAV" value="1" onchange="if(this.checked){ $('.span_travel_domestic').fadeIn(500); }else{ div_hidden('span_travel_domestic'); }" />最近 14 日內國內旅遊</label>
+                        <label><input type="checkbox" name="CK_TRAV" value="2" onchange="if(this.checked){ $('.span_travel_aboard').fadeIn(500); }else{ div_hidden('span_travel_aboard'); }" />最近 14 日內國外旅遊(包含轉機或船舶停靠曾到訪</label>
+                    </span>
+                </p>
+                <p fid="TRAVEL" class="span_travel_domestic" style="display:none;">
+                    <label class="level-24px"></label>
+                    國內旅遊 :
+                    城市 : @Html.TextBox("TXT_TRAV_DOME_CITY", r["TRAV_DOME_CITY"], new { style = "width:100px", id = "TXT_TRAV_DOME_CITY" })
+                    , 景點 : @Html.TextBox("TXT_TRAV_DOME_VIEW", r["TRAV_DOME_VIEW"], new { style = "width:100px", id = "TXT_TRAV_DOME_VIEW" })
+                    , 交通方式 :
+                    <label><input type="checkbox" name="CK_TRAV_DOME_TRAF" value="0" />大眾運輸</label>
+                    <label><input type="checkbox" name="CK_TRAV_DOME_TRAF" value="1" />自行駕駛</label>
+                    <label><input type="checkbox" name="CK_TRAV_DOME_TRAF" value="2" onchange="if(this.checked){ $('.span_travel_domestic_traffic_other').fadeIn(500); }else{ div_hidden('span_travel_domestic_traffic_other'); }" /></label>
+                    <span class="span_travel_domestic_traffic_other" style="display:none;">
+                        @Html.TextBox("TXT_TRAV_DOME_TRAF_OTH", r["TRAV_DOME_TRAF_OTH"], new { style = "width:100px", id = "TXT_TRAV_DOME_TRAF_OTH" })
+                    </span>
+                </p>
+                <p fid="TRAVEL" class="span_travel_aboard" style="display:none;">
+                    <label class="level-24px"></label>
+                    國外旅遊 :
+                    國家 : @Html.TextBox("TXT_TRAV_ABO_COUN", r["TRAV_ABO_COUN"], new { style = "width:100px", id = "TXT_TRAV_ABO_COUN" })
+                    , 目的地 : @Html.TextBox("TXT_TRAV_ABO_DEST", r["TRAV_ABO_DEST"], new { style = "width:100px", id = "TXT_TRAV_ABO_DEST" })
+                    , 交通方式 :
+                    <label><input type="checkbox" name="CK_TRAV_ABO_TRAF" value="0" />大眾運輸</label>
+                    <label><input type="checkbox" name="CK_TRAV_ABO_TRAF" value="1" />自行駕駛</label>
+                    <label><input type="checkbox" name="CK_TRAV_ABO_TRAF" value="2" onchange="if(this.checked){ $('.span_travel_aboard_traffic_other').fadeIn(500); }else{ div_hidden('span_travel_aboard_traffic_other'); }" /></label>
+                    <span class="span_travel_aboard_traffic_other" style="display:none;">
+                        @Html.TextBox("TXT_TRAV_ABO_TRAF_OTH", r["TRAV_ABO_TRAF_OTH"], new { style = "width:100px", id = "TXT_TRAV_ABO_TRAF_OTH" })
+                    </span>
+                </p>
+                <script>
+                 @if (r["TRAV"].ToString() != "")
+                 {
+                     var travel = r["TRAV"].ToString();
+                     var travelArr = new List<string>();
+
+                     for (var i = 0; i < travel.ToString().Length; i++)
+                     {
+                         if (travel[i] == '1')
+                         {
+                             travelArr.Add(i.ToString());
+                         }
+                     }
+                     @:set_for_ck('CK_TRAV', '@String.Join(",", travelArr)');
+                 }
+                 @if (r["TRAV_DOME_TRAF"].ToString() != "")
+                 {
+                     var travel = r["TRAV_DOME_TRAF"].ToString();
+                     var travelArr = new List<string>();
+
+                     for (var i = 0; i < travel.ToString().Length; i++)
+                     {
+                         if (travel[i] == '1')
+                         {
+                             travelArr.Add(i.ToString());
+                         }
+                     }
+                     @:set_for_ck('CK_TRAV_DOME_TRAF', '@String.Join(",", travelArr)');
+                 }
+                 @if (r["TRAV_ABO_TRAF"].ToString() != "")
+                 {
+                     var travel = r["TRAV_ABO_TRAF"].ToString();
+                     var travelArr = new List<string>();
+
+                     for (var i = 0; i < travel.ToString().Length; i++)
+                     {
+                         if (travel[i] == '1')
+                         {
+                             travelArr.Add(i.ToString());
+                         }
+                     }
+                     @:set_for_ck('CK_TRAV_ABO_TRAF', '@String.Join(",", travelArr)');
+                 }
+                </script>
+
+                <p fid="OCCUPATION">
+                    <label class="level-24px"></label>
+                    @*<span style="color: red">＊</span>*@<label class="subtitle">職業別(Occupation)</label>
+                    <span>
+                        <label><input type="checkbox" name="CK_OCCU" value="0" onclick="if (this.checked) { div_hidden('span_occupation_other')}" class="default" />無</label>
+                        <label><input type="checkbox" name="CK_OCCU" value="1" />醫事機構工作者</label>
+                        <label><input type="checkbox" name="CK_OCCU" value="2" />禽畜販賣業者</label>
+                        <label><input type="checkbox" name="CK_OCCU" value="3" />航空服務業工作者</label>
+                        <label><input type="checkbox" name="CK_OCCU" value="4" onchange="if(this.checked){ $('.span_occupation_other').fadeIn(500); }else{ div_hidden('span_occupation_other'); }" /></label>
+                        <span class="span_occupation_other" style="display:none">
+                            @Html.TextBox("TXT_OCCU_OTH", r["OCCU_OTH"], new { style = "width:100px", id = "TXT_OCCU_OTH" })
+                        </span>
+                    </span>
+                </p>
+                <script>
+                     @if (r["OCCU"].ToString() != "")
+                     {
+                         var travel = r["OCCU"].ToString();
+                         var travelArr = new List<string>();
+
+                         for (var i = 0; i < travel.ToString().Length; i++)
+                         {
+                             if (travel[i] == '1')
+                             {
+                                 travelArr.Add(i.ToString());
+                             }
+                         }
+                         @:set_for_ck('CK_OCCU', '@String.Join(",", travelArr)');
+                     }
+                </script>
+
+                <p fid="CONTACT">
+                    <label class="level-24px"></label>
+                    <label class="subtitle">接觸史(Contact)</label>
+                    <span>
+                        <label><input type="checkbox" name="CK_CONT" value="1" onchange="if(this.checked){ $('.span_contact_birds').fadeIn(500); }else{ div_hidden('span_contact_birds'); }" />接觸禽鳥類、畜類等 : </label>
+                    </span>
+                    <span class="span_contact_birds" style="display:none">
+                        (
+                        <label><input type="checkbox" name="CK_CONT_BIRD" value="0" />禽鳥類接觸：如雞、鴨等</label>
+                        <label><input type="checkbox" name="CK_CONT_BIRD" value="1" />畜類接觸：如豬、貓、狗等</label>
+                        )
+                    </span>
+                </p>
+                <p fid="CONTACT">
+                    <label class="level-24px"></label>
+                    <label class="subtitle"><span style="color: red">＊</span>新生兒接觸史</label>
+                </p>
+                <p fid="CONTACT" class="span_contact_obstetrics" must="Y">
+                    <label class="level-24px"></label>
+                    (1) 生產前 14 天內，同住家人有發燒、腹瀉、咳嗽、流鼻水等疑似感染症狀?
+                    <label><input type="radio" name="RB_CONT_OBS_SYM" value="0" />無</label>
+                    <label><input type="radio" name="RB_CONT_OBS_SYM" value="1" />有</label>
+                </p>
+                <p fid="CONTACT" class="span_contact_obstetrics" must="Y">
+                    <label class="level-24px"></label>
+                    (2) 生產前 14 天內，同住家人學校班上同學有因為傳染病請假或班級停課之情形?
+                    <label><input type="radio" name="RB_CONT_OBS_SICKLEAVE" value="0" />無</label>
+                    <label><input type="radio" name="RB_CONT_OBS_SICKLEAVE" value="1" />有</label>
+                </p>
+                <p fid="CONTACT" class="span_contact_obstetrics" must="Y">
+                    <label class="level-24px"></label>
+                    (3) 住院期間照顧者(應盡量維持同一人)，目前有發燒、腹瀉、咳嗽、流鼻水等疑似感染症狀?
+                    <label><input type="radio" name="RB_CONT_OBS_CARESYM" value="0" />無</label>
+                    <label><input type="radio" name="RB_CONT_OBS_CARESYM" value="1" />有</label>
+                </p>
+                <p fid="CONTACT" class="span_contact_other" style="display:none">
+                    <label class="level-24px"></label>
+                    <span>
+                        <label><input type="checkbox" name="CK_CONT" value="2" onchange="if(this.checked){ $('.span_contact_other').fadeIn(500); }else{ div_hidden('span_contact_other'); }" /></label>
+                    </span>
+                    <span>
+                        @Html.TextBox("TXT_CONT_OTH", r["CONT_OTH"], new { style = "width:100px", id = "TXT_CONT_OTH" })
+                    </span>
+                </p>
+                <script>
+                     @if (r["CONT"].ToString() != "")
+                     {
+                         var value = r["CONT"].ToString();
+                         var valueArr = new List<string>();
+
+                         for (var i = 0; i < value.ToString().Length; i++)
+                         {
+                             if (value[i] == '1')
+                             {
+                                 valueArr.Add(i.ToString());
+                             }
+                         }
+                         @:set_for_ck('CK_CONT', '@String.Join(",", valueArr)');
+                     }
+
+                     @if (r["CONT_BIRD"].ToString() != "")
+                     {
+                         var travel = r["CONT_BIRD"].ToString();
+                         var travelArr = new List<string>();
+
+                         for (var i = 0; i < travel.ToString().Length; i++)
+                         {
+                             if (travel[i] == '1')
+                             {
+                                 travelArr.Add(i.ToString());
+                             }
+                         }
+                         @:set_for_ck('CK_CONT_BIRD', '@String.Join(",", travelArr)');
+                     }
+
+                     @if (r["CONT_OBS_SYM"].ToString() != "")
+                     {
+                         @: set_for_rb('RB_CONT_OBS_SYM' ,'@r["CONT_OBS_SYM"]');
+                     }
+                     @if (r["CONT_OBS_SICKLEAVE"].ToString() != "")
+                     {
+                         @: set_for_rb('RB_CONT_OBS_SICKLEAVE' ,'@r["CONT_OBS_SICKLEAVE"]');
+                     }
+                     @if (r["CONT_OBS_CARESYM"].ToString() != "")
+                     {
+                         @: set_for_rb('RB_CONT_OBS_CARESYM' ,'@r["CONT_OBS_CARESYM"]');
+                     }
+                </script>
+                <p fid="CLUSTER">
+                    <label class="level-24px"></label>
+                    @*<span style="color: red">＊</span>*@<label class="subtitle">群聚史(Cluster)</label>
+                    <label><input type="radio" name="RB_CLU" value="0" onclick="if(this.checked){ div_hidden('span_cluster_relatives'); }" class="default">無</label>
+                    <label><input type="radio" name="RB_CLU" value="1" onchange="if(this.checked){ $('.span_cluster_relatives').fadeIn(500); }else{ div_hidden('span_cluster_relatives'); }" />家人/朋友/同事有發燒或類流感症狀 : </label>
+                    <span class="span_cluster_relatives" style="display:none">
+                        (
+                        <label><input type="checkbox" name="CK_CLU_RELA" value="0" />家人</label>
+                        <label><input type="checkbox" name="CK_CLU_RELA" value="1" />朋友</label>
+                        <label><input type="checkbox" name="CK_CLU_RELA" value="2" />同事</label>
+                        <label><input type="checkbox" name="CK_CLU_RELA" value="3" onchange="if(this.checked){ $('.span_cluster_relatives_other').fadeIn(500); }else{ div_hidden('span_cluster_relatives_other'); }" /></label>
+                        <span class="span_cluster_relatives_other" style="display:none">
+                            @Html.TextBox("TXT_CLU_RELA_OTH", r["CLU_RELA_OTH"], new { style = "width:100px", id = "TXT_CLU_RELA_OTH" })
+                        </span>
+                        )
+                    </span>
+                </p>
+                <script>
+                     @if (r["CLU"].ToString() != "")
+                     {
+                         @: set_for_rb('RB_CLU' ,'@r["CLU"]');
+                     }
+                     @if (r["CLU_RELA"].ToString() != "")
+                     {
+                         var travel = r["CLU_RELA"].ToString();
+                         var travelArr = new List<string>();
+
+                         for (var i = 0; i < travel.ToString().Length; i++)
+                         {
+                             if (travel[i] == '1')
+                             {
+                                 travelArr.Add(i.ToString());
+                             }
+                         }
+                         @:set_for_ck('CK_CLU_RELA', '@String.Join(",", travelArr)');
+                     }
+                </script>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div>
+        該病患目前無資料!
+    </div>
+}
+
+<script>
+	$("input[name=param_pain_assessment_assess]").click(function () {
+	change_ps_table($(this).val());
+	});
+
+ //四肢 - 手指/腳趾 - 異常
+	function OnclickASS_16_78F(param1, param2) {
+		var ck = ".CK_ASS_" + param1 + param2;
+		var span = ".SPAN_ASS_" + param1 + param2;
+		if ($(ck).is(':checked'))
+			$(span).fadeIn()
+		else
+			$(span).fadeOut()
+	}
+
+	@if (Drug_list.Count > 0)
+	{
+	@:set_for_rb('param_med', '有');
+	}
+</script>

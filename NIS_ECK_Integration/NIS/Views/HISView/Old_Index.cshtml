@@ -1,0 +1,204 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+
+<style type="text/css">
+.dataArea td {
+    border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+    text-align: left;
+    white-space: nowrap;
+  }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+    });
+
+    //格行換色
+    function setGridColor() {
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+    }
+</script>
+
+@using System.Data;
+@{
+    int number = 1;
+    if (ViewBag.key != null)
+    { number = ViewBag.key + 1; }
+    DateTime start_date = DateTime.Now;
+    DateTime end_date = DateTime.Now;
+    if (ViewBag.start_date != null)
+    { start_date = ViewBag.start_date; }
+    if (ViewBag.end_date != null)
+    { end_date = ViewBag.end_date; }
+    DataTable dt = ViewBag.dt;
+    DataTable dt_i_item = ViewBag.dt_i_item;
+    DataTable dt_o_item = ViewBag.dt_o_item;
+    }
+<table border="0" cellpadding="0" cellspacing="0" style="width:100%;padding-bottom:10px;"">
+    <tr>
+        <td style="padding-top:5px;">
+            <form action="Old_Index" method="post">
+                <input type="hidden" name="feeno" value="@ViewBag.feeno" />
+                <div class="funcArea">
+                    @Html.TextBox("start_date", @start_date.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                    @Html.Label("lab", " ~ ")
+                    @Html.TextBox("end_date", @end_date.ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                    @WebTool.setDateTime("start_date")
+                    @WebTool.setDateTime("end_date")
+                    <select name="unit">
+                        @if (ViewBag.seleunit != null)
+                        {
+                            if(ViewBag.seleunit == "1")
+                            {
+                                <option value="1" selected="selected">mL</option>
+                                <option value="2">次</option>
+                            }
+                            else
+                            {
+                                <option value="1">mL</option>
+                                <option value="2" selected="selected">次</option>
+                            }
+                        }
+                        else
+                        {
+                        <option value="1">mL</option>
+                        <option value="2">次</option>
+                        }
+                    </select>
+                    <input type="submit" value="查詢" style="width:80px;" />
+                    <input type="button" value="單日查詢" style="width:80px;" onclick="window.location.href = 'Index?feeno=@(ViewBag.feeno)';" />
+                </div>
+            </form>
+        </td>
+    </tr>
+</table>
+<div class="dataHeader" id="dataHeader">
+    <table border="0" cellpadding="4" cellspacing="1" style="table-layout:fixed; white-space:nowrap;" class="dtl_VS">
+        <tr>
+            <td style="width:45px;"><div style="width:45px; overflow:hidden;">&nbsp;</div></td>
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">部位</div></td>
+            @for (int i = 0; i < number; i++)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@start_date.AddDays(i).ToString("d")</div></td>
+            }
+        </tr>
+    </table>
+</div>
+<div class="dataArea" onscroll="document.getElementById('dataHeader').scrollLeft = this.scrollLeft;" style="height:380px; width:100%;">
+    <table border="0" cellpadding="4" cellspacing="1">
+        @for (int i = 0; i < dt_i_item.Rows.Count; i++)
+        {
+        @:<tr>
+            if (i == 0)
+            {
+            <td class="head" rowspan="@(dt_i_item.Rows.Count + 1)" style="width:45px;"><div style="width:45px; overflow:hidden;">輸入</div></td>
+            }
+            <td  style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_i_item.Rows[i]["P_NAME"]</div></td>
+            for (int j = 0; j < number; j++)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">
+                    @foreach (DataRow r in dt.Rows)
+                    {
+                        if (Convert.ToDateTime(r["DATE"]).ToString("d") == start_date.AddDays(j).ToString("d") && r["P_VALUE"].ToString() == dt_i_item.Rows[i]["P_VALUE"])
+                        {
+                             @Html.Raw(r["AMOUNT"].ToString() + r["REASON"].ToString());
+                        }
+                    }
+            </div></td>
+            }
+        @:</tr>
+        }
+        <tr>
+            <td>合計</td>
+            @for (int i = 0; i < number; i++)
+            {
+                double amount = 0;
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">
+                @foreach (DataRow r in dt.Rows)
+                {
+                    if (Convert.ToDateTime(r["DATE"]).ToString("d") == start_date.AddDays(i).ToString("d") && r["TYPE"].ToString() == "intaketype")
+                    {
+                        amount += double.Parse(r["AMOUNT"].ToString());
+                    }
+                }
+                @amount
+            </div></td>
+            }
+        </tr>
+        @for (int i = 0; i < dt_o_item.Rows.Count; i++)
+        {
+        @:<tr>
+            if (i == 0)
+            {
+            <td  class="head" rowspan="@(dt_o_item.Rows.Count + 1)" style="width:45px;"><div style="width:45px; overflow:hidden;">輸出</div></td>
+            }
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">@dt_o_item.Rows[i]["P_NAME"]</div></td>
+            for (int j = 0; j < number; j++)
+            {
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">
+                @foreach (DataRow r in dt.Rows)
+                {
+                    if (Convert.ToDateTime(r["DATE"]).ToString("d") == start_date.AddDays(j).ToString("d") && r["P_VALUE"].ToString() == dt_o_item.Rows[i]["P_VALUE"])
+                    {
+                            @Html.Raw(r["AMOUNT"].ToString() + r["REASON"].ToString());
+                    }
+                }
+            </div></td>
+            }
+        @:</tr>
+        }
+        <tr>
+            <td>合計</td>
+            @for (int i = 0; i < number; i++)
+            {
+                double amount = 0;
+            <td style="width:130px;"><div style="width:130px; overflow:hidden;">
+                @foreach (DataRow r in dt.Rows)
+                {
+                    if (Convert.ToDateTime(r["DATE"]).ToString("d") == start_date.AddDays(i).ToString("d") && r["TYPE"].ToString() == "outputtype")
+                    {
+                        amount += double.Parse(r["AMOUNT"].ToString());
+                    }
+                }
+                @amount
+            </div></td>
+            }
+        </tr>
+        <tr>
+            <td colspan="2" style="width:175px;"><div style="width:175px; overflow:hidden;">
+            輸入/輸出總計
+            </div></td>
+            @for (int i = 0; i < number; i++)
+            {
+                double amount_i = 0, amount_o = 0;
+            <td style="width:130px;text-align:right; color:red;">
+                @foreach (DataRow r in dt.Rows)
+                {
+                    if (Convert.ToDateTime(r["DATE"]).ToString("d") == start_date.AddDays(i).ToString("d") && r["TYPE"].ToString() == "intaketype")
+                    {
+                        amount_i += double.Parse(r["AMOUNT"].ToString());
+                    }
+                    else if (Convert.ToDateTime(r["DATE"]).ToString("d") == start_date.AddDays(i).ToString("d") && r["TYPE"].ToString() == "outputtype")
+                    {
+                        amount_o += double.Parse(r["AMOUNT"].ToString());
+                    }
+                }
+                @amount_i/@amount_o (@(Math.Round((amount_i - amount_o), 2)))
+            </td>
+            }
+        </tr>
+    </table>
+</div>

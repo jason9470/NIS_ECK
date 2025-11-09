@@ -1,0 +1,500 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+
+    if (ViewData["saveinfo"] != null)
+    {
+    @Html.Raw("<script type='text/javascript'>showHint('" + ViewData["saveinfo"].ToString() + "');</script>")
+    }
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    *{
+        font-family:Arial, "新細明體", EUDC;
+    }
+    #showinfo {
+        display: none;
+    }
+
+    input[type=text] {
+        padding: 4px;
+        background-color: transparent;
+        border: 1px solid #666;
+    }
+
+    #shift_dtl, #shift_member, #search {
+        position: absolute;
+        display: inline-block;
+        border: 2px dotted #666;
+    }
+
+    #shift_dtl, #shift_member {
+        text-align: center;
+        top: 95px;
+        bottom: 5px;
+        padding: 3px;
+    }
+
+    #search {
+        top: 40px;
+        margin-top: 5px;
+        margin-bottom: 5px;
+        left: 5px;
+        height: 32px;
+        width: 891px;
+        background-color: #DBC9E8;
+        padding: 5px;
+    }
+        #search label, select, input {
+            vertical-align:middle;
+        }
+
+    #shift_dtl {
+        left: 5px;
+        background-color: #BBE8B9;
+        width: 380px;
+    }
+
+    #shift_member {
+        left: 400px;
+        width: 500px;
+        background-color: #FFECA2;
+    }
+
+    #shift_dtl_data, #shift_member_data {
+        display: block;
+        height: 300px;
+        overflow-x: hidden;
+        overflow-y: scroll;
+    }
+
+    #shift_dtl_title table, #shift_member_title table {
+        background-color: #DDDDDD;
+    }
+
+    #shift_dtl_title th, #shift_member_title th {
+        background-color: #3462BF;
+        color: #FFFFFF;
+    }
+
+    .tooltip {
+        text-decoration: none; 
+        color: blue;
+    }
+
+    table {
+        table-layout:fixed;
+        white-space: nowrap;
+    }
+
+        #sys_Block {
+    position: fixed;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    z-index: 1;
+    background-color: #666;
+    /* other browsers */
+    opacity: 0.65;
+    /* this works in IE6, IE7, and IE8 */
+    filter: alpha(opacity=65);
+    /* this works in IE8 only */
+    display: none;
+    }
+    #sys_Loading {
+    position: fixed;
+    text-align: center;
+    left: 50%;
+    top: 50%;
+    height: 50px;
+    width: 200px;
+    margin-top: -25px;
+    margin-left: -100px;
+    _position: absolute;
+    color: #040FD9;
+    font-weight: bold;
+    z-index: 98;
+    display: none;
+    }
+
+</style>
+
+<script type="text/javascript">
+    var cFidx = null;
+    var maxFind = null;
+
+    function setElementHeight() {
+        // 重設資料的身高
+        var cHeight = parseInt($(document).height()) - 200;
+        $("#shift_dtl_data,#shift_member_data").height(cHeight);
+        $("#shift_dtl,#shift_member").height(cHeight + 70);
+    }
+
+    // 計算負責床數
+    function getCounter() {
+        $("#shift_member_data").find("td[fname=counter]").each(function () {
+            var countvalue = 0;
+            var cName = $(this).attr("cname");
+            $("#shift_dtl_data").find("td[fname=response]").each(function () {
+                if (Trim($(this).html()) == Trim(cName))
+                    countvalue++;
+            });
+            $(this).html(countvalue.toString());
+        });
+
+    }
+
+    function loadMember(costcode,but) {
+        //20140223 修正搜尋全部人員無法動作問題 by James
+        if (costcode != "%") {
+            var costcode = $("#ccc_list").val();
+            var shiftday = $("#shift_day").val();
+            var shiftcat = $("#shiftcategory").val();
+        }
+        else
+        {
+            if (but == "cost")
+            {
+                var costcode = $("#ccc_list").val();
+                var shiftday = "%";
+                var shiftcat = "%";
+            }            
+        }
+        //20140223 修正搜尋全部人員無法動作問題 by James
+
+        // 載入護理師清單       
+        $.ajax({
+            url: "../Function/ShiftMemberList",
+            type: "post",
+            data: "costcode=" + costcode + "&shiftcat=" + shiftcat + "&shiftday=" + shiftday,
+            timeout: 5000,
+            success: function (data) {
+                $("#shift_member_data").html(data);
+                $("#shift_member_data tr[setSelect=Y]").unbind("click").click(function () {
+                    //inital color
+                    $("#shift_member_data tr[haveShift=Y] td").css("background-color", "#91B4FF");
+                    $("#shift_member_data tr[haveShift=N] td").css("background-color", "#FFC0AB");
+                    $(this).find("td").animate({ backgroundColor: "#D3A9E8" }, 100);
+                    //記住剛剛選的人
+                    var selObj = $(this).find("td:first label");
+                    var selName = $(selObj).html();
+                    var selEmpno = $(selObj).attr("title");
+
+                    $("#shift_dtl_data td[setValue=Y]").each(function () {
+                        if ($(this).attr("check_flag") == "Y") {
+                            //fill data
+                            $(this).html(selName);
+                            //取得被點選的列
+                            var cRow = $(this).parent("tr");
+                            //將值帶入相關的隱藏欄位中
+                            switch ($(this).attr("fname")) {
+                                case "response":
+                                    //清除Leader設定
+                                    $(cRow).find("input[name^='LeaderEmpno']").val("N");
+                                    $(cRow).find("td").css("border", "none").removeAttr("title");
+                                    //尋找開頭包括RespEmpno字眼的物件
+                                    $(cRow).find("input[name^='RespEmpno']").val(selEmpno);
+                                    $(cRow).find("input[name^='RespName']").val(selName);
+                                    if ($(this).next("td").html() == selName)
+                                        $(this).next("td").html("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");
+                                    break;
+                                case "teach":
+                                    $(cRow).find("input[name^='CombEmpno']").val(selEmpno);
+                                    $(cRow).find("input[name^='CombName']").val(selName);
+                                    if ($(this).prev("td").html() == selName)
+                                        $(this).prev("td").html("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");
+                                    break;
+                            }
+                        }
+                        $(this).attr("check_flag", "").css("background-color", "#91B4FF");
+                    });
+                    getCounter();
+                });
+            }
+        });
+    }
+
+    $(document).ready(function () {
+
+        // 人員搜尋
+        $("#search_keyword").keydown(function (event) {
+            var key = $(this).val();
+            var find_idx = 0;
+            //20231218 ken 移除搜尋人員閃爍功能
+            if (cFidx != null)
+            {
+                $("td[find_idx=" + cFidx.toString() + "]").css("background-color", "#91B4FF").focus();
+            }
+            else
+            {
+                $("td[find_idx=" + find_idx.toString() + "]").css("background-color", "#91B4FF").focus();
+            }
+            if (event.which == 13) {
+                if (key.length != 0) {
+                    $('#shift_member td').removeAttr("find_idx").each(function () {
+                        var color = $(this).css("background-color");
+                        var str = $(this).html();
+                        if (str.indexOf(key) != -1) {
+                            $(this).attr("find_idx", find_idx.toString());
+                            if (find_idx == 0) {
+                                $(this).css("background-color", "#FFFF77").focus();
+                                cFidx = find_idx;
+                            }
+                            find_idx++;
+                        }
+                    });
+                    $("#but_pre,#but_next").prop("disabled", false);
+                } else {
+                    $('td').css("background-color", "");
+                    $("#but_pre,#but_next").prop("disabled", true);
+                }
+                maxFind = find_idx;
+            }
+            $(this).focus();
+        });
+
+        // 上一個
+        $("#but_pre").click(function () {
+            var idx = cFidx - 1;
+            $("td[find_idx=" + cFidx.toString() + "]").css("background-color", "#91B4FF").focus();
+            if (idx <= 0)
+                idx = 0;
+            var color = $("td[find_idx=" + idx.toString() + "]").css("background-color");
+            $("td[find_idx=" + idx.toString() + "]").css("background-color", "#FFFF77").focus();
+            cFidx = idx;
+        });
+
+        // 下一個
+        $("#but_next").click(function () {
+            $("td[find_idx=" + cFidx.toString() + "]").css("background-color", "#91B4FF").focus();
+            var idx = cFidx + 1;
+            if (idx >= maxFind)
+                idx = maxFind;
+            var color = $("td[find_idx=" + idx.toString() + "]").css("background-color");
+            $("td[find_idx=" + idx.toString() + "]").css("background-color", "#FFFF77").focus();
+            cFidx = idx;
+        });
+
+        // 取得全部人員
+        $("#but_all_member").click(function () {
+            loadMember("%");
+            setTimeout("getCounter()", 3000);
+        });
+
+        // 取得該單位全部人員
+        $("#but_cost_member").click(function () {
+            loadMember("%", "cost");
+            setTimeout("getCounter()", 3000);
+        });
+
+        //設定搜尋按鈕
+        $("#but_search").click(function () {
+            $("#showinfo").show();
+            var costcode = $("#ccc_list").val();
+            var shiftday = $("#shift_day").val();
+            var shiftcat = $("#shiftcategory").val();
+
+            $.ajax({
+                url: "../Function/ShiftStationList",
+                type: "post",
+                data: "costcode=" + costcode + "&shiftcat=" + shiftcat + "&shiftday=" + shiftday,
+                timeout: 2000,
+                success: function (data) {
+                    $("#shift_dtl_data").html(data);
+                    $("#shift_dtl_data td[setValue=Y]").unbind("click").click(function () {
+                        switch ($(this).attr("fName")) {
+                            case "bedno":
+                                if ($(this).next("td").next("td").attr("check_flag") == "Y")
+                                { $(this).next("td").next("td").animate({ backgroundColor: "#91B4FF" }, 100).attr("check_flag", ""); }
+                                else
+                                { $(this).next("td").next("td").animate({ backgroundColor: "#D3A9E8" }, 100).attr("check_flag", "Y"); }
+                                $(this).next("td").next("td").next("td").attr("check_flag", "").css("background-color", "#91B4FF");
+                                break;
+                            case "patname":
+                                if ($(this).next("td").attr("check_flag") == "Y")
+                                { $(this).next("td").animate({ backgroundColor: "#91B4FF" }, 100).attr("check_flag", ""); }
+                                else
+                                { $(this).next("td").animate({ backgroundColor: "#D3A9E8" }, 100).attr("check_flag", "Y"); }
+                                $(this).next("td").next("td").attr("check_flag", "").css("background-color", "#91B4FF");
+                                break;
+                            case "response":
+                                if ($(this).attr("check_flag") == "Y")
+                                { $(this).animate({ backgroundColor: "#91B4FF" }, 100).attr("check_flag", ""); }
+                                else
+                                { $(this).animate({ backgroundColor: "#D3A9E8" }, 100).attr("check_flag", "Y"); }
+                                $(this).next("td").attr("check_flag", "").css("background-color", "#91B4FF");
+                                break;
+                            case "teach":
+                                if ($(this).attr("check_flag") == "Y")
+                                { $(this).animate({ backgroundColor: "#91B4FF" }, 100).attr("check_flag", ""); }
+                                else
+                                { $(this).animate({ backgroundColor: "#D3A9E8" }, 100).attr("check_flag", "Y"); }
+                                $(this).prev("td").attr("check_flag", "").css("background-color", "#91B4FF");
+                                break;
+                        }
+                    }).contextmenu(function () {
+                        //右鍵功能
+                        if ($(this).attr("fName") == "response" && confirm("設定【" + Trim($(this).html()) + "】為當班 Leader ?")) {
+                            var parent = $(this).parent("tr");
+                            var empno = $(parent).find("input[name^='RespEmpno']").val();
+                            $(document).find("input[name^='LeaderEmpno']").val("N");
+                            $(document).find("td").css("border", "none").removeAttr("title");
+                            $(parent).find("input[name^='LeaderEmpno']").val(empno);
+                            $(this).css("border", "2px solid #CCFF00").attr("title", "為當班Leader");
+                        }
+                        if ($(this).attr("fName") == "teach") {
+                            var cRow = $(this).parent("tr");
+                            $(cRow).find("input[name^='CombEmpno']").val("");
+                            $(cRow).find("input[name^='CombName']").val("");
+                            $(this).text("");
+                            $(this).animate({ backgroundColor: "#91B4FF" }, 100).attr("check_flag", "");
+                        }
+                        return false;
+                    });
+
+                    //帶入Leader樣式
+                    $(document).find("input[name^='LeaderEmpno']").each(function () {
+                        if ($(this).val() != "N") {
+                            $(this).parent().next("td").next("td").css("border", "2px solid #CCFF00").attr("title", "為當班Leader");
+                        }
+                    });
+                },
+                complete: function () {
+                    loadMember(costcode);
+                }
+            });
+
+            setElementHeight();
+
+            // 第一次載入統計人數
+            setTimeout(function () {
+                getCounter();
+                $("#showinfo").hide();
+            }, 3000);
+        });
+
+        //設定列印按鈕
+        $("#but_print").click(function () {
+            $("#showinfo").show();
+            var costcode = $("#ccc_list").val();
+            var shiftday = $("#shift_day").val();
+            var shiftcat = $("#shiftcategory").val();
+            window.open("../Function/ShiftPrint?costcode=" + costcode + "&shiftcat=" + shiftcat + "&shiftday=" + shiftday, "", "resizable=yes,menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=900,height=600");
+        });
+
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+
+        $('#ccc_list').val('@ViewData["user_ccc"]');
+        setTimeout(function () { tigger_search(); }, 500);
+
+    });
+
+    function tigger_search() {
+        $("#but_search").trigger('click');
+    }
+    function clear_asign() {      
+        var yes = confirm('清除勾選負責人員？');
+        if (yes) {
+            $("input:checkbox[name=edit_asign]:checked").each(function () {
+                clear_shift(this, $(this).val())
+            });
+            $("input:checkbox[name=edit_asign]").attr("checked",false)
+        }
+
+    }
+    function clear_shift(obj, row) {
+            $(obj).parent().prev().text('');
+            //尋找開頭包括RespEmpno字眼的物件
+            $("input[name='RespEmpno" + row + "']").val("");
+            $("input[name='RespName" + row + "']").val("");
+        
+    }
+</script>
+
+@{
+    Dictionary<string, string> ccclist = (Dictionary<string, string>)ViewData["ccc_list"];
+    Dictionary<string, string> shift_cate = (Dictionary<string, string>)ViewData["shift_category"];
+}
+<form name="asign_form" action="ShiftSave" method="post">
+    <p>
+        <input type="button" value="儲存" onclick="$(this).attr('disabled', true); $('form[name=asign_form]').submit();$('#sys_Block, #sys_Loading').show();" />
+        (清除後請記得存檔)
+
+    </p>
+
+    <!-- 查詢功能 -->
+    <div id="search">
+        <label>護理站</label>
+        @Html.DropDownList("ccc_list", new SelectList(ccclist, "Value", "Key"), new { onchange = "tigger_search()" })
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <label>班別</label>
+        @Html.DropDownList("shiftcategory", new SelectList(shift_cate, "Value", "Key", ViewBag.cs), new { onchange = "tigger_search()" })
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <label>派班日期</label>
+        @Html.TextBox("shift_day", DateTime.Now.ToString("yyyy/MM/dd"), new { @class = "shift_day" })
+        @WebTool.setDateTime("shift_day", "", "", "")
+        @*@WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "shift_day", "", false, "")*@
+        <input id="but_search" type="button" value="搜尋" title="搜尋此護理站的護理師" />
+        <input id="but_print" type="button" value="列印" title="列印派班總表" />
+        <span id="showinfo"><img src="~/Images/process.gif" alt="" border="0" /></span>
+    </div>
+
+    <!-- 排班訊息 -->
+    <div id="shift_dtl">
+        護理站 (<a href="javascript:void(0);" class="tooltip" title="滑鼠左鍵：選擇 <br /> 滑鼠右鍵：設定為當班Leader">操作說明</a>)
+        <hr />
+        <!-- 讀取護理站資訊 -->
+        <div id="shift_dtl_title">
+            <table border="0" cellspacing="1" width="280">
+                <tr>
+                    <th width="89">床號</th>
+                    <th width="89">姓名</th>
+                    <th width="92">負責人員</th>
+                    @*20230221 KEN 新增派班清空功能*@
+                    <th width="70"><input type="button" value="清除" onclick="clear_asign()"> </th>
+                    @*<th width="68">指導人員</th>*@
+                </tr>
+            </table>
+        </div>
+        <div id="shift_dtl_data">
+        </div>
+    </div>
+
+    <!-- 排班人員 -->
+    <div id="shift_member">
+        <input id="but_all_member" type="button" value="全部人員" title="搜尋全部的護理師" />
+        <input id="but_cost_member" type="button" value="單位人員" title="搜尋該單位的護理師" />
+        人員清單 
+        <input type="text" id="search_keyword" style="width:80px;"/>
+        <input type="button" id="but_pre" value="上一個" disabled="disabled"/>
+        <input type="button" id="but_next" value="下一個" disabled="disabled"/>
+        <a href="javascript:void(0);" class="tooltip" title="輸入完畢後按Enter開始搜尋<br />使用[上一個][下一個]來尋找您所要找的對象">說明</a>
+        <hr />
+
+        <div id="shift_member_title">
+            <table border="0" cellspacing="1" width="480">
+                <tr>
+                    <th width="110">護理師姓名</th>
+                    <th width="110">職稱</th>
+                    <th width="80">班別</th>
+                    <th width="80">負責床數</th>
+                </tr>
+            </table>
+        </div>
+        <div id="shift_member_data">
+        </div>
+    </div>
+
+    <div id="inp" class="dialog"></div>
+    <div id="cover" class="dialog"></div>
+    <div id="sys_Block"></div>
+    <div id="sys_Loading">
+        <label for="lab" style="font-size:16px">Loading...</label><br />
+        <img src="~/Images/System/loading.gif" alt="" />
+    </div>
+</form>

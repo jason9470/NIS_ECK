@@ -1,0 +1,554 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    DataTable DT = ViewBag.dt_data;
+    string RootDocument = ViewBag.RootDocument;
+    string LoginEmpNo = ViewBag.userno;
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    .popup {
+        width: auto;
+        height: auto;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -150px 0 0 -300px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+
+    #Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #DivUpdatePosition {
+        display: none;
+        position: absolute;
+        overflow-x: hidden;
+        background-color: #fff;
+        width: 400px;
+        height: 350px;
+        padding: 10px 15px 10px 15px;
+        z-index: 99;
+        border-radius: 6px;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    polygon.scald {
+        fill: red;
+        stroke: none; /* Replace with none if you like */
+        stroke-width: 4;
+        cursor: pointer;
+        opacity: 0.33;
+    }
+
+    polygon.pressure {
+        fill: blue;
+        stroke: none; /* Replace with none if you like */
+        stroke-width: 4;
+        cursor: pointer;
+        opacity: 0.33;
+    }
+
+    polygon.other {
+        fill: #9aff9d;
+        stroke: none; /* Replace with none if you like */
+        stroke-width: 4;
+        cursor: pointer;
+        opacity: 0.50;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+        $('#temperature_record').load('../DigitFlapTemperature/Partial_Record?St=' + '@ViewBag.St' + "&Ed=" + '@ViewBag.Ed');
+        close_pup_window();
+        $("#DivDelPosition").draggable();
+        setGridColor();
+
+        var tr = $('.link');
+        for (var i = 0; i < tr.length; i++) {
+            var color = tr[i].style.backgroundColor;
+            tr[i].setAttribute("onmouseover", "this.style.cursor='pointer';this.style.backgroundColor='#9966FF';");
+            tr[i].setAttribute("onmouseout", "this.style.cursor='pointer';this.style.backgroundColor='" + color + "';");
+            tr[i].setAttribute("title", "點擊觀看紀錄");
+        }
+
+        @if(DT != null && DT.Rows.Count>0)
+        {
+        <text>
+        $(function () {
+            var paper = Raphael("paper", 200, 200);
+            var attr = {
+                fill: "#333",
+                stroke: "#666",
+                "stroke-width": 1,
+                "stroke-linejoin": "round"
+            };
+            paper.clear();
+             @foreach (DataRow r in DT.Rows)
+             {
+                 if (r["DELETED"].ToString() == "N")//r["ENDTIME"].ToString() == "" &&
+                {
+                    if(r["DFTEMP_TYPE"].ToString() != "2")
+                    { 
+                        @:paper.path("M" + PointPosition('@(r["DFTEMP_POSITION"])')).animate({ fill: "blue", stroke: "blue", opacity: 0.3 });
+                    }
+                    else 
+                    {
+                        @:paper.path("M" + PointPosition('@(r["DFTEMP_POSITION"])')).animate({ fill: "red", stroke: "red", opacity: 0.3 });
+                    }
+                }
+            }
+        });
+        </text>
+            if(ViewBag.St != "" && ViewBag.Ed != "")
+            {
+        <text>
+        $("#TxtDateSrchStart").val('@ViewBag.St');
+        $("#TxtDateSrchEnd").val('@ViewBag.Ed');
+        </text>
+            }
+        }
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    //彈出div
+    function showPopup(id) {
+        var popup = document.getElementById(id);
+        popup.style.display = 'block';
+        $("#Block").show();
+    }
+
+    //div 顯示修改部位
+    function GetTemperaturePositionInfo(ObjVal) {
+        var DFTempID = $(ObjVal).attr("dftempid");
+
+        $.ajax({
+            url: "../DigitFlapTemperature/AddTemperaturePosition",
+            data: {
+                DFTempID: DFTempID,
+                ModeVal: "edit"
+            },
+            type: "get",
+            timeout: 5000,
+            success: function (data) {
+                $("#Block").fadeIn(0);
+                $("#DivUpdatePositionShow").html(data);
+                $("#DivUpdatePosition").center().fadeIn(0);
+            },
+            complete: function () {
+                $(window).scrollTop("0");
+            }
+        });
+    }
+
+    //載入選取資訊
+    function LoadPositionData(ObjVal) {
+        var DFTempID = $(ObjVal).attr("dftempid");
+
+        $.ajax({
+            type: 'POST',
+            dataType: 'json',
+            url: '../DigitFlapTemperature/SelectDelPositionInfo',
+            data: { DFTempID: DFTempID },
+            async: false,
+            cache: false,
+            success: function (data) {
+                if (data[0].DFTEMP_ID != null && data[0].DFTEMP_ID != "") {
+                    var PositionVal = data[0].DFTEMP_POSITION;
+                    if (data[0].DFTEMP_POSITION == '99')
+                        PositionVal = "其他";
+
+                    $('.LBLNum').html(data[0].DFTEMP_NUM);
+                    $('.LBLType').html(ChangeTypeViewName(data[0].DFTEMP_TYPE));
+                    $('.LBLPosition').html(PositionVal);
+                    $('#HidDelDFTEMPID').val(data[0].DFTEMP_ID);
+                }
+            }, complete: function () {
+            }
+        });
+    }
+
+    function ChangeTypeViewName(TypeID) {
+        //特別拉出來是因為，如果修改要改成跟刪除一樣的模式，可以拿來用
+        var DFTempType = "";
+        switch (TypeID) {
+            case "1":
+                DFTempType = "對照肢";
+                break;
+            case "2":
+                DFTempType = "患肢";
+                break;
+            case "3":
+                DFTempType = "皮瓣";
+                break;
+            default:
+                DFTempType = "類別錯誤";
+                break;
+        }
+        return DFTempType;
+    }
+
+    function SaveDelPositionReason() {
+        var BoolVal = true;
+
+        if ($('#TxtDelPositionReason').val() == "") {
+            alert("請輸入刪除原因");
+            BoolVal = false;
+            return;
+        }
+
+        if (BoolVal) {
+            $.ajax({
+                url: '../DigitFlapTemperature/DelPositionInfo',
+                type: 'POST',
+                data: $('form[name=FormDelPosition]').serialize(),
+                success: function (data) {
+                    var ResultVal = data.split('|');
+                    if (ResultVal[0] == "Y") {
+                        alert('刪除成功');
+                        $('#DivDelPosition,#Block').hide();
+                        location.href = 'listTemperature';
+                    }
+                    else if (ResultVal[0] == "N") {
+                        alert('刪除失敗');
+                    }
+                    else if (ResultVal[0] == "O") {
+                        alert('請重新選擇病患');
+                    }
+                }, complete: function () {
+                    $('.LBLNum').html('');
+                    $('.LBLType').html('');
+                    $('.LBLPosition').html('');
+                    $('#HidDelDFTEMPID').val('');
+                    $('#TxtDelPositionReason').val('');
+                }
+            });
+        }
+    }
+
+    function SetRowIDToFunc(ModeVal, RowName, UrlVal) {
+        var ck = document.getElementsByName(RowName);
+        var row = '';
+        for (var i = 0 ; i < ck.length; i++) {
+            if (ck[i].checked)
+                row = row + ck[i].value + ',';
+        }
+        if (row != '') {
+            row = row.substring(0, row.length - 1);
+            new_window.push(window.open(UrlVal + '?row=' + row + '&ModeVal=' + ModeVal, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=900,height=600'));
+        }
+        else
+            alert('請選擇部位編號!');
+    }
+
+    //進入新增評估
+    function GetTemperatureRecordInfo() {
+        var ck = document.getElementsByName('row');
+        var row = new Array();
+        var j = 0;
+
+        for (var i = 0 ; i < ck.length; i++) {
+            if (ck[i].checked) {
+                row[j] = ck[i].value;
+                j++;
+            }
+        }
+
+        $.ajax({
+            url: "../DigitFlapTemperature/AddTemperatureAssess",
+            data: {
+                row: row
+            },
+            type: "get",
+            timeout: 5000,
+            success: function (data) {
+            },
+            complete: function () {
+            }
+        });
+    }
+
+    function DelAssmentInfoFunc(RowName) {
+        var ck = document.getElementsByName(RowName);
+        var RowStr = '';
+        for (var i = 0 ; i < ck.length; i++) {
+            if (ck[i].checked)
+                RowStr = RowStr + ck[i].value + ',';
+        }
+
+        if (confirm('是否要刪除此筆資料?')) {
+            $.ajax({
+                type: "POST",
+                url: '../DigitFlapTemperature/DelAssmentInfo',
+                data: { RowStr: RowStr },
+                async: false,
+                success: function (data) {
+                    if (data == "Y") {
+                        alert('刪除成功');
+                        location.href = 'listTemperature';
+                    }
+                    else if (data == "N") {
+                        alert('刪除失敗');
+                    }
+                    else if (data == "O") {
+                        alert('請重新選擇病患');
+                    }
+                }
+            });
+        } else {
+            return false;
+        }
+    }
+
+    function PointPosition(PositionName) {
+        switch (PositionName) {
+            case "右手拇指": return "168, 56, 175, 65, 184, 41, 172, 45";
+            case "右手食指": return "166, 13, 156, 40, 164, 48, 170, 15";
+            case "右手中指": return "145,10,143, 43, 154, 43, 150, 8 ";
+            case "右手無名指": return "130, 13, 132, 43, 142, 42, 135, 12";
+            case "右手小指": return "118, 21, 121, 47, 130, 45, 123, 21";
+            case "左手拇指": return "18, 41, 27, 65, 34, 55, 25, 41";
+            case "左手食指": return "31, 18, 37, 49, 45, 43, 36, 13";
+            case "左手中指": return "48, 10, 48, 42, 58, 42, 56, 8";
+            case "左手無名指": return "66, 13, 61, 43, 69, 44, 72, 13";
+            case "左手小指": return "78, 21, 72, 45, 80, 46, 83, 21";
+            case "右腳大拇趾": return "133, 106, 135, 110, 133, 121, 143, 120, 141, 106";
+            case "右腳食趾": return "144, 106, 144, 119, 149, 120, 148, 108";
+            case "右腳中趾": return "149, 108, 149, 119, 153, 120, 153, 108";
+            case "右腳無名趾": return "155, 110, 155, 120, 159, 120, 159, 112";
+            case "右腳小趾": return "161, 115, 159, 121, 165, 124, 164, 116";
+            case "左腳大拇趾": return "57, 106, 57, 119, 67, 121, 65, 118, 66, 105";
+            case "左腳食趾": return "52, 106, 52, 119, 56, 118, 56, 106";
+            case "左腳中趾": return "46, 108, 46, 119, 50, 119, 50, 108";
+            case "左腳無名趾": return "41, 112, 41, 120, 45, 120, 45, 110";
+            case "左腳小趾": return "36, 116, 35, 124, 41, 121, 40, 115";
+        }
+    }
+
+    //查詢
+    function SearchDataForDateStToEd() {
+        var DateSt = $("#TxtDateSrchStart").val();
+        var DateEd = $("#TxtDateSrchEnd").val();
+
+        window.location.href = 'listTemperature?St=' + DateSt + '&Ed=' + DateEd;
+    }
+</script>
+
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;table-layout:fixed">
+        <tr>
+            <td style="padding:0 0 5px 0;" align="center">
+                <input type="button" value="建立部位" style="width:80px;" onclick="@Java_funcion.pup_window("AddTemperaturePosition", 900, 600, "0")" />
+                <input type="button" value="新增評估" style="width:80px;" onclick="SetRowIDToFunc('New','row', 'AddTemperatureAssess');" />
+                <input type="button" value="結束部位" style="width:80px;" onclick="SetRowIDToFunc('New', 'row', 'SetTemperatureSatusPrompt');" />
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <table border="0" cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed">
+                    <tr style="border-color:#0099FF">
+                        <td style="width: 200px; ">
+                            <table style="width:100%;">
+                                <tr>
+                                    <td style="background-image: url('../Images/DigitFlapTemperature/new3.jpg'); width:200px; height:200px; background-repeat: no-repeat; background-position: 50% 50%; ">
+                                        <div id="paper"></div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                        <td valign="top">
+                            <div class="dataHeader">
+                                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                                    <tr>
+                                        <td style="width:10%;">編號</td>
+                                        <td style="width:20%;">類別</td>
+                                        <td style="width:20%;">部位</td>
+                                        <td style="width:18%;">開始日期</td>
+                                        <td style="width:18%;">結束日期</td>
+                                        <td style="width:14%;"></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="dataArea" style="height:180px;">
+                                @if (DT != null)
+                                {
+                                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;overflow-y:scroll;">
+                                        @foreach (DataRow r in DT.Rows)
+                                        {
+                                            string DFTempType = "";
+                                            switch (r["DFTEMP_TYPE"].ToString())
+                                            {
+                                                case "1":
+                                                    DFTempType = "對照肢";
+                                                    break;
+                                                case "2":
+                                                    DFTempType = "患肢";
+                                                    break;
+                                                case "3":
+                                                    DFTempType = "皮瓣";
+                                                    break;
+                                                default:
+                                                    DFTempType = "類別錯誤";
+                                                    break;
+                                            }
+                                            string DFTEMPPOSITION = r["DFTEMP_POSITION"].ToString();
+                                            if (r["DFTEMP_POSITION"].ToString() == "99")
+                                            {
+                                                DFTEMPPOSITION = r["DFTEMP_POSITION_CONT"].ToString();
+                                            }
+
+                                         //   if (r["ENDTIME"].ToString() == "")
+                                            {
+                                                <tr class="link" onclick="$('#temperature_record').load('../DigitFlapTemperature/Partial_Record?DFTempID=' + '@r["DFTEMP_ID"].ToString()');">
+                                                    <td style="width: 10%; white-space: nowrap;">
+                                                        @*// 判斷有結束日期的話就無法再新增評估*@
+                                                        @if ((r["ENDTIME"]) == null || (r["ENDTIME"]).ToString().Trim() == "")
+                                                        {
+                                                            <input name="row" id="ck@(r["DFTEMP_ROW"])" type="checkbox" value="@r["DFTEMP_ID"]" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <input disabled="disabled" name="row" id="ck@(r["DFTEMP_ROW"])" type="checkbox" value="@r["DFTEMP_ID"]" />
+                                                        }
+                                                        
+                                                        <label for="ck@(r["DFTEMP_ROW"])">@r["DFTEMP_NUM"]</label>
+                                                    </td>
+                                                    <td style="width: 20%;">@DFTempType</td>
+                                                    <td style="width: 20%;">@DFTEMPPOSITION</td>
+                                                    <td style="width: 18%; white-space: nowrap;">@Convert.ToDateTime(r["DFTEMP_CREATE_DTM"]).ToString("yyyy/MM/dd")</td>
+                                                    <td style="width: 18%;">
+                                                        @if ((r["ENDTIME"])!= null && (r["ENDTIME"]).ToString().Trim() != "")
+                                                        { 
+                                                    @Convert.ToDateTime(r["ENDTIME"]).ToString("yyyy/MM/dd")
+                                                        }
+                                                    <!-- 恩主公給的範例有這行，但查詢應該會排除已結束之資料，故此欄有待商確 tag wawa edit --></td>
+                                                    <td style="width:14%;">
+                                                        <input type="button" dftempid="@r["DFTEMP_ID"]" title="修改" value="修改" style="width:40px;" onclick="GetTemperaturePositionInfo(this);" />
+                                                        <input type="button" dftempid="@r["DFTEMP_ID"]" value="刪除" style="width:40px;" onclick="LoadPositionData(this); showPopup('DivDelPosition');" />
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    </table>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:0px 0px 5px 0px;" align="center">
+                顯示區間：
+                <input type="text" id="TxtDateSrchStart" name="TxtDateSrchStart" style="width:80px;" value="@DateTime.Now.ToString("yyyy/MM/dd")" readonly="readonly" />
+                ~
+                <input type="text" id="TxtDateSrchEnd" name="TxtDateSrchEnd" style="width:80px;" value="@DateTime.Now.ToString("yyyy/MM/dd")" readonly="readonly" />
+                @*@WebTool.setDateTime("TxtDateSrchStart", "", "", "0", "", "")
+                @WebTool.setDateTime("TxtDateSrchEnd", "", "", "0", "", "")*@
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "TxtDateSrchStart", "", false)
+                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "TxtDateSrchEnd", "", false)
+                <input type="button" value="查詢" style="width:80px;" onclick="SearchDataForDateStToEd();" />
+                <input type="button" value="列印" style="width:80px;" onclick="window.open('@(RootDocument)/Print/GetPDF?url=@(RootDocument)/DigitFlapTemperature/Record_List_PDF?LoginEmpNo=@(LoginEmpNo)&feeno=@(ViewBag.feeno)&St=' + $('#TxtDateSrchStart').val() + '&Ed=' + $('#TxtDateSrchEnd').val() + '&filename=test')" />
+                <input type="button" value="修改" style="width:80px;" onclick="SetRowIDToFunc('Edit', 'row_record', 'AddTemperatureAssess');" />
+                <input type="button" value="刪除" style="width:80px;" onclick="DelAssmentInfoFunc('row_record');" />
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:12px;">
+                        <tr>
+                            <td style="width:7%;">部位編號</td>
+                           
+                            <td style="width:13%;">紀錄日期</td>
+                            <td style="width:9%;">類別</td>
+                            <td style="width:15%;">部位</td>
+                            <td style="width:5%;">溫度</td>
+                            <td style="width:5%;">室溫</td>
+                            <td style="width:8%;">顏色</td>
+                             <td style="width:9%;">毛細血管回<br />充盈評估</td>
+                            <td style="width:10%;">處置</td>
+                            <td style="width:10%;">備註</td>
+                            <td style="width:9%;">紀錄者</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" id="temperature_record" style="height:150px;">
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<form name="FormDelPosition" id="FormDelPosition" method="post">
+    <div id="DivDelPosition" class="popup" style="display:none;">
+        <table border="1" cellpadding="1" cellspacing="0" style="width:100%;background-color: #EEEFFF;border: 1px solid #CC88FF;">
+            <tr>
+                <td style="height:35px;">
+                    編號：<label class="LBLNum"></label>
+                </td>
+                <td>
+                    類別：<label class="LBLType"></label>
+                </td>
+                <td>
+                    部位：<label class="LBLPosition"></label>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    刪除原因
+                </td>
+                <td colspan="2">
+                    <input type="hidden" name="HidDelDFTEMPID" id="HidDelDFTEMPID" />
+                    @Html.TextArea("TxtDelPositionReason", "", 10, 50, new { })
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" style="text-align:center">
+                    <div class="funcArea">
+                        <input type="button" value="儲存" onclick="SaveDelPositionReason();" />
+                        <input type="button" value="取消" onclick="$('#DivDelPosition,#Block').hide();" />
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+
+<div id="Block"></div>
+<div id="DivUpdatePosition">
+    <div id="DivUpdatePositionShow"></div>
+</div>

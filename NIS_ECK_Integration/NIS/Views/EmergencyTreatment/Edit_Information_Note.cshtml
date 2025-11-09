@@ -1,0 +1,830 @@
+﻿@using System.Data;
+@using Newtonsoft.Json;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    NIS.Data.PatientInfo patientInfo = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.UserInfo userInfo = (NIS.Data.UserInfo)Session["UserInfo"];
+    DataTable TemplateNote = ViewBag.TemplateNote;
+    string JsonTemplateNote = JsonConvert.SerializeObject(TemplateNote);
+    DataTable DetailNote = ViewBag.DetailNote;
+    string JsonDetailNote = JsonConvert.SerializeObject(DetailNote);
+    string MasterID = ViewBag.MasterID;
+    string TemplateID = "";
+    TemplateID = ViewBag.TemplateID;
+    string title = "";
+    if (TemplateID != null && TemplateID != "")
+    {
+        title = "編輯生命徵象暨急救藥物使用紀錄";
+    }
+    else
+    {
+        title = "新增生命徵象暨急救藥物使用紀錄";
+    }
+
+    bool IsDischarged = false;
+    if (Convert.ToDateTime(patientInfo.OutDate).ToString("yyyy").ToString() != "0001" && patientInfo.OutDate < DateTime.Now)
+    {
+        IsDischarged = true;
+    }
+
+}
+<style type="text/css" scoped>
+    #module_define {
+        padding: 5px;
+        text-align: left;
+        background-color: #d5d5f7 !important;
+        width: 100%;
+        border-radius: 10px !important;
+        font-size: 28px;
+        font-weight: 800;
+        border: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        font-family: Arial, EUDC !important;
+    }
+
+    .fun_btn {
+        font-size: 17px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 5px 5px 4px 4px !important;
+        cursor: pointer;
+    }
+
+    .check_btn {
+        background-color: #3c7ec3 !important;
+    }
+
+    .add_btn {
+        background-color: #42b55b !important;
+    }
+
+    .modify_btn {
+        background-color: #ed9017 !important;
+    }
+
+    .delete_btn {
+        background-color: #ed6f6f !important;
+    }
+
+    .dataHeader td {
+        font-weight: bold;
+        margin: 1px 1px 1px 1px;
+        background-color: #cfe1eb;
+        text-align: center;
+        vertical-align: middle;
+        height: 26px;
+    }
+
+    .dataHeader {
+        border-radius: 10px !important;
+        margin-right: 0 !important;
+    }
+
+    .funcArea table {
+        font-family: Arial, EUDC;
+    }
+
+    .dataArea {
+        border: 0 !important;
+        overflow: hidden;
+    }
+
+        .dataArea td {
+            border-bottom: 0 !important;
+        }
+
+    .EmergencyMedication input {
+        -moz-appearance: textfield;
+        width: 40px;
+        text-align: center;
+    }
+
+    #cover {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1001;
+    }
+
+    #divrecord {
+        display: none;
+        position: fixed;
+        top: 20%;
+        left: 25%;
+        background: white;
+        z-index: 2000;
+        padding: 20px;
+        border: 1px solid #333;
+    }
+</style>
+<script type="text/javascript">
+    var TemplateNote = @Html.Raw(JsonTemplateNote);
+    var DetailNote = @Html.Raw(JsonDetailNote);
+    var propertiesList = ["MasterID", "TemplateID", "Type", "EKG_Picture_Base64"];
+
+    $(document).ready(function () {
+        //設定MasterID、TemplateID供儲存時使用
+        $('input[name=MasterID]').val('@MasterID');
+        $('input[name=TemplateID]').val('@TemplateID');
+
+        setGridColor();
+        LoadRecord();
+
+        //設定驗證Function到藥物數量輸入框
+        var InputNumberElements = $("#EmergencyMedication input[type=text]");
+        for (var i = 0; i < InputNumberElements.length; i++) {
+            if (InputNumberElements[i].className == 'InputNumber') {
+                InputNumberElements[i].addEventListener('change', function (event) {
+                    if (ValidationNumber(event.target.value)) {
+                        $("input[name=" + event.target.name + "]")[0].value = event.target.value;
+                    }
+                    else {
+                        $("input[name=" + event.target.name + "]")[0].value = 0;
+                    }
+                });
+            }
+        }
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr').css('background', '#E1E6FA');
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            $(".outerDiv").outerHeight(height - 100);
+        }).trigger("resize");
+    }
+
+    //顯示隱藏題目
+    function ShowSpan(idList) {
+        if (idList.length > 0) {
+            for (var i = 0; i < idList.length; i++) {
+                $("#" + idList[i]).show();
+            }
+        }
+    }
+
+    //隱藏題目
+    function HideSpan(idList) {
+        if (idList.length == 0) {
+            return;
+        }
+        for (var i = 0; i < idList.length; i++) {
+            $("#" + idList[i]).hide();
+            var inputList = $('#' + idList[i] + ' input, #' + idList[i] + ' textarea');
+            if (inputList.length > 0) {
+                for (var j = 0; j < inputList.length; j++) {
+                    var inputType = inputList[j].type;
+                    switch (inputType) {
+                        case 'text':
+                        case 'textarea':
+                            inputList[j].value = '';
+                            break;
+                        case 'radio':
+                        case 'checkbox':
+                            inputList[j].checked = false;
+                            break;
+                    }
+                }
+            }
+        }
+    }
+
+    // 開啟VitalSign帶入介面跳窗
+    function OpenVitalSign() {
+        var url = "../EmergencyTreatment/VitalSign?MasterID="+'@MasterID';
+        window.open(url, 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=600,width=1000,top=50,left=150');
+    }
+
+    // 開啟Insert畫面
+    function OpenInsertView(MasterID) {
+        var url = 'Insert?MasterID=' + MasterID;
+        window.location.href = url;
+    }
+
+    // 驗證儲存資料
+    function dtl_check() {
+        var success = true;
+        var tr_list = $('p[must=Y]:visible,div[must=Y]:visible,td[must=Y]:visible');
+        for (var i = 0; i < tr_list.length; i++) {
+            var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+            if (input_list.length > 0) {
+                var input_name = '';
+                for (var j = 0; j < input_list.length; j++) {
+                    //檢查input的name是否為空
+                    if (input_name != $(input_list[j]).attr('name')) {
+                        input_name = $(input_list[j]).attr('name');
+                        //判斷input類型
+                        if (input_list[j].type == 'text' || input_list[j].type == 'textarea') {
+                            var input_val = $.trim(input_list[j].value);
+                        }
+                        else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox') {
+                            var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+                        }
+                        //input值為空時停止驗證並提示
+                        if (input_val == undefined || input_val == '') {
+                            success = false;
+                            alert($(tr_list[i]).find('.subtitle').html() + ' 未填寫!')
+                            i = tr_list.length;
+                            j = input_list.length;
+                        }
+                    }
+                }
+            }
+        }
+        return success;
+    }
+
+    // 儲存
+    function Save() {
+        $(".loading").fadeIn(500);
+        if (!dtl_check()) {
+            $(".loading").fadeOut(500);
+            return;
+        }
+        $('#CareRecordStr').val($('#text_content').val());
+        $.ajax({
+            type: 'POST',
+            cache: false,
+            async: true,
+            url: '@Url.Content("~/EmergencyTreatment/Save")',
+            data: $('#form1').serialize(),
+            success: function (data) {
+                $(".loading").fadeOut(500);
+                if (data.status == 0) {
+                    alert(data.message);
+                    window.location.href = 'NoteList?MasterID=' + '@MasterID';
+
+                    if ('@IsDischarged' == 'False') {
+                        var setStr = "SET0410112733";
+                        window.open('../Billing/index?set=' + setStr, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=300,toolbar=no,width=1290,height=800');
+                    }
+
+                    OpenInsertView('@MasterID');
+
+                }
+                else {
+                    alert(data.message);
+                }
+            }
+        });
+    }
+
+    // 載入紀錄
+    function LoadRecord() {
+        if (TemplateNote.length == 0 || DetailNote.length == 0) {
+
+            // 預設意識狀況
+            $('[name="LOC_GCS_E"][value="1"]').prop('checked', true);
+            $('[name="LOC_GCS_V"][value="1"]').prop('checked', true);
+            $('[name="LOC_GCS_M"][value="1"]').prop('checked', true);
+
+            return;
+        }
+
+        // 載入EKG圖片
+        if (TemplateNote[0].EKG != null) {
+            var srcString = "data:image/png;base64," + TemplateNote[0].EKG;
+            var ECK_IMGElement = document.createElement('img');
+            ECK_IMGElement.src = srcString;
+            $('input[name=EKG_Picture_Base64]')[0].value = TemplateNote[0].EKG;
+            $('#EKGPicture').attr('src',srcString)
+            //ShowSpan(['span_EKG_Picture_Import', 'span_EKG_Picture'])
+        }
+
+        // 急救人員題目ItemID
+        var EmergencyStaffItemIDList = ["Emergency_Doctor", "Emergency_SpecialistNurse", "Emergency_Nurse", "Emergency_RespiratoryTherapist", "Emergency_OtherStaff"];
+
+        // 帶入資料
+        for (var i = 0; i < DetailNote.length; i++) {
+            var ItemID = DetailNote[i].ITEM_ID;
+            if (propertiesList.includes(ItemID)) {
+                continue;
+            }
+            var ItemValue = DetailNote[i].ITEM_VALUE;
+            var InputElement = $("input[name='" + ItemID + "']");
+            if (InputElement.length == 0) {
+                continue;
+            }
+            var InputElementType = InputElement[0].type;
+
+            if (EmergencyStaffItemIDList.includes(ItemID)) { // 急救人員需額外處理
+                var type = ItemID.replace('Emergency_', '');
+                var UserNameList = ItemValue.split(',');
+                for (var j = 0; j < UserNameList.length; j++) {
+                    ImportUserNameToList(type, UserNameList[j]);
+                };
+            }
+            else {
+                switch (InputElementType) {
+                    case 'text':
+                        $("input[name='" + ItemID + "']")[0].value = ItemValue;
+                        break;
+                    case 'radio':
+                        $("input[name='" + ItemID + "'][value='" + ItemValue +"']")[0].click();
+                        break;
+                    case 'checkbox':
+                        var ItemValueList = ItemValue.split(',');
+                        for (var z = 0; z < ItemValueList.length; z++) {
+                            $("input[name='" + ItemID + "'][value='" + ItemValueList[z]+"']")[0].click();
+                        }
+                        break;
+                }
+            }
+        }
+    }
+
+    // 驗證數字
+    function ValidationNumber(number) {
+        var result = true;
+
+        //排除空值
+        if (number==''||isNaN(number)) {
+            alert('請輸入數字!');
+            result = false;
+        }
+
+        //排除負值
+        if (number < 0) {
+            alert('輸入數字小於零!');
+            result = false;
+        }
+
+        return result;
+    }
+
+    // 加減
+    function Compute(type, name) {
+        var result = 0;
+        var number = $("input[name=" + name + "]")[0].value;
+        if (!ValidationNumber(number)) {
+            return;
+        }
+        IntNumber = parseInt(number);
+
+        switch (type) {
+            case 'plus':
+                result = IntNumber + 1;
+                break;
+            case 'minus':
+                if (IntNumber > 0) {
+                    result = IntNumber - 1;
+                }
+                break;
+        }
+
+        $("input[name=" + name + "]")[0].value = result;
+    }
+
+    //儲存護理紀錄
+    function CheckCareRecord() {
+        var careRecordStr = buildCareRecordStr()
+        $("#divrecord").show();
+        $('#text_content').val(careRecordStr);
+        $("#cover").show();
+    }
+    function buildCareRecordStr() {
+        // ----------- 共用取值工具 -----------
+        const f = (name) => {
+            const els = document.querySelectorAll(`[name="${name}"]`);
+            if (!els.length) return "";
+            const type = els[0].type;
+            if (type === "radio") {
+                const checked = [...els].find((el) => el.checked);
+                return checked ? checked.value.trim() : "";
+            }
+            if (type === "checkbox") {
+                return [...els].filter((el) => el.checked).map((el) => el.value.trim());
+            }
+            return els[0].value.trim();
+        };
+        const fAll = (name) => f(name).join("、");
+
+        let careRecordStr = "";
+
+        // ----------- 生命徵象 -----------
+        const vsArr = [];
+        const bt = f("VitalSign_BT");
+        const hr = f("VitalSign_HR");
+        const resp = f("VitalSign_Respiratory");
+        const bpSys = f("VitalSign_BP_Systolic");
+        const bpDia = f("VitalSign_BP_Diastolic");
+        const spo2 = f("VitalSign_SPO2");
+
+        if (bt) vsArr.push(`體溫：${bt}℃`);
+        if (hr) vsArr.push(`心跳：${hr === "?" ? "?" : hr}次/分鐘`);
+        if (resp) vsArr.push(`呼吸：${resp === "?" ? "?" : resp}次/分鐘`);
+        if (bpSys || bpDia)
+            vsArr.push(`血壓：${bpSys || "?"}/${bpDia || "?"} mmHg`);
+        if (spo2) vsArr.push(`血氧：${spo2}%`);
+        if (vsArr.length) careRecordStr += `生命徵象：${vsArr.join("、")}。`;
+
+        // ----------- 意識狀況 (GCS + 瞳孔) -----------
+        const locArr = [];
+        const e = f("LOC_GCS_E");
+        const v = f("LOC_GCS_V");
+        const m = f("LOC_GCS_M");
+        if (e) locArr.push(`E：${e}`);
+        if (v) locArr.push(`V：${v}`);
+        if (m) locArr.push(`M：${m}`);
+
+        // 左眼反射與大小
+        let leftReflex = f("LOC_Eye_Left_Reflex");
+        if (leftReflex === "其他") leftReflex = f("LOC_Eye_Left_Reflex_Other");
+        const leftSize = f("LOC_Eye_Left_Size");
+
+        // 右眼反射與大小
+        let rightReflex = f("LOC_Eye_Right_Reflex");
+        if (rightReflex === "其他") rightReflex = f("LOC_Eye_Right_Reflex_Other");
+        const rightSize = f("LOC_Eye_Right_Size");
+
+        if (leftSize || leftReflex)
+            locArr.push(`瞳孔：左眼：${leftSize}mm (${leftReflex})`);
+        if (rightSize || rightReflex)
+            locArr.push(
+                (leftSize || leftReflex)
+                    ? `右眼：${rightSize}mm (${rightReflex})`
+                    : `瞳孔：右眼：${rightSize}mm (${rightReflex})`
+            );
+
+        if (locArr.length) careRecordStr += `意識狀況：${locArr.join("、")}。`;
+
+        // ----------- 急救藥物清單 -----------
+        const meds = [
+            ["Adrenaline", "Epinephrine(Adrenaline) 1mg/ml/amp"],
+            ["Dopamine", "Dopamine 200mg/5ml/amp"],
+            ["SodiumBicarbonate", "Sodium bicarbonate 20ml/amp"],
+            ["Amiodarone", "Amiodarone(Cordarone) 150mg/3ml/amp"],
+            ["Adenosine", "Adenosine 6mg/2ml/vial"],
+            ["AtropineSulfate", "Atropine sulfate 1mg/ml/amp"],
+            ["Diazepam", "Diazepam 10mg/2ml/amp"],
+            ["SuccinylcholineCl", "Succinylcholine Cl 500mg/vial"],
+            ["Midazolam", "Midazolam 5mg/ml/amp"],
+            ["Hydrocortisone", "Hydrocortisone 100mg/vial"],
+            ["CalciumChloride", "Calcium chlorid 2% 20ml/amp"],
+            ["Glucose50Water", "Glucose 50% water 20ml/vial"],
+            ["Noradrenaline", "Noradrenaline (bitartrate) 4mg/4ml/amp"],
+        ];
+
+        const usedMeds = meds
+            .filter(([name]) => f(name) && f(name) !== "0")
+            .map(([, label]) => label);
+
+        if (usedMeds.length)
+            careRecordStr += `依______主治醫師/值班醫師醫囑，給予藥物：${usedMeds.join("、")}，持續心外按壓，觀察用藥反應。`;
+
+        console.log(careRecordStr);
+        return careRecordStr;
+    }
+</script>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width: 100%; font-size: 18px">
+    <tr>
+        <td style="width:100%;text-align:center;">
+            <div id="module_define">@title</div>
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 5px 0 5px 0;">
+            <div class="funcArea">
+                <input type="button" class="fun_btn add_btn" id="save" value="存檔" onclick="CheckCareRecord()" />
+                <input type="button" class="fun_btn delete_btn" value="取消" onclick="if (confirm('確定取消?')) window.location.href = 'NoteList?MasterID=@MasterID'" />
+            </div>
+        </td>
+    </tr>
+</table>
+@*急救後資訊*@
+<form id="form1" method="post" action="">
+    <input type="hidden" name="MasterID" />
+    <input type="hidden" name="TemplateID" />
+    <input type="hidden" name="Type" value="Note" />
+    <div class="outerDiv" style="width: 100%; margin-top: 5px; overflow-y: auto; overflow-x: hidden ">
+        <div style="width: 100%">
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 18px;">
+                    <tr>
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">生命徵象</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 18px;">
+                    <tr>
+                        <th style="width:10%">紀錄時間</th>
+                        <td colspan="2" style="width:90%">
+                            @(Html.TextBox("RecordDate", DateTime.Now.ToString("yyyy/MM/dd")))
+                            @(Html.TextBox("RecordTime", DateTime.Now.ToString("HH:mm")))
+                            @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "RecordDate", "RecordTime", false)
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width:10%">生命徵象</th>
+                        <td colspan="2">
+                            <input type="text" id="Assess_Time" name="VitalSign_AssessTime" style="display:none" />
+                            <input type="text" id="VS_Id" name="VitalSign_VS_ID" style="display:none" />
+                            體溫:<input type="text" id="BT" name="VitalSign_BT" style="width:50px" readonly /> ℃,&nbsp;
+                            心跳:<input type="text" id="HR" name="VitalSign_HR" style="width:50px" readonly /> bpm,&nbsp;
+                            呼吸:<input type="text" id="Respiratory" name="VitalSign_Respiratory" style="width:50px" readonly /> bpm,&nbsp;
+                            血壓:<input type="text" id="BP_Systolic" name="VitalSign_BP_Systolic" style="width:50px" readonly /> / <input type="text" id="BP_Diastolic" name="VitalSign_BP_Diastolic" style="width:50px" readonly /> mmHg,&nbsp;
+                            SPO2:<input type="text" id="SPO2" name="VitalSign_SPO2" style="width:50px" readonly /> %
+                            <input type="button" class="fun_btn check_btn" value="帶入" onclick="OpenVitalSign()" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th rowspan="3">意識狀況</th>
+                        <th style="width:5%">GCS</th>
+                        <td>
+                            <div style="display:flex">
+                                <div style="width: 15px">E</div>:
+                                <label><input type="radio" name="LOC_GCS_E" value="4" />4</label>
+                                <label><input type="radio" name="LOC_GCS_E" value="3" />3</label>
+                                <label><input type="radio" name="LOC_GCS_E" value="2" />2</label>
+                                <label><input type="radio" name="LOC_GCS_E" value="2" />2</label>
+                                <label><input type="radio" name="LOC_GCS_E" value="1" />1</label>
+                                <label><input type="radio" name="LOC_GCS_E" value="C" />C</label>
+                            </div>
+                            <div style="display:flex">
+                                <div style="width: 15px">V</div>:
+                                <label><input type="radio" name="LOC_GCS_V" value="5" />5</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="4" />4</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="3" />3</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="2" />2</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="2" />2</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="1" />1</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="T" />T</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="A" />A</label>
+                                <label><input type="radio" name="LOC_GCS_V" value="E" />E</label>
+                            </div>
+                            <div style="display:flex">
+                                <div style="width: 15px">M</div>:
+                                <label><input type="radio" name="LOC_GCS_M" value="6" />6</label>
+                                <label><input type="radio" name="LOC_GCS_M" value="5" />5</label>
+                                <label><input type="radio" name="LOC_GCS_M" value="4" />4</label>
+                                <label><input type="radio" name="LOC_GCS_M" value="3" />3</label>
+                                <label><input type="radio" name="LOC_GCS_M" value="2" />2</label>
+                                <label><input type="radio" name="LOC_GCS_M" value="1" />1</label>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>瞳孔-左</th>
+                        <td>
+                            <div style="display:flex">
+                                <div>反射 :</div>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="-" onclick="HideSpan(['span_LOC_Eye_Left_Reflex_Other']);" />-</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="+" onclick="HideSpan(['span_LOC_Eye_Left_Reflex_Other']);" />+</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="±" onclick="HideSpan(['span_LOC_Eye_Left_Reflex_Other']);" />±</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="無法睜眼" onclick="HideSpan(['span_LOC_Eye_Left_Reflex_Other']);" />無法睜眼</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="無法評估" onclick="HideSpan(['span_LOC_Eye_Left_Reflex_Other']);" />無法評估</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Reflex" value="其他" onclick="ShowSpan(['span_LOC_Eye_Left_Reflex_Other'])" />其他</label>
+                                <span id="span_LOC_Eye_Left_Reflex_Other" style="display:none">
+                                    <input type="text" name="LOC_Eye_Left_Reflex_Other" style="margin-left:5px" />
+                                </span>
+                            </div>
+                            <div style="display:flex">
+                                <div>大小(mm) :</div>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="1" />1</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="1.5" />1.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="2" />2</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="2.5" />2.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="3" />3</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="3.5" />3.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="4" />4</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="4.5" />4.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="5" />5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="5.5" />5.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="6" />6</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="6.5" />6.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="7" />7</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="7.5" />7.5</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="8" />8</label>
+                                <label><input type="radio" name="LOC_Eye_Left_Size" value="8.5" />8.5</label>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>瞳孔-右</th>
+                        <td>
+                            <div style="display:flex">
+                                <div>反射 :</div>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="-" onclick="HideSpan(['span_LOC_Eye_Right_Reflex_Other']);" />-</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="+" onclick="HideSpan(['span_LOC_Eye_Right_Reflex_Other']);" />+</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="±" onclick="HideSpan(['span_LOC_Eye_Right_Reflex_Other']);" />±</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="無法睜眼" onclick="HideSpan(['span_LOC_Eye_Right_Reflex_Other']);" />無法睜眼</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="無法評估" onclick="HideSpan(['span_LOC_Eye_Right_Reflex_Other']);" />無法評估</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Reflex" value="其他" onclick="ShowSpan(['span_LOC_Eye_Right_Reflex_Other'])" />其他</label>
+                                <span id="span_LOC_Eye_Right_Reflex_Other" style="display:none">
+                                    <input type="text" name="LOC_Eye_Right_Reflex_Other" style="margin-left:5px" />
+                                </span>
+                            </div>
+                            <div style="display:flex">
+                                <div>大小(mm) :</div>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="1" />1</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="1.5" />1.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="2" />2</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="2.5" />2.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="3" />3</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="3.5" />3.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="4" />4</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="4.5" />4.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="5" />5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="5.5" />5.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="6" />6</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="6.5" />6.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="7" />7</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="7.5" />7.5</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="8" />8</label>
+                                <label><input type="radio" name="LOC_Eye_Right_Size" value="8.5" />8.5</label>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 18px;">
+                    <tr>
+                        <td>
+                            <div style="display:flex;justify-content:center">
+                                <div style="align-content:center;margin-right:5px">急救藥物清單</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div id="EmergencyMedication" class="dataArea EmergencyMedication" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 18px;">
+                    <tr>
+                        <th style="width:30%">藥物單位</th>
+                        <td must="Y" colspan="3">
+                            <label class="subtitle" style="display:none">藥物單位</label>
+                            <label><input type="radio" name="MedicationUnit" value="支數" />支數</label>
+                            <label><input type="radio" name="MedicationUnit" value="劑量" />劑量</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width:30%">Epinephrine(Adrenaline) 1mg/ml/amp</th>
+                        <td style="width: 20%; text-align: center">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','Adrenaline')" />
+                            <input class="InputNumber" type="text" name="Adrenaline" value="0" onchange="" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','Adrenaline')" />
+                        </td>
+                        <th style="width:30%">Dopamine 200mg/5ml/amp</th>
+                        <td style="width: 20%; text-align: center">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','Dopamine')" />
+                            <input class="InputNumber" type="text" name="Dopamine" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','Dopamine')" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width: 30%">
+                            Sodium bicarbonate 20ml/amp
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','SodiumBicarbonate')" />
+                            <input class="InputNumber" type="text" name="SodiumBicarbonate" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','SodiumBicarbonate')" />
+                        </td>
+                        <th style="width: 30%">
+                            Amiodarone(Cordarone) 150mg/3ml/amp
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','Amiodarone')" />
+                            <input class="InputNumber" type="text" name="Amiodarone" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','Amiodarone')" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width: 30%">
+                            Adenosine 6mg/2ml/vial
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','Adenosine')" />
+                            <input class="InputNumber" type="text" name="Adenosine" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','Adenosine')" />
+                        </td>
+                        <th style="width: 30%">
+                            Atropine sulfate 1mg/ml/amp
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','AtropineSulfate')" />
+                            <input class="InputNumber" type="text" name="AtropineSulfate" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','AtropineSulfate')" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width: 30%">
+                            Diazepam 10mg/2ml/amp
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','Diazepam')" />
+                            <input class="InputNumber" type="text" name="Diazepam" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','Diazepam')" />
+                        </td>
+                        <th style="width: 30%">
+                            Succinylcholine Cl 500mg/vial
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','SuccinylcholineCl')" />
+                            <input class="InputNumber" type="text" name="SuccinylcholineCl" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','SuccinylcholineCl')" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width: 30%">
+                            Midazolam 5mg/ml/amp
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','Midazolam')" />
+                            <input class="InputNumber" type="text" name="Midazolam" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','Midazolam')" />
+                        </td>
+                        <th style="width: 30%">
+                            Hydrocortisone 100mg/vial
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','Hydrocortisone')" />
+                            <input class="InputNumber" type="text" name="Hydrocortisone" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','Hydrocortisone')" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width: 30%">
+                            Calcium chloride 2% 20ml/amp
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','CalciumChloride')" />
+                            <input class="InputNumber" type="text" name="CalciumChloride" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','CalciumChloride')" />
+                        </td>
+                        <th style="width: 30%">
+                            Glucose 50% water 20ml/vial
+                        </th>
+                        <td style="width: 20%; text-align: center">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','Glucose50Water')" />
+                            <input class="InputNumber" type="text" name="Glucose50Water" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','Glucose50Water')" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="width: 30%">
+                            Noradrenaline (bitartrate) 4mg/4ml/amp
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            <input type="button" class="fun_btn delete_btn" value="-" onclick="Compute('minus','Noradrenaline')" />
+                            <input class="InputNumber" type="text" name="Noradrenaline" value="0" />
+                            <input type="button" class="fun_btn add_btn" value="+" onclick="Compute('plus','Noradrenaline')" />
+                        </td>
+                        <th style="width: 30%">
+                            @*Dopamine 20mg/5ml/amp*@
+                        </th>
+                        <td style="width: 20%; text-align: center ">
+                            @*<input type="button" value="-" onclick="Compute('minus','Dopamine')" />
+                                <input class="InputNumber" type="text" name="Dopamine" value="0" />
+                                <input type="button" value="+" onclick="Compute('plus','Dopamine')" />*@
+                        </td>
+                    </tr>
+                    <tr style="display:none">
+                        <th>備註</th>
+                        <td>
+                            <textarea id="CareRecordStr" type="text" name="CareRecordStr" style="width:200px;height:80px"></textarea>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="loading" id="cover"></div>
+<div class="loading" id="loading">
+    <label for="lab">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>
+
+<div id="cover" class="dialog"></div>
+<div id="divrecord" class="dialog" style="width:700px;height:330px;">
+    <table width="100%" align="center">
+        <tr>
+            <td style="text-align:center;">
+                <textarea id="text_content" style="width:95%; height:280px; font-size:17px;"></textarea>
+                <input type="button" value="存檔" tempstatus="N" onclick="Save();" />
+                <input type="button" value="取消" onclick="$('#divrecord').hide(); $('#cover').hide();" />
+            </td>
+        </tr>
+    </table>
+</div>
+

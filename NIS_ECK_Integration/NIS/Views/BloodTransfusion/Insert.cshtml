@@ -1,0 +1,494 @@
+﻿@using System.Data;
+@using Newtonsoft.Json;
+
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo patientInfo = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.UserInfo userInfo = (NIS.Data.UserInfo)Session["UserInfo"];
+    string BloodTransfusionSerial = ViewBag.BloodTransfusionSerial;
+    DataTable BloodVerification = ViewBag.BloodVerification;
+    string JsonBloodVerification = JsonConvert.SerializeObject(BloodVerification);
+    DataTable BloodVitalSignData = ViewBag.BloodVitalSignData;
+    string JsonBloodVitalSignData = JsonConvert.SerializeObject(BloodVitalSignData);
+    string title = "";
+    string Mode = "";
+    if (BloodTransfusionSerial != null)
+    {
+        title = "編輯輸血紀錄單";
+        Mode = "Edit";
+    }
+    else
+    {
+        title = "新增輸血紀錄單";
+        Mode = "Insert";
+        BloodTransfusionSerial = "BLOODTRANSFUTION_DATA" + "_" + userInfo.EmployeesNo + "_" + patientInfo.FeeNo + "_" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + "_" + "0";
+    }
+}
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: left;
+        background-color: #d5d5f7;
+        width: 100%;
+        border-radius: 5px;
+        font-size: 28px;
+        font-weight: 800
+    }
+
+    .dataArea {
+        border: 0 !important;
+        border-radius: 10px !important;
+        font-family: Arial, EUDC !important;
+        overflow-y: auto !important;
+    }
+
+        .dataArea td {
+            text-align: left;
+            height: 20px;
+            font-size: 18px !important
+        }
+
+    .count_btn {
+        border-radius: 60px;
+        border-width: 0;
+        color: white;
+        background-color: #3c7ec3;
+        height: 20px;
+    }
+
+    .fun_btn {
+        font-size: 18px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        width: 70px !important;
+        color: white !important;
+        cursor: pointer;
+    }
+
+    .dataHeader {
+        text-align: center !important;
+        border-radius: 6px !important;
+        font-size: 20px !important;
+        margin-right: 0 !important
+    }
+
+    .card {
+        background-color: white;
+        /*box-shadow: 0 4px 20px rgba(0,0,0,0.1);*/
+        min-width: 220px;
+        padding: 5px;
+        text-align: center;
+        margin: 2px;
+        border-radius: 15px;
+        border-style: solid;
+        border-color: #cfe1eb;
+        border-width: 3px;
+    }
+</style>
+<script type="text/javascript">
+    var BloodVerificationData = @Html.Raw(JsonBloodVerification);
+    var BloodVitalSignData = @Html.Raw(JsonBloodVitalSignData);
+
+    var BloodVerificationSerial = "";
+    if (BloodVerificationData!=null&&BloodVerificationData.length>0 ) {
+        BloodVerificationSerial = BloodVerificationData[0].SERIAL;
+    }
+    var BloodList = [];
+
+    $(document).ready(function () {
+        $('input[name=BloodTransfusionSerial]').val('@BloodTransfusionSerial');
+        setGridColor();
+        LoadBloodVerificationData();
+        LoadBloodVitalSignData();
+        LoadTransfusionReactionList();
+        $(window).resize(function () {
+            if (height <= 300)
+                height = 450;
+            var height = $(this).outerHeight();
+            $(".outerDiv").outerHeight(height - 10);
+        }).trigger("resize");
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', 'rgb(231 238 245)');
+        $('.dataArea tr:even').css('background', 'rgb(176 216 235)');
+    }
+
+    //開啟編輯血品資訊跳窗
+    function OpenBloodVerification() {
+        var url = "../BloodTransfusion/BloodVerification?BloodTransfusionSerial=" + '@BloodTransfusionSerial' + '&Serial=' + BloodVerificationSerial;
+        window.open(url, 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=900,width=1200,top=100,left=200');
+    }
+
+    //開啟編輯生命徵象跳窗
+    function OpenVitalSign(serial,period) {
+        var url = "../BloodTransfusion/VitalSign?BloodTransfusionSerial=" + '@BloodTransfusionSerial' + '&Period=' + period;
+        window.open(url, 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=900,width=1200,top=100,left=200');
+    }
+
+    //開啟編輯輸血反應跳窗
+    function OpenTransfusionReaction(serial) {
+        var url = "../BloodTransfusion/TransfusionReaction?BloodTransfusionSerial=" + '@BloodTransfusionSerial' + '&Serial=' + serial;
+        window.open(url, 'popUpWindow', 'menubar=no,status=no,scrollbars=yes,height=900,width=1200,top=100,left=200');
+    }
+
+    //設定input值
+    function SetValue(id, val) {
+        $("#" + id).val(val);
+    }
+
+    //設定input值(TXT)
+    function SetTXT(id, val) {
+        $("#txt_" + id).html(val);
+    }
+
+    //載入核血作業資料 New
+    function LoadBloodVerificationData() {
+        if (BloodVerificationData == null || BloodVerificationData.length == 0) {
+            return;
+        }
+        let firstData = BloodVerificationData[0];
+        SetTXT('Blood_StartDay', moment(firstData.START_TIME).format("YYYY/MM/DD"));
+        SetTXT('Blood_StartTime', moment(firstData.START_TIME).format("HH:mm"));
+        SetTXT('Record_Id', firstData.CREATE_USER);
+        SetTXT('Record_Name', firstData.CREATE_NAME);
+        SetTXT('Blood_VerifyUser1_Id', firstData.BLOOD_VERIFYUSER1_ID);
+        SetTXT('Blood_VerifyUser1_Name', firstData.BLOOD_VERIFYUSER1_NAME);
+
+        for (let i = 0; i < BloodVerificationData.length; i++) {
+            let bloodTime = moment(BloodVerificationData[i].BLOOD_TIME).format('YYYY/MM/DD HH:mm');
+            let bloodExp = moment(BloodVerificationData[i].BLOOD_EXP).format('YYYY/MM/DD');
+            BloodList.push({
+                Blood_ID: BloodVerificationData[i].BLOOD_ID,
+                Blood_Time: bloodTime,
+                Blood_Name: BloodVerificationData[i].BLOOD_NAME,
+                Blood_Number: BloodVerificationData[i].BLOOD_NUMBER,
+                Blood_Type: BloodVerificationData[i].BLOOD_TYPE,
+                Blood_Unit: BloodVerificationData[i].BLOOD_UNIT,
+                Blood_Exp: bloodExp,
+            });
+        }
+        setBloodViewList();
+    }
+
+    //載入生命徵象資料
+    function LoadBloodVitalSignData() {
+        if (BloodVitalSignData!=null&&BloodVitalSignData.length > 0) {
+            for (let i=0; i < BloodVitalSignData.length; i++) {
+                let Data = BloodVitalSignData[i];
+                let Period = Data.PERIOD;
+                let dataTXT = '';
+                let dataTXTArray = [];
+                if (Data.ASSESS_TIME != null && Data.ASSESS_TIME != '') {
+                    let assessTime = moment(Data.ASSESS_TIME).format('YYYY/MM/DD HH:mm');
+                    dataTXTArray.push(assessTime);
+                }
+                if (Data.BT != null && Data.BT != '') {
+                    dataTXTArray.push('體溫: ' + Data.BT + ' °C');
+                }
+                if (Data.HR != null && Data.HR != '') {
+                    dataTXTArray.push('心跳: ' + Data.HR + ' bpm');
+                }
+                if (Data.RESPIRATORY != null && Data.RESPIRATORY != '') {
+                    dataTXTArray.push('呼吸: ' + Data.RESPIRATORY + ' bpm');
+                }
+                if ((Data.BP_SYSTOLIC != null && Data.BP_SYSTOLIC != '') || (Data.BP_DIASTOLIC != null && Data.BP_DIASTOLIC != '')) {
+                    dataTXTArray.push('血壓: ' + Data.BP_SYSTOLIC + '/' + Data.BP_DIASTOLIC + ' mmHg');
+                }
+                if (Data.SPO2 != null && Data.SPO2 != '') {
+                    dataTXTArray.push('SPO2: ' + Data.SPO2 + ' %');
+                }
+                if (Data.IS_ALLERGIC != null && Data.IS_ALLERGIC != '') {
+                    dataTXTArray.push('過敏: ' + Data.IS_ALLERGIC);
+                }
+                if (Data.EDIT_NAME != null && Data.EDIT_NAME != '') {
+                    dataTXTArray.push('紀錄者: ' + Data.EDIT_NAME);
+                }
+
+                if (dataTXTArray.length > 0) {
+                    dataTXT = dataTXTArray.join(', ');
+                }
+
+                $('#txt_VSData_' + Period).html(dataTXT);
+            }
+        }
+    }
+
+    //編輯VitalSign
+    function EditVitalSign(type) {
+        $('#txt_VitalSign_' + type).hide();
+        $('#VitalSign_' + type).show();
+        $('#Edit_VS_' + type).hide();
+        $('#Save_VS_' + type).show();
+    }
+
+    //載入輸血反應列表
+    function LoadTransfusionReactionList() {
+        loop_windows("open_cover");
+
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/BloodTransfusion/TransfusionReactionListData")',
+            dataType: 'html',
+            data: { BloodTransfusionSerial: '@BloodTransfusionSerial'},
+            cache: false,
+            success: function (response) {
+                $('.dataAreaX').html();
+                $('.dataAreaX').html(response);
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    // 刪除輸血反應單
+    function TransfusionReactionDelete(Serial) {
+        if (Serial != null && Serial!='') {
+            $.ajax({
+                url: '@Url.Content("~/BloodTransfusion/TransfusionReactionDelete")',
+                type: 'post',
+                data: { Serial: Serial },
+                success: function (data) {
+                    var alert_message = "";
+                    switch (data.status) {
+                        case 0:
+                            if (data.message) {
+                                alert_message = data.message;
+                            }
+                            alert(alert_message);
+                            window.location.href = 'Insert?BloodTransfusionSerial=' + '@BloodTransfusionSerial';
+                            break;
+                        default:
+                            if (data.message) {
+                                alert_message = data.message;
+                            }
+                            alert(alert_message);
+                            break;
+                    }
+                },
+                error: function (result) {
+                }
+            });
+        }
+    }
+
+    // 顯示已選取的血品卡片
+    function setBloodViewList() {
+        document.getElementById('bloodCardList').innerHTML = '';
+        if (BloodList.length == 0) {
+            return;
+        }
+        for (let i = 0; i < BloodList.length; i++) {
+            let bloodID = BloodList[i].Blood_ID;
+            let card = document.createElement('div');
+            card.className = 'card';
+            card.id = BloodList[i].Blood_ID;
+
+            let table = document.createElement('table');
+            let funDiv = document.createElement('div');
+            funDiv.style = 'width:100%;display:flex;justify-content:end';
+            card.appendChild(funDiv);
+            Object.entries(BloodList[i]).forEach(([key, value]) => {
+                if (key == 'Blood_ID') {
+                    return;
+                }
+                let thName = '';
+                switch (key) {
+                    case 'Blood_Time':
+                        thName = '發血時間';
+                        break;
+                    case 'Blood_Name':
+                        thName = '血品名稱';
+                        break;
+                    case 'Blood_Number':
+                        thName = '血袋號碼';
+                        break;
+                    case 'Blood_Type':
+                        thName = '血型、Rh(D)';
+                        break;
+                    case 'Blood_Unit':
+                        thName = '血品單位';
+                        break;
+                    case 'Blood_Exp':
+                        thName = '血品效期';
+                        break;
+                }
+                let row = document.createElement('tr');
+                let th = document.createElement('th');
+                th.textContent = thName;
+                row.appendChild(th);
+                let td = document.createElement('td');
+                td.textContent = value;
+                row.appendChild(td);
+                table.appendChild(row);
+            })
+
+            card.appendChild(table);
+            document.getElementById('bloodCardList').appendChild(card);
+        }
+    }
+</script>
+
+<div class="outerDiv" style="display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+            <td style="width: 100%; text-align: left;">
+                <div id="module_define"><label style="margin-left:1rem">@title</label></div>
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align: center; padding: 5px 0 5px 0;">
+                <div class="funcArea">
+                    @*<input type="button" id="save" value="存檔" style="width:50px;" onclick="loading_change()" />*@
+                    <input type="button" value="返回" class="fun_btn" style="width: 60px; background-color: #ed6f6f " onclick="if (confirm('確定返回?')) window.location.href = 'index'" />
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    @*核血作業*@
+    <div style="width:100%;display:flex;justify-content:center">
+        <div style="width: 100%">
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 20px; background-color: #cfe1eb">
+                    <tr>
+                        <td style="width: 25%; background-color: #cfe1eb !important" colspan="6">
+                            <div>
+                                核血作業
+                                <input type="button" id="Edit_BloodVerification" class="fun_btn" value="新增 / 修改" style="width: 100px !important; background-color: #5ab95a" onclick="OpenBloodVerification()" />
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:18px;">
+                    <tr>
+                        <th style="width:15%">核血時間</th>
+                        <td style="width:35%">
+                            <label id="txt_Blood_StartDay"></label>
+                            <label id="txt_Blood_StartTime"></label>
+                        </td>
+                        <th style="width: 15%">核對人員</th>
+                        <td style="width: 35%">
+                            <label id="txt_Record_Id"></label>
+                            <label id="txt_Record_Name"></label>
+                            /
+                            <label id="txt_Blood_VerifyUser1_Id"></label>
+                            <label id="txt_Blood_VerifyUser1_Name"></label>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div id="bloodCardList" style="display:flex;width:100%;overflow:auto">
+            </div>
+        </div>
+    </div>
+
+    @*生命徵象*@
+    <div style="width: 100%; display: flex; justify-content: center; margin-top: calc(0.5rem - 2px)">
+        <div style="width: 100%">
+            <div class="dataHeader">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 20px; background-color: #cfe1eb">
+                    <tr>
+                        <td style="width: 25%; background-color: #cfe1eb !important" colspan="6">
+                            <div>
+                                生命徵象
+                            </div>
+
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="dataArea" style="height: auto;">
+                <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 20px; background-color: #cfe1eb">
+                    <tr>
+                        <th style="width:15%">輸血前15分鐘</th>
+                        <td id="txt_VitalSign_15minBefore" style="width:80%">
+                            <label id="txt_VSData_15minBefore"></label>
+                        </td>
+                        <td style="width:5%">
+                            <div class="funcArea">
+                                <input type="button" id="Edit_VS_15minBefore" class="fun_btn" value="編輯" Serial="" style="width: 60px; background-color: #5ab95a" onclick="OpenVitalSign($(this).attr('Serial'),'15minBefore')" />
+                            </div>
+                        </td>
+                    </tr>
+                    @*<tr>
+                            <th>輸血開始</th>
+                            <td id="txt_VitalSign_Start">
+                                <label id="txt_VSData_Start"></label>
+                            </td>
+                            <td>
+                                <div class="funcArea">
+                                    <input type="button" id="Edit_VS_Start" class="fun_btn" value="編輯" Serial="" style="width: 60px; background-color: #5ab95a" onclick="OpenVitalSign($(this).attr('Serial'),'Start')" />
+                                </div>
+                            </td>
+                        </tr>*@
+                    <tr>
+                        <th>輸血後15分鐘</th>
+                        <td id="txt_VitalSign_15minAfter">
+                            <label id="txt_VSData_15minAfter"></label>
+                        </td>
+                        <td>
+                            <div class="funcArea">
+                                <input type="button" id="Edit_VS_15minAfter" class="fun_btn" value="編輯" Serial="" style="width: 60px; background-color: #5ab95a" onclick="OpenVitalSign($(this).attr('Serial'),'15minAfter')" />
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>輸血結束</th>
+                        <td id="txt_VitalSign_End">
+                            <label id="txt_VSData_End"></label>
+                        </td>
+                        <td>
+                            <div class="funcArea">
+                                <input type="button" id="Edit_VS_End" class="fun_btn" value="編輯" Serial="" style="width: 60px; background-color: #5ab95a" onclick="OpenVitalSign($(this).attr('Serial'),'End')" />
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @*輸血反應*@
+    <div style="width: 100%; display: flex; justify-content: center; margin-top : 0.5rem;flex-grow:1">
+        <div style="width: 100%">
+            <div style="display: flex; width: calc(100% - 15px)">
+                <div class="dataHeader" style="width:100%">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width: 100%; font-size: 20px; background-color: #cfe1eb">
+                        <tr>
+                            <td colspan="12" style="width: 25%; background-color: #cfe1eb !important">
+                                <div>
+                                    輸血反應
+                                    <input type="button" id="Edit_TransfusionReaction" class="fun_btn" value="新增" style="width: 60px; background-color: #5ab95a" onclick="OpenTransfusionReaction()" />
+                                </div>
+                            </td>
+                        </tr>
+                        <tr style="background-color: #a3c7db !important">
+                            <td style="width: 8%; background-color: #a3c7db !important ">編輯</td>
+                            <td style="width: 10%; background-color: #a3c7db !important ">紀錄時間</td>
+                            <td style="width: 18%; background-color: #a3c7db !important ">生命徵象</td>
+                            <td style="width: 12%; background-color: #a3c7db !important ">輸血不適症狀</td>
+                            <td style="width: 12%; background-color: #a3c7db !important ">醫療科輸血反應評估</td>
+                            <td style="width: 20%; background-color: #a3c7db !important ">
+                                反應內容說明
+                            </td>
+                            <td style="width: 10%; background-color: #a3c7db !important ">
+                                停止輸血
+                            </td>
+                            <td style="width: 10%; background-color: #a3c7db !important">
+                                紀錄者
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="dataAreaX" style="">
+            </div>
+        </div>
+    </div>
+</div>

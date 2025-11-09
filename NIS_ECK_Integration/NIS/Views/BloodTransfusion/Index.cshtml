@@ -1,0 +1,203 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    string title = "輸血紀錄單 清單";
+    PatientInfo ptInfo = (PatientInfo)Session["PatInfo"];
+    UserInfo userInfo = (UserInfo)Session["UserInfo"];
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: left;
+        background-color: #d5d5f7 !important;
+        width: 100%;
+        border-radius: 10px !important;
+        font-size: 28px;
+        font-weight: 800;
+        border: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        font-family: Arial, EUDC !important;
+    }
+
+    .funcArea {
+        margin: 0.5rem !important;
+        font-size: 18px !important;
+    }
+
+    .fun_btn {
+        font-size: 17px !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
+        border: 0 !important;
+        color: white !important;
+        padding: 4px 4px 3px 3px !important;
+    }
+
+    .dataHeader td {
+        font-weight: bold;
+        margin: 1px 1px 1px 1px;
+        background-color: #cfe1eb;
+        text-align: center;
+        vertical-align: middle;
+        height: 26px;
+    }
+
+    .dataHeader {
+        border-radius: 10px !important;
+        margin-right: 15px !important;
+    }
+
+    .funcArea table {
+        font-family: Arial, EUDC;
+    }
+
+    .dataArea {
+        border: 0 !important;
+    }
+
+        .dataArea td {
+            border-bottom: 0 !important;
+        }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        DataQuery();
+    });
+
+    //取得輸血紀錄
+    function DataQuery() {
+        loop_windows("open_cover");
+
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/BloodTransfusion/TransfusionListData")',
+            dataType: 'html',
+            data: { feeno: '@ptInfo.FeeNo', start: $('#StartDate').val(), end: $('#EndDate').val() },
+            cache: false,
+            success: function (response) {
+                $('.dataAreaX').html(response);
+            }, complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    // 刪除輸血紀錄
+    function TransfusionDelete(Serial) {
+        if (Serial != null && Serial!='') {
+            $.ajax({
+                url: '@Url.Content("~/BloodTransfusion/TransfusionDelete")',
+                type: 'post',
+                data: { Serial: Serial },
+                success: function (data) {
+                    var alert_message = "";
+                    switch (data.status) {
+                        case 0:
+                            if (data.message) {
+                                alert_message = data.message;
+                            }
+                            alert(alert_message);
+                            window.location.href = 'Index';
+                            break;
+                        default:
+                            if (data.message) {
+                                alert_message = data.message;
+                            }
+                            alert(alert_message);
+                            break;
+                    }
+                },
+                error: function (result) {
+                }
+            });
+        }
+    }
+</script>
+
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+            <td>
+                <div id="module_define">@(title)</div>
+            </td>
+        </tr>
+        <tr>
+            <td style="width: 100%; text-align: center; padding: 5px 0 5px 0;">
+                @*<div class="funcArea">
+                        <input type="button" style="" value="新增輸血紀錄單" onclick="window.location.href = '../BloodTransfusion/Insert'" />
+                    </div>*@
+                <div class="funcArea">
+                    日期：
+                    @Html.TextBox("StartDate", DateTime.Now.AddDays(-7).ToString("yyyy/MM/dd"), new { @OnBlur = "", @class = "form-control input-sm", style = "width:60px;display:inline;" })
+                    @Html.Label("lab", " ~ ")
+                    @Html.TextBox("EndDate", DateTime.Now.ToUniversalTime().AddHours(8).ToString("yyyy/MM/dd"), new { @OnBlur = "", @class = "form-control input-sm", style = "width:60px;display:inline;" })
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "StartDate", "", false)
+                    @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "EndDate", "", false)
+                    <input type="button" class="fun_btn" style="width: 80px; margin-left: 1rem; background-color: #3c7ec3; " value="查詢" onclick="DataQuery();" />
+                    <input type="button" class="fun_btn" style="width: 120px; background-color: #42b55b;" value="新增紀錄單" onclick="window.location.href = '../BloodTransfusion/Insert'" />
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:5px 0 5px 0;">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:18px;">
+                        <tr>
+                            <td rowspan="2" style="width:10%;">編輯</td>
+                            <td rowspan="2" style="width:10.5%;">核血時間</td>
+                            <td rowspan="2" style="width:8%;">血品資訊</td>
+                            <td rowspan="2" style="width:14%;">雙人核對<br>(紀錄者/核對人)</td>
+                            <td colspan="4" style="width:50%;">
+                                生命徵象
+                            </td>
+                            <td rowspan="2" style="width:8%;">
+                                輸血反應
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 16.5%;">
+                                輸血前15分鐘
+                            </td>
+                            @*<td style="width: 12.5%;">
+                                輸血開始
+                            </td>*@
+                            <td style="width: 16.5%;">
+                                輸血後15分鐘
+                            </td>
+                            <td style="width: 16.5%;">
+                                輸血結束
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataAreaX">
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!--評值清單歷次查詢-->
+<div id="drainage_modal" style="width:800px;height:300px;display:none;">
+    <div style="height:300px;width:100%;">
+        <div style="height: 40px;margin-top:10px" id="win_header">
+            血品資訊
+        </div>
+        <div id="win_Dt" style="width:95%;height:200px;overflow-y: auto;margin-left:20px">
+            <div id="bloodCardList" style="display:flex;width:100%;overflow:auto"></div>
+        </div>
+        <div style="height:50px;" id="win_footer">
+            <input type="button" value="關閉" onclick="$.unblockUI();" />
+        </div>
+    </div>
+</div>
+
+@*<link rel="Stylesheet" type="text/css" href="~/Content/StyleSheet/jquery.notty.css" />
+<script type="text/javascript" src="~/Scripts/jquery.notty.js"></script>
+<script type="text/javascript" src="~/Scripts/jquery.contextmenu.r2.js"></script>*@
+

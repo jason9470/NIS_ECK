@@ -1,0 +1,537 @@
+﻿@{
+    //Layout = "~/Views/Layout/Main.cshtml";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+
+<style type="text/css">
+    .dataarea {
+        border: 1px solid rgba(20%,20%,40%,0.5);
+    }
+        .dataarea td {
+            border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        }
+    img {
+        height:24px;
+        width:24px;
+    }
+    .popup {
+        width: auto;
+        height: auto;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -250px 0 0 -300px; /* [-(height/2)px 0 0 -(width/2)px] */
+        display: none;
+        z-index: 99;
+    }
+    .dtree {
+        font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        color: #666;
+        white-space: nowrap;
+    }
+        .dtree img {
+            border: 0px;
+            vertical-align: middle;
+        }
+        .dtree a {
+            color: #333;
+            text-decoration: none;
+        }
+    .dtree a.node, .dtree a.nodeSel {
+        white-space: nowrap;
+        padding: 1px 2px 1px 2px;
+    }
+    .dtree a.node:hover, .dtree a.nodeSel:hover {
+        color: #333;
+        text-decoration: underline;
+    }
+    .dtree a.nodeSel {
+        background-color: #c0d2ec;
+    }
+        .dtree .clip {
+            overflow: hidden;
+        }
+</style>
+
+<script type="text/javascript">
+    $(function () {
+        // 加入focus事件
+        $(window).focus(function () {
+            window.opener.parent.check_session();
+        });
+        $("#phrase_add").draggable();
+        set_default_div();
+        setGridColor();
+        set_unclick('insert_node,rename_node,delete_node,insert_phrase,update_phrase');
+        $('#phrase_data').load('../CareRecord/Phrase_Data');
+        if ('@ViewBag.type' == 'user') {
+            $('#prouduct_button').fadeIn(0);
+            $('#node_button').fadeOut(0);
+            $('#user_button').fadeOut(0);
+            document.getElementById('title').disabled = true;
+            document.getElementById('record_com').disabled = true;
+            document.getElementById('record_s').disabled = true;
+            document.getElementById('record_o').disabled = true;
+            document.getElementById('record_i').disabled = true;
+            document.getElementById('record_e').disabled = true;
+        }
+    });
+
+    function setGridColor() {
+        //格行換色
+        $('.tdeven').css('background', '#ABC8E2');
+        $('.tdodd').css('background', '#E1E6FA');
+    }
+
+    //彈出div
+    function showPopup(id) {
+        var popup = document.getElementById(id);
+        popup.style.display = 'block';
+    }
+
+    function mark(obj) {
+        var nodeid = obj.id;
+        var depth = parseInt($(obj).attr('depth')) + 1;
+        var check_node_name = document.getElementById(obj.id).innerText;
+        $('#depth').val(depth);
+        $('#parent_node').val(nodeid);
+        $('#nodeid').val(nodeid);
+        $('#edit_node_explain').val($(obj).attr('explanation'));
+        document.getElementById('add_node').innerText = check_node_name;
+        $('#edit_node_name').val(check_node_name);
+        document.getElementById('check_node').innerText = check_node_name;
+        $('#ck_nodeid').val(nodeid);
+        var a = $('.dtree a');
+        for (var i = 0; i < a.length; i++) {
+            if (a[i].id == $(obj).attr('fatherid'))
+                document.getElementById('edit_node').innerText = document.getElementById(a[i].id).innerText;
+        }
+        var div = $('.dtree div');
+        var success = false;
+        var del_node = nodeid + ',';
+        for (var i = 0; i < div.length; i++) {
+            if (success) {
+                if (parseInt(depth) - 1 < parseInt($(div[i]).attr('depth'))) {
+                    del_node = del_node + $(div[i]).attr('nodeid') + ',';
+                }
+                else
+                    success = false;
+            }
+            else {
+                if (nodeid == $(div[i]).attr('nodeid'))
+                    success = true;
+            }
+        }
+        $('#del_node').val(del_node.substring(0, del_node.length - 1));
+    }
+    
+    function set_default_div(){
+        var div = $('.dtree div');
+        for (var i =0;i < div.length;i++){  
+            if (parseInt($(div[i]).attr('depth')) < 2) {
+                if ($(div[i]).attr('div_type') == 'hidden') {
+                    $(div[i]).fadeIn(200);
+                    $(div[i]).attr('div_type', 'show');
+                }
+            }
+        }
+    }
+
+    function set_div(obj) {
+        var nodeid = $(obj).attr('nodeid');
+        var depth = $(obj).attr('depth');
+        var div = $('.dtree div');
+        var success = false;
+        for (var i = 0; i < div.length; i++) {
+            if (success) {
+                if (parseInt(depth) < parseInt($(div[i]).attr('depth'))) {
+                    if ($(div[i]).attr('div_type') == 'hidden') {
+                        if (parseInt(depth) + 1 == parseInt($(div[i]).attr('depth'))) {
+                            $(div[i]).fadeIn(200);
+                            $(div[i]).attr('div_type', 'show');
+                        }
+                    }
+                    else {
+                        $(div[i]).fadeOut(100);
+                        $(div[i]).attr('div_type', 'hidden');
+                        set_close($(div[i]).attr('nodeid'));
+                    }
+                }
+                else
+                    success = false;
+            }
+            else {
+                if (nodeid == $(div[i]).attr('nodeid'))
+                    success = true;
+            }
+        }
+        set_img(nodeid);
+    }
+
+    function set_img(nodeid) {
+        var img = $('.img' + nodeid);
+        if ($(img[0]).attr('src') == '../Images/plus.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('plus', 'line_minus'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folder', 'folderopen'));
+        }
+        else if ($(img[0]).attr('src') == '../Images/plusbottom.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('plusbottom', 'minusbottom'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folder', 'folderopen'));
+        }
+        else if ($(img[0]).attr('src') == '../Images/line_minus.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('line_minus', 'plus'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folderopen', 'folder'));
+        }
+        else if ($(img[0]).attr('src') == '../Images/minusbottom.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('minusbottom', 'plusbottom'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folderopen', 'folder'));
+        }
+    }
+
+    function set_close(nodeid) {
+        var img = $('.img' + nodeid);
+        if ($(img[0]).attr('src') == '../Images/line_minus.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('line_minus', 'plus'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folderopen', 'folder'));
+        }
+        else if ($(img[0]).attr('src') == '../Images/minusbottom.gif') {
+            $(img[0]).attr('src', $(img[0]).attr('src').replace('minusbottom', 'plusbottom'));
+            $(img[1]).attr('src', $(img[1]).attr('src').replace('folderopen', 'folder'));
+        }
+    }
+
+    function check() {
+        $('#node_name').val($.trim($('#node_name').val()));
+        $('#node_explain').val($.trim($('#node_explain').val()));
+        if ($('#node_name').val() != '') {
+            if ($('#node_name').val().length < 50 || $('#node_explain').val().length < 500)
+                return true;
+            else
+                alert('字數過長');
+        }
+        else
+            alert('尚未輸入名稱');
+    }
+
+    function phrase_check() {
+        $('#title').val($.trim($('#title').val()));
+        $('#record_com').val($.trim($('#record_com').val()));
+        $('#record_s').val($.trim($('#record_s').val()));
+        $('#record_o').val($.trim($('#record_o').val()));
+        $('#record_i').val($.trim($('#record_i').val()));
+        $('#record_e').val($.trim($('#record_e').val()));
+        if ($('#title').val().length < 50 || $('#record_com').val().length < 1000 || $('#record_s').val().length < 1000 || $('#record_o').val().length < 1000 || $('#record_i').val().length < 1000 || $('#record_e').val().length < 1000) {
+            if ($('#title').val() != '') {
+                if ($('#record_com').val() != '' || $('#record_s').val() != '' || $('#record_o').val() != '' || $('#record_i').val() != '' || $('#record_e').val() != '')
+                    return true;
+                else
+                    alert('請輸入片語內容!');
+            }
+            else
+                alert('請輸入名稱!');
+        }
+        else
+            alert('字數過長!');
+    }
+
+    function data_clear() {
+        $('#ck_data').val('');
+        $('#title').val('');
+        $('#record_com').val('');
+        $('#record_s').val('');
+        $('#record_o').val('');
+        $('#record_i').val('');
+        $('#record_e').val('');
+    }
+
+    function data_click(obj) {
+        $('#ck_data').val($(obj).attr('data_id'));
+        $('#title').val($(obj).attr('data_name'));
+        $('#record_com').val($(obj).attr('C'));
+        $('#record_s').val($(obj).attr('S'));
+        $('#record_o').val($(obj).attr('O'));
+        $('#record_i').val($(obj).attr('I'));
+        $('#record_e').val($(obj).attr('E'));
+    }
+
+    function send_post(send_url, send_data, nodeid, word) {
+        $.ajax({
+            type:'post',
+            url:send_url,
+            data:send_data,
+            success: function (result) {
+                if (result == '1') {
+                    alert(word + '成功');
+                    $('#phrase_data').load('../CareRecord/Phrase_Data?id=' + nodeid);
+                }
+                else
+                    alert(word + '失敗');
+            }
+        });
+    }
+
+    function set_unclick(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('#' + list[i]).css("background-color", "gray");
+            $('#' + list[i]).css("color", "white");
+            document.getElementById(list[i]).disabled = true;
+        }
+    }
+
+    function set_click(id_list) {
+        var list = id_list.split(',');
+        for (var i = 0 ; i < list.length; i++) {
+            $('#' + list[i]).css("background-color", "#9CB7CF");
+            $('#' + list[i]).css("color", "#000000");
+            document.getElementById(list[i]).disabled = false;
+        }
+    }
+
+    function send_record() {
+        try {
+            window.opener.document.getElementById('record_com').value = window.opener.document.getElementById('record_com').value + $('#record_com').val();
+            window.opener.document.getElementById('record_s').value = window.opener.document.getElementById('record_s').value + $('#record_s').val();
+            window.opener.document.getElementById('record_o').value = window.opener.document.getElementById('record_o').value + $('#record_o').val();
+            window.opener.document.getElementById('record_i').value = window.opener.document.getElementById('record_i').value + $('#record_i').val();
+            window.opener.document.getElementById('record_e').value = window.opener.document.getElementById('record_e').value + $('#record_e').val();
+        }
+        catch (e) {
+            window.opener.document.getElementById('@ViewBag.txtid').value = window.opener.document.getElementById('@ViewBag.txtid').value + $('#record_com').val();
+        }
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt_phrase_node = ViewBag.dt_phrase_node;
+}
+<div class="funcArea">
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%;height:550px;">
+        <tr>
+            <td style="width:30%;height:100%;">
+                <table border="1" style="width:100%;height:100%;table-layout:fixed;">
+                    <tr>
+                        <td valign="top" style="height:50%;width:100%;padding:4px 7px 2px 4px;">
+                            <div class="dtree" style="height:100%;">
+                                <div class="clip" style="display:block;height:100%;overflow:auto;">
+                                    <div id="default_node" class="dTreeNode">
+                                        <img src="~/Images/folder.gif" alt="" />
+                                        <a href="#" id="@dt_phrase_node.Rows[0]["NODEID"]" onclick="mark(this);$('#phrase_data').load('../CareRecord/Phrase_Data');set_unclick('rename_node,delete_node,insert_phrase,update_phrase');set_click('insert_node');" depth="@dt_phrase_node.Rows[0]["DEPTH"]">@dt_phrase_node.Rows[0]["NAME"]</a>
+                                    </div>
+                                @{string k = "";}
+                                @for (int i = 1; i < dt_phrase_node.Rows.Count; i++)
+                                {
+                                    string[] K_group = k.Split(',');
+                                    string last_depth = dt_phrase_node.Rows[i - 1]["DEPTH"].ToString();
+                                    string depth = dt_phrase_node.Rows[i]["DEPTH"].ToString();
+                                    string next_depth = depth;
+                                    string nodeid = dt_phrase_node.Rows[i]["NODEID"].ToString();
+                                    if (i + 1 < dt_phrase_node.Rows.Count)
+                                    { next_depth = dt_phrase_node.Rows[i + 1]["DEPTH"].ToString(); }
+                                    <div class="dTreeNode" depth="@depth" nodeid="@nodeid" fatherid="@dt_phrase_node.Rows[i]["PARENT_NODE"]" div_type="hidden" style="display:none;">
+                                        @for (int j = 1; j < int.Parse(depth); j++)
+                                        {
+                                            string name = "line";
+                                            for (int l = 0; l < K_group.Length - 1; l++)
+                                            {
+                                                if (j.ToString() == K_group[l])
+                                                { name = "empty"; }
+                                            }
+                                        <img src="../Images/@(name).gif" alt="" />
+                                        }
+                                        @if (dt_phrase_node.Rows[i]["LAST"].ToString() == "")
+                                        {
+                                            if (k.IndexOf(depth) > -1)
+                                            { k = k.Replace(depth + ",", ""); }
+                                            if (int.Parse(depth) < int.Parse(next_depth))
+                                            {
+                                        <img src="../Images/plus.gif" alt="" class="img@(nodeid)" nodeid="@nodeid" depth="@depth" style="cursor:pointer;" onclick="set_div(this)" />
+                                            }
+                                            else
+                                            {
+                                        <img src="../Images/join.gif" alt="" />
+                                            }
+                                        }
+                                        else
+                                        {
+                                            k += depth + ",";
+                                            if (int.Parse(depth) < int.Parse(next_depth))
+                                            {
+                                        <img src="../Images/plusbottom.gif" alt="" class="img@(nodeid)" nodeid="@nodeid" depth="@depth" style="cursor:pointer;" onclick="set_div(this)" />
+                                            }
+                                            else
+                                            {
+                                        <img src="../Images/joinbottom.gif" alt="" />
+                                            }
+                                        }
+                                        <img src="../Images/folder.gif" class="img@(nodeid)" alt="" />
+                                        <a href="#" id="@nodeid" onclick="mark(this);$('#phrase_data').load('../CareRecord/Phrase_Data?id='+this.id+'&type=@ViewBag.type');set_click('insert_node,rename_node,delete_node,insert_phrase');set_unclick('update_phrase');" depth="@depth" fatherid="@dt_phrase_node.Rows[i]["PARENT_NODE"]" explanation="@dt_phrase_node.Rows[i]["EXPLANATION"]">@dt_phrase_node.Rows[i]["NAME"]</a>
+                                    </div>
+                                }
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td valign="top" style="height:50%;padding:4px 7px 2px 4px;">
+                            <div id="phrase_data" style="display:block;height:100%;overflow:auto;"></div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td style="width:70%;height:100%;">
+                <form id="form_phrase_data" style="height:100%;width:100%;">
+                    <table border="0" class="dataarea" cellpadding="0" cellspacing="0" style="width:100%;height:100%;">
+                        <tr>
+                            <td class="tdodd" colspan="2" valign="top" style="padding:4px 7px 2px 4px;">
+                                <div style="height:30px;">
+                                    <span style="color:Blue;">目前選擇目錄：</span><label id="check_node" style="color:Blue;"></label>
+                                    <input type="hidden" id="ck_nodeid" name="ck_nodeid" />
+                                    <input type="hidden" id="ck_data" name="ck_data" />
+                                    <input type="hidden" id="del_node" />
+                                    @*//20160323 mod 增加類型(全院、單位)*@
+                                </div>
+                                <div id="node_button" style="height:30px;">
+                                    <input id="insert_node" type="button" value="建立新的目錄" onclick="showPopup('phrase_add');" />
+                                    <input id="rename_node" type="button" value="目錄重新命名" onclick="showPopup('phrase_edit');" />
+                                    <input id="delete_node" type="button" value="刪除選擇目錄" onclick="if (confirm('將連同子目錄及片語一同刪除，確定刪除?')) { window.location.href = 'Del_Phrase_node?nodeid=' + $('#del_node').val(); }" />
+                                </div>
+                                
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style=" width:15%;height:30px;text-align:right;">@Html.Label("title", "片語名稱：")</td>
+                            <td class="tdeven" style="width:85%;padding-left:2px;">
+                                @Html.TextBox("title", "", new { style = "width:250px", maxlength = "50" })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style="text-align:right;">@Html.Label("record_com", "一般：")</td>
+                            <td class="tdeven" style="padding-left:2px;">
+                                @Html.TextArea("record_com", "", 4, 60, new { })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style="text-align:right;">@Html.Label("record_s", "S：")</td>
+                            <td class="tdeven" style="padding-left:2px;">
+                                @Html.TextArea("record_s", "", 4, 60, new { })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style="text-align:right;">@Html.Label("record_o", "0：")</td>
+                            <td class="tdeven" style="padding-left:2px;">
+                                @Html.TextArea("record_o", "", 4, 60, new { })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style="text-align:right;">@Html.Label("record_i", "I：")</td>
+                            <td class="tdeven" style="padding-left:2px;">
+                                @Html.TextArea("record_i", "", 4, 60, new { })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" style="text-align:right;">@Html.Label("record_e", "E：")</td>
+                            <td class="tdeven" style="padding-left:2px;">
+                                @Html.TextArea("record_e", "", 4, 60, new { })
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="tdodd" colspan="2" style="text-align:center;">
+                                <div id="prouduct_button" style="display:none;">
+                                    <input id="t1" type="button" value="確定" onclick="send_record(); window.close();" />
+                                    <input id="t2"  type="button" value="取消" onclick="if (confirm('確認取消?')) window.close();" />
+                                </div>
+                                <div id="user_button">
+                                    <input id="insert_phrase" type="button" value="新增片語" onclick="if (phrase_check()) { send_post('Insert_Phrase_data', $('#form_phrase_data').serialize(), $('#ck_nodeid').val(), '新增'); }" />
+                                    <input id="update_phrase" type="button" value="儲存更新" onclick="if (phrase_check()) { send_post('Update_Phrase_data', $('#form_phrase_data').serialize(), $('#ck_nodeid').val(), '更新'); }" />
+                                    <input type="button" value="清除編輯資料" onclick="if (confirm('確認清除?')) data_clear();" />
+                                    <input type="button" value="離開片語維護" onclick="if (confirm('確認離開?')) window.close();" />
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </form>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<form action="Insert_Phrase_node" method="post">
+    <div id="phrase_add" class="popup">
+        <table border="1" cellpadding="1" cellspacing="0" style="width:100%;background-color: #EEEFFF;border: 1px solid #CC88FF;">
+            <tr>
+                <td style="height:35px;text-align:right;">目前所在目錄位置：</td>
+                <td>
+                    <label id="add_node"></label>
+                    <input id="depth" name="depth" type="hidden" />
+                    <input id="parent_node" name="parent_node" type="hidden" />
+                </td>
+            </tr>
+            <tr>
+                <td style="height:35px;text-align:right;">建立新目錄名稱：</td>
+                <td>
+                    @Html.TextBox("node_name", "", new { style = "width:160px;" })
+                    <span style="color:red;">字數限制：50</span>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:right;">目錄說明：</td>
+                <td>
+                    @Html.TextArea("node_explain", "", 10, 40, new { })<br />
+                    <span style="color:red;">字數限制：500</span>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="text-align:center">
+                    <div class="funcArea">
+                        <input type="button" value="確認" onclick="if(check())submit();" />
+                        <input type="button" value="取消" onclick="$('#phrase_add').fadeOut(500);" />
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+
+<form action="Edit_Phrase_node" method="post">
+    <div id="phrase_edit" class="popup">
+        <table border="1" cellpadding="1" cellspacing="0" style="width:100%;background-color: #EEEFFF;border: 1px solid #CC88FF;">
+            <tr>
+                <td style="height:35px;text-align:right;">目前所在目錄位置：</td>
+                <td>
+                    <label id="edit_node"></label>
+                    <input type="hidden" id="nodeid" name="nodeid" />
+                </td>
+            </tr>
+            <tr>
+                <td style="height:35px;text-align:right;">目錄重新命名：</td>
+                <td>
+                    @Html.TextBox("edit_node_name", "", new { style = "width:160px;" })
+                    <span style="color:red;">字數限制：50</span>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:right;">目錄說明：</td>
+                <td>
+                    @Html.TextArea("edit_node_explain", "", 10, 40, new { })<br />
+                    <span style="color:red;">字數限制：500</span>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="text-align:center">
+                    <div class="funcArea">
+                        <input type="button" value="確認" onclick="submit();" />
+                        <input type="button" value="取消" onclick="$('#phrase_edit').fadeOut(500);" />
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>

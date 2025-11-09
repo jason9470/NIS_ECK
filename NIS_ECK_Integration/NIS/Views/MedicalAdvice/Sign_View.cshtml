@@ -1,0 +1,361 @@
+﻿@using NIS.Data;
+@{
+    ViewBag.Title = "Sign_View";
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+}
+<style type="text/css">
+    input[type=checkbox] {
+        width: 20px;
+        height: 20px;
+    }
+
+    .dataArea_content td {
+        border-bottom: 1px solid #666;
+        text-align: center;
+        word-wrap: break-word;
+    }
+
+    #unsign, #sign {
+        display: none;
+    }
+
+    #intorduce input[type=button], #subfunction input[type=button] {
+        width: 120px;
+    }
+    #R, #S {
+        display: none;
+    }
+    .table_content {
+        table-layout: fixed;
+        white-space: nowrap;
+    }
+
+    .dialog {
+        display: none;
+        position: fixed;
+        _position: absolute; /* position fixed for IE6 */
+    }
+
+    #cover {
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        background-color: #666;
+        opacity: 0.6;
+        z-index: 999;
+    }
+
+    #inp {
+        left: 50%;
+        top: 50%;
+        margin-left: -450px;
+        margin-top: -210px;
+        width: 900px;
+        height: 400px;
+        padding-top: 20px;
+        background-color: #FFFFFF;
+        border: 1px solid #666;
+        z-index: 9999;
+        _top: expression(documentElement.scrollTop+(documentElement.clientHeight-this.clientHeight)/2);
+        _margin-top: 0;
+    }
+
+    .sign_order{
+        width: 80px;
+        word-break: break-all;
+        white-space: normal;
+    }
+
+</style>
+
+<script type="text/javascript">
+    function setGridColor() {
+        $("#R, #S").each(function () {
+            $('tr:odd').css('background', '#E1E6FA');
+            $('tr:even').css('background', '#ABC8E2');
+        });
+        $('.dataHeader_div td').css('background', '#85A5CC');
+    }
+
+    $(document).ready(function () {
+
+        $("input[name=signstatus]").click(function () {
+            // 按鈕出現 / 隱藏
+            if ($(this).attr("savebut") == "Y")
+                $("#signsave").prop("disabled", false);
+            else
+                $("#signsave").prop("disabled", true);
+            //切換div
+            var show = $(this).attr("show");
+            var hide = $(this).attr("hide");
+
+            $("#" + hide).hide("slide", {
+                direction: 'left',
+                duration: 200,
+                complete: function () {
+                    $("#" + show).show("slide", {
+                        direction: 'right',
+                        duration: 200
+                    });
+                }
+            });
+        });
+        $("input[name=ordertype]").click(function () {
+            $('input[type=checkbox]').attr("checked", false);
+            //切換div
+            var show = $(this).attr("show");
+            var hideObj = $("#R");
+            //把沒藏起來的找出來
+            $("#R, #S").each(function () {
+                if (!$(this).is(":hidden"))
+                    hideObj = $(this);
+            });
+            $(hideObj).hide("slide", {
+                direction: 'left',
+                duration: 200,
+                complete: function () {
+                    $("#" + show).show("slide", {
+                        direction: 'right',
+                        duration: 200
+                    });
+                }
+            });
+
+
+            if ($(this).attr("show") == "S") {
+                $("#td_Execute_Therapist_time").show();
+            } else
+            {
+                $("#td_Execute_Therapist_time").hide();
+            }
+        });
+
+        setGridColor();
+
+        $("#rb1").prop("checked", true).trigger('click');
+
+        @{
+            string TmpMessage = string.Empty;
+            if (Request["message"] != null)
+            {
+                @Html.Raw("showHint(\"" + Request["message"].ToString() + "\");")
+            }
+        }
+
+    });
+</script>
+<form name="sign_form" action="SignSave" method="post" style="font-family:Arial">
+    <table border="0" width="100%" class="table_content">
+        <tr>
+            <td style="background:#FFFFFF">
+                <span id="ordertype">
+                    <input type="radio" show="R" name="ordertype" id="rb1" />
+                    <label for="rb1">長期醫囑</label>
+                    <input type="radio" show="S" name="ordertype" id="rb2" />
+                    <label for="rb2">臨時醫囑</label>
+                </span>
+            </td>
+            <td style="text-align:right; background:#FFFFFF">
+                <input type="button" value="關閉" onclick="$('#inp').hide(); $('#cover').hide(); $('#DoctorAdcive').hide(); $('#sys_Block').hide();" />
+            </td>
+        </tr>
+    </table>
+    <hr />
+    <div class="funcArea">
+        <div class="dataHeader_div" style="padding-right:16px;">
+            <table border="0" cellpadding="4" cellspacing="1" width="100%" class="table_content">
+                <tr>
+                    <td width="50">囑型</td>
+                    <td width="140">開始日期
+                        <br />
+                        結束日期
+                    </td>
+                    <td style="width:100%;">醫令名稱</td>
+                    <td  width="100">簽收<br />
+                        護理師/時間
+                    </td>
+                    <td id="td_Execute_Therapist_time" width="100" style="display:none;"> 執行<br />
+                        護理師/時間
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="dataArea_content" id="R" style="overflow-y: scroll;height:300px;">
+            <table border="0" cellpadding="4" cellspacing="1" width="100%" class="table_content"  >
+                @{
+                    List<SignOrder> signorder = (List<SignOrder>)ViewData["signorder"];
+                    if (signorder != null)
+                    {
+                        for (int i = 0; i <= signorder.Count - 1; i++)
+                        {
+                            if(signorder[i].order_type == "R")
+                            {
+                            string idx = signorder[i].sheet_no.ToString() + i.ToString();
+                            <tr>
+                                <td width="50">
+                                    @if (signorder[i].order_type == "R")
+                                    {
+                                        <label>長期</label>
+                                    }
+                                    else if (signorder[i].order_type == "S")
+                                    {
+                                        <label>臨時</label>
+                                    }
+                                </td>
+
+                                <td width="140" style="font-size: 14px;">
+                                    @if (signorder[i].start_date != DateTime.MinValue)
+                                    {
+                                        @(signorder[i].start_date.ToString("yyyy/MM/dd HH:mm:ss"))
+                                    }
+                                    else
+                                    {
+                                        @:&nbsp;
+                                    }
+                                    <hr style="height: 1px;" />
+                                    @if (signorder[i].end_date != DateTime.MaxValue)
+                                    {
+                                        @(signorder[i].end_date.ToString("yyyy/MM/dd HH:mm:ss"))
+                                    }
+                                    else
+                                    {
+                                        @:&nbsp;
+                                    }
+                                </td>
+                                <td class="sign_order" style="text-align: left;width:100%;">
+                                    @Html.Raw(signorder[i].order_content.Replace("#br#", "<br />"))
+                                    @*@(signorder[i].order_content)*@
+                                </td>
+                                <td width="100" style="font-size: 14px;">
+                                    <label for="lab" title="@(signorder[i].sign_user)">
+                                        @(signorder[i].sign_user_name)
+                                        &nbsp;
+                                    </label>
+                                    <hr />
+                                    @if (signorder[i].sign_time.ToString("yyyy/MM/dd HH:mm:ss") != "0001/01/01 00:00:00")
+                                    {
+                                       <label style="font-size:11px;">
+                                        @(signorder[i].sign_time.ToString("yyyy/MM/dd"))
+                                        </label>
+                                        <br />
+                                        <label style="font-size:11px;">
+                                         @(signorder[i].sign_time.ToString("HH:mm:ss"))
+                                        </label>
+                                    }
+                                    else
+                                    {
+                                        @:&nbsp;
+                                        }
+                                </td>
+                            </tr>
+                        }}}
+                }
+            </table>
+        </div>
+        <div class="dataArea_content" id="S" style="overflow-x:hidden;overflow-y:scroll;height:300px;">
+            <table border="0" cellpadding="4" cellspacing="1" width="100%" class="table_content">
+                @{
+                    if (signorder != null)
+                    {
+                        for (int i = 0; i <= signorder.Count - 1; i++)
+                        {
+                            if(signorder[i].order_type == "S")
+                            {
+                            string idx = signorder[i].sheet_no.ToString() + i.ToString();
+                            <tr>
+                                <td width="50">
+                                    @if (signorder[i].order_type == "R")
+                                    {
+                                        <label>長期</label>
+                                    }
+                                    else if (signorder[i].order_type == "S")
+                                    {
+                                        <label>臨時</label>
+                                    }
+                                </td>
+
+                                <td width="140" style="font-size: 14px;">
+                                    @if (signorder[i].start_date != DateTime.MinValue)
+                                    {
+                                        @(signorder[i].start_date.ToString("yyyy/MM/dd HH:mm:ss"))
+                                    }
+                                    else
+                                    {
+                                        @:&nbsp;
+                                    }
+                                    <hr style="height: 1px;" />
+                                    @if (signorder[i].end_date != DateTime.MaxValue)
+                                    {
+                                        @(signorder[i].end_date.ToString("yyyy/MM/dd HH:mm:ss"))
+                                    }
+                                    else
+                                    {
+                                        @:&nbsp;
+                                    }
+                                </td>
+                                <td class="sign_order" style="text-align: left;width:100%;">
+                                   @* @(signorder[i].order_content)*@
+                                    @Html.Raw(signorder[i].order_content.Replace("#br#", "<br />"))
+                                </td>
+                                <td width="100" style="font-size: 14px;">
+                                    <label for="lab" title="@(signorder[i].sign_user)">
+                                        @(signorder[i].sign_user_name)
+                                        &nbsp;
+                                    </label>
+                                    <hr />
+                                    @if (signorder[i].sign_time.ToString("yyyy/MM/dd HH:mm:ss") != "0001/01/01 00:00:00")
+                                    {
+                                        <label style="font-size:11px;">
+                                        @(signorder[i].sign_time.ToString("yyyy/MM/dd"))
+                                        </label>
+                                        <br />
+                                        <label style="font-size:11px;">
+                                         @(signorder[i].sign_time.ToString("HH:mm:ss"))
+                                        </label>
+                                    }
+                                    else
+                                    {
+                                        @:&nbsp;
+                                        }
+                                </td>
+                                 <td name="td_exe_dataArea" width="100" style="font-size: 14px;">
+                                    @{
+                                        string tempstr = (signorder[i].order_type == "R" || signorder[i].order_type == "DC" || signorder[i].order_type == "D") ? "td_div_lab_dataArea" : "";
+                                    }
+                                        <div name="@(tempstr)">
+
+                                            <label for="lab" @*title="@(signorder[i].sign_user)"0001/01/01 00:00:00*@>
+                                                @(signorder[i].record_name)
+
+                                            &nbsp;
+                                        </label>
+                                        <hr />
+                                            
+                                        @if (signorder[i].record_time != "")
+                                        {
+                                            if (Convert.ToDateTime(signorder[i].record_time).ToString("yyyy/MM/dd HH:mm:ss") != "0001/01/01 00:00:00")
+                                            {
+                                                <label style="font-size:11px;">
+                                                @(Convert.ToDateTime(signorder[i].record_time).ToString("yyyy/MM/dd"))
+                                           </label>
+                                                     <br />
+                                             <label style="font-size:11px;">
+                                                 @(Convert.ToDateTime(signorder[i].record_time).ToString("HH:mm:ss")) 
+                                            </label>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @:&nbsp;
+                                        }
+                                            
+                                    </div>
+                                </td>
+                            </tr>
+                        }}}
+                  }
+            </table>
+        </div>
+    </div>
+</form>

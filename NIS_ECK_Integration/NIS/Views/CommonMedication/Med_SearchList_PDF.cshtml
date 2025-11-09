@@ -1,0 +1,114 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo ptinof = (NIS.Data.PatientInfo)ViewData["ptinfo"];
+}
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        To_Search();
+    });
+
+    function To_Search() {
+        Med_SearchList(function () {
+            setGridColor();
+        });
+    }
+
+    //載入疼痛部位列表
+    function Med_SearchList(CallBack) {
+        //清空列表
+        $('#Dt tbody').empty();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/CommonMedication/Med_SearchList")',
+            data: { 'Date': '@ViewBag.Date', 'FeeNo': '@ptinof.FeeNo' },
+            async:false,
+            success: function (data) {
+                if (data != '') {
+                    var List = JSON.parse(data);
+                    if (List.length > 0) {
+                        //塞入List
+                        $.each(List, function (i, item) {
+                            //複製基本樣式
+                            var Temp = $('#Dt thead tr').clone().show();
+                            $.each($(Temp).find('td[data-filed]'), function (i, td) {
+                                if (!!item[$(td).attr('data-filed')])
+                                    $(td).text(item[$(td).attr('data-filed')]);
+                            });
+                            //加入列表
+                            $('#Dt tbody').append(Temp);
+                        });
+                    }
+                    else
+                        $('#Dt tbody').append('<tr><td colspan="5" style="text-align:center;">查無資料！</td></tr>');
+                }
+            },
+            complete: function () {
+                if (!!CallBack)
+                    CallBack();
+            }
+        });
+    }
+
+    function setGridColor() {
+        //格行換色
+        $('#Dt tr:odd').css('background', '#ABC8E2');
+        $('#Dt tr:even').css('background', '#E1E6FA');
+    }
+</script>
+
+<table border="0" style="width:100%;font-family: EUDC !important;">
+    <tr>
+        <td>病人姓名：@ptinof.PatientName</td>
+        @if(ptinof.Birthday != null)
+        {
+        <td>生日：@Convert.ToDateTime(ptinof.Birthday).ToString("yyyy/MM/dd")</td>
+        }
+        else
+        {
+        <td>生日：</td>
+        }
+        <td>年齡：@(ptinof.Age)  &nbsp; 性別：@(ptinof.PatientGender)</td>
+        @*<td>病床號：@ptinof.BedNo</td>*@
+                    
+        <td colspan="2">病歷號：@ptinof.ChartNo</td>
+    </tr>
+    <tr>
+        <td>科別：@ptinof.DeptName</td>
+        <td>主治醫師：@ptinof.DocName</td>
+        @if (ptinof.InDate != null)
+        {
+        <td>住院日期：@Convert.ToDateTime(ptinof.InDate).ToString("yyyy/MM/dd HH:mm") (@ptinof.InDay)</td>
+        }
+        else
+        {
+        <td>住院日期：</td>
+        }      
+        <td colspan="2">診斷：@ptinof.ICD9_code1</td>
+    </tr>
+</table>
+<div class="dataHeader" style="margin-top:10px;margin-right:0px;">
+    <table border="0" cellpadding="4" cellspacing="1" style="font-size:14px;width:100%;">
+        <tr>
+            <td>藥名</td>
+            <td style="width:10%;">劑量</td>
+            <td style="width:8%;">頻次</td>
+            <td style="width:7%;">途徑</td>
+            <td style="width:55%;">給藥註記</td>
+        </tr>
+    </table>
+</div>
+<div>
+    <table border="0" cellpadding="4" cellspacing="1" style="font-size:14px;width:100%;" id="Dt">
+        <thead>
+            <tr style="display:none;">
+                <td data-filed="MED_DESC"></td>
+                <td style="width:10%;" data-filed="UD_DOSE"></td>
+                <td style="width:8%;" data-filed="UD_CIR"></td>
+                <td style="width:7%;" data-filed="UD_PATH"></td>
+                <td style="width:55%;text-align:left;" data-filed="REMARK"></td>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>

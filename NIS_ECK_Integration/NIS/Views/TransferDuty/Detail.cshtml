@@ -1,0 +1,208 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+
+}
+<style type="text/css">
+
+    .pt_info label {
+        padding: 5px 10px 5px 10px;
+        font-size: 14px;
+        font-family: "微軟正黑體";
+        background: #E1E6FA;
+        border: 1px solid #CCCCCC;
+        border-right: 2px solid #AAAAAA;
+        border-bottom: 2px solid #AAAAAA;
+        display: inline-block;
+    }
+    input[type=button] {
+        padding: 5px 10px 5px 10px;
+        height: 28px;
+        font-size: 16px;
+    }
+
+    .dataViewer {
+
+    }
+
+</style>
+
+<script type="text/javascript">
+
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+    }
+
+    function setDataAreaSize() {
+
+        var top = 130;
+        if ($(".dataViewer").position().top != 0)
+            top = $(".dataViewer").position().top;
+        var height = $(document).height() - top - 30;
+
+        if (height <= 460)
+            height = 460;
+        $(".dataViewer").height(height);
+        $(".loading").center();
+    }
+
+    $(document).ready(function () {
+        close_pup_window();
+        setGridColor();
+
+        // 含有too的按鈕該做的事情
+        $("input[to]").click(function () {
+
+            $("input[to]").css("color", "black");
+            $(this).css("color", "blue");
+            
+            var cUrl = $(this).attr("to");
+            switch($(this).attr("optype")){
+                case "I":
+                    $(".loading").show();
+                    $("input[to]").prop("disabled", true);
+                    $(".dataViewer").stop().hide("slide", {
+                        direction: 'left',
+                        duration: 200,
+                        complete: function () {
+                            $.ajax({
+                                url: cUrl,
+                                success: function (data) {
+                                    $(".dataViewer").html(data).show("slide", {
+                                        direction: 'right',
+                                        duration: 200,
+                                        complete: function () {
+                                            $("input[to]").prop("disabled", false);
+                                            $(".loading").fadeOut(1000);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                    break;
+                case "B":
+                    new_window.push(window.open(cUrl, "newwin", "menubar=no, status=no, titlebar=no, toolbar=no, directories=no, channelmode=no"));
+                    break;
+                case "P":
+                    location.href= cUrl;
+                    break;
+            }
+            
+        });
+
+        $("input[value=詳細資料]").trigger('click');
+
+        $(window).resize(function () { setDataAreaSize(); }).trigger('resize');
+    });
+
+</script>
+<div class="loading" style="display:none;">
+    <img src="~/Images/System/loading.gif" alt="" border="0" />
+</div>
+<p class="pt_info">
+
+    @{
+        PatientInfo piInfo = (PatientInfo)ViewData["ptinfo"];
+        string fee_no = piInfo.FeeNo.Trim();
+        string chr_no = piInfo.ChartNo;
+        
+        List<PatientInfo> allergy_list = (List<PatientInfo>)ViewData["Allergy"];
+        <table class="patmain" border="0" cellspacing="4" width="100%">
+            <tr>
+                <td class="info" width="17%">
+                    @(LanguagePack.Menu.TitlePatName)：
+                    @(piInfo.PatientName)
+                </td>
+                <td class="info" width="22%">
+                    @(LanguagePack.Menu.TitleBirthDay)：
+                    @WebTool.toRocDate(piInfo.Birthday)
+                </td>
+                <td class="info" width="10%">
+                    @(LanguagePack.Menu.TitleAge)：
+                    @(piInfo.Age.ToString())
+                </td>
+                <td class="info" width="17%">
+                    @(LanguagePack.Menu.TitleBedNo)：
+                    @(piInfo.BedNo.ToString())
+                </td>
+                <td class="war">
+                    @(LanguagePack.Menu.TitleMemo)：
+                    @if (piInfo.DNR.ToString() == "Y")
+                    {
+                        @:拒&nbsp;&nbsp;
+                    }
+                    @if (piInfo.Suicide.ToString() == "Y")
+                    {
+                        @:傷&nbsp;&nbsp;
+                    }
+                    @if (piInfo.Hospice.ToString() == "Y")
+                    {
+                        @:寧&nbsp;&nbsp;
+                    }
+                    @if (piInfo.OrganDonation.ToString() == "Y")
+                    {
+                        @:捐&nbsp;&nbsp;
+                    }
+                    @if (piInfo.Allergy.ToString() == "Y")
+                    {
+                        string title = "過敏清單：\n";
+                        for (int i = 0; i < allergy_list.Count; i++)
+                        {
+                            title += "項目" + (i + 1) + "：" + allergy_list[i].AllergyDesc + "\n";
+                        }
+                        <label title="@title">敏&nbsp;&nbsp;</label>
+                    }
+                    @if (piInfo.Security.ToString() == "Y")
+                    {
+                        @:密&nbsp;&nbsp;
+                    }
+                    @if (ViewBag.pressure != null)
+                    {
+                        @ViewBag.pressure@:&nbsp; &nbsp;
+                    }
+                    @if (ViewBag.pain != null)
+                    {
+                        @ViewBag.pain@:&nbsp; &nbsp;
+                    }
+                </td>
+            </tr>
+            <tr title="@(piInfo.FeeNo)">
+                <td class="info">
+                    @(LanguagePack.Menu.TitleVS)：
+                    @(piInfo.DocName.ToString())
+                </td>
+                <td class="info">
+                    @(LanguagePack.Menu.TitleIpdDate)：
+                    @WebTool.toRocDate(piInfo.InDate)
+                    (@(piInfo.InDay.ToString()))
+                </td>
+                <td class="info">
+                    @(LanguagePack.Menu.TitleGender)：
+                    @(piInfo.PatientGender)
+                </td>
+                <td class="info">
+                    @(LanguagePack.Menu.TitleChrNo)：
+                    @(piInfo.ChartNo)
+                </td>
+                <td class="war">
+                    @(LanguagePack.Menu.TitleDiag)：
+                    @(piInfo.ICD9_code1)
+                </td>
+            </tr>
+        </table>
+    }
+</p>
+<p class="but_area">
+    <input type="button" optype="I" to="../TransferDuty/InHistory?chr_no=@(chr_no)&flag=c" value="住院歷程" />
+    <input type="button" optype="I" to="../TransferDuty/OrderList?fee_no=@(fee_no)" value="醫囑" />
+    <input type="button" optype="I" to="../TransferDuty/Surgery_Check?fee_no=@(fee_no)" value="手術前準備查檢表" />
+    <input type="button" optype="I" to="../TransferDuty/HandOver?fee_no=@(fee_no)" value="轉送查核表" />
+    <input type="button" optype="I" to="../TransferDuty/DetailMain?fee_no=@(fee_no)" value="詳細資料" />
+    <input type="button" optype="P" to="../TransferDuty/TransferDuty_List" value="返回" />
+</p>
+<div class="dataViewer">
+
+</div>

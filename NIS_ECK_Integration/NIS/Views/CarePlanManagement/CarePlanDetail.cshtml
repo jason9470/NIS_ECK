@@ -1,0 +1,337 @@
+﻿@using NIS.Models;
+@{
+    List<SelectListItem> TypeList = (List<SelectListItem>)ViewData["typeList"];
+}
+
+<style type="text/css">
+    #topic_panel {
+        width: 99%;
+        margin-top: 3px;
+        text-align: left;
+        display: inline-block;
+        padding: 5px;
+        height: 60px;
+        background-color: #D9EDF7;
+        border: 1px solid silver;
+        margin-bottom: 2px;
+        vertical-align: bottom;
+        overflow-y: auto;
+        margin-left: 2px;
+        border-radius: 5px;
+        word-break: break-all;
+    }
+
+    .dtl_title {
+        display: block;
+        width: 100%;
+        font-size: 16px;
+        color: #0000CC;
+        background-color: #ABC8E2;
+        text-align: center;
+        font-weight: bold;
+        border: 1px solid silver;
+        border-top-right-radius: 5px;
+        -moz-border-topright-radius: 5px;
+        -webkit-border-topright-radius: 5px;
+        border-top-left-radius: 5px;
+        -moz-border-topleft-radius: 5px;
+        -webkit-border-topleft-radius: 5px;
+    }
+
+    .dtl_Content {
+        border: 1px solid silver;
+        background-color: #D9EDF7;
+        overflow-y: scroll;
+        font-size: 14px;
+        border-bottom-right-radius: 5px;
+        -moz-border-bottom-right-radius: 5px;
+        -webkit-border-bottom-right-radius: 5px;
+        border-bottom-left-radius: 5px;
+        -moz-border-bottom-left-radius: 5px;
+        -webkit-border-bottom-left-radius: 5px;
+    }
+
+    .dtl_item {
+        margin: 2px;
+        padding: 2px;
+        width: 97%;
+        border: 1px solid silver;
+    }
+
+        .dtl_item:hover {
+            background-color: #a9bbfe;
+        }
+
+        .dtl_item_dis {
+            background-color: #fbabab;
+        }
+
+    .littleImg {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        vertical-align: middle;
+    }
+</style>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dtl_Content").outerHeight((height - 200) / 2);
+        }).trigger("resize");
+    });
+
+    function replace_(num) {
+        return num.replace(/,/g, "，");
+    }
+
+    function Back() {
+        loop_windows("open_cover");
+        $('#CarePlanDetail').empty();
+        $('#CarePlanIndex').show();
+        loop_windows("close_cover");
+    }
+
+    function ToClone(obj) {
+        var Temp = $('.' + $(obj).attr('id')).clone().show().removeClass($(obj).attr('id'));
+        $('.' + $(obj).attr('data-Clone')).append(Temp);
+    }
+
+    function BtnAbleChange(obj) {
+        $(obj).hide().attr('data-select', 'Y');
+        $(obj).parent().find('input[type=button][name=' + $(obj).attr('name') + '][data-value!=' + $(obj).attr('data-value') + ']').show().attr('data-select', 'N');
+        if ($(obj).attr('data-value') == 'Y')
+            $(obj).parent().removeClass('dtl_item_dis');
+        else
+            $(obj).parent().addClass('dtl_item_dis');
+    }
+
+    function Save() {
+        //編輯
+        if ($('#OldDiagnosisCode').val() != "") {
+            if (CheckDetail()) {
+                ToSave();
+            }
+        }
+        else {
+            //新增
+            CheckDiagnosisCode($('#DiagnosisCode'), function () {
+                if (CheckDetail()) {
+                    ToSave();
+                }
+            });
+        }
+    }
+
+    function CheckDiagnosisCode(obj, CallBack) {
+        if ($.trim($(obj).val()) != "") {
+            var ck = true;
+            $.ajax({
+                type: 'POST',
+                url: "@Url.Content("~/CarePlanManagement/Sel_Topic")",
+                data: { 'DiagnosisCode': $.trim($(obj).val()) },
+                success: function (data) {
+                    if (data == "Y") {
+                        alert('此代碼已經使用過了');
+                        $(obj).focus();
+                        ck = false;
+                    }
+                },
+                complete: function () {
+                    if (ck)
+                        CallBack();
+                }
+            });
+        }
+        else {
+            alert('請項目為必填');
+            $(obj).focus();
+            return false;
+        }
+    }
+
+    function CheckDetail() {
+        var ck = true;
+        $.each($('#DiagnosisDesc, #DiagnosisDomain'), function (i, item) {
+            if (ck) {
+                if ($.trim($(item).val()) == "") {
+                    alert('請項目為必填');
+                    $(item).focus();
+                    ck = false;
+                    return false;
+                }
+            }
+        });
+        return ck;
+    }
+
+    function ToSave() {
+        loop_windows("open_cover");
+        var FeatureList = [];
+        var FeatureObj;
+        $.each($('.dtl_Content_Feature .dtl_item'), function (i, item) {
+            if ($.trim($(item).find('input[type=text]').val()) != "") {
+                FeatureObj = new Object();
+                FeatureObj["FEATURE_CODE"] = i;
+                FeatureObj["FEATURE_DESC"] = $.trim($(item).find('input[type=text]').val());
+                FeatureObj["DISABLE_DATE"] = $(item).find('input[type=button][data-select=Y]').attr('data-value');
+                FeatureList.push(FeatureObj);
+            }
+        });
+        var TargetList = [];
+        var TargetObj;
+        $.each($('.dtl_Content_Target .dtl_item'), function (i, item) {
+            if ($.trim($(item).find('input[type=text]').val()) != "") {
+                TargetObj = new Object();
+                TargetObj["TARGET_CODE"] = i;
+                TargetObj["TARGET_DESC"] = $.trim($(item).find('input[type=text]').val());
+                TargetObj["DISABLE_DATE"] = $(item).find('input[type=button][data-select=Y]').attr('data-value');
+                TargetList.push(TargetObj);
+            }
+        });
+        var InducementsList = [];
+        var InducementsObj;
+        $.each($('.dtl_Content_Inducements .dtl_item'), function (i, item) {
+            if ($.trim($(item).find('input[type=text]').val()) != "") {
+                InducementsObj = new Object();
+                InducementsObj["INDUCEMENTS_CODE"] = i;
+                InducementsObj["INDUCEMENTS_DESC"] = $.trim($(item).find('input[type=text]').val());
+                InducementsObj["DISABLE_DATE"] = $(item).find('input[type=button][data-select=Y]').attr('data-value');
+                InducementsList.push(InducementsObj);
+            }
+        });
+        var MeasureList = [];
+        var MeasureObj;
+        $.each($('.dtl_Content_Measure .dtl_item'), function (i, item) {
+            if ($.trim($(item).find('input[type=text]').val()) != "") {
+                MeasureObj = new Object();
+                MeasureObj["MEASURE_CODE"] = i;
+                MeasureObj["MEASURE_DESC"] = $.trim($(item).find('input[type=text]').val());
+                MeasureObj["DISABLE_DATE"] = $(item).find('input[type=button][data-select=Y]').attr('data-value');
+                MeasureList.push(MeasureObj);
+            }
+        });
+        $.ajax({
+            type: 'POST',
+            url: "@Url.Content("~/CarePlanManagement/SaveCarePlan")",
+            data: {
+                'OldDiagnosisCode': $('#OldDiagnosisCode').val()
+                , 'DiagnosisCode': $.trim($('#DiagnosisCode').val())
+                , 'DiagnosisDesc': $.trim($('#DiagnosisDesc').val())
+                , 'DiagnosisDomain': $('#DiagnosisDomain').val()
+                , 'FeatureList': JSON.stringify(FeatureList)
+                , 'TargetList': JSON.stringify(TargetList)
+                , 'InducementsList': JSON.stringify(InducementsList)
+                , 'MeasureList': JSON.stringify(MeasureList)
+            },
+            success: function (data) {
+                if (data == "Y") {
+                    alert('儲存成功！');
+                    location.reload();
+                }
+                else
+                    alert('儲存失敗！');
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+</script>
+
+<div style="margin:5px;text-align:center;" >
+    <input type="button" value="儲存" onclick="Save();" style="width:60px;" />
+    <input type="button" value="返回" onclick="Back();" style="width:60px;" />
+    <input type="hidden" id="OldDiagnosisCode" />
+</div>
+<div id="topic_panel">
+    <div>
+        <label for="DiagnosisCode">護理診斷代碼：</label>
+        <input type="text" id="DiagnosisCode" name="DiagnosisCode" value="" />
+        <label for="DiagnosisName">護理診斷名稱：</label>
+        <input type="text" id="DiagnosisDesc" name="DiagnosisName" value="" />
+    </div>
+    <div style="margin-top:5px;">
+        <label>領域：</label>
+        <select id="DiagnosisDomain" class="form-control input-sm" style="width:160px;">
+            <option value="">請選擇 Nanda領域</option>
+            @if(TypeList != null && TypeList.Count > 0)
+            {
+                foreach(SelectListItem item in TypeList)
+                {
+            <option value="@item.Value">@(item.Text)</option>
+                }
+            }
+        </select>
+    </div>
+</div>            
+<table style="width:100%;">
+    <tr>
+        <td style="width:40%;">
+            <div>
+                <span class="dtl_title">定義性特徵
+                    <img id="AddFeature" class="littleImg" src="~/Images/plus.png" data-Clone="dtl_Content_Feature" onclick="ToClone(this);" />
+                </span>
+                <div class="dtl_item AddFeature" style="display:none;">
+                    <img class="littleImg" src="~/Images/minus.png" title="刪除" alt="刪除" onclick="$(this).parent().remove();" />
+                    <input type="text" name="FeatureDesc" style="width:auto;" />
+                    <input type="button" name="FeatureAble" value="啟用" data-select="Y" data-value="Y" onclick="BtnAbleChange(this);" style="width:60px;display:none;" />
+                    <input type="button" name="FeatureAble" value="停用" data-select="N" data-value="N" onclick="BtnAbleChange(this);" style="width:60px;background-color:#c9302c;color:white;" />
+                </div>
+                <div class="dtl_Content dtl_Content_Feature">
+                </div>
+            </div>
+        </td>
+        <td style="width:60%;">
+            <div>
+                <span class="dtl_title">目標
+                    <img id="AddTarget" class="littleImg" src="~/Images/plus.png" data-Clone="dtl_Content_Target" onclick="ToClone(this);" />
+                </span>
+                <div class="dtl_item AddTarget" style="display:none;">
+                    <img class="littleImg" src="~/Images/minus.png" title="刪除" alt="刪除" onclick="$(this).parent().remove();" />
+                    <input type="text" name="TargetDesc" style="width:75%;" />
+                    <input type="button" name="TargetAble" value="啟用" data-select="Y" data-value="Y" onclick="BtnAbleChange(this);" style="width:60px;display:none;" />
+                    <input type="button" name="TargetAble" value="停用" data-select="N" data-value="N" onclick="BtnAbleChange(this);" style="width:60px;background-color:#c9302c;color:white;" />
+                </div>
+                <div class="dtl_Content dtl_Content_Target">
+                </div>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <td style="width: 40%">
+            <div>
+                <span class="dtl_title">相關因素
+                    <img id="AddInducements" class="littleImg" src="~/Images/plus.png" data-Clone="dtl_Content_Inducements" onclick="ToClone(this);" />
+                </span>
+                <div class="dtl_item AddInducements" style="display:none;">
+                    <img class="littleImg" src="~/Images/minus.png" title="刪除" alt="刪除" onclick="$(this).parent().remove();" />
+                    <input type="text" name="InducementsDesc" style="width:auto;" />
+                    <input type="button" name="InducementsAble" value="啟用" data-select="Y" data-value="Y" onclick="BtnAbleChange(this);" style="width:60px;display:none;" />
+                    <input type="button" name="InducementsAble" value="停用" data-select="N" data-value="N" onclick="BtnAbleChange(this);" style="width:60px;background-color:#c9302c;color:white;" />
+                </div>
+                <div class="dtl_Content dtl_Content_Inducements">
+                </div>
+            </div>
+        </td>
+        <td style="width: 60%">
+            <div>
+                <span class="dtl_title">護理措施
+                    <img id="AddMeasure" class="littleImg" src="~/Images/plus.png" data-Clone="dtl_Content_Measure" onclick="ToClone(this);" />
+                </span>
+                <div class="dtl_item AddMeasure" style="display:none;">
+                    <img class="littleImg" src="~/Images/minus.png" title="刪除" alt="刪除" onclick="$(this).parent().remove();" />
+                    <input type="text" name="MeasureDesc" style="width:75%;" />
+                    <input type="button" name="MeasureAble" value="啟用" data-select="Y" data-value="Y" onclick="BtnAbleChange(this);" style="width:60px;display:none;" />
+                    <input type="button" name="MeasureAble" value="停用" data-select="N" data-value="N" onclick="BtnAbleChange(this);" style="width:60px;background-color:#c9302c;color:white;" />
+                </div>
+                <div class="dtl_Content dtl_Content_Measure">
+                </div>
+            </div>
+        </td>             
+    </tr>
+</table>

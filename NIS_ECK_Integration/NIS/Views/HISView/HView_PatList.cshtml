@@ -1,0 +1,133 @@
+﻿@using NIS.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";   
+}
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("td[to]").click(function () {
+            var fee_no = $(this).attr('feeno');
+            var chr_no = $(this).attr('chrno');
+            $.ajax({
+                type: 'POST',
+                url: "Session_Modify",
+                data: { funurl: "get" },
+                success: function (data) {
+                    if (data != "") {
+                        var url = data.replace("[FeeNo]", fee_no);
+                        url = url.replace("[ChrNo]", chr_no);
+                        window.open(url, 'right');
+                    }
+                },
+                error: function (data) { }
+            });
+            window.open('HView_Function?feeno=' + fee_no, 'top');
+        });
+
+        $(".pldiv tr").hover(
+            function () {
+                $(this).find(".pltd").css({ "background-color": "#dbed69" });
+            },
+            function () {
+                $(this).find(".pltd").css({ "background-color": "#D3DAED" });
+            }
+        );
+        //病歷號 ENTER
+        $("#PatientNo").keypress(function (e) {
+            var code = (e.keyCode ? e.keyCode : e.which);
+            if (code == 13) { //Enter keycode
+                if (Trim($("#PatientNo").val().toString()) == "") {
+                    alert("未輸入病歷號，請重新確認。");
+                    return false;
+                }
+                else {
+                    //$("#PatientNo").val(padLeft(Trim($("#PatientNo").val().toString()), 8, "0"));  //josan
+                    //判斷是否本地端IP
+                    if ("@(global_asax.localIp)".substring(0, 7) == "10.168.")
+                    {
+                        $("#PatientNo").val( Trim($("#PatientNo").val()) );
+                    }else {
+                        $("#PatientNo").val(padLeft(Trim($("#PatientNo").val().toString()), 10, "0"));
+                    }
+                    $.ajax({
+                        type: 'POST',
+                        url: "WebS_InHistory",
+                        data: "str_Barcode=" + Trim($("#PatientNo").val().toString()),
+                        success: function (data) {
+                            if (data == "Error")
+                                alert("此病歷號[" + $("#PatientNo").val() + "]無住院紀錄，請重新確認。");
+                            else if (data == "Not in IPD")
+                                ipdhistory();
+                            else {
+                                window.open(data, 'top');
+                            }
+                        },
+                        error: function (data) {
+                            alert("查無此病歷號[" + $("#PatientNo").val() + "]，請重新確認。");
+                        }
+                    });
+                }
+                return false;
+            }
+        });
+    });
+
+    function loadPatList() {
+        window.open('HView_PatList?costcode=' + $("#selStation").val(), '_self');
+    }
+
+    function ipdhistory() {
+        if ($("#PatientNo").val() != "") {
+            var chrno = padLeft(Trim($("#PatientNo").val().toString()), 8, "0");
+            $("#PatientNo").val(chrno);
+            window.open("./HView_InHistory?chr_no=" + chrno + "&flag=view", "top_dialog", "menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=500,height=300");
+        }
+        return;
+    }
+</script>
+<style>
+    .pltd {
+        background-color: #D3DAED;
+        cursor: pointer;
+        text-align:center;
+        font-weight: bold;
+    }
+    .plth {
+        text-align: center;
+        font-weight: bold;
+        background-color: #DDDDCC
+    }
+</style>
+<body background="../Images/bg157.gif">
+@{
+    <label>病歷號：</label>
+    @Html.TextBox("PatientNo", "", new { style = "width:80px", @id = "PatientNo", tabindex = "1" })
+    <input type="button" id="inHistory" value="查" onclick="ipdhistory()" />
+    
+    <div class="title">
+        @Html.DropDownList("selStation", (List<SelectListItem>)ViewData["costlist"], new { @class = "selStation", @onchange = "loadPatList();",style="width:150px" })
+    </div>
+    <div class="pldiv">
+        <table width="150" border="0">
+            <tr>
+                <th width="60" class="plth">@(LanguagePack.Menu.TitleBedNo)</th>
+                <th width="90" class="plth">姓名</th>
+            </tr>
+            @{
+                // patient List
+                List<PatientList> pList = (List<PatientList>)ViewData["patList"];
+                
+                for (int i = 0; i <= pList.Count - 1; i++)
+                {
+                    string pat_string = string.Empty;
+                    pat_string = "\t<tr>\n";
+                    pat_string += "\t\t<td class=\"pltd\" width=\"60\" to=\"\" chrno=\"" + pList[i].ChrNo + "\" feeno=\"" + pList[i].FeeNo + "\">" + pList[i].BedNo.Trim() + "</td>\n";
+                    pat_string += "\t\t<td class=\"pltd\" width=\"90\" to=\"\" chrno=\"" + pList[i].ChrNo + "\" feeno=\"" + pList[i].FeeNo + "\">" + pList[i].PatientName.Trim() + "</td>\n\t</tr>\n";
+                    
+                    @Html.Raw(pat_string);
+                }
+                pList = null;
+            }
+        </table>
+    </div>
+}
+    </body>

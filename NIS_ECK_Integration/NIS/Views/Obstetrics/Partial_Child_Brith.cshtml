@@ -1,0 +1,1837 @@
+﻿@using System.Data;
+@using NIS.Data
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+
+    DataTable dt = ViewBag.dt;
+    DataTable dt_emr = ViewBag.dt_emr;
+    ViewBag.Title = "Partial_Child_Brith";
+    int count = Convert.ToInt32(ViewBag.count);
+    string Amniotic = ViewBag.Amniotic;
+    string patientName = ViewBag.PatientName;
+    PatientInfo ptinfo = ViewBag.ptinfo;
+    UserInfo userinfo = ViewBag.userinfo;
+    int i = -1;
+    bool isKardex = ViewBag.Kardex;
+    bool IsHisView = ViewBag.IsHisView;
+}
+<style type="text/css">
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    .dataArea td, .title_area td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        min-height: 15px;
+    }
+
+    .title_area {
+        border-left: 1px solid rgba(20%,20%,40%,0.5);
+        border-right: 1px solid rgba(20%,20%,40%,0.5);
+    }
+
+    .popup {
+        width: 80%;
+        height: 95%;
+        position: absolute;
+        background-color: #EFEFFF;
+        padding: 10px 15px 10px 15px;
+        border: 1px solid #999999;
+        box-shadow: 5px 5px 5px #666;
+        border-radius: 15px 15px 15px 15px;
+        top: 50%;
+        left: 50%;
+        margin: -20% 0 0 -40%;
+        display: none;
+        z-index: 99;
+    }
+
+    .redAlert {
+        color: red;
+    }
+</style>
+<script type="text/javascript">
+    $(function () {
+        setGridColor();
+        //設定高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 80);
+        }).trigger("resize");
+
+    });
+
+    function setGridColor() {
+        //格行換色
+        var tr = $('.titleArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+
+        for (var i = 0; i < '@count'; i++) {
+            sum_apgar_score('1', i);
+            sum_apgar_score('5', i);
+            sum_apgar_score('10', i);
+            sum_apgar_score('OTH', i);
+        }
+}
+
+function check(obj) {
+    var num = $('#check_tab').val();
+    $('#check_tab').val($(obj).attr('num'));
+    var success = dtl_check();
+    if (success)
+        $('a[num=' + num + ']').attr('must', 'N');
+    else
+        $('a[num=' + num + ']').attr('must', 'Y');
+}
+
+function dtl_check() {
+    var success = true;
+    var tr_list = $('p[must=Y]:visible');
+    for (var i = 0; i < tr_list.length; i++) {
+        var input_list = $(tr_list[i]).find('input:not(span:not(:visible) input,span:not(:visible) textarea)');
+        if (input_list.length > 0) {
+            var input_name = '';
+            for (var j = 0; j < input_list.length; j++) {
+                if (input_name != $(input_list[j]).attr('name')) {
+                    input_name = $(input_list[j]).attr('name');
+                    if (input_list[j].type == 'text' || input_list[j].type == 'textarea')
+                        var input_val = $.trim(input_list[j].value);
+                    else if (input_list[j].type == 'radio' || input_list[j].type == 'checkbox')
+                        var input_val = $('input[name=' + $(input_list[j]).attr('name') + ']:checked').val();
+
+                    if (input_val == undefined || input_val == '') {
+                        success = false;
+                        j = input_list.length;
+                        i = tr_list.length;
+                    }
+                }
+            }
+        }
+    }
+    return success;
+}
+
+function div_hidden(id_list) {
+    var list = id_list.split(',');
+    for (var i = 0; i < list.length; i++) {
+        $('.' + list[i]).fadeOut(0);
+        var input_list = $('.' + list[i] + ' input, .' + list[i] + ' textarea');
+        for (var j = 0; j < input_list.length; j++) {
+            if (input_list[j].type == "textarea" || input_list[j].type == 'text')
+                $(input_list[j]).val('');
+            else if (input_list[j].type == 'radio')
+                input_list[j].checked = false;
+            else {
+                if (input_list[j].checked)
+                    $(input_list[j]).click();
+            }
+        }
+    }
+}
+
+//驗證欄位_數字
+function numcheck(obj) {
+    if (obj.value.indexOf('.') > -1) {
+        var re = /^[0-9]+\.[0-9]*$/;
+    }
+    else {
+        var re = /^[0-9]+$/;
+    }
+    if (!re.test(obj.value) && obj.value != "") {
+        $(obj).val('');
+        alert("只能輸入數字");
+    }
+}
+
+function set_for_rb(rb_name, dvalue) {
+    if (dvalue != '') {
+        var rb = document.getElementsByName(rb_name);
+        for (var i = 0; i < rb.length; i++) {
+            if (rb[i].value == dvalue)
+                $(rb[i]).click();
+        }
+    }
+}
+
+function set_for_ck(ck_name, val) {
+    if (val != '') {
+        var default_val = val.split(",");
+        var ck = document.getElementsByName(ck_name);
+        for (var i = 0; i < default_val.length; i++) {
+            for (var j = 0; j < ck.length; j++) {
+                if (default_val[i] == ck[j].value)
+                    $(ck[j]).click();
+            }
+        }
+    }
+}
+
+function sum_apgar_score(num, i) {
+    var sum = 0;
+
+    if ($("input[name = RB_RB_AS_" + num + "_1" + i + "]:checked").val() !== undefined) {
+        sum += Number($("input[name = RB_RB_AS_" + num + "_1" + i + "]:checked").val());
+    }
+    if ($("input[name = RB_RB_AS_" + num + "_2" + i + "]:checked").val() !== undefined) {
+        sum += Number($("input[name = RB_RB_AS_" + num + "_2" + i + "]:checked").val());
+    }
+    if ($("input[name = RB_RB_AS_" + num + "_3" + i + "]:checked").val() !== undefined) {
+        sum += Number($("input[name = RB_RB_AS_" + num + "_3" + i + "]:checked").val());
+    }
+    if ($("input[name = RB_RB_AS_" + num + "_4" + i + "]:checked").val() !== undefined) {
+        sum += Number($("input[name = RB_RB_AS_" + num + "_4" + i + "]:checked").val());
+    }
+    if ($("input[name = RB_RB_AS_" + num + "_5" + i + "]:checked").val() !== undefined) {
+        sum += Number($("input[name = RB_RB_AS_" + num + "_5" + i + "]:checked").val());
+    }
+    $("#RB_AS_" + num + "_NUM" + i).val(sum);
+    };
+
+    function get_employee_name(obj, name) {
+        var userno = $(obj).attr('id')
+        $.ajax({
+            url: "Get_Employee_Name",
+            type: "GET",
+            data: { userno: document.getElementById(userno).value },
+            success: function (data, textStatus, jqXHR) {
+                var userNameId = userno.replace("TXT_" + name, "LB_" + name);
+                if (data == "") {
+                    alert("查無此執行者員工編號!");
+                    $("#" + userNameId).html('請輸入員工編號');
+                }
+                else {
+                    $("#" + userNameId).html(data);
+                }
+            },
+            error: function (err) {
+            },
+            dataType: 'text'
+        });
+    }
+
+    function set_row(url) {
+        var ck = $('input[type=checkbox][name=del_ID]:checked');
+        if (ck.length == 0)
+            alert('請選擇急救處置紀錄!');
+        else if (ck.length > 1)
+            alert("只能選擇一筆!");
+        else {
+            var row = '';
+            for (var i = 0; i < ck.length; i++) {
+                if (ck[i].checked)
+                    row = row + ck[i].value + ',';
+            }
+            if (row != '') {
+                row = row.substring(0, row.length - 1);
+                new_window.push(window.open(url + '?IID=' + row, '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=750,height=480'));
+            }
+        }
+    }
+
+    function Delete() {
+        if (confirm("請確保其他資料已儲存!")) {
+            $.ajax({
+                url: 'Del_Partial_Child_EMR',
+                type: 'post',
+                dataType: 'json',
+                data: $('form').serialize(),
+                success: function (data) {
+                    if (Number(data) > 0) {
+                        alert('刪除成功');
+                    } else {
+                        alert('刪除失敗');
+                    }
+                    window.location.href = '../Obstetrics/Index?active=Partial_Child_Brith';
+                },
+                failure: function (errMsg) {
+                    alert('刪除失敗');
+                    window.location.href = '../Obstetrics/Index?active=Partial_Child_Brith';
+                }
+            });
+        }
+    }
+
+    function clearValue(name, i) {
+        $('input[name^=RB_' + name + '_1' + i + ']').attr("checked", false);
+        $('input[name^=RB_' + name + '_2' + i + ']').attr("checked", false);
+        $('input[name^=RB_' + name + '_3' + i + ']').attr("checked", false);
+        $('input[name^=RB_' + name + '_4' + i + ']').attr("checked", false);
+        $('input[name^=RB_' + name + '_5' + i + ']').attr("checked", false);
+        $('input[name^=TXT_' + name + '_NUM' + i + ']').val('0');
+        $('input[name^=TXT_' + name + '_WHO' + i + ']').val('');
+        $('#LB_' + name + '_WHO' + i).html('請輸入員工編號');
+
+        if (name == 'RB_AS_OTH') {
+            $('input[name^=TXT_' + name + '_T_DAY' + i + ']').val('');
+            $('input[name^=TXT_' + name + '_T_TIME' + i + ']').val('');
+        }
+    }
+    function Child_Brith_EMR(type, child_seq) {
+        $('#action_type').val(type);
+        if (child_seq) {
+            $('#child_seq').val(child_seq);
+        }
+
+        var form = $('.dataArea');
+        var alert_message = "";
+        $.ajax({
+            type: "POST",
+            url: "Upd_Partial_Child_Brith_All",
+            data: form.serialize(),
+                success: function (data) {
+                    switch (data.status) {
+                        case 0:
+                            alert_message = "修改成功";
+                            if (type == "emr") {
+                                alert_message += "，送簽成功。"
+
+                            }
+                            alert(alert_message);
+                            if (type == "emr") {
+                                //downloadPDF(data.message);
+                            }
+                            window.location.href = 'Index?active=Partial_Child_Brith';
+                            break;
+                        default:
+                            if (data.message) {
+                                alert_message = data.message;
+                            }
+                            alert(alert_message);
+                            break;
+                    }
+
+                },
+                complete: function () {
+                    $("#sys_Block, #sys_Loading").hide();
+                },
+                beforeSend: function () {
+                    $("#sys_Block, #sys_Loading").show();
+                },
+                error: function (err) {
+                    alert('ajax error!');
+
+                }
+            });
+
+    }
+    @*function ChildBirthEMR() {
+        var WinPrint = window.open("@(RootDocument)/PdfEMR/GetPDF_EMR?source_type=Btn&emr_source=Child_Birth&fee_no=@(feeno)&user_no=@(userno)&url=@(RootDocument)/Obstetrics/Child_Birth_Print?fee_no=@(feeno)");
+    }*@
+
+</script>
+
+@if (count == 0 || dt == null)
+{
+    <div>尚未產生出生紀錄！</div>
+}
+else
+{
+    <form action="Upd_Partial_Child_Brith_All" method="post" class="dataArea" style="height:auto">
+        <div class="funcArea" style="text-align:center;">
+            @if (isKardex != true && IsHisView != true)
+            {
+                if (ptinfo.Age >= 1)
+                {
+                    var hasEMR = 0;
+                    if (dt != null && dt.Rows.Count > 0)
+                    {
+                        foreach (DataRow r in dt.Rows)
+                        {
+                            if (dt.Rows[0]["EMR_SIGN"].ToString() != "" && dt.Rows[0]["EMR_TIME"].ToString() != "")
+                            {
+                                hasEMR += 1;
+                            }
+                        }
+                    }
+
+                    if (hasEMR > 0)
+                    {
+                    }
+                    else
+                    {
+                        <input type="button" value="儲存" style="width:60px;" onclick="if (checkData()) Child_Brith_EMR('save');" />
+                    }
+                }
+                else
+                {
+                    if (dt.Rows[0]["EMR_SIGN"].ToString() != "" && dt.Rows[0]["EMR_TIME"].ToString() != "")
+                    {
+                        <input type="button" value="儲存" style="width:60px;" onclick="Child_Brith_EMR('emr')" />
+                    }
+                    else
+                    {
+                        <input type="button" value="儲存" style="width:60px;" onclick="if (checkData()) Child_Brith_EMR('save');" />
+                        <input type="button" value="送簽" style="width:60px;" onclick="Child_Brith_EMR('emr')" />
+                    }
+                }
+            }
+            <input type="hidden" id="check_tab" value="0" />
+            <input type="hidden" name="action_type" id="action_type" value="">
+            <input type="hidden" name="child_seq" id="child_seq" value="">
+        </div>
+        <div id="filled" class="tabArea" style="margin-bottom:5px;">
+            <ul>
+                @foreach (DataRow r in dt.Rows)
+                {
+                    i = i + 1;
+                    <li><a href="#tabs-@(i)" must="Y" num="@i" onclick="check(this);">@r["NB_NAME"]<span id="title_sex@(i)">@r["GENDER"]</span></a></li>
+                }
+            </ul>
+            @{
+                i = -1;
+            }
+            @foreach (DataRow r in dt.Rows)
+            {
+                i = i + 1;
+                String BabyNo = Convert.ToChar('A' + i).ToString();
+                int BabySeq = Convert.ToInt32(r["NB_TEMPNO"].ToString().Substring(r["NB_TEMPNO"].ToString().Length - 1)[0]) - 65;
+                <div id="tabs-@(i)" class="tab funcArea" style="font-size:12px;text-align:center">
+                    <input type="hidden" name="I" value="@(i)" />
+                    <input type="hidden" name="IID@(i)" value="@(r["IID"])" />
+                    <input type="hidden" name="GENDER@(i)" value="@(r["GENDER"])" />
+                    @if (ptinfo.Age >= 1 &&
+                        r["RB_AS_1_1"].ToString() == "0" && r["RB_AS_1_2"].ToString() == "0" && r["RB_AS_1_3"].ToString() == "0" &&
+                        r["RB_AS_1_4"].ToString() == "0" && r["RB_AS_1_5"].ToString() == "0" && r["RB_AS_1_NUM"].ToString() == "0" &&
+                        r["RB_AS_5_1"].ToString() == "0" && r["RB_AS_5_2"].ToString() == "0" && r["RB_AS_5_3"].ToString() == "0" &&
+                        r["RB_AS_5_4"].ToString() == "0" && r["RB_AS_5_5"].ToString() == "0" && r["RB_AS_5_NUM"].ToString() == "0")
+                    {
+                        if (r["EMR_SIGN"].ToString() != "" && r["EMR_TIME"].ToString() != "")
+                        {
+                            <input type="button" value="儲存" style="width:60px;" onclick="Child_Brith_EMR('emr','@(i)')" />
+                        }
+                        else
+                        {
+                            <input type="button" value="儲存" style="width:60px;" onclick="if (checkData()) Child_Brith_EMR('save','@(i)');" />
+                            <input type="button" value="送簽" style="width:60px;" onclick="Child_Brith_EMR('emr','@(i)')" />
+                        }
+                    }
+                    <table border="1" st cellpadding="4" cellspacing="1" style="border-collapse:collapse;width:100%;padding-top:6px;table-layout:auto;">
+                        <tr>
+                            <td class="head" style="width:12.5%">新生兒姓名</td>
+                            <td>
+                                @(patientName)@(r["NB_NAME"])@(r["GENDER"])
+                            </td>
+                            <td class="head">新生兒臨時號</td>
+                            <td>
+                                @r["NB_TEMPNO"]
+                            </td>
+                            <td class="head">新生兒病歷號</td>
+                            <td>
+                                @r["NB_CHARTNO"]
+                            </td>
+                            <td class="head">新生兒性別</td>
+                            <td>
+                                @r["GENDER"]
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head">生產方式</td>
+                            <td>
+                                <div>
+                                    <input type="radio" name="RB_BIRTH_TYPE@(i)" value="0" onclick="$('#birth_type_nsd' + '@i').fadeIn(); $('#birth_type_c' + '@i').fadeOut();" />NSD
+                                    <span id="birth_type_nsd@(i)" style="display:none">
+                                        ，Vacuum
+                                        <input name="RB_VACUUM_NSD@(i)" type="radio" value="0" />是
+                                        <input name="RB_VACUUM_NSD@(i)" type="radio" value="1" />否
+                                    </span>
+                                </div>
+                                <div>
+                                    <label><input type="radio" name="RB_BIRTH_TYPE@(i)" value="1" onclick="$('#birth_type_nsd' + '@i').fadeOut(); $('#birth_type_c' + '@i').fadeIn();" />CS</label>
+                                    <span id="birth_type_c@(i)" style="display:none;">
+                                        ，Vacuum
+                                        <input name="RB_VACUUM_CS@(i)" type="radio" value="0" />是
+                                        <input name="RB_VACUUM_CS@(i)" type="radio" value="1" />否
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="head">生產日期/時間</td>
+                            <td colspan="2">
+                                @if (r["BIRTH_DAY"].ToString() != "")
+                                {
+                                    @Html.TextBox("TXT_BIRTH_DAY_DAY" + i, Convert.ToDateTime(r["BIRTH_DAY"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                    @Html.TextBox("TXT_BIRTH_DAY_TIME" + i, Convert.ToDateTime(r["BIRTH_DAY"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                    if (i > 0)
+                                    {
+                                        @WebTool.setDateTime("TXT_BIRTH_DAY_DAY" + i, "TXT_BIRTH_DAY_TIME" + i, "", "30")
+                                    }
+                                }
+                                else
+                                {
+                                    @Html.TextBox("TXT_BIRTH_DAY_DAY" + i, "", new { style = "width:80px", @readonly = "readonly" })
+                                    @Html.TextBox("TXT_BIRTH_DAY_TIME" + i, "", new { style = "width:50px", @readonly = "readonly" })
+                                    if (i > 0)
+                                    {
+                                        @WebTool.setDateTime("TXT_BIRTH_DAY_DAY" + i, "TXT_BIRTH_DAY_TIME" + i, "", "30")
+                                    }
+                                }
+                            </td>
+                            <td class="head">存歿</td>
+                            @if (r["NB_STAT"].ToString() == "1")
+                            {
+                                <td colspan="2">活產</td>
+                            }
+                            else if (r["NB_STAT"].ToString() == "0")
+                            {
+                                var reason = new List<string>();
+                                if (r["NB_STAT_RS"].ToString() != "")
+                                {
+                                    var STAT = r["NB_STAT_RS"].ToString();
+                                    if (STAT[0] == '1')
+                                    {
+                                        reason.Add("染色體異常");
+                                    }
+                                    if (STAT[1] == '1')
+                                    {
+                                        reason.Add("胎兒無心跳");
+                                    }
+                                    if (STAT[2] == '1')
+                                    {
+                                        reason.Add("器官異常");
+                                    }
+                                    if (STAT[3] == '1')
+                                    {
+                                        reason.Add("感染");
+                                    }
+                                    if (STAT[4] == '1')
+                                    {
+                                        reason.Add(r["NB_STAT_RS_OTH"].ToString());
+                                    }
+                                }
+                                <td colspan="2">死產-@String.Join(",", reason)</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td class="head">胎位</td>
+                            <td colspan="1">
+                                <input name="RB_FETAL@(i)" type="radio" value="0" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />LOA
+                                <input name="RB_FETAL@(i)" type="radio" value="1" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />ROA
+                                <input name="RB_FETAL@(i)" type="radio" value="2" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />OA
+                                <br />
+                                <input name="RB_FETAL@(i)" type="radio" value="3" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />LOP
+                                <input name="RB_FETAL@(i)" type="radio" value="4" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />ROP
+                                <input name="RB_FETAL@(i)" type="radio" value="5" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />OP
+                                <br />
+                                <input name="RB_FETAL@(i)" type="radio" value="6" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />LOT
+                                <input name="RB_FETAL@(i)" type="radio" value="7" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />ROT
+                                <input name="RB_FETAL@(i)" type="radio" value="8" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />Transverse
+                                <br />
+                                <input name="RB_FETAL@(i)" type="radio" value="9" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />Breech
+                                <input name="RB_FETAL@(i)" type="radio" value="10" onclick="$('#FETAL_OTH'+ '@i').fadeOut()" />Vertex
+                                <input name="RB_FETAL@(i)" type="radio" value="11" onclick="$('#FETAL_OTH' + '@i').fadeIn()" />其他
+                                <span id="FETAL_OTH@(i)" style="display:none">
+                                    @Html.TextBox("TXT_FETAL_OTH" + i, r["FETAL_OTH"], new { style = "width:100px" })
+                                </span>
+                            </td>
+                            <td class="head">臍帶纏繞</td>
+                            <td colspan="2">
+                                <label><input type="radio" name="RB_CORD_ENTANGLEMENT@(i)" value="0" onclick="$('.span_cord_had' + '@i').fadeOut();" />無</label>
+                                <label><input type="radio" name="RB_CORD_ENTANGLEMENT@(i)" value="1" onclick="$('.span_cord_had' + '@i').fadeIn(500);" />有</label>
+                                <span class="span_cord_had@(i)" style="display:none;">
+                                    ，
+                                    <br />
+                                    頸 @Html.TextBox("TXT_CORD_ENTANGLEMENT_NECK" + i, r["CORD_ENTANGLEMENT_NECK"], new { style = "width:60px", onchange = "numcheck(this);" }) 圈
+                                    <br />
+                                    手 @Html.TextBox("TXT_CORD_ENTANGLEMENT_HAND" + i, r["CORD_ENTANGLEMENT_HAND"], new { style = "width:60px", onchange = "numcheck(this);" }) 圈
+                                    <br />
+                                    腳 @Html.TextBox("TXT_CORD_ENTANGLEMENT_FOOT" + i, r["CORD_ENTANGLEMENT_FOOT"], new { style = "width:60px", onchange = "numcheck(this);" }) 圈
+                                </span>
+                            </td>
+                            <td class="head">母嬰皮膚接觸</td>
+                            <td colspan="2">
+                                <div>
+                                    <label>
+                                        <input type="radio" name="RB_SKIN_CONTACT@(i)" value="0" onclick="$('.SKIN_CONTACT_N' + '@i').fadeIn(500);$('.SKIN_CONTACT_Y' + '@i').fadeOut();$('.SKIN_CONTACT_Y_DATE' + '@i').fadeOut();" />
+                                        無
+                                    </label>
+                                    <span class="SKIN_CONTACT_N@(i)" style="display:none;">複選 </span>
+                                    <div class="SKIN_CONTACT_N@(i)" style="display:none;">
+                                        <input type="checkbox" id="SKIN_CONTACT_RS_M@(i)" name="CK_SKIN_CONTACT_RS@(i)" value="0"
+                                               onclick="if($('#SKIN_CONTACT_RS_M' + '@i').prop('checked'))$('.CONTACT_N_MOM' + '@i').fadeIn(500);else $('.CONTACT_N_MOM' + '@i').fadeOut();" />產婦因素
+                                        <div class="CONTACT_N_MOM@(i)" style="display:none;padding-left:14px">
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="0" />生命徵象不穩定
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="1" />嘔吐
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="2" />發燒<br />
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="3" />傷口疼痛
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="4" />有精神疾患
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="5" />拒絕
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="6" />疲憊<br />
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="7" onclick="$('.CONTACT_N_MOM_ID' + '@i').fadeToggle(500);" />傳染性疾病<br />
+                                            <span class="CONTACT_N_MOM_ID@(i)" style="display:none;">
+                                                <input type="radio" name="RB_CONTACT_N_MOM_ID@(i)" value="0" />水痘
+                                                <input type="radio" name="RB_CONTACT_N_MOM_ID@(i)" value="1" />梅毒
+                                                <input type="radio" name="RB_CONTACT_N_MOM_ID@(i)" value="2" />HIV<br />
+                                            </span>
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="8" />藥毒癮
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="10" />返病房
+                                            <input type="checkbox" name="CK_CONTACT_N_MOM@(i)" value="9" onclick="$('.CONTACT_N_MOM_OTH' + '@i').fadeToggle(500);" />其他
+                                            <span class="CONTACT_N_MOM_OTH@(i)" style="display:none;">
+                                                ，@Html.TextBox("TXT_CONTACT_N_MOM_OTH" + i, r["CONTACT_N_MOM_OTH"], new { style = "width:100px" })
+                                            </span>
+                                        </div>
+                                        <br />
+                                        <input type="checkbox" id="SKIN_CONTACT_RS_C@(i)" name="CK_SKIN_CONTACT_RS@(i)" value="1" onclick="if($('#SKIN_CONTACT_RS_C' + '@i').prop('checked'))$('.CONTACT_N_NB' + '@i').fadeIn(500);else $('.CONTACT_N_NB' + '@i').fadeOut()" />新生兒因素
+                                        <div class="CONTACT_N_NB@(i)" style="display:none;">
+                                            <input type="checkbox" name="CK_CONTACT_N_NB@(i)" value="0" />生命徵象不穩定
+                                            <input type="checkbox" name="CK_CONTACT_N_NB@(i)" value="1" />早產
+                                            <br />
+                                            <input type="checkbox" name="CK_CONTACT_N_NB@(i)" value="2" />低血糖
+                                            <input type="checkbox" name="CK_CONTACT_N_NB@(i)" value="4" />返嬰兒室
+                                            <input type="checkbox" name="CK_CONTACT_N_NB@(i)" value="3" onclick="$('.CONTACT_N_NB_OTH' + '@i').fadeToggle(500);" />其他
+                                            <span class="CONTACT_N_NB_OTH@(i)" style="display:none;">
+                                                ，@Html.TextBox("TXT_CONTACT_N_NB_OTH" + i, r["CONTACT_N_NB_OTH"], new { style = "width:100px" })
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label><input type="radio" name="RB_SKIN_CONTACT@(i)" value="1" onclick="$('.SKIN_CONTACT_Y' + '@i' + ',.SKIN_CONTACT_Y_DATE' + '@i').fadeIn(500);$('.SKIN_CONTACT_N' + '@i').fadeOut();" />有</label>
+                                    <div class="SKIN_CONTACT_Y_DATE@(i)" style="display:none;">
+                                        @if (r["CONTACT_START_DAY"].ToString() == "")
+                                        {
+                                            @Html.TextBox("TXT_CONTACT_START_DAY_DAY" + i, "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_CONTACT_START_DAY_TIME" + i, "", new { style = "width:50px", @readonly = "readonly" })
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("TXT_CONTACT_START_DAY_DAY" + i, Convert.ToDateTime(r["CONTACT_START_DAY"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_CONTACT_START_DAY_TIME" + i, Convert.ToDateTime(r["CONTACT_START_DAY"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                        }
+                                        @WebTool.setDateTime("TXT_CONTACT_START_DAY_DAY" + i, "TXT_CONTACT_START_DAY_TIME" + i, "", "30")
+                                        <br />
+                                        @if (r["CONTACT_END_DAY"].ToString() == "")
+                                        {
+                                            @Html.TextBox("TXT_CONTACT_END_DAY_DAY" + i, "", new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_CONTACT_END_DAY_TIME" + i, "", new { style = "width:50px", @readonly = "readonly" })
+                                        }
+                                        else
+                                        {
+                                            @Html.TextBox("TXT_CONTACT_END_DAY_DAY" + i, Convert.ToDateTime(r["CONTACT_END_DAY"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                            @Html.TextBox("TXT_CONTACT_END_DAY_TIME" + i, Convert.ToDateTime(r["CONTACT_END_DAY"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                        }
+                                        @WebTool.setDateTime("TXT_CONTACT_END_DAY_DAY" + i, "TXT_CONTACT_END_DAY_TIME" + i, "", "30")
+                                    </div>
+                                    <span class="SKIN_CONTACT_Y@(i)" style="display:none;">複選 </span>
+                                    <div class="SKIN_CONTACT_Y@(i)" style="display:none;">
+                                        <input type="checkbox" id="CONTACT_E_RS_M@(i)" name="CK_CONTACT_E_RS@(i)" value="0"
+                                               onclick="if($('#CONTACT_E_RS_M' + '@i').prop('checked'))$('.CONTACT_E_MOM' + '@i').fadeIn(500);else $('.CONTACT_E_MOM' + '@i').fadeOut();" />產婦因素
+                                        <div class="CONTACT_E_MOM@(i)" style="display:none;padding-left:14px">
+                                            <input type="checkbox" name="CK_CONTACT_E_MOM@(i)" value="0" />生命徵象不穩定
+                                            <input type="checkbox" name="CK_CONTACT_E_MOM@(i)" value="1" />嘔吐
+                                            <input type="checkbox" name="CK_CONTACT_E_MOM@(i)" value="2" />發燒<br />
+                                            <input type="checkbox" name="CK_CONTACT_E_MOM@(i)" value="3" />傷口疼痛
+                                            <input type="checkbox" name="CK_CONTACT_E_MOM@(i)" value="4" />有精神疾患
+                                            <input type="checkbox" name="CK_CONTACT_E_MOM@(i)" value="5" />拒絕
+                                            <input type="checkbox" name="CK_CONTACT_E_MOM@(i)" value="6" />疲憊<br />
+                                            <input type="checkbox" name="CK_CONTACT_E_MOM@(i)" value="8" />返病房
+                                            <input type="checkbox" name="CK_CONTACT_E_MOM@(i)" value="7" onclick="$('.CONTACT_E_MOM_OTH' + '@i').fadeToggle(500);" />其他
+                                            <span class="CONTACT_E_MOM_OTH@(i)" style="display:none;">
+                                                ，@Html.TextBox("TXT_CONTACT_E_MOM_OTH" + i, r["CONTACT_E_MOM_OTH"], new { style = "width:100px" })
+                                            </span>
+                                        </div>
+                                        <br />
+                                        <input type="checkbox" id="CONTACT_E_RS_C@(i)" name="CK_CONTACT_E_RS@(i)" value="1" onclick="if($('#CONTACT_E_RS_C' + '@i').prop('checked'))$('.CONTACT_E_NB' + '@i').fadeIn(500);else $('.CONTACT_E_NB' + '@i').fadeOut()" />新生兒因素
+                                        <div class="CONTACT_E_NB@(i)" style="display:none;">
+                                            <input type="checkbox" name="CK_CONTACT_E_NB@(i)" value="0" />生命徵象不穩定
+                                            <input type="checkbox" name="CK_CONTACT_E_NB@(i)" value="1" />早產
+                                            <br />
+                                            <input type="checkbox" name="CK_CONTACT_E_NB@(i)" value="2" />低血糖
+                                            <input type="checkbox" name="CK_CONTACT_E_NB@(i)" value="4" />返嬰兒室
+                                            <input type="checkbox" name="CK_CONTACT_E_NB@(i)" value="3" onclick="$('.CONTACT_E_NB_OTH' + '@i').fadeToggle(500);" />其他
+                                            <span class="CONTACT_E_NB_OTH@(i)" style="display:none;">
+                                                ，@Html.TextBox("TXT_CONTACT_E_NB_OTH" + i, r["CONTACT_E_NB_OTH"], new { style = "width:100px" })
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head">胎便染色</td>
+                            <td colspan="3">
+                                <label>
+                                    <label><input type="radio" name="RB_MECONIUM_COLOR@(i)" value="0" />無</label>
+                                    <label><input type="radio" name="RB_MECONIUM_COLOR@(i)" value="1" />+</label>
+                                    <label><input type="radio" name="RB_MECONIUM_COLOR@(i)" value="2" />++</label>
+                                    <label><input type="radio" name="RB_MECONIUM_COLOR@(i)" value="3" />+++</label>
+                                    <label><input type="radio" name="RB_MECONIUM_COLOR@(i)" value="4" />++++</label>
+                                </label>
+                            </td>
+                            <td class="head">總破水時間</td>
+                            <td colspan="3">
+                                @r["ROM_TT"]
+                            </td>
+                        </tr>
+                    </table>
+                    <table border="1" st cellpadding="4" cellspacing="1" style="border-collapse:collapse;width:100%;padding-top:6px;table-layout:auto;">
+                        <tr>
+                            <td class="head" style="width:20%">Apgar Score</td>
+                            <td class="head" style="width:20%">第一分鐘</td>
+                            <td class="head" style="width:20%">第五分鐘</td>
+                            <td class="head" style="width:20%">
+                                第十分鐘
+                                @if (isKardex != true && IsHisView != true)
+                                {
+                                    <br />
+                                    <button type="button" onclick="clearValue('RB_AS_10', '@i')">清空</button>
+                                }
+                            </td>
+                            <td class="head" style="width:20%">
+                                日期時間
+                                @if (isKardex != true && IsHisView != true)
+                                {
+                                    <br />
+                                    <button type="button" onclick="clearValue('RB_AS_OTH', '@i')">清空</button>
+                                }
+                                <br />
+                                @if (r["RB_AS_OTH_T"].ToString() == "")
+                                {
+                                    @Html.TextBox("TXT_RB_AS_OTH_T_DAY" + i, "", new { style = "width:80px", @readonly = "readonly" })
+                                    <br />
+                                    @Html.TextBox("TXT_RB_AS_OTH_T_TIME" + i, "", new { style = "width:50px", @readonly = "readonly" })
+                                }
+                                else
+                                {
+                                    @Html.TextBox("TXT_RB_AS_OTH_T_DAY" + i, Convert.ToDateTime(r["RB_AS_OTH_T"]).ToString("yyyy/MM/dd"), new { style = "width:80px", @readonly = "readonly" })
+                                    <br />
+                                    @Html.TextBox("TXT_RB_AS_OTH_T_TIME" + i, Convert.ToDateTime(r["RB_AS_OTH_T"]).ToString("HH:mm"), new { style = "width:50px", @readonly = "readonly" })
+                                }
+                                @WebTool.setDateTime("TXT_RB_AS_OTH_T_DAY" + i, "TXT_RB_AS_OTH_T_TIME" + i, "", "30")
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head" rowspan="2">心跳速率</td>
+                            <td class="head" colspan="4">0分：無。　1分：100/分次下。　2分：100次/分次以上。</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_1_1@(i)" value="0" onclick="sum_apgar_score('1','@i')" />0
+                                <input type="radio" name="RB_RB_AS_1_1@(i)" value="1" onclick="sum_apgar_score('1','@i')" />1
+                                <input type="radio" name="RB_RB_AS_1_1@(i)" value="2" onclick="sum_apgar_score('1','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_5_1@(i)" value="0" onclick="sum_apgar_score('5','@i')" />0
+                                <input type="radio" name="RB_RB_AS_5_1@(i)" value="1" onclick="sum_apgar_score('5','@i')" />1
+                                <input type="radio" name="RB_RB_AS_5_1@(i)" value="2" onclick="sum_apgar_score('5','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_10_1@(i)" value="0" onclick="sum_apgar_score('10','@i')" />0
+                                <input type="radio" name="RB_RB_AS_10_1@(i)" value="1" onclick="sum_apgar_score('10','@i')" />1
+                                <input type="radio" name="RB_RB_AS_10_1@(i)" value="2" onclick="sum_apgar_score('10','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_OTH_1@(i)" value="0" onclick="sum_apgar_score('OTH','@i')" />0
+                                <input type="radio" name="RB_RB_AS_OTH_1@(i)" value="1" onclick="sum_apgar_score('OTH','@i')" />1
+                                <input type="radio" name="RB_RB_AS_OTH_1@(i)" value="2" onclick="sum_apgar_score('OTH','@i')" />2
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head" rowspan="2">呼吸型態</td>
+                            <td class="head" colspan="4">0分：無。　1分：慢，而不規則。　2分：哭聲宏亮。</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_1_2@(i)" value="0" onclick="sum_apgar_score('1','@i')" />0
+                                <input type="radio" name="RB_RB_AS_1_2@(i)" value="1" onclick="sum_apgar_score('1','@i')" />1
+                                <input type="radio" name="RB_RB_AS_1_2@(i)" value="2" onclick="sum_apgar_score('1','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_5_2@(i)" value="0" onclick="sum_apgar_score('5','@i')" />0
+                                <input type="radio" name="RB_RB_AS_5_2@(i)" value="1" onclick="sum_apgar_score('5','@i')" />1
+                                <input type="radio" name="RB_RB_AS_5_2@(i)" value="2" onclick="sum_apgar_score('5','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_10_2@(i)" value="0" onclick="sum_apgar_score('10','@i')" />0
+                                <input type="radio" name="RB_RB_AS_10_2@(i)" value="1" onclick="sum_apgar_score('10','@i')" />1
+                                <input type="radio" name="RB_RB_AS_10_2@(i)" value="2" onclick="sum_apgar_score('10','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_OTH_2@(i)" value="0" onclick="sum_apgar_score('OTH','@i')" />0
+                                <input type="radio" name="RB_RB_AS_OTH_2@(i)" value="1" onclick="sum_apgar_score('OTH','@i')" />1
+                                <input type="radio" name="RB_RB_AS_OTH_2@(i)" value="2" onclick="sum_apgar_score('OTH','@i')" />2
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head" rowspan="2">肌肉緊張度</td>
+                            <td class="head" colspan="4">0分：四肢軟弱無力。　1分：四肢微曲稍活動。　2分：四肢主動移動。</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_1_3@(i)" value="0" onclick="sum_apgar_score('1','@i')" />0
+                                <input type="radio" name="RB_RB_AS_1_3@(i)" value="1" onclick="sum_apgar_score('1','@i')" />1
+                                <input type="radio" name="RB_RB_AS_1_3@(i)" value="2" onclick="sum_apgar_score('1','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_5_3@(i)" value="0" onclick="sum_apgar_score('5','@i')" />0
+                                <input type="radio" name="RB_RB_AS_5_3@(i)" value="1" onclick="sum_apgar_score('5','@i')" />1
+                                <input type="radio" name="RB_RB_AS_5_3@(i)" value="2" onclick="sum_apgar_score('5','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_10_3@(i)" value="0" onclick="sum_apgar_score('10','@i')" />0
+                                <input type="radio" name="RB_RB_AS_10_3@(i)" value="1" onclick="sum_apgar_score('10','@i')" />1
+                                <input type="radio" name="RB_RB_AS_10_3@(i)" value="2" onclick="sum_apgar_score('10','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_OTH_3@(i)" value="0" onclick="sum_apgar_score('OTH','@i')" />0
+                                <input type="radio" name="RB_RB_AS_OTH_3@(i)" value="1" onclick="sum_apgar_score('OTH','@i')" />1
+                                <input type="radio" name="RB_RB_AS_OTH_3@(i)" value="2" onclick="sum_apgar_score('OTH','@i')" />2
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head" rowspan="2">對刺激反應</td>
+                            <td class="head" colspan="4">0分：無。　1分：有表情痛苦。 2分：咳嗽、打噴嚏。</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_1_4@(i)" value="0" onclick="sum_apgar_score('1','@i')" />0
+                                <input type="radio" name="RB_RB_AS_1_4@(i)" value="1" onclick="sum_apgar_score('1','@i')" />1
+                                <input type="radio" name="RB_RB_AS_1_4@(i)" value="2" onclick="sum_apgar_score('1','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_5_4@(i)" value="0" onclick="sum_apgar_score('5','@i')" />0
+                                <input type="radio" name="RB_RB_AS_5_4@(i)" value="1" onclick="sum_apgar_score('5','@i')" />1
+                                <input type="radio" name="RB_RB_AS_5_4@(i)" value="2" onclick="sum_apgar_score('5','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_10_4@(i)" value="0" onclick="sum_apgar_score('10','@i')" />0
+                                <input type="radio" name="RB_RB_AS_10_4@(i)" value="1" onclick="sum_apgar_score('10','@i')" />1
+                                <input type="radio" name="RB_RB_AS_10_4@(i)" value="2" onclick="sum_apgar_score('10','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_OTH_4@(i)" value="0" onclick="sum_apgar_score('OTH','@i')" />0
+                                <input type="radio" name="RB_RB_AS_OTH_4@(i)" value="1" onclick="sum_apgar_score('OTH','@i')" />1
+                                <input type="radio" name="RB_RB_AS_OTH_4@(i)" value="2" onclick="sum_apgar_score('OTH','@i')" />2
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head" rowspan="2">皮膚</td>
+                            <td class="head" colspan="4">0分：蒼白或藍紫。　1分：全身粉紅四肢藍紫。　2分：全身粉紅。</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_1_5@(i)" value="0" onclick="sum_apgar_score('1','@i')" />0
+                                <input type="radio" name="RB_RB_AS_1_5@(i)" value="1" onclick="sum_apgar_score('1','@i')" />1
+                                <input type="radio" name="RB_RB_AS_1_5@(i)" value="2" onclick="sum_apgar_score('1','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_5_5@(i)" value="0" onclick="sum_apgar_score('5','@i')" />0
+                                <input type="radio" name="RB_RB_AS_5_5@(i)" value="1" onclick="sum_apgar_score('5','@i')" />1
+                                <input type="radio" name="RB_RB_AS_5_5@(i)" value="2" onclick="sum_apgar_score('5','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_10_5@(i)" value="0" onclick="sum_apgar_score('10','@i')" />0
+                                <input type="radio" name="RB_RB_AS_10_5@(i)" value="1" onclick="sum_apgar_score('10','@i')" />1
+                                <input type="radio" name="RB_RB_AS_10_5@(i)" value="2" onclick="sum_apgar_score('10','@i')" />2
+                            </td>
+                            <td>
+                                <input type="radio" name="RB_RB_AS_OTH_5@(i)" value="0" onclick="sum_apgar_score('OTH','@i')" />0
+                                <input type="radio" name="RB_RB_AS_OTH_5@(i)" value="1" onclick="sum_apgar_score('OTH','@i')" />1
+                                <input type="radio" name="RB_RB_AS_OTH_5@(i)" value="2" onclick="sum_apgar_score('OTH','@i')" />2
+                            </td>
+                        </tr>
+                        <tr style="text-align:center">
+                            <td class="head" style="text-align:center;">總分</td>
+                            <td>@Html.TextBox("TXT_RB_AS_1_NUM" + i, r["RB_AS_1_NUM"], new { id = "RB_AS_1_NUM" + i, style = "width:50px", @readonly = "readonly" })</td>
+                            <td>@Html.TextBox("TXT_RB_AS_5_NUM" + i, r["RB_AS_5_NUM"], new { id = "RB_AS_5_NUM" + i, style = "width:50px", @readonly = "readonly" })</td>
+                            <td>@Html.TextBox("TXT_RB_AS_10_NUM" + i, r["RB_AS_10_NUM"], new { id = "RB_AS_10_NUM" + i, style = "width:50px", @readonly = "readonly" })</td>
+                            <td>@Html.TextBox("TXT_RB_AS_OTH_NUM" + i, r["RB_AS_OTH_NUM"], new { id = "RB_AS_OTH_NUM" + i, style = "width:50px", @readonly = "readonly" })</td>
+                        </tr>
+                        <tr style="text-align:center">
+                            <td class="head" style="text-align:center;">評估者</td>
+                            <td>
+                                @Html.TextBox("TXT_RB_AS_1_WHO" + i, r["RB_AS_1_WHO"], new { style = "width:100px", onchange = "get_employee_name(this, 'RB_AS_1_WHO');" })
+                                @if (r["RB_AS_1_WHO_NAME"].ToString() != "")
+                                {
+                                    @Html.Label("LB_RB_AS_1_WHO" + i, r["RB_AS_1_WHO_NAME"].ToString(), new { id = "LB_RB_AS_1_WHO" + i, style = "width:100px" })
+                                }
+                                else
+                                {
+                                    @Html.Label("LB_RB_AS_1_WHO" + i, "請輸入員工編號", new { id = "LB_RB_AS_1_WHO" + i, style = "width:100px" })
+                                }
+                            </td>
+                            <td>
+                                @Html.TextBox("TXT_RB_AS_5_WHO" + i, r["RB_AS_5_WHO"], new { style = "width:100px", onchange = "get_employee_name(this, 'RB_AS_5_WHO');" })
+                                @if (r["RB_AS_5_WHO_NAME"].ToString() != "")
+                                {
+                                    @Html.Label("LB_RB_AS_5_WHO" + i, r["RB_AS_5_WHO_NAME"].ToString(), new { id = "LB_RB_AS_5_WHO" + i, style = "width:100px" })
+                                }
+                                else
+                                {
+                                    @Html.Label("LB_RB_AS_5_WHO" + i, "請輸入員工編號", new { id = "LB_RB_AS_5_WHO" + i, style = "width:100px" })
+                                }
+                            </td>
+                            <td>
+                                @Html.TextBox("TXT_RB_AS_10_WHO" + i, r["RB_AS_10_WHO"], new { style = "width:100px", onchange = "get_employee_name(this, 'RB_AS_10_WHO');" })
+                                @if (r["RB_AS_10_WHO_NAME"].ToString() != "")
+                                {
+                                    @Html.Label("LB_RB_AS_10_WHO" + i, r["RB_AS_10_WHO_NAME"].ToString(), new { id = "LB_RB_AS_10_WHO" + i, style = "width:100px" })
+                                }
+                                else
+                                {
+                                    @Html.Label("LB_RB_AS_10_WHO" + i, "請輸入員工編號", new { id = "LB_RB_AS_10_WHO" + i, style = "width:100px" })
+                                }
+                            </td>
+                            <td>
+                                @Html.TextBox("TXT_RB_AS_OTH_WHO" + i, r["RB_AS_OTH_WHO"], new { style = "width:100px", onchange = "get_employee_name(this, 'RB_AS_OTH_WHO');" })
+                                @if (r["RB_AS_OTH_WHO_NAME"].ToString() != "")
+                                {
+                                    @Html.Label("LB_RB_AS_OTH_WHO" + i, r["RB_AS_OTH_WHO_NAME"].ToString(), new { id = "LB_RB_AS_OTH_WHO" + i, style = "width:100px" })
+                                }
+                                else
+                                {
+                                    @Html.Label("LB_RB_AS_OTH_WHO" + i, "請輸入員工編號", new { id = "LB_RB_AS_OTH_WHO" + i, style = "width:100px" })
+                                }
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table border="1" st cellpadding="4" cellspacing="1" style="border-collapse:collapse;width:100%;padding-top:6px;table-layout:auto;">
+                        <tr>
+                            <td class="head">新生兒動向</td>
+                            <td colspan="7">
+                                <input type="radio" name="RB_CHILD_SENT@(i)" value="0" onclick="$('.CHILD_SENT_PICU' + '@i').fadeOut(); $('.CHILD_SENT_NBC' + '@i').fadeOut()" />嬰兒室
+                                <input type="radio" name="RB_CHILD_SENT@(i)" value="1" onclick="$('.CHILD_SENT_PICU' + '@i').fadeIn(); $('.CHILD_SENT_NBC' + '@i').fadeOut()" />PICU
+                                <span class="CHILD_SENT_PICU@(i)" style="display:none;width:100px">
+                                    @Html.TextBox("TXT_CHILD_SENT_MEMO" + i, r["CHILD_SENT_MEMO"], new { style = "width:100px" })
+                                </span>
+                                <input type="radio" name="RB_CHILD_SENT@(i)" value="2" onclick="$('.CHILD_SENT_NBC' + '@i').fadeIn(); $('.CHILD_SENT_PICU' + '@i').fadeOut()" />NBC
+                                <span class="CHILD_SENT_NBC@(i)" style="display:none;width:100px">
+                                    @Html.TextBox("TXT_CHILD_SENT_MEMO" + i, r["CHILD_SENT_MEMO"], new { style = "width:100px" })
+                                </span>
+                                <input type="radio" name="RB_CHILD_SENT@(i)" value="3" onclick="$('.CHILD_SENT_PICU' + '@i').fadeOut(); $('.CHILD_SENT_NBC' + '@i').fadeOut()" />太平間
+                                <input type="radio" name="RB_CHILD_SENT@(i)" value="4" onclick="$('.CHILD_SENT_PICU' + '@i').fadeOut(); $('.CHILD_SENT_NBC' + '@i').fadeOut()" />家屬帶回
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head">胎便</td>
+                            <td colspan="3">
+                                <input type="radio" name="RB_MECONIUM@(i)" value="1" />已解
+                                <input type="radio" name="RB_MECONIUM@(i)" value="0" />未解
+                            </td>
+                            <td class="head">小便</td>
+                            <td colspan="3">
+                                <input type="radio" name="RB_URINE@(i)" value="1" />已解
+                                <input type="radio" name="RB_URINE@(i)" value="0" />未解
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head">身高</td>
+                            <td>
+                                @Html.TextBox("TXT_HEIGHT" + i, r["HEIGHT"], new { style = "width:100px", onchange = "numcheck(this);" }) cm
+                            </td>
+                            <td class="head">體重</td>
+                            <td>
+                                @Html.TextBox("TXT_WEIGHT" + i, r["WEIGHT"], new { style = "width:100px", onchange = "numcheck(this);" }) g
+                            </td>
+                            <td class="head">頭圍</td>
+                            <td>
+                                @Html.TextBox("TXT_HEAD" + i, r["HEAD"], new { style = "width:100px", onchange = "numcheck(this);" }) cm
+                            </td>
+                            <td class="head">胸圍</td>
+                            <td>
+                                @Html.TextBox("TXT_CHEST" + i, r["CHEST"], new { style = "width:100px", onchange = "numcheck(this);" }) cm
+                            </td>
+                        </tr>
+                        <tr style="border-bottom:3px solid black">
+                            <td class="head">紀錄者</td>
+                            <td colspan="7">
+                                @Html.TextBox("TXT_CREATNO" + i, r["CREATNO"], new { style = "width:100px", onchange = "get_employee_name(this, 'CREATNO');" })
+                                @if (r["CREATNO_NAME"].ToString() != "")
+                                {
+                                    @Html.Label("LB_CREATNO" + i, r["CREATNO_NAME"].ToString(), new { id = "LB_CREATNO" + i, style = "width:100px" })
+                                }
+                                else
+                                {
+                                    @Html.Label("LB_CREATNO" + i, "請輸入員工編號", new { id = "LB_CREATNO" + i, style = "width:100px" })
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head">外觀(四肢)</td>
+                            <td>
+                                足內翻
+                                <input type="radio" name="RB_CLUBFOOT@(i)" value="0" onclick="$('.CLUBFOOT' + '@i').fadeOut();" />無
+                                <input type="radio" name="RB_CLUBFOOT@(i)" value="1" onclick="$('.CLUBFOOT' + '@i').fadeIn()" />有
+                                <span class="CLUBFOOT@(i)" style="display:none">
+                                    <input type="checkbox" name="CK_CLUBFOOT_LR@(i)" value="0" />左腳
+                                    <input type="checkbox" name="CK_CLUBFOOT_LR@(i)" value="1" />右腳
+                                </span>
+                                <br />
+                                足外翻
+                                <input type="radio" name="RB_VALGUS@(i)" value="0" onclick="$('.VALGUS' + '@i').fadeOut()" />無
+                                <input type="radio" name="RB_VALGUS@(i)" value="1" onclick="$('.VALGUS' + '@i').fadeIn()" />有
+                                <span class="VALGUS@(i)" style="display:none">
+                                    <input type="checkbox" name="CK_VALGUS_LR@(i)" value="0" />左腳
+                                    <input type="checkbox" name="CK_VALGUS_LR@(i)" value="1" />右腳
+                                </span>
+                                <br />
+                                單一手紋(斷掌)
+                                <input type="radio" name="RB_STPC@(i)" value="0" onclick="$('.STPC' + '@i').fadeOut()" />無
+                                <input type="radio" name="RB_STPC@(i)" value="1" onclick="$('.STPC' + '@i').fadeIn()" />有
+                                <span class="STPC@(i)" style="display:none">
+                                    <input type="checkbox" name="CK_STPC_LR@(i)" value="0" />左手
+                                    <input type="checkbox" name="CK_STPC_LR@(i)" value="1" />右手
+                                </span>
+                            </td>
+                            <td colspan="3">
+                                手指:
+                                <input type="radio" name="RB_FINGERS@(i)" value="0" onclick="$('.FINGERS' + '@i').fadeOut()" />正常
+                                <input type="radio" name="RB_FINGERS@(i)" value="1" onclick="$('.FINGERS' + '@i').fadeIn()" />異常
+                                <span class="FINGERS@(i)" style="display:none">
+                                    <br />左:<br />
+                                    <input type="checkbox" name="CK_FINGERS_UN@(i)" value="0" onclick="$('.OLIGO_LH' + '@i').fadeToggle(500)" />少指
+                                    <span class="OLIGO_LH@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_OLIGO_LH" + i, r["OLIGO_LH"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_FINGERS_UN@(i)" value="1" onclick="$('.POLY_LH' + '@i').fadeToggle(500)" />多指
+                                    <span class="POLY_LH@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_POLY_LH" + i, r["POLY_LH"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_FINGERS_UN@(i)" value="2" onclick="$('.SYN_LH' + '@i').fadeToggle(500)" />併指
+                                    <span class="SYN_LH@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_SYN_LH" + i, r["SYN_LH"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_FINGERS_UN@(i)" value="3" onclick="$('.WEBBING_LH' + '@i').fadeToggle(500)" />蹼狀指
+                                    <span class="WEBBING_LH@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_WEBBING_LH" + i, r["WEBBING_LH"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    右:<br />
+                                    <input type="checkbox" name="CK_FINGERS_UN@(i)" value="4" onclick="$('.OLIGO_RH' + '@i').fadeToggle(500)" />少指
+                                    <span class="OLIGO_RH@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_OLIGO_RH" + i, r["OLIGO_RH"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_FINGERS_UN@(i)" value="5" onclick="$('.POLY_RH' + '@i').fadeToggle(500)" />多指
+                                    <span class="POLY_RH@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_POLY_RH" + i, r["POLY_RH"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_FINGERS_UN@(i)" value="6" onclick="$('.SYN_RH' + '@i').fadeToggle(500)" />併指
+                                    <span class="SYN_RH@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_SYN_RH" + i, r["SYN_RH"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_FINGERS_UN@(i)" value="7" onclick="$('.WEBBING_RH' + '@i').fadeToggle(500)" />蹼狀指
+                                    <span class="WEBBING_RH@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_WEBBING_RH" + i, r["WEBBING_RH"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                </span>
+                            </td>
+                            <td colspan="3">
+                                腳趾:
+                                <input type="radio" name="RB_TOES@(i)" value="0" onclick="$('.TOES' + '@i').fadeOut()" />正常
+                                <input type="radio" name="RB_TOES@(i)" value="1" onclick="$('.TOES' + '@i').fadeIn()" />異常
+                                <span class="TOES@(i)" style="display:none">
+                                    <br />左:<br />
+                                    <input type="checkbox" name="CK_TOES_UN@(i)" value="0" onclick="$('.OLIGO_LT' + '@i').fadeToggle(500)" />少趾
+                                    <span class="OLIGO_LT@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_OLIGO_LT" + i, r["OLIGO_LT"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_TOES_UN@(i)" value="1" onclick="$('.POLY_LT' + '@i').fadeToggle(500)" />多趾
+                                    <span class="POLY_LT@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_POLY_LT" + i, r["POLY_LT"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_TOES_UN@(i)" value="2" onclick="$('.SYN_LT' + '@i').fadeToggle(500)" />併趾
+                                    <span class="SYN_LT@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_SYN_LT" + i, r["SYN_LT"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    右:<br />
+                                    <input type="checkbox" name="CK_TOES_UN@(i)" value="3" onclick="$('.OLIGO_RT' + '@i').fadeToggle(500)" />少趾
+                                    <span class="OLIGO_RT@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_OLIGO_RT" + i, r["OLIGO_RT"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_TOES_UN@(i)" value="4" onclick="$('.POLY_RT' + '@i').fadeToggle(500)" />多趾
+                                    <span class="POLY_RT@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_POLY_RT" + i, r["POLY_RT"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_TOES_UN@(i)" value="5" onclick="$('.SYN_RT' + '@i').fadeToggle(500)" />併趾
+                                    <span class="SYN_RT@(i)" style="display:none;">
+                                        ，部位
+                                        @Html.TextBox("TXT_SYN_RT" + i, r["SYN_RT"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                </span>
+                            </td>
+                        </tr>
+                        <tr style="border-bottom:3px solid black">
+                            <td class="head">外觀(胎記)</td>
+                            <td colspan="3">
+                                <input type="radio" name="RB_BIRTHMARK@(i)" value="0" onclick="$('.BIRTHMARK' + '@i').fadeOut()" />無
+                                <input type="radio" name="RB_BIRTHMARK@(i)" value="1" onclick="$('.BIRTHMARK' + '@i').fadeIn()" />有
+                                <span class="BIRTHMARK@(i)" style="display:none">
+                                    <br />
+                                    <input type="checkbox" name="CK_BM_SHAPE@(i)" value="0" onclick="$('.BM_MONG' + '@i').fadeToggle(500)" />蒙古斑
+                                    <span class="BM_MONG@(i)" style="display:none;">
+                                        ，部位:
+                                        @Html.TextBox("TXT_BM_MONG" + i, r["BM_MONG"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_BM_SHAPE@(i)" value="1" onclick="$('.BM_PS' + '@i').fadeToggle(500)" />粉紅色斑
+                                    <span class="BM_PS@(i)" style="display:none;">
+                                        ，部位:
+                                        @Html.TextBox("TXT_BM_PS" + i, r["BM_PS"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_BM_SHAPE@(i)" value="2" onclick="$('.BM_PPV' + '@i').fadeToggle(500)" />血管母斑
+                                    <span class="BM_PPV@(i)" style="display:none;">
+                                        ，部位:
+                                        @Html.TextBox("TXT_BM_PPV" + i, r["BM_PPV"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    <input type="checkbox" name="CK_BM_SHAPE@(i)" value="3" onclick="$('.BM_OTH' + '@i').fadeToggle(500)" />其他
+                                    <span class="BM_OTH@(i)" style="display:none;">
+                                        ，部位:
+                                        @Html.TextBox("TXT_BM_OTH" + i, r["BM_OTH"], new { style = "width:100px" })
+                                        <br />
+                                    </span>
+                                </span>
+                            </td>
+                            <td class="head">外觀(其他)</td>
+                            <td colspan="3">
+                                @Html.TextBox("TXT_EXTERIOR_OTHER" + i, r["EXTERIOR_OTHER"], new { style = "width:150px" })
+                            </td>
+                        </tr>
+                    </table>
+                    <table border="1" st cellpadding="4" cellspacing="1" style="border-collapse:collapse;width:100%;padding-top:6px;table-layout:auto;">
+                        <tr>
+                            <td colspan="8" class="head" style="text-align:center;">新生兒處置</td>
+                        </tr>
+                        <tr>
+                            <td class="head" style="width:10%">膚色發紺</td>
+                            <td style="width:15%">
+                                <input type="radio" name="RB_CYANOSIS@(i)" value="0" />無
+                                <input type="radio" name="RB_CYANOSIS@(i)" value="1" />有
+                            </td>
+                            <td class="head" style="width:12.5%">氧氣使用</td>
+                            <td style="width:12.5%">
+                                <input type="radio" name="RB_OXYGEN@(i)" value="0" />無
+                                <input type="radio" name="RB_OXYGEN@(i)" value="1" />有
+                            </td>
+                            <td class="head" style="width:12.5%">口鼻抽吸量</td>
+                            <td colspan="3" style="width:12.5%">
+                                <input type="radio" name="RB_NAS_SUC@(i)" value="0" onclick="$('.NAS_SUC' + '@i').fadeOut()" />無
+                                <input type="radio" name="RB_NAS_SUC@(i)" value="1" onclick="$('.NAS_SUC' + '@i').fadeIn()" />有
+                                <br>
+                                <span class="NAS_SUC@(i)" style="display:none">
+                                    量：
+                                    <input type="radio" name="RB_NAS_SUC_AMT@(i)" value="0" />多
+                                    <input type="radio" name="RB_NAS_SUC_AMT@(i)" value="1" />中
+                                    <input type="radio" name="RB_NAS_SUC_AMT@(i)" value="2" />少
+                                    <br />
+                                    顏色：
+                                    <input type="radio" name="RB_NAS_SUC_COL@(i)" value="0" onclick="$('.NAS_SUC_COL' + '@i').fadeOut()" />透明
+                                    <input type="radio" name="RB_NAS_SUC_COL@(i)" value="1" onclick="$('.NAS_SUC_COL' + '@i').fadeOut()" />淡綠
+                                    <input type="radio" name="RB_NAS_SUC_COL@(i)" value="2" onclick="$('.NAS_SUC_COL' + '@i').fadeOut()" />深綠
+                                    <input type="radio" name="RB_NAS_SUC_COL@(i)" value="3" onclick="$('.NAS_SUC_COL' + '@i').fadeIn()" />其他
+                                    <span class="NAS_SUC_COL@(i)" style="display:none">
+                                        ，@Html.TextBox("TXT_NAS_SUC_COL_OTH" + i, r["NAS_SUC_COL_OTH"], new { style = "width:100px" })
+                                    </span>
+                                    <br />
+                                    性質：
+                                    <input type="radio" name="RB_NAS_SUC_STA@(i)" value="0" />稀
+                                    <input type="radio" name="RB_NAS_SUC_STA@(i)" value="1" />糊
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="head">
+                                項目
+                                <br />
+                                @if (isKardex != true && IsHisView != true)
+                                {
+                                    <input type="button" name="btn" id="" value="新增" onclick="window.open('Partial_Child_EMR?Seq=@BabySeq&NBIID=@r["IID"]', '', 'menubar=no,status=no,scrollbars=yes,top=100,left=100,toolbar=no,width=750,height=480')" />
+                                    <input type="button" value="修改" style="width:50px;" onclick="set_row('Partial_Child_EMR');" />
+                                    <input type="button" value="刪除" style="width:50px;" onclick="Delete()" />
+                                }
+                            </td>
+                            <td class="head">日期時間</td>
+                            <td colspan="3" class="head">內容</td>
+                            <td class="head">紀錄者</td>
+                            <td class="head">帶入護理紀錄</td>
+                        </tr>
+                        @{
+                            if (dt_emr != null && dt.Rows.Count > 0)
+                            {
+                                foreach (DataRow emr in dt_emr.Rows)
+                                {
+                                    if (Convert.ToChar(Convert.ToInt32(emr["BABY_SEQ"].ToString()) + 65).ToString() == r["NB_TEMPNO"].ToString().Substring(r["NB_TEMPNO"].ToString().Length - 1))
+                                    {
+                                        <tr id="update_EMR_@emr["IID"]">
+                                            <td>
+                                                @if (isKardex != true && IsHisView != true)
+                                                {
+                                                    <label><input type="checkbox" name="del_ID" value="@emr["IID"]" /></label>
+                                                }
+                                            </td>
+                                            <td>@Convert.ToDateTime(emr["ET_DATE"]).ToString("yyyy/MM/dd HH:mm")</td>
+                                            <td colspan="3">@emr["ET"]</td>
+                                            <td>@emr["CREATNO_ET_NAME"]</td>
+                                            @if (emr["ET_CARE_RECORD"].ToString() == "1")
+                                            {
+                                                <td>是</td>
+                                            }
+                                            else
+                                            {
+                                                <td>否</td>
+                                            }
+                                        </tr>
+                                    }
+                                }
+                            }
+                        }
+                        <tr id="update_EMR_@r["IID"]"></tr>
+                        <tr>
+                            <td class="head">紀錄者(簽章者)</td>
+                            <td>
+                                @Html.TextBox("TXT_CREATNO_2" + i, r["CREATNO_2"], new { style = "width:100px", onchange = "get_employee_name(this, 'CREATNO_2');" })
+                                @if (r["CREATNO_2_NAME"].ToString() != "")
+                                {
+                                    @Html.Label("LB_CREATNO_2" + i, r["CREATNO_2_NAME"].ToString(), new { id = "LB_CREATNO_2" + i, style = "width:100px" })
+                                }
+                                else
+                                {
+                                    @Html.Label("LB_CREATNO_2" + i, "請輸入員工編號", new { id = "LB_CREATNO_2" + i, style = "width:100px" })
+                                }
+                            </td>
+                            <td class="head">指導者</td>
+                            <td colspan="4">
+                                @Html.TextBox("TXT_DIRECTOR" + i, r["DIRECTOR"], new { style = "width:100px", onchange = "get_employee_name(this, 'DIRECTOR');" })
+                                @if (r["DIRECTOR_NAME"].ToString() != "")
+                                {
+                                    @Html.Label("LB_DIRECTOR" + i, r["DIRECTOR_NAME"].ToString(), new { id = "LB_DIRECTOR" + i, style = "width:100px" })
+                                }
+                                else
+                                {
+                                    @Html.Label("LB_DIRECTOR" + i, "請輸入員工編號", new { id = "LB_DIRECTOR" + i, style = "width:100px" })
+                                }
+                            </td>
+                        </tr>
+                    </table>
+                    <script>
+                    @if(r["FETAL"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_FETAL@(i)', '@r["FETAL"]');
+                                        }
+                    @if(r["CORD_ENTANGLEMENT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_CORD_ENTANGLEMENT@(i)', '@r["CORD_ENTANGLEMENT"]');
+                                        }
+                        @if(r["BIRTH_TYPE"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BIRTH_TYPE@(i)', '@r["BIRTH_TYPE"]');
+                                        }
+                                        @if(r["VACUUM_NSD"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_VACUUM_NSD@(i)', '@r["VACUUM_NSD"]');
+                                        }
+                                        @if(r["VACUUM_CS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_VACUUM_CS@(i)', '@r["VACUUM_CS"]');
+                                        }
+                                         @if(r["MECONIUM_COLOR"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_MECONIUM_COLOR@(i)', '@r["MECONIUM_COLOR"]');
+                                        }
+                                         @if(r["SKIN_CONTACT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_SKIN_CONTACT@(i)', '@r["SKIN_CONTACT"]');
+                                        }
+                                         @if(r["SKIN_CONTACT_RS"].ToString() != "")
+                                         {
+                                             var SKIN_CONTACT_RS = r["SKIN_CONTACT_RS"].ToString();
+                                             var SKIN_CONTACT_RSV = new List<string>();
+
+                                             for (var v = 0; v < SKIN_CONTACT_RS.ToString().Length; v++)
+                                             {
+                                                 if (SKIN_CONTACT_RS[v] == '1')
+                                                 {
+                                                     SKIN_CONTACT_RSV.Add(v.ToString());
+                                                 }
+                                             }
+                                                 @:set_for_ck('CK_SKIN_CONTACT_RS@(i)', '@String.Join(",", SKIN_CONTACT_RSV)');
+                                        }
+
+                        @if(r["CONTACT_N_MOM"].ToString() != "")
+                        {
+                            var CONTACT_N_MOM = r["CONTACT_N_MOM"].ToString();
+                            var CONTACT_N_MOMV = new List<string>();
+
+                            for (var v = 0; v < CONTACT_N_MOM.ToString().Length; v++)
+                            {
+                                if (CONTACT_N_MOM[v] == '1')
+                                {
+                                    CONTACT_N_MOMV.Add(v.ToString());
+                                }
+                            }
+                                                 @:set_for_ck('CK_CONTACT_N_MOM@(i)', '@String.Join(",", CONTACT_N_MOMV)');
+                                        }
+
+                         @if(r["CONTACT_N_MOM_ID"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_CONTACT_N_MOM_ID@(i)', '@r["CONTACT_N_MOM_ID"]');
+                                        }
+
+                        @if(r["CONTACT_N_NB"].ToString() != "")
+                        {
+                            var CONTACT_N_NB = r["CONTACT_N_NB"].ToString();
+                            var CONTACT_N_NBV = new List<string>();
+
+                            for (var v = 0; v < CONTACT_N_NB.ToString().Length; v++)
+                            {
+                                if (CONTACT_N_NB[v] == '1')
+                                {
+                                    CONTACT_N_NBV.Add(v.ToString());
+                                }
+                            }
+                                                 @:set_for_ck('CK_CONTACT_N_NB@(i)', '@String.Join(",", CONTACT_N_NBV)');
+                                        }
+
+
+                        @if(r["CONTACT_E_RS"].ToString() != "")
+                        {
+                            var CONTACT_E_RS = r["CONTACT_E_RS"].ToString();
+                            var CONTACT_E_RSV = new List<string>();
+
+                            for (var v = 0; v < CONTACT_E_RS.ToString().Length; v++)
+                            {
+                                if (CONTACT_E_RS[v] == '1')
+                                {
+                                    CONTACT_E_RSV.Add(v.ToString());
+                                }
+                            }
+                            @:set_for_ck('CK_CONTACT_E_RS@(i)', '@String.Join(",", CONTACT_E_RSV)');
+                        }
+
+                        @if(r["CONTACT_E_MOM"].ToString() != "")
+                        {
+                            var CONTACT_E_MOM = r["CONTACT_E_MOM"].ToString();
+                            var CONTACT_E_MOMV = new List<string>();
+
+                            for (var v = 0; v < CONTACT_E_MOM.ToString().Length; v++)
+                            {
+                                if (CONTACT_E_MOM[v] == '1')
+                                {
+                                    CONTACT_E_MOMV.Add(v.ToString());
+                                }
+                            }
+                            @:set_for_ck('CK_CONTACT_E_MOM@(i)', '@String.Join(",", CONTACT_E_MOMV)');
+                        }
+
+                        @if(r["CONTACT_E_NB"].ToString() != "")
+                        {
+                            var CONTACT_E_NB = r["CONTACT_E_NB"].ToString();
+                            var CONTACT_E_NBV = new List<string>();
+
+                            for (var v = 0; v < CONTACT_E_NB.ToString().Length; v++)
+                            {
+                                if (CONTACT_E_NB[v] == '1')
+                                {
+                                    CONTACT_E_NBV.Add(v.ToString());
+                                }
+                            }
+                            @:set_for_ck('CK_CONTACT_E_NB@(i)', '@String.Join(",", CONTACT_E_NBV)');
+                        }
+
+                        @if(r["RB_AS_1_1"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_1_1@(i)', '@r["RB_AS_1_1"]');
+                        }
+                        @if(r["RB_AS_1_2"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_1_2@(i)', '@r["RB_AS_1_2"]');
+                        }
+                        @if(r["RB_AS_1_3"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_1_3@(i)', '@r["RB_AS_1_3"]');
+                        }
+                        @if(r["RB_AS_1_4"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_1_4@(i)', '@r["RB_AS_1_4"]');
+                        }
+                        @if(r["RB_AS_1_5"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_1_5@(i)', '@r["RB_AS_1_5"]');
+                        }
+                        sum_apgar_score('1', @(i));
+
+                        @if(r["RB_AS_5_1"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_5_1@(i)', '@r["RB_AS_5_1"]');
+                        }
+                        @if(r["RB_AS_5_2"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_5_2@(i)', '@r["RB_AS_5_2"]');
+                        }
+                        @if(r["RB_AS_5_3"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_5_3@(i)', '@r["RB_AS_5_3"]');
+                        }
+                        @if(r["RB_AS_5_4"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_5_4@(i)', '@r["RB_AS_5_4"]');
+                        }
+                        @if(r["RB_AS_5_5"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_5_5@(i)', '@r["RB_AS_5_5"]');
+                        }
+                        sum_apgar_score('5', @(i));
+                        @if(r["RB_AS_10_1"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_10_1@(i)', '@r["RB_AS_10_1"]');
+                        }
+                        @if(r["RB_AS_10_2"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_10_2@(i)', '@r["RB_AS_10_2"]');
+                        }
+                        @if(r["RB_AS_10_3"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_10_3@(i)', '@r["RB_AS_10_3"]');
+                        }
+                        @if(r["RB_AS_10_4"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_10_4@(i)', '@r["RB_AS_10_4"]');
+                        }
+                        @if(r["RB_AS_10_5"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_10_5@(i)', '@r["RB_AS_10_5"]');
+                        }
+                        sum_apgar_score('10', @(i));
+                        @if(r["RB_AS_OTH_1"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_OTH_1@(i)', '@r["RB_AS_OTH_1"]');
+                        }
+                        @if(r["RB_AS_OTH_2"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_OTH_2@(i)', '@r["RB_AS_OTH_2"]');
+                        }
+                        @if(r["RB_AS_OTH_3"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_OTH_3@(i)', '@r["RB_AS_OTH_3"]');
+                        }
+                        @if(r["RB_AS_OTH_4"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_OTH_4@(i)', '@r["RB_AS_OTH_4"]');
+                        }
+                        @if(r["RB_AS_OTH_5"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_RB_AS_OTH_5@(i)', '@r["RB_AS_OTH_5"]');
+                        }
+                        sum_apgar_score('OTH', @(i));
+                        @if(r["CHILD_SENT"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_CHILD_SENT@(i)', '@r["CHILD_SENT"]');
+                        }
+                        @if(r["MECONIUM"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_MECONIUM@(i)', '@r["MECONIUM"]');
+                        }
+                        @if(r["URINE"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_URINE@(i)', '@r["URINE"]');
+                        }
+                        @if(r["CLUBFOOT"].ToString() != "")
+                        {
+                            @:set_for_rb('RB_CLUBFOOT@(i)', '@r["CLUBFOOT"]');
+                        }
+                        @if(r["CLUBFOOT_LR"].ToString() != "")
+                        {
+                             var CLUBFOOT_LR = r["CLUBFOOT_LR"].ToString();
+                             var CLUBFOOT_LRV = new List<string>();
+
+                             for (var v = 0; v < CLUBFOOT_LR.ToString().Length; v++)
+                             {
+                                 if (CLUBFOOT_LR[v] == '1')
+                                 {
+                                     CLUBFOOT_LRV.Add(v.ToString());
+                                 }
+                             }
+                                                 @:set_for_ck('CK_CLUBFOOT_LR@(i)', '@String.Join(",", CLUBFOOT_LRV)');
+                                        }
+
+                        @if(r["VALGUS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_VALGUS@(i)', '@r["VALGUS"]');
+                                        }
+
+                         @if(r["VALGUS_LR"].ToString() != "")
+                         {
+                             var VALGUS_LR = r["VALGUS_LR"].ToString();
+                             var VALGUS_LRV = new List<string>();
+
+                             for (var v = 0; v < VALGUS_LR.ToString().Length; v++)
+                             {
+                                 if (VALGUS_LR[v] == '1')
+                                 {
+                                     VALGUS_LRV.Add(v.ToString());
+                                 }
+                             }
+                                                 @:set_for_ck('CK_VALGUS_LR@(i)', '@String.Join(",", VALGUS_LRV)');
+                                        }
+
+                        @if(r["STPC"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_STPC@(i)', '@r["STPC"]');
+                                        }
+
+                        @if(r["STPC_LR"].ToString() != "")
+                        {
+                            var STPC_LR = r["STPC_LR"].ToString();
+                            var STPC_LRV = new List<string>();
+
+                            for (var v = 0; v < STPC_LR.ToString().Length; v++)
+                            {
+                                if (STPC_LR[v] == '1')
+                                {
+                                    STPC_LRV.Add(v.ToString());
+                                }
+                            }
+                                                 @:set_for_ck('CK_STPC_LR@(i)', '@String.Join(",", STPC_LRV)');
+                                        }
+
+                        @if(r["FINGERS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_FINGERS@(i)', '@r["FINGERS"]');
+                                        }
+                        @if(r["FINGERS_UN"].ToString() != "")
+                        {
+                            var FINGERS_UN = r["FINGERS_UN"].ToString();
+                            var FINGERS_UNV = new List<string>();
+
+                            for (var v = 0; v < FINGERS_UN.ToString().Length; v++)
+                            {
+                                if (FINGERS_UN[v] == '1')
+                                {
+                                    FINGERS_UNV.Add(v.ToString());
+                                }
+                            }
+                                                 @:set_for_ck('CK_FINGERS_UN@(i)', '@String.Join(",", FINGERS_UNV)');
+                                        }
+                        @if(r["TOES"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_TOES@(i)', '@r["TOES"]');
+                                        }
+
+                        @if(r["TOES_UN"].ToString() != "")
+                        {
+                            var TOES_UN = r["TOES_UN"].ToString();
+                            var TOES_UNV = new List<string>();
+
+                            for (var v = 0; v < TOES_UN.ToString().Length; v++)
+                            {
+                                if (TOES_UN[v] == '1')
+                                {
+                                    TOES_UNV.Add(v.ToString());
+                                }
+                            }
+                                                 @:set_for_ck('CK_TOES_UN@(i)', '@String.Join(",", TOES_UNV)');
+                                        }
+
+                         @if(r["BIRTHMARK"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_BIRTHMARK@(i)', '@r["BIRTHMARK"]');
+                                        }
+
+                        @if(r["BM_SHAPE"].ToString() != "")
+                        {
+                            var BM_SHAPE = r["BM_SHAPE"].ToString();
+                            var BM_SHAPEV = new List<string>();
+
+                            for (var v = 0; v < BM_SHAPE.ToString().Length; v++)
+                            {
+                                if (BM_SHAPE[v] == '1')
+                                {
+                                    BM_SHAPEV.Add(v.ToString());
+                                }
+                            }
+                                                 @:set_for_ck('CK_BM_SHAPE@(i)', '@String.Join(",", BM_SHAPEV)');
+                                        }
+
+                          @if(r["CYANOSIS"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_CYANOSIS@(i)', '@r["CYANOSIS"]');
+                                        }
+                        @if(r["OXYGEN"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_OXYGEN@(i)', '@r["OXYGEN"]');
+                                        }
+                                         @if(r["NAS_SUC"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_NAS_SUC@(i)', '@r["NAS_SUC"]');
+                                        }
+
+     @if(r["NAS_SUC_AMT"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_NAS_SUC_AMT@(i)', '@r["NAS_SUC_AMT"]');
+                                        }
+      @if(r["NAS_SUC_COL"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_NAS_SUC_COL@(i)', '@r["NAS_SUC_COL"]');
+                                        }
+       @if(r["NAS_SUC_STA"].ToString() != "")
+                                        {
+                                            @:set_for_rb('RB_NAS_SUC_STA@(i)', '@r["NAS_SUC_STA"]');
+                                        }
+
+                        @if(r["ET_CARE_RECORD"].ToString() != "")
+                        {
+                           @:set_for_ck('CK_ET_CARE_RECORD@(i)', '@r["ET_CARE_RECORD"].ToString()');
+                        }
+
+                        @if(r["CONTACT_START_DAY"].ToString() != "" && r["BIRTH_DAY"].ToString() != "")
+                        {
+                            // 若接觸開始時間與生產時間相差30分鐘以上需出現警示
+                            if (Convert.ToDateTime(r["CONTACT_START_DAY"]).Subtract(Convert.ToDateTime(r["BIRTH_DAY"])) > new TimeSpan(0,30,0))
+                            {
+                                @:$('input[name="TXT_CONTACT_START_DAY_DAY@(i)"]').addClass("redAlert");
+                                @:$('input[name="TXT_CONTACT_START_DAY_TIME@(i)"]').addClass("redAlert");
+                            }
+                        }
+                        @if(r["CONTACT_START_DAY"].ToString() != "" && r["CONTACT_END_DAY"].ToString() != "")
+                        {
+                            // 若(結束時間-開始時間)少於20分鐘（陰道產）或10分鐘（剖腹產）需警示
+                            if(r["BIRTH_TYPE"].ToString() == "0") //NSD
+                            {
+                                if (Convert.ToDateTime(r["CONTACT_END_DAY"]).Subtract(Convert.ToDateTime(r["CONTACT_START_DAY"])) < new TimeSpan(0,20,0))
+                                {
+                                    @:$('input[name="TXT_CONTACT_END_DAY_DAY@(i)"]').addClass("redAlert");
+                                    @:$('input[name="TXT_CONTACT_END_DAY_TIME@(i)"]').addClass("redAlert");
+                                }
+                            }
+                            if(r["BIRTH_TYPE"].ToString() == "1") //C/S
+                            {
+                                if (Convert.ToDateTime(r["CONTACT_END_DAY"]).Subtract(Convert.ToDateTime(r["CONTACT_START_DAY"])) < new TimeSpan(0,10,0))
+                                {
+                                    @:$('input[name="TXT_CONTACT_END_DAY_DAY@(i)"]').addClass("redAlert");
+                                    @:$('input[name="TXT_CONTACT_END_DAY_TIME@(i)"]').addClass("redAlert");
+                                }
+                            }
+
+                        }
+
+                    </script>
+                </div>
+            }
+        </div>
+        <div id="unfilled" class="tabArea" style="display:none;overflow-y:auto;padding-left:5px;">
+        </div>
+    </form>
+}
+
+<script type="text/javascript">
+    $.fn.getType = function () { return this[0].tagName == "INPUT" ? this[0].type.toLowerCase() : this[0].tagName.toLowerCase(); };
+    $(document).ready(function () {
+
+        //自動調整頁面高度   //分頁選項高度
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $("#unfilled").outerHeight(height - 115);
+            $(".tabArea").outerHeight(height - 115);
+            $(".tab").outerHeight($(".tabArea").outerHeight() - 100);
+        }).trigger("resize");
+
+        $(".tabArea").tabs({ active: 0 });
+
+        // inital tooltip
+        $(".tooltip").tooltip({
+            content: function () { return $(this).attr('title'); }
+        });
+
+        var activePage = 0;
+        var tabCount = 0;
+        if ($(".tabArea").length > 0) {
+            $(".tab_control").click(function () {
+                activePage = $(".tabArea").tabs("option", "active");
+                tabCount = $(".tabArea").find("li").length - 1;
+                switch ($(this).attr("control_code")) {
+                    case "page_up":
+                        window.scrollTo(0, 0);
+                        if (activePage > 0)
+                            $(".tabArea").tabs("option", "active", activePage - 1);
+                        break;
+                    case "page_down":
+                        window.scrollTo(0, 0);
+                        if (activePage < tabCount)
+                            $(".tabArea").tabs("option", "active", activePage + 1);
+                        break;
+                }
+            }).prop("disabled", false);
+        }
+    });
+
+    function checkData() {
+        var count = "@count";
+        for (var i = 0; i < count; i++) {
+            if ($("input[name = RB_SKIN_CONTACT" + i + "]:checked").val() === "0") {
+                var v = $("input:checkbox:checked[name=CK_SKIN_CONTACT_RS" + i + "]").map(function () { return $(this).val(); }).get().join(',');
+                if (v == null || v == "") {
+                    alert("需勾選無母嬰皮膚接觸-結束原因")
+                    return false;
+                }
+            }
+
+            if ($("input[name = RB_SKIN_CONTACT" + i + "]:checked").val() === "1") {
+                var startDay = $("input[name = TXT_CONTACT_START_DAY_DAY" + i + "]").val();
+                var startTime = $("input[name = TXT_CONTACT_START_DAY_TIME" + i + "]").val();
+                if (startDay == null || startDay == "" || startTime == null || startTime == "") {
+                    alert("需填寫接觸起始時間")
+                    return false;
+                }
+            }
+
+            var endDay = $("input[name = TXT_CONTACT_END_DAY_DAY" + i + "]").val();
+            var endTime = $("input[name = TXT_CONTACT_END_DAY_TIME" + i + "]").val();
+            if (endDay != null && endDay != "" && endTime != null && endTime != "") {
+                var v = $("input:checkbox:checked[name=CK_CONTACT_E_RS" + i + "]").map(function () { return $(this).val(); }).get().join(',');
+                if (v == null || v == "") {
+                    alert("需勾選有母嬰皮膚接觸-結束原因")
+                    return false;
+                }
+            }
+
+            if ($("input[name = RB_CLUBFOOT" + i + "]:checked").val() === "1") {
+                var v = $("input:checkbox:checked[name=CK_CLUBFOOT_LR" + i + "]").map(function () { return $(this).val(); }).get().join(',');
+                if (v == null || v == "") {
+                    alert("需勾選足內翻-位置")
+                    return false;
+                }
+            }
+
+            if ($("input[name = RB_VALGUS" + i + "]:checked").val() === "1") {
+                var v = $("input:checkbox:checked[name=CK_VALGUS_LR" + i + "]").map(function () { return $(this).val(); }).get().join(',');
+                if (v == null || v == "") {
+                    alert("需勾選足外翻-位置")
+                    return false;
+                }
+            }
+
+            if ($("input[name = RB_STPC" + i + "]:checked").val() === "1") {
+                var v = $("input:checkbox:checked[name=CK_STPC_LR" + i + "]").map(function () { return $(this).val(); }).get().join(',');
+                if (v == null || v == "") {
+                    alert("需勾選斷掌-位置")
+                    return false;
+                }
+            }
+
+            if ($("input[name = RB_FINGERS" + i + "]:checked").val() === "1") {
+                var v = $("input:checkbox:checked[name=CK_FINGERS_UN" + i + "]").map(function () { return $(this).val(); }).get().join(',');
+                if (v == null || v == "") {
+                    alert("需勾選手指-異常部位")
+                    return false;
+                }
+            }
+
+            if ($("input[name = RB_TOES" + i + "]:checked").val() === "1") {
+                var v = $("input:checkbox:checked[name=CK_TOES_UN" + i + "]").map(function () { return $(this).val(); }).get().join(',');
+                if (v == null || v == "") {
+                    alert("需勾選腳趾-異常部位")
+                    return false;
+                }
+            }
+
+            if ($("input[name = RB_NAS_SUC" + i + "]:checked").val() === "1") {
+                if ($("input[name = RB_NAS_SUC_AMT" + i + "]:checked").val() === undefined) {
+                    alert("需點選口鼻抽吸量-量")
+                    return false;
+                }
+                if ($("input[name = RB_NAS_SUC_COL" + i + "]:checked").val() === undefined) {
+                    alert("需點選口鼻抽吸量-顏色")
+                    return false;
+                }
+                if ($("input[name = RB_NAS_SUC_STA" + i + "]:checked").val() === undefined) {
+                    alert("需點選口鼻抽吸量-性質")
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    $('form').on('keyup keypress', function (e) {
+        var keyCode = e.keyCode || e.which;
+        if (keyCode === 13) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>
+
+<style type="text/css">
+    #sys_Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1000;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #sys_Loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 1001;
+        display: none;
+    }
+</style>
+
+<!--遮罩-->
+<div id="inp" class="dialog"></div>
+<div id="cover" class="dialog"></div>
+<div id="sys_Block"></div>
+<div id="sys_Loading">
+    <label for="lab" style="font-size:16px">Loading...</label><br />
+    <img src="~/Images/System/loading.gif" alt="" />
+</div>

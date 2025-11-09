@@ -1,0 +1,454 @@
+﻿@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    //日期選擇器，鎖定時間
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+}
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+        height: 20px;
+    }
+</style>
+<script type="text/javascript">
+    $(document).ready(function () {
+        setGridColor();
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 140);
+        }).trigger("resize");
+        if ($("#module_define").text() == "新增 譫妄評估")
+        {
+            $("#rb_assessment_reason_0").click();
+        }
+    });
+
+    //格行換色
+    function setGridColor() {
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#E1E6FA');
+
+        var tr = $('.dataArea tr');
+        var color = '#ABC8E2';
+        for (var i = 0; i < tr.length; i++) {
+            if ($(tr[i]).css('display') != 'none') {
+                $(tr[i]).css('background', color);
+                if (color == '#ABC8E2')
+                    color = '#E1E6FA';
+                else
+                    color = '#ABC8E2';
+            }
+        }
+        $('.head').css('background', '#85A5CC');
+        $('.due').css('background', '#FF6666');
+    }
+
+    //選擇是否打開其他欄位的textbox
+    function ckable(obj, txtid) {
+        var ck = obj;
+        if (ck.checked)
+        { able(txtid); }
+        else
+        { enable(txtid); }
+    }
+
+    //打開
+    function able(id) {
+        document.getElementById(id).disabled = false;
+    }
+    //關閉
+    function enable(id) {
+        document.getElementById(id).disabled = true;
+    }
+
+    //檢查
+    function check() {
+        if ($("input[name=rb_assessment_reason]:checked").val() == '其他' && $("#tb_assessment_reason").val() == '')
+        {
+            alert('請填寫 評核原因 其他內容 ');
+            return false;
+        }
+        if ($('input[name=rb_assessment_reason]:checked').val() == undefined) {
+            alert('請選擇 評核原因 選項 ');
+            return false;
+        }
+        if ($('input[name=rb_acute_attack_1a]:checked').val() == undefined) {
+            alert('請選擇 1a.與平常相比較，是否有任何證據顯示病人精神狀態產生急性變化? 選項');
+            return false;
+        }
+        if ($('input[name=rb_acute_attack_1b]:checked').val() == undefined) {
+            alert('請選擇 1b.這些不正常的行為是否在一天中呈現波動狀態? 意即症狀來來去去或嚴重程度起起落落 選項');
+            return false;
+        }
+        if ($('input[name=rb_attention]:checked').val() == undefined) {
+            alert('請選擇  2.注意力不集中：病人是否集中注意力有困難? 例如容易分心或無法接續剛剛說過的話 選項');
+            return false;
+        }
+        if ($('input[name=rb_ponder]:checked').val() == undefined) {
+            alert('請選擇 3.思考缺乏組織：病人是否思考缺乏組織或不連貫? 如雜亂或答非所問的對話、不清楚或不合邏輯的想法或無預期的從一個主題跳到另一個主題 選項');
+            return false;
+        }
+        if ($('input[name=rb_consciousness]:checked').val() == undefined) {
+            alert('請選擇 4.意識狀態改變：整體而言，您認為病人的意識狀態為過度警覺、嗜睡、木僵或昏迷 選項');
+            return false;
+        }
+        return true;
+    }
+
+    //加總
+    function mark() {
+        var score = 0;
+        var score1 = count_score('acute_attack_1a', score);
+        var score2 = count_score('acute_attack_1b', score);
+        var score3 = count_score('attention', score);
+        var score4 = count_score('ponder', score);
+        var score5 = count_score('consciousness', score);
+        var score6 = count_score('assessment_reason', score);
+        score = score1 + score2 + score3 + score4 + score5;
+        if ($('input[name=rb_assessment_reason]:checked').val() != '其他') {
+            clear();
+        }
+        $("#hid_score_remark").val('');
+        $("#hid_score").val(score);
+ 
+        if (score1 == 2 || score2 == 2 || score3 == 2 || score4 == 2 || score5 == 2) {
+            document.getElementById("score").innerText = '無法評估';
+            $("#hid_score").val(score);
+            $("#hid_score_remark").val('無法評估');
+            $("#score").css("color", "black");
+        }
+        else if (score1 == 0 && score2 == 0 && score3 == 0 && (score4 == 0 || score5 == 0)) {
+            document.getElementById("score").innerText = '有譫妄，提供譫妄照護，並通知醫療科';
+            $("#hid_score").val(score);
+            $("#hid_score_remark").val('有譫妄，提供譫妄照護，並通知醫療科');
+            $("#score").css("color", "red");
+        }
+        else
+        {
+            document.getElementById("score").innerText = '無譫妄';
+            $("#hid_score").val(score);
+            $("#hid_score_remark").val('無譫妄');
+            $("#score").css("color", "black");
+        }
+    }
+
+    function count_score(id, score) {
+        var obj = $('input[name=rb_' + id + ']:checked');
+        if (obj.val() != undefined) {
+            $('#' + id).val(obj.attr('text'));
+            score = score + parseInt(obj.val());
+        }
+        else {
+            score = score - 1;
+        }
+        return score
+    }
+
+    function loading_change() {
+        $("#save").prop('disabled', true);
+        loop_windows("open_cover");
+
+        if (check()) {
+            $("#form1").submit();
+        }
+        else
+        {
+            $("#save").prop('disabled', false);
+            loop_windows("close_cover");
+        }
+    }
+    function clear() {
+        $("#tb_assessment_reason").val('');
+    }
+    function clearOther() {
+        $('input[name=rb_assessment_reason_other]').val('');
+        $("input[name=rb_assessment_reason_other]").prop("disabled", true);
+
+    }
+</script>
+@{
+    string action = "Delirium_Save", title = "新增 譫妄評估";
+    string id = "", assessment_reason = "", acute_attack_1a = "", acute_attack_1b = "", attention = "", ponder = "", consciousness = "", total_score = "", result = "", ass_reason="",reason_other = "";
+    DateTime now = DateTime.Now;
+    DataTable dt = ViewBag.dt;
+    if (dt != null && dt.Rows.Count > 0)
+    {
+        action = "Delirium_Save"; title = "更新 譫妄評估";
+        now = Convert.ToDateTime(dt.Rows[0]["ASSESS_DT"]);
+        id = dt.Rows[0]["ASSESS_ID"].ToString();
+        assessment_reason = dt.Rows[0]["ASSESSMENT_REASON"].ToString();
+        acute_attack_1a = dt.Rows[0]["SCORE_1A"].ToString();
+        acute_attack_1b = dt.Rows[0]["SCORE_1B"].ToString();
+        attention = dt.Rows[0]["SCORE_2"].ToString();
+        ponder = dt.Rows[0]["SCORE_3"].ToString();
+        consciousness = dt.Rows[0]["SCORE_4"].ToString();
+        total_score = dt.Rows[0]["TOTAL_SCORE"].ToString();
+        ass_reason = dt.Rows[0]["ASSESSMENT_REASON"].ToString();
+        result = dt.Rows[0]["RESULT"].ToString();
+        reason_other = dt.Rows[0]["REASON_OTHER"].ToString();
+
+
+        <script type="text/javascript">
+            $(function () {
+                set_for_rb('rb_acute_attack_1a', '@acute_attack_1a');
+                set_for_rb('rb_acute_attack_1b', '@acute_attack_1b');
+                set_for_rb('rb_attention', '@attention');
+                set_for_rb('rb_ponder', '@ponder');
+                set_for_rb('rb_consciousness', '@consciousness');
+                set_for_rb_reason('rb_assessment_reason', '@ass_reason', '@reason_other');
+                mark();
+            });
+
+            function set_for_rb(id, default_val) {
+
+                var rb = document.getElementsByName('rb_' + id);
+                if (default_val == "0") {
+                    $("#" + id + "_0").attr('checked', true);
+                }
+                else if (default_val == "1") {
+                    $("#" + id + "_1").attr('checked', true);
+                }
+                else {
+                    $("#" + id + "_2").attr('checked', true);
+                }
+            }
+            function set_for_rb_reason(id, default_val, reason_other) {
+
+                var rb = document.getElementsByName('rb_' + id);
+                if (default_val == "譫妄病人每班評估") {
+                    $("#" + id + "_0").attr('checked', true);
+                }
+                else if (default_val == "拔管後") {
+                    $("#" + id + "_1").attr('checked', true);
+                }
+                else if (default_val == "解除約束後") {
+                    $("#" + id + "_2").attr('checked', true);
+                }
+                else if (default_val == "新病人") {
+                    $("#" + id + "_3").attr('checked', true);
+                }
+                else {
+                    $("#" + id + "_other").attr('checked', true);
+                    $("#tb_assessment_reason").attr('disabled', false);
+                    $("#tb_assessment_reason").val(reason_other);
+                }
+            }
+
+        </script>
+    }
+
+}
+<form id="form1" action="@action" method="post">
+    <input type="hidden" id="id" name="id" value="@id" />
+    <input type="hidden" id="carerecord" name="carerecord" />
+    <table border="0" cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+            <td style="width:100%;text-align:center;">
+                <div id="module_define">@title</div>
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align:center;">
+                <div class="funcArea">
+                    <input type="button" id="save" value="存檔" style="width:50px;" onclick="loading_change()" />
+                    <input type="button" value="取消" style="width:50px;" onclick="if (confirm('確定取消?')) window.location.href = 'index'" />
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="dataHeader" style="margin-right:0px;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;">
+                        <tr>
+                            <td style="width:25%;text-align:left;" colspan="6">
+                                日期時間：
+                                @Html.TextBox("txt_day", now.ToString("yyyy/MM/dd"), new { style = "width:80px;", @readonly = "readonly" })
+                                @Html.TextBox("txt_time", now.ToString("HH:mm"), new { style = "width:50px;", @readonly = "readonly" })
+                                @*@WebTool.setDateTime("txt_day", "txt_time", "", "0", "", "")*@
+                                @*mindate.ToString("MM/dd/yyyy HH:mm:ss")/////第四個為0*@
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day", "txt_time", true)
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea" style="height:auto;">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:14px;" height="45">
+                        <tr>
+                            <th style="text-align:left; width:8%;">
+                                <input type="hidden" id="hid_assessment_reason" name="hid_assessment_reason" />
+                                <a style="text-decoration: none; color: black;font-size:16px;" href="javascript:void(0);" class="tooltip"
+                                   title="">
+                                    評核原因：
+                                </a>
+                            </th>
+                            <td style="width:15%; font-size:16px;">
+                                @Html.RadioButton("rb_assessment_reason", "新病人", false, new { id = "rb_assessment_reason_3", text = "新病人", onclick = "clearOther();" })
+                                @Html.Label("rb_assessment_reason_3", "新病人", new { @class = "tooltip2", title = "新病人" })
+                            </td>
+                            <td style="width:15%; font-size:16px;">
+                                @Html.RadioButton("rb_assessment_reason", "譫妄病人每班評估", false, new { id = "rb_assessment_reason_0", text = "譫妄病人每班評估", onclick = "clearOther();" })
+                                @Html.Label("rb_assessment_reason_0", "譫妄病人每班評估", new { @class = "tooltip2", title = "譫妄病人每班評估" })
+                            </td>
+                            <td style="width:15%; font-size:16px;">
+                                @Html.RadioButton("rb_assessment_reason", "拔管後", false, new { id = "rb_assessment_reason_1", text = "拔管後", onclick = "clearOther();" })
+                                @Html.Label("rb_assessment_reason_1", "拔管後", new { @class = "tooltip2", title = "拔管後" })
+                            </td>
+                            <td style="width:18%; font-size:16px;">
+                                @Html.RadioButton("rb_assessment_reason", "解除約束後", false, new { id = "rb_assessment_reason_2", text = "解除約束後", onclick = "clearOther();" })
+                                @Html.Label("rb_assessment_reason_2", "解除約束後", new { @class = "tooltip2", title = "解除約束後" })
+                            </td>
+                            <td style="width:23%; font-size:16px;">
+                                <label><input type="radio" id="rb_assessment_reason_other" name="rb_assessment_reason" value="其他" onclick="ckable(this, 'tb_assessment_reason');" />其他:</label>&nbsp;<input type="text" id="tb_assessment_reason" name="rb_assessment_reason_other" style="width:100px;" disabled />
+                            </td>
+                        </tr>
+                    </table>
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:15px;">
+                        <tr style="text-align:left; font-size:15px;" height="40">
+                            <th colspan="6">1.急性發作且病程波動:</th>
+                        </tr>
+                        <tr height="40">
+                            <td style="width:74%;">
+                                <input type="hidden" id="hid_acute_attack_1a" name="hid_acute_attack_1a" />
+                                <a style="text-decoration: none; color: black;font-size:15px; padding-left:40px;" href="javascript:void(0);" class="tooltip"
+                                   title="">
+                                    1a. 與平常相比較，是否有任何證據顯示病人精神狀態產生急性變化?
+                                </a>
+                            </td>
+                            <td style="width:8%;">
+                                @Html.RadioButton("rb_acute_attack_1a", "0", false, new { id = "rb_acute_attack_1a_0", text = "是", onclick = "mark();" })
+                                @Html.Label("rb_acute_attack_1a_0", "是", new { @class = "tooltip2", title = "是" })
+                            </td>
+                            <td style="width:8%;">
+                                @Html.RadioButton("rb_acute_attack_1a", "1", false, new { id = "rb_acute_attack_1a_1", text = "否", onclick = "mark();" })
+                                @Html.Label("rb_acute_attack_1a_1", "否", new { @class = "tooltip2", title = "否" })
+                            </td>
+                            <td style="width:10%;">
+                                @Html.RadioButton("rb_acute_attack_1a", "2", false, new { id = "rb_acute_attack_1a_2", text = "無法評估", onclick = "mark();" })
+                                @Html.Label("rb_acute_attack_1a_2", "無法評估", new { @class = "tooltip2", title = "無法評估" })
+                            </td>
+                        </tr>
+                        <tr height="40">
+                            <td>
+                                <input type="hidden" id="hid_acute_attack_1b" name="hid_acute_attack_1b" />
+                                <a style="text-decoration: none; color: black;font-size:15px; padding-left:40px;" href="javascript:void(0);" class="tooltip"
+                                   title="</p>">
+                                    1b. 這些不正常的行為是否在一天中呈現波動狀態? 意即症狀來來去去或嚴重程度起起落落。
+                                </a>
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_acute_attack_1b", "0", false, new { id = "rb_acute_attack_1b_0", text = "是", onclick = "mark();" })
+                                @Html.Label("rb_acute_attack_1b_0", "是", new { @class = "tooltip2", title = "是" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_acute_attack_1b", "1", false, new { id = "rb_acute_attack_1b_1", text = "否", onclick = "mark();" })
+                                @Html.Label("rb_acute_attack_1b_1", "否", new { @class = "tooltip2", title = "否" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_acute_attack_1b", "2", false, new { id = "rb_acute_attack_1b_2", text = "無法評估", onclick = "mark();" })
+                                @Html.Label("rb_acute_attack_1b_2", "無法評估", new { @class = "tooltip2", title = "無法評估" })
+                            </td>
+                        </tr>
+                        <tr height="40">
+                            <th style="text-align:left;">
+                                <input type="hidden" id="hid_attention" name="hid_attention" />
+                                <a style="text-decoration: none; color: black;font-size:15px;" href="javascript:void(0);" class="tooltip"
+                                   title="">
+                                    2.注意力不集中：病人是否集中注意力有困難? 例如容易分心或無法接續剛剛說過的話。
+                                </a>
+                            </th>
+                            <td>
+                                @Html.RadioButton("rb_attention", "0", false, new { id = "rb_attention_0", text = "是", onclick = "mark();" })
+                                @Html.Label("rb_attention_0", "是", new { @class = "tooltip2", title = "是" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_attention", "1", false, new { id = "rb_attention_1", text = "否", onclick = "mark();" })
+                                @Html.Label("rb_attention_1", "否", new { @class = "tooltip2", title = "否" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_attention", "2", false, new { id = "rb_attention_2", text = "無法評估", onclick = "mark();" })
+                                @Html.Label("rb_attention_2", "無法評估", new { @class = "tooltip2", title = "無法評估" })
+                            </td>
+                        </tr>
+                        <tr height="40">
+                            <th style="text-align:left;">
+                                <input type="hidden" id="hid_ponder" name="hid_ponder" />
+                                <a style="text-decoration: none; color: black;font-size:15px;" href="javascript:void(0);" class="tooltip"
+                                   title="">
+                                    3.思考缺乏組織：病人是否思考缺乏組織或不連貫? 如雜亂或答非所問的對話、不清楚或不合邏輯的想法或無預期的從一個主題跳到另一個主題。
+
+                                </a>
+                            </th>
+                            <td>
+                                @Html.RadioButton("rb_ponder", "0", false, new { id = "rb_ponder_0", text = "是", onclick = "mark();" })
+                                @Html.Label("rb_ponder_0", "是", new { @class = "tooltip2", title = "是" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_ponder", "1", false, new { id = "rb_ponder_1", text = "否", onclick = "mark();" })
+                                @Html.Label("rb_ponder_1", "否", new { @class = "tooltip2", title = "否" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_ponder", "2", false, new { id = "rb_ponder_2", text = "無法評估", onclick = "mark();" })
+                                @Html.Label("rb_ponder_2", "無法評估", new { @class = "tooltip2", title = "無法評估" })
+                            </td>
+                        </tr>
+                        <tr height="40">
+                            <th style="text-align:left;">
+                                <input type="hidden" id="hid_consciousness" name="hid_consciousness" />
+                                <a style="text-decoration: none; color: black;font-size:15px;" href="javascript:void(0);" class="tooltip"
+                                   title="">
+                                    4.意識狀態改變：整體而言，您認為病人的意識狀態為過度警覺、嗜睡、木僵或昏迷。
+                                </a>
+                            </th>
+                            <td>
+                                @Html.RadioButton("rb_consciousness", "0", false, new { id = "rb_consciousness_0", text = "是", onclick = "mark();" })
+                                @Html.Label("rb_consciousness_0", "是", new { @class = "tooltip2", title = "是" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_consciousness", "1", false, new { id = "rb_consciousness_1", text = "否", onclick = "mark();" })
+                                @Html.Label("rb_consciousness_1", "否", new { @class = "tooltip2", title = "否" })
+                            </td>
+                            <td>
+                                @Html.RadioButton("rb_consciousness", "2", false, new { id = "rb_consciousness_2", text = "無法評估", onclick = "mark();" })
+                                @Html.Label("rb_consciousness_2", "無法評估", new { @class = "tooltip2", title = "無法評估" })
+                            </td>
+                        </tr>
+                        <tr height="60">
+                            <td style="padding:4px 7px 2px 4px;text-align:left;" colspan="6">
+                                <input type="hidden" id="total" name="total" />
+                                <a style="text-decoration: none; color: black;font-size:14px; font-size:18px" href="javascript:void(0);" class="tooltip"
+                                   title="譫妄評估說明
+                                   當 1a + 1b + 2 + 3 或 1a + 1b + 2 + 4 的題目同時選擇「是」時，結果欄位呈現
+                                   文字「有譫妄，提供譫妄照護，並通知醫療科」；當結果不是上述條件時，結果欄位
+                                   呈現文字「無譫妄」。">
+                                    <img src="~/Images/med_dictionary.png" class="medbook" border="0" alt="
+                                         譫妄評估說明
+                                         當 1a + 1b + 2 + 3 或 1a + 1b + 2 + 4 的題目同時選擇「是」時，結果欄位呈現
+                                         文字「有譫妄，提供譫妄照護，並通知醫療科」；當結果不是上述條件時，結果欄位
+                                         呈現文字「無譫妄」。" />&nbsp; 結果：
+                                </a>
+
+                                <label id="score" name="score_total" style="width:80px;"></label>
+                                <input type="hidden" id="hid_score_remark" name="hid_score_remark" />
+                                <input type="hidden" id="hid_score" name="hid_score" />
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+</form>

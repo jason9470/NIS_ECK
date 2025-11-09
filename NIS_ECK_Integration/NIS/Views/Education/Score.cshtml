@@ -1,0 +1,229 @@
+﻿@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    NIS.Data.PatientInfo pf = (NIS.Data.PatientInfo)Session["PatInfo"];
+    NIS.Data.Complement_List complement_List = (NIS.Data.Complement_List)Session["Complement_List"];
+    DateTime mindate = DateTime.Now;
+    if (complement_List.Status) { mindate = pf.InDate; }
+    else
+    {
+        if (DateTime.Now.Hour < 24)//20171030 改規則 AlanHuang
+        {
+            mindate = Convert.ToDateTime(DateTime.Now.AddDays(-1).ToString("yyyy/MM/dd 00:00"));
+        }
+        else if (DateTime.Now.Day == 1 && DateTime.Now.Hour < 24)
+        {
+            if (((DateTime.Now.Year % 4 == 0) && (DateTime.Now.Year % 100 != 0)) || (DateTime.Now.Year % 400 == 0))//判斷閏年
+            {
+                if (DateTime.Now.Month == 2)
+                {
+                    mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(28).ToString("yyyy/MM/dd 00:00"));
+                }
+            }
+            if (DateTime.Now.Month == 1 || DateTime.Now.Month == 3 || DateTime.Now.Month == 5 || DateTime.Now.Month == 7 || DateTime.Now.Month == 8 || DateTime.Now.Month == 10 || DateTime.Now.Month == 12)
+            {
+                mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(30).ToString("yyyy/MM/dd 00:00"));
+            }
+            else
+            {
+                if (DateTime.Now.Month == 2) { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(27).ToString("yyyy/MM/dd 00:00")); }
+                else { mindate = Convert.ToDateTime(DateTime.Now.AddMonths(-1).AddDays(29).ToString("yyyy/MM/dd 00:00")); }
+            }
+        }
+        else
+        { mindate = Convert.ToDateTime(DateTime.Now.ToString("yyyy/MM/dd 00:00")); }
+        if (@pf != null)
+        {
+            if (pf.InDate > mindate)
+            { mindate = pf.InDate; }
+        }
+    }
+}
+
+<style type="text/css">
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+</style>
+
+<script type="text/javascript">
+    window.onload = function () {
+        setGridColor();
+    }
+
+    function setGridColor() {
+        //格行換色
+        $('.treven').css('background', '#ABC8E2');
+        $('.trodd').css('background', '#E1E6FA');
+    }
+    
+    function check() {
+        var row = document.getElementsByName('id');
+        for (var i = 0; i < row.length; i++) {
+            if (!record_radio(row[i].value))
+                return false;
+            if (!record_text(row[i].value))
+                return false;
+        }
+        $.ajax({
+            type: 'post',
+            url: 'Insert_Score',
+            data: $('#form1').serialize(),
+            success: function (result) {
+                if (result == '1') {
+                    alert('儲存成功');
+                    var sendid = $('#send_id').val();
+                    if (sendid != '') {
+                        if (confirm('有需再加強或部分了解項目是否進入執行衛教?'))
+                            window.location.href = 'Comply?ids=' + sendid.substring(0, sendid.length - 1)+'&temp=new';
+                        else
+                            window.location.href = 'List';
+                    }
+                    else
+                        window.location.href = 'List';
+                }
+                else
+                    alert('儲存失敗');
+            }
+        });
+    }
+
+    function record_radio(row) {
+        if ($('input[name=rb' + row + ']:checked').val() == undefined) {
+            $('#send_id').val('');
+            alert('請選擇 評值結果');
+            return false;
+        }
+        else {
+            var content = $('input[name=rb' + row + ']:checked').val();
+            if (content == '部份瞭解' || content == '需再加強')
+                $('#send_id').val($('#send_id').val() + row + ',');
+            if ($.trim($('#word' + row).val()) != '')
+                content = content + '|' + $.trim($('#word' + row).val());
+            $('#result' + row).val(content);
+            return true;
+        }
+    }
+
+    function record_text(row) {
+        if ($.trim($('#name' + row).val()) == '') {
+            alert('請輸入 評值對象姓名');
+            return false;
+        }
+        return true;
+    }
+</script>
+
+@using System.Data;
+@{
+    DataTable dt = ViewBag.dt;
+}
+<form id="form1" method="post">
+    <div class="funcArea">
+        <table border="0" cellpadding="0" cellspacing="0" style=" width:100%; font-size:14px;">
+            <tr>
+                <td style="width:100%;">
+                    <div id="module_define">衛教評值</div>
+                </td>
+            </tr>
+            <tr><td style="padding: 10px 0px 5px 0px;text-align:center;">
+                    <input type="button" value="衛教評值存檔" onclick="check()" />
+                    <input type="button" value="放棄目前編輯資料" onclick="if (confirm('確定放棄?')) location.href = 'List';" />
+            </td></tr>
+            <tr><td style="padding: 5px 0px 5px 0px">
+                <div class="dataHeader">
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;">
+                        <tr>
+                            <td style="width:14%;">說明內容</td>
+                            <td style="width:9%;">說明對象</td>
+                            <td style="width:12%;">說明方式</td>
+                            <td style="width:9%;">說明日期</td>
+                            <td style="width:8%;">說明對象<br />姓名</td>
+                            <td style="width:18%;">評值日期</td>
+                            <td style="width:21%;">評值結果</td>
+                            <td style="width:9%;">評值對象<br />姓名</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="dataArea">
+                    <input type="hidden" id="send_id" />
+                    <table border="0" cellpadding="4" cellspacing="1" style="width:100%;background-color: #FFFFFF;">
+                    @{string classname = "trodd";
+                    foreach (DataRow r in dt.Rows)
+                    {
+                        <tr class="@classname">
+                            <td style="width:14%;">
+                                @r["NAME"]
+                                <input type="hidden" name="time" value="@Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd")" />
+                                <input type="hidden" name="object" value="@r["OBJECT"].ToString().Replace("99|","其他：")" />
+                                <input type="hidden" name="item_name" value="@r["NAME"]" />
+                                <input type="hidden" name="id" value="@r["EDU_ID"]" />
+                            </td>
+                            <td style="width:9%;">@r["OBJECT"].ToString().Replace("99|","其他：")</td>
+                            <td style="width:12%;">
+                                @r["DESCRIPTION"].ToString().Replace("|", ",")
+                                @if (r["DESCRIPTION_REPLACE"].ToString() != "")
+                                { @:<br />替代方案：@r["DESCRIPTION_REPLACE"]
+                                }
+                            </td>
+                            <td style="width:9%;">@Convert.ToDateTime(r["RECORDTIME"]).ToString("yyyy/MM/dd")</td>
+                            <td style="width:8%;">@r["OBJECT_NAME"]</td>
+                            <td style="width:18%;">
+                                @Html.TextBox("txt_day", DateTime.Now.ToString("yyyy/MM/dd"), new { id = "txt_day" + r["EDU_ID"], style = "width:80px", @readonly = "readonly" })
+                                @Html.TextBox("txt_time", DateTime.Now.ToString("HH:mm"), new { id = "txt_time" + r["EDU_ID"], style = "width:50px", @readonly = "readonly" })
+                                @*@WebTool.setDateTime("txt_day" + r["EDU_ID"], "txt_time" + r["EDU_ID"],"","0","",mindate.ToString("MM/dd/yyyy HH:mm:ss"))*@
+                                @WebTool.complementList_Status(complement_List.Status, pf.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "txt_day" + r["EDU_ID"], "txt_time" + r["EDU_ID"], true)
+                            </td>
+                            <td style="width:21%;">
+                                <input type="hidden" name="result" id="result@(r["EDU_ID"])" />
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;padding:5px 0 5px 0;">
+                                    <tr>
+                                        <th style="text-align:left; font-weight:normal">
+                                            @Html.RadioButton("rb" + r["EDU_ID"], "完全瞭解", false, new { id = "know_total" + r["EDU_ID"] })
+                                            @Html.Label("know_total" + r["EDU_ID"], "完全瞭解")
+                                        </th>
+                                        <th style="text-align:left; font-weight:normal">
+                                            @Html.RadioButton("rb" + r["EDU_ID"], "部份瞭解", false, new { id = "know_half" + r["EDU_ID"] })
+                                            @Html.Label("know_half" + r["EDU_ID"], "部份瞭解")
+                                        </th>
+                                    </tr>
+                                    <tr>
+                                        <th style="text-align:left; font-weight:normal">
+                                            @Html.RadioButton("rb" + r["EDU_ID"], "需再加強", false, new { id = "know_no" + r["EDU_ID"] })
+                                            @Html.Label("know_no" + r["EDU_ID"], "需再加強")
+                                        </th>
+                                        <th style="text-align:left; font-weight:normal">
+                                            @Html.RadioButton("rb" + r["EDU_ID"], "稍後評值", false, new { id = "know_late" + r["EDU_ID"] })
+                                            @Html.Label("know_late" + r["EDU_ID"], "稍後評值")
+                                        </th>
+                                    </tr>
+                                    @*<tr>
+                                        <th colspan="2" style="text-align:left; font-weight:normal">
+                                            @Html.TextBox("word" + r["EDU_ID"], "", new { style = "width:130px" })
+                                        </th>
+                                    </tr>*@
+                                </table>
+                            </td>
+                            <td style="width:9%;">@Html.TextBox("name", r["OBJECT_NAME"], new { id = "name" + r["EDU_ID"], style = "width:50px" })</td>
+                        </tr>
+                        if (classname == "trodd")
+                        { classname = "treven";}
+                        else
+                        { classname = "trodd"; }
+                    }
+                    }
+                    </table>
+                </div>
+            </td></tr>
+        </table>
+    </div>
+</form>

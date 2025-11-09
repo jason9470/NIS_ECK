@@ -1,0 +1,264 @@
+﻿@using System.Data;
+@using NIS.Data
+@using NIS.Controllers;
+@using Newtonsoft.Json;
+
+@{
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    PatientInfo ptInfo = (PatientInfo)Session["PatInfo"];
+    DataTable TemplateNote = ViewBag.TemplateNote;
+    string JsonTemplateNote = JsonConvert.SerializeObject(TemplateNote);
+    DataTable DetailNote = ViewBag.DetailNote;
+    string JsonDetailNote = JsonConvert.SerializeObject(DetailNote);
+}
+<style type="text/css">
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+    #module_define {
+        padding: 5px 0px 3px 0px;
+        text-align: center;
+        background-color: #9999FF;
+        width: 100%;
+        border: 1px solid #BBBBBB;
+        border-right: 2px solid #999999;
+        border-bottom: 2px solid #999999;
+    }
+</style>
+<script type="text/javascript">
+    var TemplateNote = @Html.Raw(JsonTemplateNote);
+    var DetailNote = @Html.Raw(JsonDetailNote);
+
+    //藥物劑量單位對照列表
+    var MedicineDictionay = [
+        { ItemID: "Adrenaline", DisplayName:"Epinephrine(Adrenaline)", Mount:1, Unit:"mg"},
+        { ItemID: "Dopamine", DisplayName: "Dopamine", Mount: 200, Unit:"mg"},
+        { ItemID: "SodiumBicarbonate", DisplayName: "Sodium bicarbonate", Mount: 20, Unit:"ml"},
+        { ItemID: "Amiodarone", DisplayName: "Amiodarone(Cordarone)", Mount: 150, Unit:"mg"},
+        { ItemID: "Adenosine", DisplayName: "Adenosine", Mount: 6, Unit:"mg"},
+        { ItemID: "AtropineSulfate", DisplayName: "Atropine sulfate", Mount: 1, Unit:"mg"},
+        { ItemID: "Diazepam", DisplayName: "Diazepam", Mount: 10, Unit:"mg"},
+        { ItemID: "SuccinylcholineCl", DisplayName: "Succinylcholine Cl", Mount: 500, Unit:"mg"},
+        { ItemID: "Midazolam", DisplayName: "Midazolam", Mount: 5, Unit:"mg"},
+        { ItemID: "Hydrocortisone", DisplayName: "Hydrocortisone", Mount: 100, Unit:"mg"},
+        { ItemID: "CalciumChloride", DisplayName: "Calcium chloride", Mount: 20, Unit:"ml"},
+        { ItemID: "Glucose50Water", DisplayName: "Glucose 50% water", Mount: 20, Unit:"ml"},
+        { ItemID: "Noradrenaline", DisplayName: "Noradrenaline (bitartrate)", Mount: 4, Unit:"mg"},
+    ]
+
+    $(document).ready(function () {
+        setGridColor();
+        LoadMedicineList();
+
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $(".dataArea").outerHeight(height - 140);
+        }).trigger("resize");
+    });
+
+    //隔行換色
+    function setGridColor() {
+        //格行換色
+        $('.dataArea tr:odd').css('background', '#ABC8E2');
+        $('.dataArea tr:even').css('background', '#e1e6fa9e');
+    }
+
+    //載入藥物資料
+    function LoadMedicineList() {
+        var MedicineItemIDList = MedicineDictionay.map(data => {
+            return data.ItemID;
+        });
+
+        if (DetailNote.length > 0) {
+            for (var i = 0; i < DetailNote.length; i++) {
+                var TemplateID = DetailNote[i].TEMPLATE_ID;
+                var ItemID = DetailNote[i].ITEM_ID;
+                var ItemValue = DetailNote[i].ITEM_VALUE;
+                var UnitType = DetailNote.filter(data => data.TEMPLATE_ID == TemplateID && data.ITEM_ID == 'MedicationUnit');
+                if (MedicineItemIDList.includes(ItemID)) {
+                    //數量為零不顯示
+                    if (ItemValue == "0") {
+                        continue;
+                    }
+                    IntItemValue = Number(ItemValue);
+                    //查詢藥物相關資訊
+                    var MedicinInfo = MedicineDictionay.filter((data) => {
+                        return data.ItemID == ItemID
+                    });
+                    //若無資訊就跳過
+                    if (MedicinInfo.length == 0) {
+                        continue;
+                    }
+                    var MedicationElement = $("#Medication_" + TemplateID);
+                    if (MedicationElement.length == 0) {
+                        continue;
+                    }
+                    //判斷藥物單位(支數/劑量)
+                    //支數
+                    if (UnitType.length > 0 && UnitType[0].ITEM_VALUE == '支數') {
+                        var CaculatorResult = IntItemValue * MedicinInfo[0].Mount;
+                        MedicationElement.append("<div>" + MedicinInfo[0].DisplayName + " " + "<label style='font-weight: bold;color:#6A0DAD'>" + CaculatorResult + "</label> " + MedicinInfo[0].Unit + "</div>");
+                    }
+                    else {
+                        MedicationElement.append("<div>" + MedicinInfo[0].DisplayName + " " + "<label style='font-weight: bold;color:#6A0DAD'>" + IntItemValue + "</label> " + MedicinInfo[0].Unit + "</div>");
+                    }
+                }
+            }
+        }
+    }
+
+    // 開啟編輯畫面
+    function OpenEditView(Type, MasterID, TemplateID) {
+        var url = 'Edit_Information_' + Type + '?MasterID=' + MasterID + '&&TemplateID=' + TemplateID;
+        window.location.href = url;
+    }
+</script>
+<div class="dataArea" style="overflow-y:scroll">
+    @if (TemplateNote != null && TemplateNote.Rows.Count > 0)
+    {
+        <table border="0" cellpadding="4" cellspacing="1" style="width:100%;font-size:16px;">
+            @foreach (DataRow r in TemplateNote.Rows)
+            {
+                string MasterID = r["MASTER_ID"].ToString();
+                string TemplateID = r["ID"].ToString();
+                string RecordTime = "";
+                if (!string.IsNullOrEmpty(r["RECORD_TIME"].ToString()))
+                {
+                    RecordTime = DateTime.Parse(r["RECORD_TIME"].ToString()).ToString("yyyy/MM/dd HH:mm");
+                }
+                Dictionary<string, string> DetailDic = new Dictionary<string, string>();
+                if (DetailNote.Rows.Count > 0)
+                {
+                    DetailDic = DetailNote.AsEnumerable().Where(x => x["TEMPLATE_ID"].ToString() == TemplateID)
+                                    .ToDictionary(
+                                        row => row.Field<string>("ITEM_ID"),
+                                        row => row.Field<string>("ITEM_VALUE")
+                                    );
+                }
+                <tr>
+                    <td style="width:8%;">
+                        <div class="funcArea" style="overflow: hidden; width: 100%; text-align: center;">
+                            @if (r["CREATE_USER"].ToString() == ui.EmployeesNo)
+                            {
+                                <input type="button" class="fun_btn modify_btn" value="編輯" onclick="OpenEditView('Note', '@MasterID', '@TemplateID')" />
+                                <input type="button" class="fun_btn delete_btn" onclick="if(confirm('確定刪除?')) {DeleteInformation('@TemplateID','Note','@MasterID')}" value="刪除" />
+                            }
+                        </div>
+                    </td>
+                    <td style="width: 12%;">
+                        @RecordTime
+                    </td>
+                    <td style="width: 6%; ">
+                        @{
+                            if (DetailDic.ContainsKey("VitalSign_HR"))
+                            {
+                                @DetailDic["VitalSign_HR"]<label>&nbsp;bpm</label>
+                            }
+                        }
+                    </td>
+                    <td style="width: 6%; ">
+                        @{
+                            if (DetailDic.ContainsKey("VitalSign_Respiratory"))
+                            {
+                                @DetailDic["VitalSign_Respiratory"]<label>&nbsp;bpm</label>
+                            }
+                        }
+                    </td>
+                    <td style="width: 10%;">
+                        <div style="display:flex">
+                            @{
+                                var BP_Systolic = "";
+                                var BP_Diastolic = "";
+                                if (DetailDic.ContainsKey("VitalSign_BP_Systolic"))
+                                {
+                                    BP_Systolic = DetailDic["VitalSign_BP_Systolic"];
+                                }
+                                if (DetailDic.ContainsKey("VitalSign_BP_Diastolic"))
+                                {
+                                    BP_Diastolic = DetailDic["VitalSign_BP_Diastolic"];
+                                }
+                                if (DetailDic.ContainsKey("VitalSign_BP_Systolic") || DetailDic.ContainsKey("VitalSign_BP_Diastolic"))
+                                {
+                                    @BP_Systolic<label>&nbsp;/&nbsp;</label>@BP_Diastolic<label>&nbsp;bpm</label>
+                                }
+                            }
+                        </div>
+                    </td>
+                    <td style="width: 12%;">
+                        @{
+                            List<string> LOC = new List<string>();
+                            var LOC_String = "";
+                            if (DetailDic.ContainsKey("LOC_GCS_E"))
+                            {
+                                LOC.Add("E: " + DetailDic["LOC_GCS_E"]);
+                            }
+                            if (DetailDic.ContainsKey("LOC_GCS_V"))
+                            {
+                                LOC.Add("V: " + DetailDic["LOC_GCS_V"]);
+                            }
+                            if (DetailDic.ContainsKey("LOC_GCS_M"))
+                            {
+                                LOC.Add("M: " + DetailDic["LOC_GCS_M"]);
+                            }
+                            LOC_String = string.Join(", ", LOC);
+                            <label>@LOC_String</label>
+                        }
+                    </td>
+                    <td style="width:10%;">
+                        @{
+                            if (DetailDic.ContainsKey("LOC_Eye_Left_Reflex"))
+                            {
+                                var LOC_Eye_Left_Reflex_String = DetailDic["LOC_Eye_Left_Reflex"];
+
+                                if (DetailDic.ContainsKey("LOC_Eye_Left_Reflex_Other"))
+                                {
+                                    LOC_Eye_Left_Reflex_String = DetailDic["LOC_Eye_Left_Reflex"].Replace("其他", DetailDic["LOC_Eye_Left_Reflex_Other"]);
+                                }
+                                <div>反射 : @LOC_Eye_Left_Reflex_String</div>
+                            }
+                            if (DetailDic.ContainsKey("LOC_Eye_Left_Size"))
+                            {
+                                <div>
+                                    大小 : @DetailDic["LOC_Eye_Left_Size"]
+                                </div>
+                            }
+                        }
+                    </td>
+                    <td style="width:10%;">
+                        @{
+                            if (DetailDic.ContainsKey("LOC_Eye_Right_Reflex"))
+                            {
+                                var LOC_Eye_Right_Reflex_String = DetailDic["LOC_Eye_Right_Reflex"];
+
+                                if (DetailDic.ContainsKey("LOC_Eye_Right_Reflex_Other"))
+                                {
+                                    LOC_Eye_Right_Reflex_String = DetailDic["LOC_Eye_Right_Reflex"].Replace("其他", DetailDic["LOC_Eye_Right_Reflex_Other"]);
+                                }
+                                <div>反射 : @LOC_Eye_Right_Reflex_String</div>
+                            }
+                            if (DetailDic.ContainsKey("LOC_Eye_Right_Size"))
+                            {
+                                <div>
+                                    大小 : @DetailDic["LOC_Eye_Right_Size"]
+                                </div>
+                            }
+                        }
+                    </td>
+                    <td style="width: 18%;">
+                        <div id="Medication_@TemplateID"></div>
+                    </td>
+                    <td style="width:8%;">
+                        <label id="EditUser_@TemplateID">
+                            @r["EDIT_NAME"].ToString()
+                        </label>
+                    </td>
+                </tr>
+                <tr></tr>
+            }
+        </table>
+    }
+</div>

@@ -1,0 +1,1944 @@
+﻿@using NIS.Data;
+@using System.Data;
+@{
+    Layout = "~/Views/Layout/FormLayout.cshtml";
+    List<GetExpectedItem> ExpectedItemList = (List<GetExpectedItem>)ViewData["ExpectedItemList"];
+    List<GetExpectedItem> ExpectedItemList_lab = (List<GetExpectedItem>)ViewData["lab_group"];
+    List<Dictionary<string, string>> BloodInfoList = (List<Dictionary<string, string>>)ViewData["BloodInfoList"];
+    string RootDocument = ViewBag.RootDocument;
+    string feeno = ViewBag.feeno;
+    string chartno = ViewBag.chartno;
+    string Assessment = ViewBag.Assessment;
+    UserInfo ui = (UserInfo)Session["UserInfo"];
+    string shiftcate = ViewBag.shiftcate;
+    string type = ViewBag.type;
+    type = type.Substring(0, 3);
+    string paramsdata = ViewBag.paramsdata;
+    string BedNo = ViewBag.BedNo;
+    int Age = ViewBag.Age;
+    string MomFeeno = ViewBag.MomFeeno;
+    DataTable BabyDt = ViewBag.BabyDt;
+
+    int vySum = ViewBag.vy_sum;
+    bool hasvy = ViewBag.vy;
+    string breath_sys = ViewBag.breath_sys;
+}
+<style type="text/css">
+
+    .TitleVision {
+        background-color: #5175BC;
+        color: white;
+    }
+
+    .head {
+        background-color: #85A5CC;
+    }
+
+    .Item_SL {
+        display: inline-block;
+        width: 49%;
+    }
+
+    .Input_M {
+        width: 150px;
+    }
+
+    .dataArea td {
+        border-bottom: 1px solid rgba(20%,20%,40%,0.5);
+        text-align: left;
+    }
+
+        .dataArea td[data-assessment] {
+            font-size: 16px;
+        }
+
+    #Detection_Content, #CareRecord_Content {
+        width: 99%;
+        height: 100%;
+        overflow-x: hidden;
+        overflow-y: hidden;
+    }
+
+    #Detection_Info, #CareRecord_Info {
+        display: none;
+        width: 900px;
+        height: 650px;
+        max-height: 95%;
+        background-color: #EBE9DE;
+        border: 1px solid #666;
+        z-index: 98;
+    }
+
+    #sys_Block {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        z-index: 1;
+        background-color: #666;
+        /* other browsers */
+        opacity: 0.65;
+        /* this works in IE6, IE7, and IE8 */
+        filter: alpha(opacity=65);
+        /* this works in IE8 only */
+        display: none;
+    }
+
+    #sys_Loading {
+        position: fixed;
+        text-align: center;
+        left: 50%;
+        top: 50%;
+        height: 50px;
+        width: 200px;
+        margin-top: -25px;
+        margin-left: -100px;
+        _position: absolute;
+        color: #040FD9;
+        font-weight: bold;
+        z-index: 98;
+        display: none;
+    }
+
+    .conn {
+        cursor: pointer;
+    }
+
+    #DoctorAdcive {
+        position: fixed;
+        width: 90%;
+        height: 60%;
+        display: none;
+        background-color: white;
+        border: 1px solid #666;
+        z-index: 98;
+    }
+
+    .LittleTitle {
+        color: navy;
+        padding-left: 5px;
+    }
+
+    .RedContent {
+        color: red;
+    }
+
+    button.ui-datepicker-current {
+        display: none;
+    }
+</style>
+<script>
+    $(function () {
+        $('.VYStatus').css("color", "Red");
+        if ('@hasvy' == 'True') {
+            if (@vySum > 0)
+                $('.VYStatus').val("陰道塞紗狀況:" + @vySum + "條尚未取出");
+            else
+                $('.VYStatus').val("陰道塞紗狀況:全數取出");
+        }
+        else
+            $('.VYStatus').val("陰道塞紗狀況:尚無塞紗紀錄")
+    });
+</script>
+
+<div class="funcArea">
+    <div style="text-align:center;">
+        <input type="button" value="暫存" style="width:60px;" onclick="ToSave('false');" />
+        @*<input type="button" value="返回" style="width:60px;" onclick="window.parent.ReloadModule('@type','','','','@type','@paramsdata');loop_windows(" open_cover");" />*@
+        <input type="button" value="返回" style="width:60px;" onclick="window.parent.ReloadModule('@type','','','','@type','@paramsdata');loop_windows('open_cover');" />
+        <input type="button" value="切換至產科交班" style="width:120px;" class="C" onclick="Change_template('A');" />
+        <input type="button" value="切換至兒科交班" style="width:120px;" class="A" onclick="Change_template('C');" />
+        <input class="A VYStatus" type="button" value="">
+        @*<input type="button" value="範圍列印" onclick="window.open('@Url.Content("~/OBSShiftManage/Kardex_Detail_pdf" + "?feeno=I0332966&shiftcate="+shiftcate+"&filename=I0332966-20180309181143_detail&DelFile=false")');" />*@
+    </div>
+    <div class="dataArea" id="Content" style="margin-top:10px;">
+        <table border="0" cellpadding="2" cellspacing="1" style="width:100%;">
+            <tr>
+                <th colspan="4" class="TitleVision"> 基本資料介紹 (Introduction)</th>
+            </tr>
+            <tr>
+                <th colspan="2" class="head" style="width:30%;">入院/轉入日期</th>
+                <td colspan="2" style="width:70%;">
+                    <div class="A" data-assessment="A_param_ipd_source"></div>
+                    <div class="C" data-assessment="C_param_ipd_source"></div>
+                </td>
+            </tr>
+            <tr class="A">
+                <th colspan="2" class="head">入院方式</th>
+                <td colspan="2" class="A" data-assessment="A_param_ipd_style"></td>
+            </tr>
+            <tr class="C">
+                <th colspan="2" class="head">來源</th>
+                <td colspan="2" class="C" data-assessment="C_Source"></td>
+            </tr>
+            <tr>
+                <th colspan="2" class="head">入院原因/經過</th>
+                <td colspan="2" class="A" data-assessment="A_param_ipd_reason"></td>
+                <td colspan="2" class="C" data-assessment="C_param_ipd_reason"></td>
+            </tr>
+
+            <tr>
+                <th colspan="2" class="head">血型</th>
+                <td colspan="2" class="A" data-assessment="A_pt_blood"></td>
+                <td colspan="2" class="C" data-assessment="C_pt_blood"></td>
+            </tr>
+
+
+            <tr class="C">
+                <th colspan="2" class="head">出生日期</th>
+                <td colspan="2" data-assessment="C_BirthDay"></td>
+            </tr>
+            <tr class="C">
+                <th colspan="2" class="head">出生體重</th>
+                <td colspan="2" data-assessment="C_Weight"></td>
+            </tr>
+
+            <tr class="C">
+                <th colspan="2" class="head">生產方式</th>
+                <td colspan="2" data-assessment="C_BirthType"></td>
+            </tr>
+            <tr class="C">
+                <th colspan="2" class="head">妊娠週數</th>
+                <td colspan="2" data-assessment="C_Gest"></td>
+            </tr>
+            <tr class="A">
+                <th colspan="2" class="head">孕產史</th>
+                <td colspan="2" data-assessment="A_GPAE"></td>
+            </tr>
+            <tr class="A">
+                <th colspan="2" class="head">妊娠週數</th>
+                <td colspan="2" data-assessment="A_Gest"></td>
+            </tr>
+            <tr class="A">
+                <th colspan="2" class="head">預產期</th>
+                <td colspan="2" data-assessment="A_EDC"></td>
+            </tr>
+            <tr class="A">
+                <th colspan="2" class="head">活產數</th>
+                <td colspan="2" data-assessment="A_VB"></td>
+            </tr>
+
+            <tr class="C">
+                <th rowspan="5" class="head">
+                    母親病史
+                    <br />[生產紀錄單]
+                    @*<span style="cursor:pointer;color:blue;text-decoration:underline;" onclick="window.open('../Obstetrics/Child_Birth_Print?feeno=@(feeno)', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=1024,height=768');">[生產紀錄單]</span>*@
+                </th>
+                <th class="head">服藥史</th>
+                <td colspan="2" data-assessment="C_Mom_Med"></td>
+            </tr>
+
+            <tr class="C">
+                <th class="head">疾病史</th>
+                <td colspan="2" data-assessment="C_Mom_Dise"></td>
+            </tr>
+
+            <tr class="C">
+                <th class="head">妊娠併發症</th>
+                <td colspan="2" data-assessment="C_Mom_Preg"></td>
+            </tr>
+
+            <tr class="C">
+                <th class="head">接觸史TOCC</th>
+                <td colspan="2" data-assessment="C_Mom_TOCC"></td>
+            </tr>
+
+            <tr class="C">
+                <th class="head">體溫</th>
+                <td colspan="2" data-assessment="C_Mom_bt"></td>
+            </tr>
+
+            <tr>
+                <th rowspan="8" class="head">產前檢查</th>
+                <th class="head C C_HBeAg">HBeAg</th>
+                <th class="head A A_HBeAg">HBeAg</th>
+                <td class="A" colspan="2" data-assessment="A_HBeAg"></td>
+                <td class="C" colspan="2" data-assessment="C_HBeAg"></td>
+            </tr>
+            <tr>
+                <th class="head C C_HBsAG">HBsAg</th>
+                <th class="head A A_HBsAG">HBsAg</th>
+                <td class="A" colspan="2" data-assessment="A_HBsAG"></td>
+                <td class="C" colspan="2" data-assessment="C_HBsAG"></td>
+            </tr>
+            <tr>
+                <th class="head C C_Rubella">Rubella</th>
+                <th class="head A A_Rubella">Rubella</th>
+                <td class="A" colspan="2" data-assessment="A_Rubella"></td>
+                <td class="C" colspan="2" data-assessment="C_Rubella"></td>
+            </tr>
+            <tr>
+                <th class="head C C_VDRL">VDRL_1</th>
+                <th class="head A A_VDRL">VDRL_1</th>
+                <td class="A" colspan="2" data-assessment="A_VDRL"></td>
+                <td class="C" colspan="2" data-assessment="C_VDRL"></td>
+            </tr>
+            <tr>
+                <th class="head C C_VDRL2">VDRL_2</th>
+                <th class="head A A_VDRL2">VDRL_2</th>
+                <td class="A" colspan="2" data-assessment="A_VDRL2"></td>
+                <td class="C" colspan="2" data-assessment="C_VDRL2"></td>
+            </tr>
+            <tr>
+                <th class="head C C_HIV">HIV(快篩)</th>
+                <th class="head A A_HIV">HIV(快篩)</th>
+                <td class="A" colspan="2" data-assessment="A_HIV"></td>
+                <td class="C" colspan="2" data-assessment="C_HIV"></td>
+            </tr>
+            <tr>
+                <th class="head C C_GBS">GBS</th>
+                <th class="head A A_GBS">GBS</th>
+                <td class="A" colspan="2" data-assessment="A_GBS"></td>
+                <td class="C" colspan="2" data-assessment="C_GBS"></td>
+            </tr>
+            <tr>
+                <th class="head C C_GBS">施打時間</th>
+                <th class="head A A_GBS">施打時間</th>
+                <td class="A" colspan="2" data-assessment="A_GBSTime"></td>
+                <td class="C" colspan="2" data-assessment="C_GBSTime"></td>
+            </tr>
+
+            <tr class="A">
+                <th colspan="2" class="head">接觸史TOCC</th>
+                <td colspan="2" data-assessment="A_Mom_TOCC"></td>
+            </tr>
+            <tr class="A">
+                <th colspan="2" class="head">生產方式</th>
+                <td colspan="2" data-assessment="A_BirthType"></td>
+
+            </tr>
+            <tr class="A">
+                <th colspan="2" class="head">高危險妊娠</th>
+                <td colspan="2" data-assessment="A_Pregnancy"></td>
+            </tr>
+
+            <tr class="A">
+                <th colspan="2" class="head">剖腹產原因</th>
+                <td colspan="2" data-assessment="A_CSReason"></td>
+            </tr>
+
+            <tr class="A">
+                <th colspan="2" class="head">破水時間</th>
+                <td colspan="2" data-assessment="A_GRFMTime"></td>
+            </tr>
+
+            <tr class="A">
+                <th colspan="2" class="head">總破水時間</th>
+                <td colspan="2" data-assessment="A_GRuptureTime"></td>
+            </tr>
+
+            <tr class="A">
+                <th colspan="2" class="head">
+                    小孩資料
+                    <span style="cursor:pointer;color:blue;text-decoration:underline;" onclick="window.open('../Obstetrics/Partial_Child_Brith?Kardex=true', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=1024,height=768');">[出生記錄單]</span>
+                </th>
+                <td colspan="2"></td>
+            </tr>
+
+
+
+
+            <tr>
+                <th colspan="4" class="TitleVision">目前狀況 (Situation)</th>
+            </tr>
+
+            <tr>
+                <th colspan="2" class="head">主要照顧者</th>
+                <td>
+                    <label><input type="radio" name="MainCareGiver" class="req_ck bind_data" data-code="Family" value="家屬" onclick="SwitchSubProject(this);" />家屬</label>
+                    <label><input type="radio" name="MainCareGiver" data-code="Nurse" value="看護" onclick="SwitchSubProject(this);" />看護</label>
+                    <label><input type="radio" name="MainCareGiver" class="req_ck bind_data" data-code="no" value="無" onclick="SwitchSubProject(this);" />無</label>
+                    <label><input type="radio" name="MainCareGiver" data-code="Other" value="其他" onclick="SwitchSubProject(this);" />其他</label>
+                    <span class="MainCareGiver Other" style="display:none;width:80px;">
+                        <input type="text" name="MainCareGiver_Nurse_Other_text" class="Input_M req_txt bind_data" />
+                    </span>
+                </td>
+                <td>
+                    <div class="MainCareGiver Family Other" style="display:none;">
+                        <label>聯絡電話：</label>
+                        <input type="text" name="MainCareGiver_Phone" class="Input_M bind_data" />
+                        <label>，備註：</label>
+                        <input type="text" name="MainCareGiver_Remark" class="Input_M bind_data" />
+                    </div>
+                    <div class="MainCareGiver Nurse" style="display:none;">
+                        <div>
+                            <label><input type="radio" name="MainCareGiver_Nurse" class="req_ck bind_data" data-code="Local" value="合約看護" onclick="SwitchSubProject(this);" />合約看護</label>
+                            <label><input type="radio" name="MainCareGiver_Nurse" data-code="Foreign" value="非合約看護" onclick="SwitchSubProject(this);" />非合約看護</label>
+                            <label><input type="radio" name="MainCareGiver_Nurse" data-code="Foreign" value="家傭" onclick="SwitchSubProject(this);" />家傭</label>
+                            <hr />
+                        </div>
+                        <div class="MainCareGiver_Nurse Local" style="display:none;">
+                            <label>聯絡電話：</label>
+                            <input type="text" name="MainCareGiver_Nurse_Local_Phone" class="Input_M bind_data" />
+                            <label>，備註：</label>
+                            <input type="text" name="MainCareGiver_Nurse_Local_Remark" class="Input_M bind_data" />
+                        </div>
+                        <div class="MainCareGiver_Nurse Foreign" style="display:none;">
+                            <label>聯絡電話：</label>
+                            <input type="text" name="MainCareGiver_Nurse_Foreign_Phone" class="Input_M bind_data" />
+                            <label>，備註：</label>
+                            <input type="text" name="MainCareGiver_Nurse_Foreign_Remark" class="Input_M bind_data" />
+                        </div>
+                        <div class="MainCareGiver_Nurse Other" style="display:none;">
+                            <label>聯絡電話：</label>
+                            <input type="text" name="MainCareGiver_Nurse_Other_Phone" class="Input_M bind_data" />
+                            <label>，備註：</label>
+                            <input type="text" name="MainCareGiver_Nurse_Other_Remark" class="Input_M bind_data" />
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <th class="head A" rowspan="2">呼吸治療</th>
+                @*<th class="head C">呼吸治療</th>*@
+                <th class="head A">醫療輔助器</th>
+                <td colspan="2" class="A" data-assessment="A_RbnIsMedicalDevices"></td>
+                @*<td colspan="2" class="C" data-assessment="C_RbnIsMedicalDevices"></td>*@
+            </tr>
+            <tr class="A">
+                <th class="head">氧氣治療</th>
+                <td colspan="2" data-assessment="RbnOxygen"></td>
+            </tr>
+
+            <tr class="A">
+                <th class="head" colspan="2">呼吸系統資料</th>
+                <td colspan="2">
+                    <input type="button" value="查詢" onclick="window.open('@breath_sys', '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=800,height=600');" />
+                </td>
+            </tr>
+            <tr class="A">
+                <th class="head" rowspan="6">飲食狀況</th>
+                <th class="head">進食方式</th>
+                <td colspan="2" class="A" data-assessment="RbnEatingPatterns"></td>
+            </tr>
+            <tr class="A">
+                <th class="head">飲食種類</th>
+
+                <td colspan="2" data-assessment="RbnDietType"></td>
+            </tr>
+            @*<tr class="A">
+                    <th class="head">飲食種類</th>
+                    <td colspan="2" data-assessment="eat"></td>
+                </tr>*@
+            <tr class="A">
+                <th class="head" rowspan="4">腹部評估</th>
+                <th class="head">觸診</th>
+                <td data-assessment="RbnPalpation"></td>
+            </tr>
+            <tr class="A">
+                <th class="head">腸蠕動</th>
+                <td data-assessment="TxtPeristalsis"></td>
+            </tr>
+            <tr class="A">
+                <th class="head">腸音</th>
+                <td data-assessment="RbnBowelSounds"></td>
+            </tr>
+            <tr class="A">
+                <th class="head">Decompression</th>
+                <td data-assessment="RbnDecompression"></td>
+            </tr>
+
+            <tr class="C">
+                <th colspan="2" class="head">早產週數</th>
+                <td colspan="2" data-assessment="C_Preterm_Birth"></td>
+            </tr>
+            <tr class="C">
+                <th colspan="2" class="head">腸胃系統</th>
+                <td colspan="2" data-assessment="RbnStomach"></td>
+            </tr>
+            <tr class="A">
+                <th class="head" rowspan="4">排泄狀況</th>
+                <th class="head" rowspan="3">排尿狀況</th>
+                <th class="head">排尿狀況</th>
+                <td data-assessment="RbnUrination"></td>
+            </tr>
+            <tr class="A">
+                <th class="head">排尿方式</th>
+                <td data-assessment="RbnVoidingPattern"></td>
+            </tr>
+            <tr class="A">
+                <th class="head">尿液性狀</th>
+                <td data-assessment="TxtUrineCharactersAmount"></td>
+            </tr>
+            <tr class="A">
+                <th class="head">排便狀況</th>
+                <td colspan="2" data-assessment="RbnDefecation"></td>
+            </tr>
+            <tr class="C">
+                <th colspan="2" class="head">泌尿系統</th>
+                <td colspan="2" data-assessment="RbnUrinarySys"></td>
+            </tr>
+            <tr>
+                <th class="head A" rowspan="11">特殊註記</th>
+                <th class="head C" rowspan="11">特殊註記</th>
+                <th class="head" rowspan="4">過敏史</th>
+                <th class="head">藥物過敏</th>
+                <td data-assessment="allergy_list"></td>
+            </tr>
+            <tr>
+                <th class="head">食物過敏</th>
+                <td class="A" data-assessment="A_param_allergy_food_other"></td>
+                <td class="C" data-assessment="C_param_allergy_food_other"></td>
+            </tr>
+            <tr>
+                <th class="head">其他過敏</th>
+                <td class="A" data-assessment="A_param_allergy_other_other"></td>
+                <td class="C" data-assessment="C_param_allergy_other_other"></td>
+            </tr>
+            <tr>
+                <th class="head">輸血過敏</th>
+                <td class="A" data-assessment="A_transfusion_blood_dtl_txt"></td>
+                <td class="C" data-assessment="C_transfusion_blood_dtl_txt"></td>
+            </tr>
+            @*<tr class="C">
+                    <th class="head">Condition</th>
+                    <td colspan="2" data-assessment="Condition"></td>
+                </tr>*@
+            <tr>
+                <th class="head">Condition</th>
+                <td colspan="2" data-assessment="Condition"></td>
+            </tr>
+            <tr>
+                <th class="head">高危跌倒註記</th>
+                <td colspan="2" class="A" data-assessment="A_FallAssess"></td>
+                <td colspan="2" class="C" data-assessment="C_FallAssess"></td>
+            </tr>
+            <tr>
+                <th class="head">壓傷</th>
+                <td colspan="2" data-assessment="PressureScore"></td>
+            </tr>
+            <tr>
+                <th class="head">營養</th>
+                <td colspan="2" class="A" data-assessment="A_NutritionalAssessment"></td>
+                <td colspan="2" class="C" data-assessment="C_NutritionalAssessment"></td>
+            </tr>
+            <tr>
+                <th class="head">約束</th>
+                <td colspan="2" data-assessment="BindAssessment"></td>
+            </tr>
+            <tr>
+                <th class="head">出院準備</th>
+                <td colspan="2" data-assessment="Dischareged"></td>
+            </tr>
+            <tr>
+                <th colspan="1" class="head">手術</th>
+                <td colspan="2">
+                    <textarea id="Surgery_area" maxlength="300" name="Surgery" class="bind_data" rows="3" style="width:70%"></textarea>
+                    <font color="red"><label id="Surgery_message"></label></font>
+                </td>
+            </tr>
+            <tr>
+                @*<th class="head A" rowspan="2">呼吸治療</th>*@
+                <th class="head C">呼吸治療</th>
+                <th class="head C">醫療輔助器</th>
+                @*<td colspan="2" class="A" data-assessment="A_RbnIsMedicalDevices"></td>*@
+                <td colspan="2" class="C" data-assessment="C_RbnIsMedicalDevices"></td>
+            </tr>
+
+            <tr class="C">
+                <th class="head" colspan="2">呼吸系統資料</th>
+                <td colspan="2">
+                    <input type="button" value="查詢" onclick="window.open('@breath_sys', '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=800,height=600');" />
+                </td>
+            </tr>
+            <tr class="C">
+                <th class="head" rowspan="2" style="width:15%;">復健</th>
+                <th class="head" style="width:15%;">物理</th>
+                <td style="width:15%;">
+                    <label><input type="radio" name="Rehabilitation_Physical" value="無" class="bind_data" onclick="SwitchSubProject(this);" />無</label>
+                    <label><input type="radio" name="Rehabilitation_Physical" data-code="Y" value="有" onclick="SwitchSubProject(this);" />有</label>
+                </td>
+                <td style="width:55%;">
+                    <div class="Rehabilitation_Physical Y" style="display:none;">
+                        <div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Physical_Sunday" data-code="Rehabilitation_Physical_Sunday_Sunday" value="星期日" onclick="SwitchSubProject(this);" class="bind_data" />星期日</label>
+                                <span class="Rehabilitation_Physical_Sunday_Sunday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Physical_Sunday_Sunday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Physical_Sunday" data-code="Rehabilitation_Physical_Sunday_Monday" value="星期一" onclick="SwitchSubProject(this);" />星期一</label>
+                                <span class="Rehabilitation_Physical_Sunday_Monday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Physical_Sunday_Monday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Physical_Sunday" data-code="Rehabilitation_Physical_Sunday_Tuesday" value="星期二" onclick="SwitchSubProject(this);" />星期二</label>
+                                <span class="Rehabilitation_Physical_Sunday_Tuesday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Physical_Sunday_Tuesday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Physical_Sunday" data-code="Rehabilitation_Physical_Sunday_Wednesday" value="星期三" onclick="SwitchSubProject(this);" />星期三</label>
+                                <span class="Rehabilitation_Physical_Sunday_Wednesday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Physical_Sunday_Wednesday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Physical_Sunday" data-code="Rehabilitation_Physical_Sunday_Thursday" value="星期四" onclick="SwitchSubProject(this);" />星期四</label>
+                                <span class="Rehabilitation_Physical_Sunday_Thursday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Physical_Sunday_Thursday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Physical_Sunday" data-code="Rehabilitation_Physical_Sunday_Friday" value="星期五" onclick="SwitchSubProject(this);" />星期五</label>
+                                <span class="Rehabilitation_Physical_Sunday_Friday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Physical_Sunday_Friday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Physical_Sunday" data-code="Rehabilitation_Physical_Sunday_Saturday" value="星期六" onclick="SwitchSubProject(this);" />星期六</label>
+                                <span class="Rehabilitation_Physical_Sunday_Saturday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Physical_Sunday_Saturday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr class="C">
+                <th class="head">職能</th>
+                <td>
+                    <label><input type="radio" name="Rehabilitation_Job" value="無" class="bind_data" onclick="SwitchSubProject(this);" />無</label>
+                    <label><input type="radio" name="Rehabilitation_Job" data-code="Y" value="有" onclick="SwitchSubProject(this);" />有</label>
+                </td>
+                <td>
+                    <div class="Rehabilitation_Job Y" style="display:none;">
+                        <div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Job_Sunday" data-code="Rehabilitation_Job_Sunday_Sunday" value="星期日" onclick="SwitchSubProject(this);" class="bind_data" />星期日</label>
+                                <span class="Rehabilitation_Job_Sunday_Sunday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Job_Sunday_Sunday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Job_Sunday" data-code="Rehabilitation_Job_Sunday_Monday" value="星期一" onclick="SwitchSubProject(this);" />星期一</label>
+                                <span class="Rehabilitation_Job_Sunday_Monday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Job_Sunday_Monday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Job_Sunday" data-code="Rehabilitation_Job_Sunday_Tuesday" value="星期二" onclick="SwitchSubProject(this);" />星期二</label>
+                                <span class="Rehabilitation_Job_Sunday_Tuesday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Job_Sunday_Tuesday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Job_Sunday" data-code="Rehabilitation_Job_Sunday_Wednesday" value="星期三" onclick="SwitchSubProject(this);" />星期三</label>
+                                <span class="Rehabilitation_Job_Sunday_Wednesday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Job_Sunday_Wednesday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Job_Sunday" data-code="Rehabilitation_Job_Sunday_Thursday" value="星期四" onclick="SwitchSubProject(this);" />星期四</label>
+                                <span class="Rehabilitation_Job_Sunday_Thursday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Job_Sunday_Thursday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Job_Sunday" data-code="Rehabilitation_Job_Sunday_Friday" value="星期五" onclick="SwitchSubProject(this);" />星期五</label>
+                                <span class="Rehabilitation_Job_Sunday_Friday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Job_Sunday_Friday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                            <div>
+                                <label><input type="checkbox" name="Rehabilitation_Job_Sunday" data-code="Rehabilitation_Job_Sunday_Saturday" value="星期六" onclick="SwitchSubProject(this);" />星期六</label>
+                                <span class="Rehabilitation_Job_Sunday_Saturday" style="display:none;">
+                                    <label>，時間：</label><input type="text" name="Rehabilitation_Job_Sunday_Saturday_Time" class="Input_M bind_data" />
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            @*<tr>
+                    <th class="head">語言</th>
+                    <td>
+                        <label><input type="radio" name="Rehabilitation_Language" value="無" class="bind_data" onclick="SwitchSubProject(this);" />無</label>
+                        <label><input type="radio" name="Rehabilitation_Language" data-code="Y" value="有" onclick="SwitchSubProject(this);" />有</label>
+                    </td>
+                    <td>
+                        <div class="Rehabilitation_Language Y" style="display:none;">
+                            <div>
+                                <div>
+                                    <label><input type="checkbox" name="Rehabilitation_Language_Sunday" data-code="Rehabilitation_Language_Sunday_Sunday" value="星期日" onclick="SwitchSubProject(this);" class="bind_data" />星期日</label>
+                                    <span class="Rehabilitation_Language_Sunday_Sunday" style="display:none;">
+                                        <label>，時間：</label><input type="text" name="Rehabilitation_Language_Sunday_Sunday_Time" class="Input_M bind_data" />
+                                    </span>
+                                </div>
+                                <div>
+                                    <label><input type="checkbox" name="Rehabilitation_Language_Sunday" data-code="Rehabilitation_Language_Sunday_Monday" value="星期一" onclick="SwitchSubProject(this);" />星期一</label>
+                                    <span class="Rehabilitation_Language_Sunday_Monday" style="display:none;">
+                                        <label>，時間：</label><input type="text" name="Rehabilitation_Language_Sunday_Monday_Time" class="Input_M bind_data" />
+                                    </span>
+                                </div>
+                                <div>
+                                    <label><input type="checkbox" name="Rehabilitation_Language_Sunday" data-code="Rehabilitation_Language_Sunday_Tuesday" value="星期二" onclick="SwitchSubProject(this);" />星期二</label>
+                                    <span class="Rehabilitation_Language_Sunday_Tuesday" style="display:none;">
+                                        <label>，時間：</label><input type="text" name="Rehabilitation_Language_Sunday_Tuesday_Time" class="Input_M bind_data" />
+                                    </span>
+                                </div>
+                                <div>
+                                    <label><input type="checkbox" name="Rehabilitation_Language_Sunday" data-code="Rehabilitation_Language_Sunday_Wednesday" value="星期三" onclick="SwitchSubProject(this);" />星期三</label>
+                                    <span class="Rehabilitation_Language_Sunday_Wednesday" style="display:none;">
+                                        <label>，時間：</label><input type="text" name="Rehabilitation_Language_Sunday_Wednesday_Time" class="Input_M bind_data" />
+                                    </span>
+                                </div>
+                                <div>
+                                    <label><input type="checkbox" name="Rehabilitation_Language_Sunday" data-code="Rehabilitation_Language_Sunday_Thursday" value="星期四" onclick="SwitchSubProject(this);" />星期四</label>
+                                    <span class="Rehabilitation_Language_Sunday_Thursday" style="display:none;">
+                                        <label>，時間：</label><input type="text" name="Rehabilitation_Language_Sunday_Thursday_Time" class="Input_M bind_data" />
+                                    </span>
+                                </div>
+                                <div>
+                                    <label><input type="checkbox" name="Rehabilitation_Language_Sunday" data-code="Rehabilitation_Language_Sunday_Friday" value="星期五" onclick="SwitchSubProject(this);" />星期五</label>
+                                    <span class="Rehabilitation_Language_Sunday_Friday" style="display:none;">
+                                        <label>，時間：</label><input type="text" name="Rehabilitation_Language_Sunday_Friday_Time" class="Input_M bind_data" />
+                                    </span>
+                                </div>
+                                <div>
+                                    <label><input type="checkbox" name="Rehabilitation_Language_Sunday" data-code="Rehabilitation_Language_Sunday_Saturday" value="星期六" onclick="SwitchSubProject(this);" />星期六</label>
+                                    <span class="Rehabilitation_Language_Sunday_Saturday" style="display:none;">
+                                        <label>，時間：</label><input type="text" name="Rehabilitation_Language_Sunday_Saturday_Time" class="Input_M bind_data" />
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>*@
+            <tr>
+                <th class="head" rowspan="2">醫囑</th>
+                <th class="head">文字型醫令</th>
+                <td colspan="2">
+                    <input type="button" value="查詢" onclick="SelectTextAdvice();" />
+                </td>
+            </tr>
+            <tr>
+                <th class="head">藥囑</th>
+                <td colspan="2">
+                    <input type="button" value="查詢" onclick="SelectMedicineAdvice();" />
+                </td>
+            </tr>
+
+            <tr>
+                <th class="head" rowspan="2">核對清單</th>
+                <th class="head">母親</th>
+                <td colspan="2">
+                    @if (Age > 1)
+                    {
+                        <input type="button" value="查詢" onclick="window.open('../Obstetrics/Obstetrics_List?kardex=true', '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=800,height=600');" />
+                    }
+                    else
+                    {
+                        <input type="button" value="查詢" onclick="window.open('../Obstetrics/Obstetrics_List?kardex=true&feeno=@MomFeeno' , '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=800,height=600');" />
+                    }
+                </td>
+            </tr>
+            <tr>
+                <th class="head">嬰幼兒</th>
+                <td colspan="2">
+                    @if (Age > 1)
+                    {
+                        if (BabyDt != null && BabyDt.Rows.Count > 0)
+                        {
+                            foreach (DataRow r in BabyDt.Rows)
+                            {
+                                <input type="button" value="新生兒 @r["BABY_SEQ"].ToString().Trim()" onclick="window.open('../Obstetrics/Pediatrics_Check_List?kardex=true&feeno=@r["BABY_FEE_NO"]', '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=800,height=700');" />
+                            }
+                        }
+                    }
+                    else
+                    {
+                        <input type="button" value="查詢" onclick="window.open('../Obstetrics/Pediatrics_Check_List?kardex=true', '', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=800,height=700');" />
+                    }
+                </td>
+            </tr>
+
+            <tr>
+                <th colspan="4" class="TitleVision">背景資料 (Background)</th>
+            </tr>
+            <tr class="A">
+                <th colspan="2" class="head" style="width:30%;">過去病史</th>
+                <td colspan="2" class="A" data-assessment="A_param_im_history_item_other" style="width:70%;"></td>
+            </tr>
+
+            <tr class="C">
+                <th rowspan="3" class="head" style="width:30%;">過去病史</th>
+                <th class="head">服藥史</th>
+                <td colspan="2" class="C" data-assessment="C_Self_Med" style="width:70%;"></td>
+            </tr>
+            <tr class="C">
+                <th class="head">疾病史</th>
+                <td colspan="2" class="C" data-assessment="C_Self_Dise" style="width:70%;"></td>
+            </tr>
+            <tr class="C">
+                <th class="head">接觸史</th>
+                <td colspan="2" class="C" data-assessment="C_TOCC" style="width:70%;"></td>
+            </tr>
+
+            <tr>
+                <th rowspan="2" class="head">住院經驗</th>
+                <th class="head">住院原因</th>
+                <td colspan="2" class="A" data-assessment="A_param_ipd_past_reason" style="width:70%;"></td>
+                <td colspan="2" class="C" data-assessment="C_param_ipd_past_reason" style="width:70%;"></td>
+            </tr>
+            <tr>
+                <th class="head">住院地點</th>
+                <td colspan="2" class="A" data-assessment="A_param_ipd_past_location" style="width:70%;"></td>
+                <td colspan="2" class="C" data-assessment="C_param_ipd_past_location" style="width:70%;"></td>
+            </tr>
+            <tr>
+                <th rowspan="2" class="head">手術經驗</th>
+                <th class="head">手術原因</th>
+                <td colspan="2" class="A" data-assessment="A_param_ipd_surgery_reason" style="width:70%;"></td>
+                <td colspan="2" class="C" data-assessment="C_param_ipd_surgery_reason" style="width:70%;"></td>
+            </tr>
+            <tr>
+                <th class="head">手術地點</th>
+                <td colspan="2" class="A" data-assessment="A_param_ipd_surgery_location" style="width:70%;"></td>
+                <td colspan="2" class="C" data-assessment="C_param_ipd_surgery_location" style="width:70%;"></td>
+            </tr>
+            <tr>
+                <th colspan="4" class="TitleVision">症狀/評估/問題 (Assessment)</th>
+            </tr>
+            <tr>
+                <th class="head A" rowspan="20" style="width:15%;">生理監測</th>
+                <th class="head C" rowspan="32" style="width:15%;">生理監測</th>
+                <th class="head A" rowspan="9" style="width:15%;">
+                    <span style="cursor:pointer;color:blue;text-decoration:underline;" onclick="window.open('../VitalSign/Tpr_Index?feeno=@(feeno)', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=1024,height=768');">生命徵象</span>
+                </th>
+                <th class="head C" rowspan="13" style="width:15%;">
+                    <span style="cursor:pointer;color:blue;text-decoration:underline;" onclick="window.open('../VitalSign/Tpr_Index?feeno=@(feeno)', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=200,toolbar=no,width=1024,height=768');">生命徵象</span>
+                </th>
+                <td style="width:15%;"><label>體溫</label></td>
+                <td data-assessment="bt" style="width:55%;"></td>
+            </tr>
+            <tr>
+                <td><label>脈搏</label></td>
+                <td data-assessment="mp"></td>
+            </tr>
+            <tr>
+                <td><label>呼吸</label></td>
+                <td data-assessment="bf"></td>
+            </tr>
+            <tr>
+                <td><label>SpO2</label></td>
+                <td data-assessment="sp"></td>
+            </tr>
+            <tr>
+                <td><label>血壓</label></td>
+                <td data-assessment="bp"></td>
+            </tr>
+            <tr>
+                <td><label>身高</label></td>
+                <td data-assessment="bh"></td>
+            </tr>
+            <tr>
+                <td><label>體重</label></td>
+                <td data-assessment="bw"></td>
+            </tr>
+            <tr>
+                <td><label>圍長</label></td>
+                <td data-assessment="Girth"></td>
+            </tr>
+            <tr class="C">
+                <td><label>CVP Level</label></td>
+                <td data-assessment="CVP"></td>
+            </tr>
+            <tr class="C">
+                <td><label>I.C.P</label></td>
+                <td data-assessment="ICP"></td>
+            </tr>
+
+            <tr class="C">
+                <td><label>黃疸值</label></td>
+                <td data-assessment="gi_j"></td>
+            </tr>
+            <tr class="C">
+                <td><label>照光狀態</label></td>
+                <td data-assessment=""></td>
+            </tr>
+            <tr class="C">
+                <td><label>大便潛血</label></td>
+                <td data-assessment="gi_st"></td>
+            </tr>
+            <tr class="A">
+                <td><label>其他</label></td>
+                <td>
+                    <input type="text" name="VitalSing_Other" class="Input_M bind_data" />
+                </td>
+            </tr>
+
+            <tr class="C">
+                <th class="head" rowspan="3">尿液檢測</th>
+                <td><label>蛋白質</label></td>
+                <td data-assessment="si_inspect_e"></td>
+            </tr>
+            <tr class="C">
+                <td><label>尿糖</label></td>
+                <td data-assessment="si_inspect_s"></td>
+            </tr>
+            <tr class="C">
+                <td><label>PH</label></td>
+                <td data-assessment="si_inspect_ph"></td>
+            </tr>
+
+            <tr class="C">
+                <th class="head">其他</th>
+                <td colspan="2">
+                    <input type="text" name="Physiological_Monitoring_Other" class="Input_M bind_data" />
+                </td>
+            </tr>
+
+            <tr>
+                <th class="head" rowspan="3">意識評估</th>
+                <td><label>GCS</label></td>
+                <td data-assessment="EVM"></td>
+            </tr>
+            <tr>
+                <td><label>瞳孔大小及反射</label></td>
+                <td data-assessment="Pupils"></td>
+            </tr>
+            <tr>
+                <td><label>肌肉力量</label></td>
+                <td data-assessment="MusclePower"></td>
+            </tr>
+            <tr>
+                <th class="head A" rowspan="2">
+                    <span style="cursor:pointer;color:blue;text-decoration:underline;" onclick="Show_HisView('Index');">攝入/輸出</span>
+                </th>
+                <th class="head C" rowspan="6">
+                    <span style="cursor:pointer;color:blue;text-decoration:underline;" onclick="Show_HisView('Index');">攝入/輸出</span>
+                </th>
+                <td><label>總量</label></td>
+                <td data-assessment="IO"></td>
+            </tr>
+            <tr>
+                <td><label>前一日總量</label></td>
+                <td data-assessment="IO_beforeday"></td>
+            </tr>
+            <tr class="C">
+                <td><label>奶量</label></td>
+                <td data-assessment="I_MILK"></td>
+            </tr>
+            <tr class="C">
+                <td><label>尿液</label></td>
+                <td data-assessment="O_URINE"></td>
+            </tr>
+            <tr class="C">
+                <td><label>排便</label></td>
+                <td data-assessment="O_Defecation"></td>
+            </tr>
+            <tr class="C">
+                <td><label>血量累積</label></td>
+                <td data-assessment="IO_BLOOD"></td>
+            </tr>
+            <tr>
+                <th class="head" rowspan="3">呼吸評估</th>
+                <th class="head">呼吸音</th>
+                <td colspan="2" class="A" data-assessment="A_RbnBrthSnds"></td>
+                <td colspan="2" class="C" data-assessment="C_RbnBrthSnds"></td>
+            </tr>
+            <tr>
+                <th class="head">痰液</th>
+                <td colspan="2" class="A" data-assessment="A_RbnSputum"></td>
+                <td colspan="2" class="C" data-assessment="C_RbnSputum"></td>
+            </tr>
+            <tr>
+                <th class="head">呼吸型態</th>
+                <td colspan="2" class="A" data-assessment="A_RbnBreathing"></td>
+                <td colspan="2" class="C" data-assessment="C_RbnBreathing"></td>
+            </tr>
+            <tr>
+                <th class="head">皮膚完整性</th>
+                <th class="head">
+                    傷口紀錄
+                </th>
+                <td colspan="2">
+                    <input type="button" value="查詢" onclick="window.open('../HisView/listTrauma?feeno=@(feeno)', 'listTrauma', 'menubar=no,status=no,scrollbars=yes,top=0,left=20,toolbar=no,resizable=yes,width=1024,height=768');" />
+                </td>
+            </tr>
+            <tr>
+                <th class="head" colspan="2">
+                    <span style="cursor:pointer;color:blue;text-decoration:underline;" onclick="Show_HisView('listPain');">疼痛評估</span>
+                </th>
+                <td colspan="2" data-assessment="PainRecord"></td>
+            </tr>
+            <tr>
+                <th class="head" colspan="2">管路</th>
+                <td colspan="2">
+                    <input type="button" value="管路管理" onclick="window.open('../HisView/Tube?feeno=@(feeno)', 'Tube', 'menubar=no,status=no,scrollbars=yes,top=0,left=20,toolbar=no,width=1024,height=768');" />
+                    <input type="button" value="管路評估" onclick="window.open('../HisView/Assessment_List?feeno=@(feeno)', 'Assessment', 'menubar=no,status=no,scrollbars=yes,top=0,left=20,toolbar=no,width=1024,height=768');" />
+                </td>
+            </tr>
+            <tr>
+                <th class="head" colspan="2">
+                    <span style="cursor:pointer;color:blue;text-decoration:underline;" onclick="Show_HisView('BSugarInsulinList');">血糖值</span>
+                </th>
+                <td colspan="2" data-assessment="BloodSugar"></td>
+            </tr>
+            <tr>
+                <th class="head" colspan="2">護理計畫</th>
+                <td colspan="2" data-assessment="CarePlan"></td>
+            </tr>
+            <tr>
+                <th class="head" colspan="2">護理指導</th>
+                <td colspan="2" data-assessment="Education"></td>
+            </tr>
+            <tr>
+                <th class="head" rowspan="2">檢驗檢查報告</th>
+                <th class="head">檢驗</th>
+                <td colspan="2"><input type="button" value="查詢" onclick="pup_window('LabButton', '700', '700');" /></td>
+            </tr>
+            <tr>
+                <th class="head">檢查</th>
+                <td colspan="2"><input type="button" value="查詢" onclick="pup_window('ExamButton', '600', '400');" /></td>
+            </tr>
+            <tr>
+                <th class="head" colspan="2">會診/照會結果</th>
+                <td>
+                    <label data-assessment="Consultation"></label>
+                </td>
+                <td>
+                    <textarea id="Consultation_area" rows="3" style="width:70%" maxlength="300" name="RbnConsultation" class="Input_M bind_data"></textarea>
+                    <font color="red"><label id="Consultation_message"></label></font>
+                </td>
+            </tr>
+
+            <tr class="A">
+                <th class="head" colspan="2">產程記錄</th>
+                <td colspan="2">
+                    <input type="button" value="查詢" onclick="pup_window_Obstetrics('Instantly_Be_Birth_List?Kardex=true', '800', '600');" />
+                </td>
+            </tr>
+            <tr class="A">
+                <th class="head" colspan="2">產後護理資料</th>
+                <td colspan="2">
+                    <input type="button" value="查詢" onclick="pup_window_Obstetrics('Postnatal_Record_List?Kardex=true', '800', '600');" />
+                </td>
+            </tr>
+            <tr>
+                <th class="head" colspan="1" rowspan="4">母嬰親善</th>
+                <th class="head" colspan="1" rowspan="2">產前意願</th>
+                <th class="head" colspan="1">親子同室</th>
+                <td class="A" colspan="1">
+                    <label data-assessment="A_RoomIn"></label>
+                </td>
+                <td class="C" colspan="1">
+                    <label data-assessment="C_RoomIn"></label>
+                </td>
+            </tr>
+            <tr>
+                <th class="head" colspan="1">餵食選擇</th>
+                <td class="A" data-assessment="A_Formula"></td>
+                <td class="C" data-assessment="C_Formula"></td>
+            </tr>
+            <tr>
+                <th colspan="1" class="head">母嬰同室</th>
+                <td>
+                    <input type="button" value="查詢" onclick="pup_window_Obstetrics('RoomIn_List?Kardex=true', '800', '600');" />
+                </td>
+                <td class="A" data-assessment="A_RoomInStatus"></td>
+                <td class="C" data-assessment="C_RoomInStatus"></td>
+            </tr>
+            <tr>
+                <th colspan="1" class="head">肌膚接觸</th>
+                <td>
+                    <input type="button" value="查詢" onclick="pup_window_Obstetrics('RoomIn_List?mode=1&Kardex=true', '800', '600');" />
+                </td>
+                <td class="A" data-assessment="A_SkinTouchStatus"></td>
+                <td class="C" data-assessment="C_SkinTouchStatus"></td>
+            </tr>
+
+            <tr>
+                <th colspan="1" class="head A" rowspan="4">
+                    母嬰護理評估 <br />
+                    <input type="button" value="顯示母嬰同室與皮膚接觸紀錄" style="width:220px;" onclick="pup_window_Obstetrics('All_Touch_List?feeno=' + '@(feeno)', '950', '600');" />
+                </th>
+                <th colspan="1" class="head C" rowspan="6">
+                    母嬰護理評估 <br />
+                    <input type="button" value="顯示母嬰同室與皮膚接觸紀錄" style="width:220px;" onclick="pup_window_Obstetrics('All_Touch_List?feeno=' + '@(feeno)', '950', '600');" />
+                </th>
+                <th colspan="1" class="head A">乳房評估</th>
+                <th colspan="1" class="head C" rowspan="2">餵食量</th>
+                <th colspan="1" class="head C">上一班</th>
+                <td class="A" colspan="2" data-assessment="A_Breast"></td>
+                <td class="C" colspan="1" data-assessment="C_FEED_Last"></td>
+            </tr>
+
+            <tr class="A">
+                <th colspan="1" class="head">餵食量</th>
+                <td colspan="2" data-assessment="A_FEED"></td>
+            </tr>
+            <tr class="A">
+                <th colspan="1" class="head">排便狀況</th>
+                <td colspan="2" data-assessment="A_Defecation"></td>
+            </tr>
+            <tr class="A">
+                <th colspan="1" class="head">排尿狀況</th>
+                <td colspan="2" data-assessment="A_Urine"></td>
+            </tr>
+
+
+            <tr class="C">
+                <th colspan="1" class="head">當班</th>
+                <td colspan="1" data-assessment="C_FEED_Now"></td>
+            </tr>
+            <tr class="C">
+                <th colspan="1" class="head" rowspan="2">排尿</th>
+                <th colspan="1" class="head">上一班</th>
+                <td colspan="1" data-assessment="C_Urine_Last"></td>
+            </tr>
+            <tr class="C">
+                <th colspan="1" class="head">當班</th>
+                <td colspan="1" data-assessment="C_Urine_Now"></td>
+            </tr>
+            <tr class="C">
+                <th colspan="1" class="head" rowspan="2">排便</th>
+                <th colspan="1" class="head">上一班</th>
+                <td colspan="1" data-assessment="C_Defecation_Last"></td>
+            </tr>
+
+            <tr class="C">
+                <th colspan="1" class="head">當班</th>
+                <td colspan="1" data-assessment="C_Defecation_Now"></td>
+            </tr>
+
+            <tr class="A">
+                <th class="head" colspan="2">愛丁堡評估</th>
+                <td colspan="2" data-assessment="A_EPDSScore"></td>
+            </tr>
+            <tr>
+                <th class="head" colspan="2">給藥紀錄</th>
+                <td colspan="2">
+                    <input type="button" value="查詢" onclick="window.open('../HisView/Med_QueryExecLogByUD?TypeFlag=All&feeno=@(feeno)', 'Med_QueryExecLog', 'menubar=no,status=no,scrollbars=yes,top=0,left=20,toolbar=no,width=1024,height=768');" />
+                </td>
+            </tr>
+            <tr>
+                <th class="head" colspan="2">靜脈輸液狀況</th>
+                <th class="head">點滴輸液</th>
+                <td data-assessment="Drip"></td>
+            </tr>
+            <tr>
+                <th colspan="4" class="TitleVision">建議 (Recommendation)</th>
+            </tr>
+            <tr>
+                <th class="head" rowspan="4" style="width:15%;">預計執行治療</th>
+                <th class="head" style="width:15%;">預計執行檢查</th>
+                <td colspan="2" style="width:70%;">
+                    @foreach (var item in ExpectedItemList.FindAll(x => x.ItemType == "exam"))
+                    {
+                        <div style="border-bottom:1px solid black; padding-bottom:5px;">
+                            @Html.Raw("<div>" + Convert.ToDateTime(item.UseDate).ToString("yyyy/MM/dd HH:mm")
+                                + " 檢查名稱：" + item.ItemName
+                                + " 預計檢查日期：" + Convert.ToDateTime(item.ComplyDate).ToString("yyyy/MM/dd HH:mm") + "</div>")
+                            <div>
+                                檢查前準備：
+                                <label><input type="radio" name="ExpectedItem_Exam_Ready_@(item.PkNo)" value="無" onclick="SwitchSubProject(this);" />無</label>
+                                <label><input type="radio" name="ExpectedItem_Exam_Ready_@(item.PkNo)" value="完成" class="bind_data" onclick="SwitchSubProject(this);" />完成</label>
+                                <label><input type="radio" name="ExpectedItem_Exam_Ready_@(item.PkNo)" data-code="N" value="未完成" onclick="SwitchSubProject(this);" />未完成</label>
+                                <span class="ExpectedItem_Exam_Ready_@(item.PkNo) N" style="display:none;">
+                                    <label>，備註：</label>
+                                    <input type="text" class="Input_M bind_data" name="ExpectedItem_Exam_Ready_@(item.PkNo)_Remark" />
+                                </span>
+                            </div>
+                            <div>
+                                是否已填同意書：
+                                <label><input type="radio" name="ExpectedItem_Exam_Consent_@(item.PkNo)" value="無" onclick="SwitchSubProject(this);" />無</label>
+                                <label><input type="radio" name="ExpectedItem_Exam_Consent_@(item.PkNo)" value="已填" class="bind_data" onclick="SwitchSubProject(this);" />已填</label>
+                                <label><input type="radio" name="ExpectedItem_Exam_Consent_@(item.PkNo)" data-code="N" value="未填" onclick="SwitchSubProject(this);" />未填</label>
+                                <span class="ExpectedItem_Exam_Consent_@(item.PkNo) N" style="display:none;">
+                                    <label>，備註：</label>
+                                    <input type="text" class="Input_M bind_data" name="ExpectedItem_Exam_Consent_@(item.PkNo)_Remark" />
+                                </span>
+                            </div>
+                        </div>
+                    }
+                </td>
+            </tr>
+            <tr>
+                <th class="head">預計執行檢驗</th>
+                <td colspan="2">
+                    @foreach (var item in ExpectedItemList_lab)
+                    {
+                        <div style="border-bottom:1px solid black; padding-bottom:5px;" title="檢驗單號：@(item.LabNo), 項目：@(item.ItemName)">
+                            @Html.Raw("<div>" + Convert.ToDateTime(item.UseDate).ToString("yyyy/MM/dd HH:mm")
+                                + " 檢驗單號：<span style=background-color:red>" + item.LabNo + "</span>"
+                                + " 預計檢驗日期：" + Convert.ToDateTime(item.ComplyDate).ToString("yyyy/MM/dd HH:mm") + "</div>")
+                            <div>
+                                檢查前準備：
+                                <label><input type="radio" name="ExpectedItem_Lab_Ready_@(item.LabNo)" value="無" onclick="SwitchSubProject(this);" />無</label>
+                                <label><input type="radio" name="ExpectedItem_Lab_Ready_@(item.LabNo)" value="完成" class="bind_data" onclick="SwitchSubProject(this);" />完成</label>
+                                <label><input type="radio" name="ExpectedI3tem_Lab_Ready_@(item.LabNo)" data-code="N" value="未完成" onclick="SwitchSubProject(this);" />未完成</label>
+                                <span class="ExpectedItem_Lab_Ready_@(item.LabNo) N" style="display:none;">
+                                    <label>，備註：</label>
+                                    <input type="text" class="Input_M bind_data" name="ExpectedItem_Lab_Ready_@(item.LabNo)_Remark" />
+                                </span>
+                            </div>
+                            <div>
+                                是否已填同意書：
+                                <label><input type="radio" name="ExpectedItem_Lab_Consent_@(item.LabNo)" value="無" onclick="SwitchSubProject(this);" />無</label>
+                                <label><input type="radio" name="ExpectedItem_Lab_Consent_@(item.LabNo)" value="已填" class="bind_data" onclick="SwitchSubProject(this);" />已填</label>
+                                <label><input type="radio" name="ExpectedItem_Lab_Consent_@(item.LabNo)" data-code="N" value="未填" onclick="SwitchSubProject(this);" />未填</label>
+                                <span class="ExpectedItem_Lab_Consent_@(item.LabNo) N" style="display:none;">
+                                    <label>，備註：</label>
+                                    <input type="text" class="Input_M bind_data" name="ExpectedItem_Lab_Consent_@(item.LabNo)_Remark" />
+                                </span>
+                            </div>
+                        </div>
+                    }
+                </td>
+            </tr>
+            <tr>
+                <th class="head">預計執行手術</th>
+                <td colspan="2">
+                    @foreach (var item in ExpectedItemList.FindAll(x => x.ItemType == "op"))
+                    {
+                        <div style="border-bottom:1px solid black; padding-bottom:5px;">
+                            @Html.Raw("<div>"
+                                + " 預計執行日期：" + Convert.ToDateTime(item.ComplyDate).ToString("yyyy/MM/dd HH:mm")
+                                + " 檢查名稱：" + item.ItemName + "</div>")
+                            <div>
+                                術前準備：
+                                <label><input type="radio" name="ExpectedItem_Op_Ready_@(item.PkNo)" value="無" onclick="SwitchSubProject(this);" />無</label>
+                                <label><input type="radio" name="ExpectedItem_Op_Ready_@(item.PkNo)" value="完成" class="bind_data" onclick="SwitchSubProject(this);" />完成</label>
+                                <label><input type="radio" name="ExpectedItem_Op_Ready_@(item.PkNo)" data-code="N" value="未完成" onclick="SwitchSubProject(this);" />未完成</label>
+                                <span class="ExpectedItem_Op_Ready_@(item.PkNo) N" style="display:none;">
+                                    <label>，備註：</label>
+                                    <input type="text" class="Input_M bind_data" name="ExpectedItem_Op_Ready_@(item.PkNo)_Remark" />
+                                </span>
+                            </div>
+                            <div>
+                                是否已填同意書：
+                                <label><input type="radio" name="ExpectedItem_Op_Consent_@(item.PkNo)" value="無" onclick="SwitchSubProject(this);" />無</label>
+                                <label><input type="radio" name="ExpectedItem_Op_Consent_@(item.PkNo)" value="已填" class="bind_data" onclick="SwitchSubProject(this);" />已填</label>
+                                <label><input type="radio" name="ExpectedItem_Op_Consent_@(item.PkNo)" data-code="N" value="未填" onclick="SwitchSubProject(this);" />未填</label>
+                                <span class="ExpectedItem_Op_Consent_@(item.PkNo) N" style="display:none;">
+                                    <label>，備註：</label>
+                                    <input type="text" class="Input_M bind_data" name="ExpectedItem_Op_Consent_@(item.PkNo)_Remark" />
+                                </span>
+                            </div>
+                        </div>
+                    }
+                </td>
+            </tr>
+            <tr>
+                <th class="head">輸血</th>
+                <td colspan="2">
+                    @foreach (var item in BloodInfoList)
+                    {
+                        <div style="border-bottom:1px solid black; padding-bottom:5px;">
+                            @Html.Raw("血品名稱：" + item["Blood_Name"] + "<br/>")
+                            @Html.Raw("備血時間：" + Convert.ToDateTime(item["Prepare_Date"]).ToString("yyyy/MM/dd HH:mm") + "<br/>")
+                            @Html.Raw("備血原因：" + item["Reason"] + "<br/>")
+                            <div>
+                                同意書：
+                                <label><input type="radio" name="BloodInfoList_Consent_@(item["Blood_NO"])" value="已填" class="bind_data" onclick="SwitchSubProject(this);" />已填</label>
+                                <label><input type="radio" name="BloodInfoList_Consent_@(item["Blood_NO"])" data-code="N" value="未填" onclick="SwitchSubProject(this);" />未填</label>
+                                <span class="BloodInfoList_Consent_@(item["Blood_NO"]) N" style="display:none;">
+                                    <label>，備註：</label>
+                                    <input type="text" class="Input_M bind_data" name="BloodInfoList_Consent_@(item["Blood_NO"])_Remark" />
+                                </span>
+                            </div>
+                            <div>
+                                狀態：
+                                <label><input type="checkbox" name="BloodInfoList_Status_@(item["Blood_NO"])" value="已開立一備血單" class="bind_data" />已開立一備血單</label>
+                                <label><input type="checkbox" name="BloodInfoList_Status_@(item["Blood_NO"])" value="已採血" />已採血</label>
+                                <label><input type="checkbox" name="BloodInfoList_Status_@(item["Blood_NO"])" value="血袋已簽收" />血袋已簽收</label>
+                                <label><input type="checkbox" name="BloodInfoList_Status_@(item["Blood_NO"])" data-code="BloodInfoList_Status_StartBloodTransfusion_@(item["Blood_NO"])" onclick="SwitchSubProject(this);" value="輸血中" />輸血中</label>
+                                <span class="BloodInfoList_Status_StartBloodTransfusion_@(item["Blood_NO"])" style="display:none;">
+                                    <input type="text" name="BloodInfoList_Status_StartBloodTransfusion_@(item["Blood_NO"])_Amount" style="width:50px;" class="bind_data" />U
+                                </span>
+                                <label><input type="checkbox" name="BloodInfoList_Status_@(item["Blood_NO"])" data-code="BloodInfoList_Status_EndBloodTransfusion_@(item["Blood_NO"])" onclick="SwitchSubProject(this);" value="已輸血完畢" />已輸血完畢</label>
+                                <span class="BloodInfoList_Status_EndBloodTransfusion_@(item["Blood_NO"])" style="display:none;">
+                                    <input type="text" name="BloodInfoList_Status_EndBloodTransfusion_@(item["Blood_NO"])_Amount" style="width:50px;" class="bind_data" />U
+                                </span>
+                            </div>
+                            <div>
+                                備註：
+                                <input type="text" name="BloodInfoList_Remark_@(item["Blood_NO"])" class="bind_data" style="width:80%;" />
+                            </div>
+                        </div>
+                    }
+                </td>
+            </tr>
+            <tr class="A">
+                <th class="head" colspan="2">其他</th>
+                <td colspan="2">
+                    <textarea id="Other_Area" rows="3" style="width:70%" maxlength="2000" name="Other" class="Input_M bind_data"></textarea>
+                </td>
+            </tr>
+            <tr class="C">
+                <th class="head" colspan="2">病情解釋</th>
+                <td colspan="2">
+                    <textarea id="Condition_Interpretation_area" rows="3" style="width:70%" maxlength="2000" name="Condition_Interpretation" class="Input_M bind_data"></textarea>
+                </td>
+            </tr>
+            <tr>
+                <th colspan="4" class="TitleVision">交班完成確認</th>
+            </tr>
+            <tr>
+                <th class="head" colspan="2">接班者</th>
+                <td colspan="2">
+                    <label>員工編號：</label>
+                    @*<input type="text" id="txt_Tansf_EmpNo" style="width:160px" value="" onkeypress="if (event.keyCode == 13) { getEmployeeName(); }" onblur="getEmployeeName();" />*@
+                    <input type="tel" id="txt_Tansf_EmpNo" style="width:160px ;ime-mode:disabled !important" value="" onkeypress="return checkNumber(event)" onblur="getEmployeeName();"/>
+                    <label>姓名：</label>
+                    <label id="lab_Tansf_EmpName"></label>
+                </td>
+            </tr>
+        </table>
+        <table style="width:100%;">
+            <tr>
+                <td style="text-align:center;">
+                    <input type="button" value="完成交班" onclick="GoPage();" />
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+<!-- 頁面遮罩 -->
+<div id="sys_Block"></div>
+<div id="Detection_Info">
+    <span style="position: inherit;right: -16px;top: -16px;cursor: pointer;">
+        <img src="~/Images/Close.png" alt="close" onclick="$('#Detection_Info, #sys_Block').hide()" />
+    </span>
+    <div id="Detection_Content" style="MARGIN-TOP: 15px;TEXT-ALIGN: center;height:450px;overflow-y:auto;">
+
+    </div>
+</div>
+<!--遮罩-->
+<div id="inp" class="dialog"></div>
+<div id="cover" class="dialog"></div>
+<div id="sys_Loading">
+    <label for="lab" style="font-size: 16px">Loading...</label><br />
+    <img src="~/Images/loading.gif" alt="" border="0" />
+</div>
+
+<div id="DoctorAdcive" style="width:800px;height:500px;display:none; overflow-y:scroll; "></div>
+<div id="TubeManage" style="width:800px;height:500px;display:none; overflow-y:scroll; "></div>
+<div id="Assessment_View" style="width:800px;height:500px;display:none; overflow-y:scroll; "></div>
+<div id="Bloodsugars" style="width:800px;height:500px;display:none; overflow-y:scroll; "></div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(window).resize(function () {
+            var height = $(this).outerHeight();
+            if (height <= 300)
+                height = 450;
+            $('#DoctorAdcive').css({
+                top: (($(document).outerHeight() - $('#DoctorAdcive').outerHeight()) / 2)-40
+            });
+            $('#Content').outerHeight(height - 60);
+        }).trigger("resize");
+
+        Change_template('@Assessment');
+
+        @*$.each($('tr:has(th.TitleVision)'), function (i, item) {
+            $(item).find('.TitleVision').prepend('<img name="open" style="width:20px;height:20px;vertical-align:bottom;" src="@Url.Content(RootDocument+"/Images/plus.png")" />');
+            $(item).find('.TitleVision').prepend('<img name="close" style="width:20px;height:20px;vertical-align:bottom;" src="@Url.Content(RootDocument + "/Images/minus.png")" />');
+            $(item).find('img[name="open"]').click(function () {
+                $(item).nextUntil('tr:has(th.TitleVision)').show();
+                $(item).find('img[name="close"]').show();
+                $(this).hide();
+            });
+            $(item).find('img[name="close"]').click(function () {
+                $(item).nextUntil('tr:has(th.TitleVision)').hide();
+                $(item).find('img[name="open"]').show();
+                $(this).hide();
+            }).trigger('click');
+        });*@
+
+        LoadPtShit();
+        LoadAssessment();
+    });
+    $(document).on('input keyup', 'textarea[maxlength]', function (e) {
+        var $this = $(this);
+        var maxlength = $this.attr('maxlength');
+        if (!!maxlength) {
+            var text = $this.val();
+
+            if (text.length > maxlength) {
+                // truncate excess text (in the case of a paste)
+                $this.val(text.substring(0, maxlength));
+                e.preventDefault();
+            }
+
+        }
+
+    });
+    $('textarea#Surgery_area').on('keyup', function () { //手術字數限制
+        var maxlen = $(this).attr('maxlength');
+
+        var length = $(this).val().length;
+        if (length == maxlen) {
+            $('#Surgery_message').text('最多只能輸入 ' + maxlen + ' 中文字!')
+        }
+        else {
+            $('#Surgery_message').text('');
+        }
+    });
+
+    //20230110 KEN 新增員工編號數字驗證
+    function checkNumber(event) {
+        //取得姓名
+        if (event.keyCode == 13)
+        {
+            getEmployeeName();
+        }
+        var aCode = event.which ? event.which : event.keyCode;
+
+        if (aCode >= 48 && aCode <= 57) {
+            return true;
+        }
+        else {
+            //event.preventDefault();
+            return false;
+        }
+    }
+
+    $('textarea#Consultation_area').on('keyup', function () { //會診/照會結果字數限制
+        var maxlen = $(this).attr('maxlength');
+
+        var length = $(this).val().length;
+        if (length == maxlen) {
+            $('#Consultation_message').text('最多只能輸入 ' + maxlen + ' 中文字!')
+        }
+        else {
+            $('#Consultation_message').text('');
+        }
+    });
+
+    function setGridColor() {
+        $table = $('#Content').find('tr:visible');
+        $table.filter(":even").css('background', '#ABC8E2');
+        $table.filter(":odd").css('background', '#E1E6FA');
+    }
+
+    function SetDatePicker($DateObj) {
+        $DateObj.prop('readonly', true).css({ 'width': '80px', 'font-size': '12px' });
+        $DateObj.datepicker({
+            beforeShowDay: function (date) {
+                switch (date.getDay()) {
+                    case 6:
+                        return [true, 'satday'];
+                        break;
+                    case 0:
+                        return [true, 'sunday'];
+                        break;
+                    default:
+                        return [true, ''];
+                        break;
+                }
+            },
+            inline: true,
+            showAnim: "slideDown",
+            controlType: myControl
+        });
+        var item = $('<input>').attr({
+            type: 'button',
+            value: '清空'
+        }).click(function () { DateObj.val(''); });
+        $DateObj.after(item);
+    }
+
+    function LoadPtShit(CallBack) {
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content(RootDocument + "/OBSShiftManage/SelcetPtShit")',
+            success: function (data) {
+                if (data != '') {
+                    var JsonList = JSON.parse(data);
+                    if (JsonList.length > 0) {
+                        BindData('Content', JsonList);
+                    }
+                }
+            },
+            complete: function () {
+                if (!!CallBack)
+                    CallBack();
+            }
+        });
+    }
+
+    //綁定資料
+    function BindData(ContainerID, DataList) {
+        var Con = $('#' + ContainerID);
+        $.each(DataList, function (i, data) {
+            Input = Con.find('[name=' + data["Name"] + ']');
+            switch (Input.prop("tagName")) {
+                case 'INPUT':
+                    switch (Input.attr("type").toUpperCase()) {
+                        case 'TEXT':
+                            Input.val(data["Value"]);
+                            break;
+                        case 'RADIO':
+                            Input.filter("[value='" + data["Value"] + "']").prop('checked', true).trigger('onclick');
+                            break;
+                        case 'CHECKBOX':
+                            $.each(data["Value"].split(","), function (i, item) {
+                                Input.filter("[value='" + item + "']").prop('checked', true).trigger('onclick');
+                            });
+                    }
+                    break;
+                case 'SELECT':
+                    Input.val(data["Value"]);
+                    break;
+                case 'TEXTAREA':
+                    Input.val(data["Value"]);
+                    break;
+            }
+        });
+    }
+
+    function LoadAssessment(CallBack) {
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/OBSShiftManage/SelectDt")',
+            data: {  'SHIFTCATE': '@(shiftcate)' },
+            success: function (data) {
+                if (data != '') {
+                    var JsonList = JSON.parse(data);
+                    $.each($('#Content').find('[data-assessment]'), function (i, item) {
+                        code = $(item).attr('data-assessment');
+                        switch (code) {
+                            case "A_RbnIsMedicalDevices": //醫療輔助器
+                            case "RbnOxygen": //氧氣治療
+                            case "RbnEatingPatterns": //進食方式
+                            case "RbnDietType": //飲食種類
+                            case "RbnPalpation": //觸診
+                            case "TxtPeristalsis": //腸蠕動
+                            case "RbnBowelSounds": //腸音
+                            case "RbnDecompression": //Decompression
+                            case "RbnUrination": //排尿狀況
+                            case "RbnVoidingPattern": //排尿方式
+                            case "TxtUrineCharactersAmount": //尿液性狀
+                            case "RbnDefecation": //排便狀況
+                            case "A_RbnBrthSnds": //呼吸音
+                            case "A_RbnBreathing": //呼吸型態
+                            case "A_RbnSputum": //痰液
+                                if (!!JsonList[code]) {
+                                    $(item).html($(item).html() + JsonList[code]);
+                                } else {
+                                    $(item).html($(item).html() + '<font >未填</font>');
+                                }
+                                break;
+
+                            default:
+                                if (!!JsonList[code]) {
+                                    $(item).html($(item).html() + JsonList[code]);
+                                    if (JsonList[code] == "+陽性") {
+                                        $('.' + code).css("color", "Red");
+                                    } else {
+                                        $('.' + code).css("color", "Black");
+                                    }
+                                } else {
+                                    $(item).html($(item).html() + '無');
+                                }
+                        }
+                    });
+                    if (!!JsonList.AlertStr) {
+                        alert(JsonList.AlertStr + "資料異常");
+                    }
+                }
+            },
+            beforeSend: function () {
+                $("#sys_Block, #sys_Loading").show();
+            },
+            complete: function () {
+                if (!!CallBack)
+                    CallBack();
+                $("#sys_Block, #sys_Loading").hide();
+            }
+        });
+    }
+
+    function SwitchSubProject(obj) {
+        switch ($(obj).attr('type')) {
+            case 'radio':
+                var obj_ = $('#Content').find('.' + $(obj).attr('name'));
+                SwitchSubProject_Hide(obj_);
+                if ($(obj).prop('checked') && !!$(obj).attr('data-code'))
+                    SwitchSubProject_Show(obj_.filter('.' + $(obj).attr('data-code')));
+                break;
+            case 'checkbox':
+                var obj_ = $('#Content').find('.' + $(obj).attr('data-code'));
+                if ($(obj).prop('checked'))
+                    SwitchSubProject_Show(obj_);
+                else
+                    SwitchSubProject_Hide(obj_);
+                break;
+        }
+    }
+
+    function SwitchSubProject_Show(obj) {
+        obj.show().find('*').prop('disabled', false);
+        obj.find('input[type=text]:first');
+    }
+
+    function SwitchSubProject_Hide(obj) {
+        obj.hide().find('input[type=text]').val('').prop('disabled', true);
+        obj.find('select').prop('selectedIndex', 0).prop('disabled', true);
+        obj.find('input[type=radio], input[type=checkbox]').prop('checked', false).prop('disabled', true).filter('[onclick]').trigger('onclick');
+    }
+
+    function SelectTubeManage() { //管路管理
+        loop_windows("open_cover");
+        $('#TubeManage').empty();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/TubeManage/Index_View")',
+            data: { 'feeno': '@(feeno)' },
+            success: function (data) {
+                $("#TubeManage").html('')
+                $('#TubeManage').html(data);
+                showmodal('TubeManage');
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    function SelectAssessment() { //管路評估
+        loop_windows("open_cover");
+        $('#Assessment_View').empty();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/HisView/Assessment_List")',
+            data: { 'feeno': '@(feeno)' },
+            success: function (data) {
+                $("#Assessment_View").html('')
+                $('#Assessment_View').html(data);
+                showmodal('Assessment_View');
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    function SelectBloodsugars(type, exec) { //血糖查詢
+        loop_windows("open_cover");
+        $('#Bloodsugars').empty();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/CommonMedication/Med_QueryExecLog_View")',
+            data: {
+                'feeno': '@(feeno)',
+                'TypeFlag': type,
+                'ExecFlag': exec
+            },
+            success: function (data) {
+                $("#Bloodsugars").html('')
+                $('#Bloodsugars').html(data);
+                showmodal('Bloodsugars');
+            },
+            complete: function () {
+                loop_windows("close_cover");
+            }
+        });
+    }
+
+    function SelectTextAdvice() { //文字型醫令查詢
+        loop_windows("open_cover");
+        $('#DoctorAdcive').empty();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/MedicalAdvice/Sign_View")',
+            data: { 'feeno': '@(feeno)' },
+            success: function (data) {
+                $('#DoctorAdcive').html(data);
+            },
+            complete: function () {
+                loop_windows("close_cover");
+                $('#DoctorAdcive, #sys_Block').show();
+                $('#DoctorAdcive').css({
+                    right: ($(document).outerWidth() - $('#DoctorAdcive').outerWidth()) / 2,
+                    top: 80
+                });
+                setGridColor();
+            }
+        });
+    }
+
+    function SelectMedicineAdvice() { //藥囑查詢
+        loop_windows("open_cover");
+        $('#DoctorAdcive').empty();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/MedicalAdvice/Excute_View")',
+            data: { 'feeno': '@(feeno)' },
+            success: function (data) {
+                $('#DoctorAdcive').html(data);
+            },
+            complete: function () {
+                loop_windows("close_cover");
+                $('#DoctorAdcive, #sys_Block').show();
+                $('#DoctorAdcive').css({
+                    right: ($(document).outerWidth() - $('#DoctorAdcive').outerWidth()) / 2,
+                    top: 80
+                });
+                setGridColor();
+            }
+        });
+    }
+
+    //關閉搜尋GCS畫面
+    function CloseDoctorAdcive() {
+        $('#DoctorAdcive, #sys_Block').hide();
+        $('#DoctorAdcive').empty();
+    }
+
+    function ToSave(IsCheck, successorNo) {
+        if (ToCheck(IsCheck)) {
+            loop_windows("open_cover");
+            var JsonList = [];
+            var JsonObj;
+            var Check = false;
+            $.each($('#Content').find('.bind_data'), function (i, item) {
+                switch ($(item).prop('tagName')) {
+                    case 'INPUT':
+                        if ($(item).attr('type') == 'text' && $.trim($(item).val()) != '') {
+                            JsonObj = new Object();
+                            JsonObj['Name'] = $(item).attr('name');
+                            JsonObj['Value'] = $.trim($(item).val());
+                            JsonList.push(JsonObj);
+                        }
+                        else {
+                            if ($('#Content').find('input[name=' + $(item).attr('name') + ']:checked').length > 0) {
+                                JsonObj = new Object();
+                                JsonObj['Name'] = $(item).attr('name');
+                                if ($(item).attr('type') == 'radio')
+                                    JsonObj['Value'] = $('#Content').find('input[name=' + $(item).attr('name') + ']:checked').val();
+                                else if ($(item).attr('type') == 'checkbox')
+                                    JsonObj['Value'] = $('#Content').find('input[name=' + $(item).attr('name') + ']:checked').map(function () { return $(this).val(); }).get().join(',');
+                                JsonList.push(JsonObj);
+                            }
+                        }
+                        break;
+                    case 'TEXTAREA':
+                        if ($.trim($(item).val()) != '') {
+                            JsonObj = new Object();
+                            JsonObj['Name'] = $(item).attr('name');
+                            JsonObj['Value'] = $.trim($(item).val());
+                            JsonList.push(JsonObj);
+                        }
+                        break;
+                }
+            });
+
+            $.ajax({
+                type: 'POST',
+                url: '@Url.Content(RootDocument + "/OBSShiftManage/SaveKardex")',
+                data: {
+                    'Data': JSON.stringify(JsonList),
+                    'shiftcate': '@shiftcate',
+                    'bedno': '@BedNo',
+                    'successorNo': successorNo
+                },
+                success: function (data) {                    
+                    if (data == "Y") {
+                        alert('儲存成功！');
+                        location.reload();
+                    } else {
+                        alert('儲存失敗！');
+                    }
+                    loop_windows("close_cover");
+
+                    return false;
+                }
+            });
+        } else { return false; }
+    }
+
+    function ToCheck(IsCheck) {
+        var Success = true;
+        var TempCheck = (IsCheck == 'true');
+        if (TempCheck) {
+            $.each($('#Content').find('.req_ck:visible:enabled'), function (i, item) {
+                if ($('input[name=' + $(item).attr('name') + ']:checked').length == 0) {
+                    alert('項目未填寫!!');
+                    $(item).focus();
+                    Success = false;
+                    return false;
+                }
+            });
+            if (Success) {
+                $.each($('#Content').find('.req_txt:visible:enabled'), function (i, item) {
+                    if ($.trim($(item).val()) == '') {
+                        alert('項目未填寫!!');
+                        $(item).focus();
+                        Success = false;
+                        return false;
+                    }
+                });
+            }
+        }
+        return Success;
+    }
+
+    function pup_window(url, width, height) {
+        var page ='@(Url.Content(RootDocument + "/CareRecord/"))';
+        new_window.push(window.open(page + url + '?HasBtn=N', 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=20,resizable=yes,toolbar=no,width=' + width + ',height=' + height));
+    }
+
+    function pup_window_Obstetrics(url, width, height) {
+        var page ='@(Url.Content(RootDocument + "/Obstetrics/"))';
+        new_window.push(window.open(page + url, 'top_dialog', 'menubar=no,status=no,scrollbars=yes,top=0,left=20,resizable=yes,toolbar=no,width=' + width + ',height=' + height));
+    }
+
+    //填完接班人NO，焦點時，撈取NAME回填到到下個LABEL上顯示
+    function getEmployeeName()
+    {
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content(RootDocument+"/OBSShiftManage/GetEmployeeName")',
+            data: { 'empNo': $("#txt_Tansf_EmpNo").val() },
+            success: function (data) {
+                if (data != "" && data != null) {
+                    $("#lab_Tansf_EmpName").text(data);
+                } else {
+                    $("#lab_Tansf_EmpName").text('');
+                }
+            }
+        });
+    }
+
+    //完成交班的按鈕，目前先讓他跳頁
+    function GoPage() {
+        var SuccessorName = $("#lab_Tansf_EmpName").text();
+        //20230111 KEN 按下完成交班後對員工編號去除空格
+        var SuccessorNo = $("#txt_Tansf_EmpNo").val();
+        SuccessorNo = SuccessorNo.replace(/[^0-9]/g, "");
+        if (SuccessorName != "" && SuccessorNo != "") {//先檢查有無接班者姓名，空就跳警告
+            @*if (ToSave('true') != false) {
+                SaveSuccessor();
+                window.open("@(RootDocument)/Print/GetPDF?url=@(RootDocument)/OBSShiftManage/TransferDuty_PDF?shift=@(shiftcate)&bedno=@(BedNo)&userNo=@(ui.EmployeesNo.Trim())&SuccessorNo=" + SuccessorNo + "&filename=@(feeno+"-"+DateTime.Now.ToString("yyyyMMddHHmmss"))&DelFile=false");
+                window.open("@(RootDocument)/Print/GetPDF?url=@(RootDocument)/OBSShiftManage/Kardex_Detail_PDF?feeno=@(feeno)&shiftcate=@(shiftcate)&filename=@(feeno+"-"+DateTime.Now.ToString("yyyyMMddHHmmss")+"_detail")&DelFile=false");
+            }*@
+            ToSave('true', SuccessorNo);
+        } else {
+            if (SuccessorName == "" && SuccessorNo != "") {
+                alert("此員工編號不存在");
+            } else {
+                alert("請輸入接班者員工編號")
+            }
+        }
+    }
+
+    //儲存接班人
+    function SaveSuccessor()
+    {
+        var SuccessorNo = $("#txt_Tansf_EmpNo").val();
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content(RootDocument+"/OBSShiftManage/SaveSuccessorNo")',
+            data: { 'SUCCESSOR': SuccessorNo, 'BEDNO': '@(BedNo)','SHIFTCATE':'@(shiftcate)' },
+            success: function (data) {
+                if (data == 'N') {
+                    alert("非值班病人不能進行交班");
+                } else {
+                    alert("交班成功");
+                }
+            },
+            error: function (data) {
+                alert("交班失敗,請重新登入再試一次");
+            }
+        });
+    }
+
+    function set_patient(feeno) {
+        $('#sys_Block, #sys_Loading').show();
+        $('#feeno').val(feeno);
+        $.ajax({
+            type: "POST",
+            url: '@Url.Content("~/Main/SetPatient")',
+            cache: false,
+            data: {
+                fee_no: feeno
+            },
+            success: function (result) {
+                $.ajax({
+                    url: "../Main/GetPatInfo",
+                    success: function (data) {
+                        $("#patinfo", window.parent.document).html(data);
+                        clickme();
+                        window.parent.hasPat = "Y";
+                        if (!$('#Detection_Info:visible').length)
+                            $('#sys_Block, #sys_Loading').hide();
+                    }
+                });
+            }
+        });
+    }
+    function get_content(feeno) {
+        $("#sys_Block, #sys_Loading").show();
+        $("#sys_Loading").hide();
+        $("#Detection_Info").center().show();
+        $.ajax({
+            type: "POST",
+            url: "../OBSShiftManage/Get_GetPatientConsult",
+            cache: false,
+            data: {
+                feeno: feeno
+            },
+            success: function (reslut) {
+                $("#Detection_Content").html(reslut);
+            }
+        });
+    }
+    function clickme() {
+        window.parent.readMqList();
+    }
+    function Change_template(page) {
+        if (page == "A") {
+            $(".C").hide();
+            $(".A").show();
+        }
+        else {
+            $(".A").hide();
+            $(".C").show();
+        }
+        setGridColor();
+    }
+
+    function showmodal(items) {
+        var div_view = $('#' + items);
+        //console.log(div_view);
+        $.blockUI({
+            message: div_view,
+            onOverlayClick: $.unblockUI(),
+            overlayCSS: {
+                border: 'none',
+                cursor: 'default'
+            },
+            css: {
+                top: ($(window).height() - div_view.height()) / 2 + 'px',
+                left: ($(window).width() - div_view.width()) / 2 + 'px',
+                width: 'min-content',
+                border: 'none',
+                cursor: 'default'
+            },
+            onBlock: function () {
+
+            }
+        });
+    }
+    function Show_HisView(fName) {
+        $.ajax({
+            type: 'POST',
+            url: '@Url.Content("~/ShiftManage/GetHisVIewUrl")',
+            data: {
+                "Url": window.location.href,
+                "fName": fName,
+                "type":"obs"
+            },
+            success: function (data) {
+                window.open(data);
+            }
+        });
+    }
+</script>
