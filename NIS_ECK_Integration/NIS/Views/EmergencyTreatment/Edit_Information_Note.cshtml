@@ -388,10 +388,12 @@
 
     //儲存護理紀錄
     function CheckCareRecord() {
-        var careRecordStr = buildCareRecordStr()
-        $("#divrecord").show();
-        $('#text_content').val(careRecordStr);
-        $("#cover").show();
+        if (validateForm()) {
+            var careRecordStr = buildCareRecordStr()
+            $("#divrecord").show();
+            $('#text_content').val(careRecordStr);
+                $("#cover").show();
+        }
     }
     function buildCareRecordStr() {
         // ----------- 共用取值工具 -----------
@@ -421,12 +423,15 @@
         const bpDia = f("VitalSign_BP_Diastolic");
         const spo2 = f("VitalSign_SPO2");
 
-        if (bt) vsArr.push(`體溫：${bt}℃`);
-        if (hr) vsArr.push(`心跳：${hr === "?" ? "?" : hr}次/分鐘`);
-        if (resp) vsArr.push(`呼吸：${resp === "?" ? "?" : resp}次/分鐘`);
+        if (bt) vsArr.push(`體溫：${bt == "測不到" ? "測不到" : bt + "℃"}`);
+        if (hr) vsArr.push(`心跳：${hr === "?" ? "?" : hr == "測不到" ? "測不到" : hr + "次/分鐘"}`)
+        if (resp) vsArr.push(`呼吸：${resp === "?" ? "?" : resp == "測不到" ? "測不到" : resp + "次/分鐘"}`)
         if (bpSys || bpDia)
-            vsArr.push(`血壓：${bpSys || "?"}/${bpDia || "?"} mmHg`);
-        if (spo2) vsArr.push(`血氧：${spo2}%`);
+            if (bpSys == "測不到" && bpDia == "測不到")
+                vsArr.push(`血壓：測不到`);
+            else
+                vsArr.push(`血壓：${bpSys}/${bpDia} mmHg`);
+        if (spo2) vsArr.push(`血氧：${spo2 == "測不到" ? "測不到" : spo2 + "%"}`);
         if (vsArr.length) careRecordStr += `生命徵象：${vsArr.join("、")}。`;
 
         // ----------- 意識狀況 (GCS + 瞳孔) -----------
@@ -485,6 +490,50 @@
 
         console.log(careRecordStr);
         return careRecordStr;
+    }
+
+    // 預設Epinephrine
+    function SetEpinephrineDefault(Defibrillation) {
+        if (Defibrillation) {
+            // 預設時間
+            let now = new Date();
+
+            let date = now.getFullYear() + '/' +
+                String(now.getMonth() + 1).padStart(2, '0') + '/' +
+                String(now.getDate()).padStart(2, '0');
+
+            let time = String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0');
+
+            $('#LOC_EP_Date').val(date);
+            $('#LOC_EP_Time').val(time);
+        }
+        else {
+            $('#LOC_EP_Date').val('');
+            $('#LOC_EP_Time').val('');
+        }
+    }
+
+    function validateForm() {
+        const EP = $('input[name="LOC_EP"]:checked').val();
+        const EPDate = $('#LOC_EP_Date').val().trim();
+        const EPTime = $('#LOC_EP_Time').val().trim();
+
+        if (!EP) {
+            alert('Epinephrine 項目為必填');
+            return false;
+        }
+        if (EP === '第一次用藥' && (!EPDate || !EPTime)) {
+            alert('Epinephrine 項目為必填');
+            return false;
+        } 
+
+        const MU = $('input[name="MedicationUnit"]:checked').val();
+        if (!MU) {
+            alert('藥物單位 項目為必填');
+            return false;
+        }
+        return true;
     }
 </script>
 
@@ -545,7 +594,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <th rowspan="3">意識狀況</th>
+                        <th rowspan="4">意識狀況</th>
                         <th style="width:5%">GCS</th>
                         <td>
                             <div style="display:flex">
@@ -649,6 +698,21 @@
                                 <label><input type="radio" name="LOC_Eye_Right_Size" value="7.5" />7.5</label>
                                 <label><input type="radio" name="LOC_Eye_Right_Size" value="8" />8</label>
                                 <label><input type="radio" name="LOC_Eye_Right_Size" value="8.5" />8.5</label>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Epinephrine</th>
+                        <td>
+                            <div style="display:flex">
+                                <label><input type="radio" name="LOC_EP" value="未使用" onclick="(this.checked) ? HideSpan(['span_LOC_EP']) : ShowSpan(['span_LOC_EP']); SetEpinephrineDefault(false)"; />未使用</label>
+                                <label><input type="radio" name="LOC_EP" value="第一次用藥" onclick="(this.checked) ? ShowSpan(['span_LOC_EP']) : HideSpan(['span_LOC_EP']); SetEpinephrineDefault(true)"; />第一次用藥</label>
+                                <span id="span_LOC_EP" style="display:none">
+                                    <label>，開始時間:</label>
+                                    @(Html.TextBox("LOC_EP_Date"))
+                                    @(Html.TextBox("LOC_EP_Time"))
+                                    @WebTool.complementList_Status(complement_List.Status, patientInfo.InDate.ToString("MM/dd/yyyy HH:mm"), @DateTime.Now.ToString("yyyy/MM/dd"), "LOC_EP_Date", "LOC_EP_Time", false)
+                                </span>
                             </div>
                         </td>
                     </tr>
