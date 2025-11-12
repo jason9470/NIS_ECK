@@ -1,4 +1,5 @@
-﻿using DocumentFormat.OpenXml.Bibliography;
+﻿using Com.Mayaminer;
+using DocumentFormat.OpenXml.Bibliography;
 using DocumentFormat.OpenXml.Drawing;
 using DocumentFormat.OpenXml.Spreadsheet;
 using iTextSharp.text.pdf.qrcode;
@@ -27,6 +28,7 @@ namespace NIS.Controllers
 {
     public class BillingSummaryController : BaseController
     {
+        LogTool log = new LogTool();
         private DBConnector link;
 
         public BillingSummaryController()
@@ -291,7 +293,8 @@ namespace NIS.Controllers
             {
                 Bill_SELECT_LIST data = new Bill_SELECT_LIST();
                 data.BEDNO = bedNO;
-                string strBill = "SELECT * FROM DATA_DISPATCHING WHERE BED_NO = '" + bedNO + "' AND SHIFT_DATE BETWEEN TO_DATE('" + start + "','yyyy/MM/dd HH24:mi:ss') and TO_DATE('" + end + "','yyyy/MM/dd HH24:mi:ss') ORDER BY SHIFT_DATE DESC";
+                // 為測試站台可查詢排班資料先減7天[TODO]
+                string strBill = "SELECT * FROM DATA_DISPATCHING WHERE BED_NO = '" + bedNO + "' AND SHIFT_DATE BETWEEN TO_DATE('" + start + "','yyyy/MM/dd HH24:mi:ss') -7 and TO_DATE('" + end + "','yyyy/MM/dd HH24:mi:ss') ORDER BY SHIFT_DATE DESC";
                 DataTable dtBill = this.link.DBExecSQL(strBill);
                 if (dtBill.Rows.Count > 0)
                 {
@@ -548,7 +551,8 @@ namespace NIS.Controllers
             {
                 Bill_SELECT_LIST data = new Bill_SELECT_LIST();
                 data.BEDNO = bedNO;
-                string strBill = "SELECT * FROM DATA_DISPATCHING WHERE BED_NO = '" + bedNO + "' AND SHIFT_DATE BETWEEN TO_DATE('" + start + "','yyyy/MM/dd HH24:mi:ss') and TO_DATE('" + end + "','yyyy/MM/dd HH24:mi:ss') ORDER BY SHIFT_DATE DESC";
+                // 為測試站台可查詢排班資料先減7天[TODO]
+                string strBill = "SELECT * FROM DATA_DISPATCHING WHERE BED_NO = '" + bedNO + "' AND SHIFT_DATE BETWEEN TO_DATE('" + start + "','yyyy/MM/dd HH24:mi:ss') -7 and TO_DATE('" + end + "','yyyy/MM/dd HH24:mi:ss') ORDER BY SHIFT_DATE DESC";
                 DataTable dtBill = this.link.DBExecSQL(strBill);
                 if (dtBill.Rows.Count > 0)
                 {
@@ -1259,7 +1263,6 @@ namespace NIS.Controllers
 
         public ActionResult SaveBillingTemp(List<Bill_Summary_Master> data, string date)
         {
-
             RESPONSE_MSG jsonResult = new RESPONSE_MSG();
             List<DBItem> insertDataList = new List<DBItem>();
             int erow = 0;
@@ -1522,7 +1525,7 @@ namespace NIS.Controllers
             }
             catch (Exception ex)
             {
-
+                this.log.saveLogMsg($"[SaveBillingTemp][Error][feeNo:{ptinfo.FeeNo.Trim()}]\ninsertDataList:{JsonConvert.SerializeObject(insertDataList)}\nerrorMessage:{ex.Message.ToString()}", "SaveBillingTemp");
             }
             if (erow > 0)
             {
@@ -1550,7 +1553,7 @@ namespace NIS.Controllers
         public int ManualTrans(string feeno)
         {
             byte[] data = Encoding.UTF8.GetBytes("feenoSingle=" + feeno);
-            var request = (HttpWebRequest)WebRequest.Create("http://172.20.110.223:8096/api/ECK/TransferToTemp");
+            var request = (HttpWebRequest)WebRequest.Create("http://172.20.110.223:8096/api/ECK/NIS_ConfirmDataTransferToHIS_TempByFeeNo");
             request.Method = "POST";
             request.ContentType = "application/json";
             request.Timeout = 15000;

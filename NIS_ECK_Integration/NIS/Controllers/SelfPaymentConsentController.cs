@@ -16,6 +16,8 @@ using System.Text;
 using static NIS.Models.SelfPaymentConsent.NisCreateSignResponse;
 using System.Runtime.Remoting.Messaging;
 using System.Security.Policy;
+using DocumentFormat.OpenXml.Drawing.Charts;
+using DataTable = System.Data.DataTable;
 
 namespace NIS.Controllers
 {
@@ -125,6 +127,14 @@ namespace NIS.Controllers
                         }
                     }
 
+                    // 取得主檔存的自費同意書URL
+                    //DataTable currentMaster = SelfPaymentConsentM.queryConsentMaster(ptinfo.FeeNo.Trim(), "", "", "", row["SELF_PAY_CONSENT_ID"].ToString());
+
+                    //if (currentMaster !=null && currentMaster.Rows.Count > 0)
+                    //{
+                    //    row["SELF_PAY_CONSENT_LINK"] = currentMaster.Rows[0]["CONSENT_URL"].ToString();
+                    //}
+
                     //取得最新的自費同意書URL
                     if (!string.IsNullOrEmpty(row["SELF_PAY_CONSENT_JOB_ID"].ToString()))
                     {
@@ -197,7 +207,7 @@ namespace NIS.Controllers
                 string url = "http://172.20.110.185:81/api/NisQuerySign";
                 var jsonData = JsonConvert.SerializeObject(nisQuerySignRequest);
                 var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
-                
+
                 try
                 {
                     HttpResponseMessage response = client.PostAsync(url, content).Result;
@@ -205,7 +215,7 @@ namespace NIS.Controllers
                     if (response.IsSuccessStatusCode)
                     {
                         string responseBody = response.Content.ReadAsStringAsync().Result;
-                        nisQuerySignResponse = JsonConvert.DeserializeObject<NisQuerySignResponse>(responseBody);                        
+                        nisQuerySignResponse = JsonConvert.DeserializeObject<NisQuerySignResponse>(responseBody);
                     }
                     else
                     {
@@ -352,7 +362,7 @@ namespace NIS.Controllers
 
                     DOCTOR_NO = ptinfo.DocNo.Trim(),
                     DOCTOR_DIV_NO = "",
-                    OPD_DAT_MRLOC_SHIFT = ptinfo.CostCenterCode.Trim(),
+                    OPD_DAT_MRLOC_SHIFT = ptinfo.CostCenterCode?.Trim(), //公司測試環境無資料
                     ORIGIN_TYPE = "I",
                     DOC_TYPE = "BAK9000-005",
                     CREATE_CLERKID = userinfo.EmployeesNo.Trim(),

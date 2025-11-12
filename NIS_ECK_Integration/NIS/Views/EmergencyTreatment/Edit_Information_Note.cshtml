@@ -131,6 +131,8 @@
     var TemplateNote = @Html.Raw(JsonTemplateNote);
     var DetailNote = @Html.Raw(JsonDetailNote);
     var propertiesList = ["MasterID", "TemplateID", "Type", "EKG_Picture_Base64"];
+    // 定義要隱藏的瞳孔選項
+    var hideOptions = ['無法睜眼', '無法評估', '其他'];
 
     $(document).ready(function () {
         //設定MasterID、TemplateID供儲存時使用
@@ -154,6 +156,31 @@
                 });
             }
         }
+
+        // 共用的檢查和隱藏邏輯
+        function checkAndToggle(eyeName, sizeDiv) {
+            var val = $('input[name="' + eyeName + '"]:checked').val();
+            if (hideOptions.includes(val)) {
+                $(sizeDiv).hide();
+                $(sizeDiv + ' input[type="radio"]').prop('checked', false);
+            } else {
+                $(sizeDiv).show();
+            }
+        }
+
+        // 頁面載入時執行初始檢查
+        checkAndToggle('LOC_Eye_Right_Reflex', '#LOC_Eye_Right_Size_Div');
+        checkAndToggle('LOC_Eye_Left_Reflex', '#LOC_Eye_Left_Size_Div');
+
+        // 右眼點擊事件
+        $('input[name="LOC_Eye_Right_Reflex"]').click(function () {
+            checkAndToggle('LOC_Eye_Right_Reflex', '#LOC_Eye_Right_Size_Div');
+        });
+
+        // 左眼點擊事件
+        $('input[name="LOC_Eye_Left_Reflex"]').click(function () {
+            checkAndToggle('LOC_Eye_Left_Reflex', '#LOC_Eye_Left_Size_Div');
+        });
     });
 
     //格行換色
@@ -445,22 +472,24 @@
 
         // 左眼反射與大小
         let leftReflex = f("LOC_Eye_Left_Reflex");
-        if (leftReflex === "其他") leftReflex = f("LOC_Eye_Left_Reflex_Other");
+        let leftReflexOther = leftReflex == "其他" ? f("LOC_Eye_Left_Reflex_Other") : leftReflex;
         const leftSize = f("LOC_Eye_Left_Size");
 
         // 右眼反射與大小
         let rightReflex = f("LOC_Eye_Right_Reflex");
-        if (rightReflex === "其他") rightReflex = f("LOC_Eye_Right_Reflex_Other");
+        let rightReflexOther = rightReflex == "其他" ? f("LOC_Eye_Right_Reflex_Other") : rightReflex;
         const rightSize = f("LOC_Eye_Right_Size");
 
         if (leftSize || leftReflex)
-            locArr.push(`瞳孔：左眼：${leftSize}mm (${leftReflex})`);
+            if (hideOptions.includes(leftReflex))
+                locArr.push(`瞳孔：左眼：${leftReflexOther}`);
+            else
+                locArr.push(`瞳孔：左眼：${leftSize}mm (${leftReflex})`);
         if (rightSize || rightReflex)
-            locArr.push(
-                (leftSize || leftReflex)
-                    ? `右眼：${rightSize}mm (${rightReflex})`
-                    : `瞳孔：右眼：${rightSize}mm (${rightReflex})`
-            );
+            if (hideOptions.includes(rightReflex))
+                locArr.push((leftSize || leftReflex) ? `右眼：${rightReflexOther}` : `瞳孔：右眼：${rightReflexOther}`);
+            else
+                locArr.push((leftSize || leftReflex)?`右眼：${rightSize}mm (${rightReflex})`:`瞳孔：右眼：${rightSize}mm (${rightReflex})`);
 
         if (locArr.length) careRecordStr += `意識狀況：${locArr.join("、")}。`;
 
@@ -891,36 +920,3 @@
         </tr>
     </table>
 </div>
-
-<script>
-    $(document).ready(function () {
-        // 定義要隱藏的選項
-        var hideOptions = ['無法睜眼', '無法評估'];
-
-        // 共用的檢查和隱藏邏輯
-        function checkAndToggle(eyeName, sizeDiv) {
-            var val = $('input[name="' + eyeName + '"]:checked').val();
-            if (hideOptions.includes(val)) {
-                $(sizeDiv).hide();
-                $(sizeDiv + ' input[type="radio"]').prop('checked', false);
-            } else {
-                $(sizeDiv).show();
-            }
-        }
-
-        // 頁面載入時執行初始檢查
-        checkAndToggle('LOC_Eye_Right_Reflex', '#LOC_Eye_Right_Size_Div');
-        checkAndToggle('LOC_Eye_Left_Reflex', '#LOC_Eye_Left_Size_Div');
-
-        // 右眼點擊事件
-        $('input[name="LOC_Eye_Right_Reflex"]').click(function () {
-            checkAndToggle('LOC_Eye_Right_Reflex', '#LOC_Eye_Right_Size_Div');
-        });
-
-        // 左眼點擊事件
-        $('input[name="LOC_Eye_Left_Reflex"]').click(function () {
-            checkAndToggle('LOC_Eye_Left_Reflex', '#LOC_Eye_Left_Size_Div');
-        });
-    });
-</script>
-

@@ -19,6 +19,7 @@ using static NIS.Models.EmergencyTreatment;
 using static NIS.Controllers.CareRecordController;
 using Oracle.ManagedDataAccess.Client;
 using static NIS.Controllers.ConstraintsAssessmentController;
+using System.Windows.Controls;
 
 namespace NIS.Controllers
 {
@@ -492,91 +493,29 @@ namespace NIS.Controllers
             //}
 
             //急救時間計價
-            string startRecordTime = ""; string endRecordTime = "";
-            if (form["IncidentDate"] != null && form["IncidentTime"] != null)
-            {
-                startRecordTime = form["IncidentDate"].ToString() + " " + form["IncidentTime"].ToString();
-            }
-            if (form["EndEmergencyTreatmentDate"] != null && form["EndEmergencyTreatmentTime"] != null)
-            {
-                endRecordTime = form["EndEmergencyTreatmentDate"].ToString() + " " + form["EndEmergencyTreatmentTime"].ToString();
-            }
+            //檢查是否有起訖時間
+            string masterSql = "SELECT * FROM EMERGENCYTREATMENT_MASTER WHERE ID = '" + MasterID + "' AND status ='Y' ";
+            DataTable dtMaster = new DataTable();
 
-            if ((startRecordTime != "" || endRecordTime != "") && MasterID != "")
+            link.DBExecSQL(masterSql, ref dtMaster);
+            if (dtMaster !=null && dtMaster.Rows.Count > 0)
             {
-                string sql = "SELECT * FROM EMERGENCYTREATMENT_DETAIL WHERE MASTER_ID = '" + MasterID + "'";
-                if(startRecordTime != "")
+                var rowMaster = dtMaster.Rows[0];
+                if (!string.IsNullOrWhiteSpace(rowMaster["START_TIME"].ToString()))
                 {
-                    sql += " AND (ITEM_ID = 'EndEmergencyTreatmentDate' OR ITEM_ID = 'EndEmergencyTreatmentTime')";
-                }
-                else
-                {
-                    sql += " AND (ITEM_ID = 'IncidentDate' OR ITEM_ID = 'IncidentTime')";
-
-                }
-                sql += " AND STATUS = 'Y'";
-
-                DataTable dt = new DataTable();
-                link.DBExecSQL(sql, ref dt);
-                string dataTime = "";
-                string tempDate = "";
-                string tempTime = "";
-                if(dt.Rows.Count > 0 )
-                {
-                    foreach(DataRow dr in dt.Rows)
+                    // 尚未計價時才需要計價
+                    if (rowMaster["BILL_STATUS"].ToString() != "Y")
                     {
-                        if (dr["ITEM_ID"].ToString() == "IncidentDate" || dr["ITEM_ID"].ToString() == "EndEmergencyTreatmentDate")
+                        // 找出是否有CPR或電擊
+                        string billCheckSql = "SELECT * FROM EMERGENCYTREATMENT_DETAIL WHERE MASTER_ID = '" + MasterID + "' AND  ITEM_ID = 'InitialTreatment' AND STATUS = 'Y'  ";
+                        DataTable dtBillCheck = new DataTable();
+
+                        link.DBExecSQL(billCheckSql, ref dtBillCheck);
+                        if (dtBillCheck != null && dtBillCheck.Rows.Count > 0)
                         {
-                            tempDate = dr["ITEM_VALUE"].ToString();
-                        }
-                        else
-                        {
-                            tempTime = dr["ITEM_VALUE"].ToString();
-                        }
-                    }
+                            double TimeDifference = 0;
 
-                }
-                //檢查是否有記過價
-
-                string checkSql = "SELECT * FROM EMERGENCYTREATMENT_MASTER WHERE ID = '"+ MasterID + "' AND  BILL_STATUS = 'Y'";
-                DataTable dtCk = new DataTable();
-
-                link.DBExecSQL(checkSql, ref dtCk);
-                if(dtCk.Rows.Count > 0)
-                {
-
-                }
-                else
-                {
-                    // 找出是否有CPR或電擊
-                    string billCheckSql = "SELECT * FROM EMERGENCYTREATMENT_DETAIL WHERE MASTER_ID = '" + MasterID + "' AND  ITEM_ID = 'InitialTreatment' AND STATUS = 'Y'  ";
-                    DataTable dtBillCheck = new DataTable();
-
-                    link.DBExecSQL(billCheckSql, ref dtBillCheck);
-                    if (dtBillCheck != null && dtBillCheck.Rows.Count > 0)
-                    {
-                        double TimeDifference = 0;
-
-                        if (tempDate != "" && tempTime != "")
-                        {
-                            dataTime = tempDate + " " + tempTime;
-                        }
-
-                        DateTime recordTime = new DateTime();
-                        if (dataTime != "")
-                        {
-                            recordTime = DateTime.Parse(dataTime);
-
-                            DateTime saveTime = DateTime.Parse(RecordTime);
-
-                            if (startRecordTime != "")
-                            {
-                                TimeDifference = (recordTime - saveTime).TotalMinutes;
-                            }
-                            else
-                            {
-                                TimeDifference = (saveTime - recordTime).TotalMinutes;
-                            }
+                            TimeDifference = (DateTime.Parse(RecordTime) - (DateTime)rowMaster["START_TIME"]).TotalMinutes;
 
                             int count = 0;
 
@@ -623,91 +562,239 @@ namespace NIS.Controllers
                             //}
 
 
-                            SaveBillingRecord(billDataList, saveTime);
+                            SaveBillingRecord(billDataList, (DateTime)rowMaster["START_TIME"]);
 
                             billStatus = true;
 
                         }
-
                     }
-
-
-                    //double TimeDifference = 0;
-
-                    //if (tempDate != "" && tempTime != "")
-                    //{
-                    //    dataTime = tempDate + " " + tempTime;
-                    //}
-
-                    //DateTime recordTime = new DateTime();
-                    //if (dataTime != "")
-                    //{
-                    //    recordTime = DateTime.Parse(dataTime);
-
-                    //    DateTime saveTime = DateTime.Parse(RecordTime);
-
-                    //    if (startRecordTime != "")
-                    //    {
-                    //        TimeDifference = (recordTime - saveTime).TotalMinutes;
-                    //    }
-                    //    else
-                    //    {
-                    //        TimeDifference = (saveTime - recordTime).TotalMinutes;
-                    //    }
-
-                    //    int count = 0;
-
-                    //    double trans = 0;
-
-                    //    trans = TimeDifference / 10;
-
-                    //    // 10分鐘計算1次，最多6次
-                    //    if (trans < 1)
-                    //    {
-                    //        trans = 1;
-                    //    }
-                    //    else
-                    //    {
-                    //        trans = Math.Ceiling(trans);
-                    //    }
-
-                    //    count = (int)trans;
-                    //    if (trans > 5)
-                    //    {
-                    //        count = 6;
-                    //    }
-
-                    //    // 新增默許
-                    //    List<Bill_RECORD> billDataList = new List<Bill_RECORD>();
-
-                    //    // CPR
-                    //    Bill_RECORD billData = new Bill_RECORD();
-
-                    //    billData.HO_ID = "8447029";
-                    //    billData.COUNT = count.ToString();
-
-                    //    billDataList.Add(billData);
-
-                    //    //電擊器計價 新增默許
-                    //    if (form["InitialTreatment"] != null || form["InitialTreatment"].ToString().Contains("電擊"))
-                    //    {
-                    //        billData = new Bill_RECORD();
-
-                    //        billData.HO_ID = "8447028";
-                    //        billData.COUNT = "1";
-
-                    //        billDataList.Add(billData);
-
-                    //        SaveBillingRecord(billDataList);
-                    //    }
-
-                    //    SaveBillingRecord(billDataList, saveTime);
-
-                    //    billStatus = true;
-
-                    //}
-                }   
+                }
             }
+
+
+
+
+
+
+            //------------------------------------------------------------------------------------------------------------------
+
+            //string startRecordTime = ""; string endRecordTime = "";
+            //if (form["IncidentDate"] != null && form["IncidentTime"] != null)
+            //{
+            //    startRecordTime = form["IncidentDate"].ToString() + " " + form["IncidentTime"].ToString();
+            //}
+            //if (form["EndEmergencyTreatmentDate"] != null && form["EndEmergencyTreatmentTime"] != null)
+            //{
+            //    endRecordTime = form["EndEmergencyTreatmentDate"].ToString() + " " + form["EndEmergencyTreatmentTime"].ToString();
+            //}
+
+            //if ((startRecordTime != "" || endRecordTime != "") && MasterID != "")
+            //{
+            //    string sql = "SELECT * FROM EMERGENCYTREATMENT_DETAIL WHERE MASTER_ID = '" + MasterID + "'";
+            //    if (startRecordTime != "")
+            //    {
+            //        sql += " AND (ITEM_ID = 'EndEmergencyTreatmentDate' OR ITEM_ID = 'EndEmergencyTreatmentTime')";
+            //    }
+            //    else
+            //    {
+            //        sql += " AND (ITEM_ID = 'IncidentDate' OR ITEM_ID = 'IncidentTime')";
+
+            //    }
+            //    sql += " AND STATUS = 'Y'";
+
+            //    DataTable dt = new DataTable();
+            //    link.DBExecSQL(sql, ref dt);
+            //    string dataTime = "";
+            //    string tempDate = "";
+            //    string tempTime = "";
+            //    if (dt.Rows.Count > 0)
+            //    {
+            //        foreach (DataRow dr in dt.Rows)
+            //        {
+            //            if (dr["ITEM_ID"].ToString() == "IncidentDate" || dr["ITEM_ID"].ToString() == "EndEmergencyTreatmentDate")
+            //            {
+            //                tempDate = dr["ITEM_VALUE"].ToString();
+            //            }
+            //            else
+            //            {
+            //                tempTime = dr["ITEM_VALUE"].ToString();
+            //            }
+            //        }
+
+            //    }
+            //    //檢查是否有記過價
+
+            //    string checkSql = "SELECT * FROM EMERGENCYTREATMENT_MASTER WHERE ID = '"+ MasterID + "' AND  BILL_STATUS = 'Y'";
+            //    DataTable dtCk = new DataTable();
+
+            //    link.DBExecSQL(checkSql, ref dtCk);
+            //    if(dtCk.Rows.Count > 0)
+            //    {
+
+            //    }
+            //    else
+            //    {
+            //        // 找出是否有CPR或電擊
+            //        string billCheckSql = "SELECT * FROM EMERGENCYTREATMENT_DETAIL WHERE MASTER_ID = '" + MasterID + "' AND  ITEM_ID = 'InitialTreatment' AND STATUS = 'Y'  ";
+            //        DataTable dtBillCheck = new DataTable();
+
+            //        link.DBExecSQL(billCheckSql, ref dtBillCheck);
+            //        if (dtBillCheck != null && dtBillCheck.Rows.Count > 0)
+            //        {
+            //            double TimeDifference = 0;
+
+            //            if (tempDate != "" && tempTime != "")
+            //            {
+            //                dataTime = tempDate + " " + tempTime;
+            //            }
+
+            //            DateTime recordTime = new DateTime();
+            //            if (dataTime != "")
+            //            {
+            //                recordTime = DateTime.Parse(dataTime);
+
+            //                DateTime saveTime = DateTime.Parse(RecordTime);
+
+            //                if (startRecordTime != "")
+            //                {
+            //                    TimeDifference = (recordTime - saveTime).TotalMinutes;
+            //                }
+            //                else
+            //                {
+            //                    TimeDifference = (saveTime - recordTime).TotalMinutes;
+            //                }
+
+            //                int count = 0;
+
+            //                double trans = 0;
+
+            //                trans = TimeDifference / 10;
+
+            //                // 10分鐘計算1次，最多6次
+            //                if (trans < 1)
+            //                {
+            //                    trans = 1;
+            //                }
+            //                else
+            //                {
+            //                    trans = Math.Ceiling(trans);
+            //                }
+
+            //                count = (int)trans;
+            //                if (trans > 5)
+            //                {
+            //                    count = 6;
+            //                }
+
+            //                // 新增默許
+            //                List<Bill_RECORD> billDataList = new List<Bill_RECORD>();
+            //                Bill_RECORD billData = new Bill_RECORD();
+
+            //                if (dtBillCheck.Rows[0]["ITEM_VALUE"].ToString().Contains("心外按摩"))
+            //                {
+            //                    billData.HO_ID = "8447029";
+            //                    billData.COUNT = count.ToString();
+
+            //                    billDataList.Add(billData);
+            //                }
+
+            //                //if (dtBillCheck.Rows[0]["ITEM_VALUE"].ToString().Contains("電擊"))
+            //                //{
+            //                //    billData = new Bill_RECORD();
+
+            //                //    billData.HO_ID = "8447028";
+            //                //    billData.COUNT = "1";
+
+            //                //    billDataList.Add(billData);
+            //                //}
+
+
+            //                SaveBillingRecord(billDataList, saveTime);
+
+            //                billStatus = true;
+
+            //            }
+
+            //        }
+
+            //        //------------------------------------------------------------------------------------------------
+
+            //        //double TimeDifference = 0;
+
+            //        //if (tempDate != "" && tempTime != "")
+            //        //{
+            //        //    dataTime = tempDate + " " + tempTime;
+            //        //}
+
+            //        //DateTime recordTime = new DateTime();
+            //        //if (dataTime != "")
+            //        //{
+            //        //    recordTime = DateTime.Parse(dataTime);
+
+            //        //    DateTime saveTime = DateTime.Parse(RecordTime);
+
+            //        //    if (startRecordTime != "")
+            //        //    {
+            //        //        TimeDifference = (recordTime - saveTime).TotalMinutes;
+            //        //    }
+            //        //    else
+            //        //    {
+            //        //        TimeDifference = (saveTime - recordTime).TotalMinutes;
+            //        //    }
+
+            //        //    int count = 0;
+
+            //        //    double trans = 0;
+
+            //        //    trans = TimeDifference / 10;
+
+            //        //    // 10分鐘計算1次，最多6次
+            //        //    if (trans < 1)
+            //        //    {
+            //        //        trans = 1;
+            //        //    }
+            //        //    else
+            //        //    {
+            //        //        trans = Math.Ceiling(trans);
+            //        //    }
+
+            //        //    count = (int)trans;
+            //        //    if (trans > 5)
+            //        //    {
+            //        //        count = 6;
+            //        //    }
+
+            //        //    // 新增默許
+            //        //    List<Bill_RECORD> billDataList = new List<Bill_RECORD>();
+
+            //        //    // CPR
+            //        //    Bill_RECORD billData = new Bill_RECORD();
+
+            //        //    billData.HO_ID = "8447029";
+            //        //    billData.COUNT = count.ToString();
+
+            //        //    billDataList.Add(billData);
+
+            //        //    //電擊器計價 新增默許
+            //        //    if (form["InitialTreatment"] != null || form["InitialTreatment"].ToString().Contains("電擊"))
+            //        //    {
+            //        //        billData = new Bill_RECORD();
+
+            //        //        billData.HO_ID = "8447028";
+            //        //        billData.COUNT = "1";
+
+            //        //        billDataList.Add(billData);
+
+            //        //        SaveBillingRecord(billDataList);
+            //        //    }
+
+            //        //    SaveBillingRecord(billDataList, saveTime);
+
+            //        //    billStatus = true;
+
+            //        //}
+            //    }
+            //}
             
             // 急救前和急救後才有
             // 儲存EKG圖片
