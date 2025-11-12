@@ -1551,7 +1551,7 @@ namespace NIS.Controllers
             if (Session["PatInfo"] != null)
             {
                 int LossCount = 0;
-                DataTable dtType = iom.DBExecSQL("SELECT * FROM SYS_PARAMS  WHERE 0 = 0 AND P_GROUP IN ('intaketype','outputtype') AND P_MODEL = 'iotype' ORDER BY P_SORT");
+                DataTable dtType = iom.DBExecSQL("SELECT * FROM SYS_PARAMS  WHERE 0 = 0 AND P_GROUP IN ('intaketype','outputtype') AND P_MODEL = 'iotype' ORDER BY TO_NUMBER(P_VALUE)");
                 ViewBag.dtType = dtType;
                 if (hour == "")
                 {////此區為設定初始值
